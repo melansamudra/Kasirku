@@ -41,6 +41,12 @@ export default async function DashboardPage() {
                   Buka Kasir →
                 </Link>
                 <Link
+                  href={`/business/${b.id}/products`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Kelola Produk
+                </Link>
+                <Link
                   href={`/business/${b.id}/cashiers`}
                   className="text-xs font-medium text-zinc-500 hover:underline"
                 >

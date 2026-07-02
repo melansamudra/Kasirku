@@ -1,0 +1,79 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { addProduct } from "./actions";
+import AddProductForm from "./add-product-form";
+
+export default async function ProductsPage({
+  params,
+}: {
+  params: Promise<{ businessId: string }>;
+}) {
+  const { businessId } = await params;
+  const supabase = await createClient();
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("id, name")
+    .eq("id", businessId)
+    .single();
+
+  if (!business) {
+    notFound();
+  }
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, name, category, price, cost, stock, emoji")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  const boundAddProduct = addProduct.bind(null, businessId);
+
+  return (
+    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-10">
+      <div className="w-full max-w-sm">
+        <Link href="/dashboard" className="text-xs font-medium text-zinc-500 hover:underline">
+          ← Kembali ke dashboard
+        </Link>
+
+        <h1 className="mt-3 text-lg font-bold text-zinc-900">Produk — {business.name}</h1>
+        <p className="mt-1 text-sm text-zinc-500">Daftar produk yang bisa dijual di kasir.</p>
+
+        <div className="mt-6 space-y-2">
+          {products && products.length > 0 ? (
+            products.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg">
+                  {p.emoji || "📦"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {p.category || "Tanpa kategori"} · Stok {p.stock}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-zinc-900">
+                  Rp{Number(p.price).toLocaleString("id-ID")}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+              Belum ada produk. Tambahkan minimal satu supaya bisa mulai jualan.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+          <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Produk</h2>
+          <AddProductForm action={boundAddProduct} />
+        </div>
+      </div>
+    </div>
+  );
+}
