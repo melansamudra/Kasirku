@@ -84,3 +84,61 @@ export async function checkout(
   const result = data as CheckoutRpcRow;
   return { success: true, invoiceNumber: result.invoice_number };
 }
+
+export type OpenShiftResult = { success: true } | { success: false; error: string };
+
+export async function openShift(
+  businessId: string,
+  cashierId: string,
+  openingCash: number,
+  notes: string,
+): Promise<OpenShiftResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("open_shift", {
+    p_business_id: businessId,
+    p_cashier_id: cashierId,
+    p_opening_cash: openingCash,
+    p_notes: notes || null,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+export type CloseShiftSummary = {
+  cash_sales: number;
+  non_cash_sales: number;
+  total_sales: number;
+  expected_cash: number;
+  difference: number;
+  tx_count: number;
+  void_count: number;
+};
+
+export type CloseShiftResult =
+  | { success: true; summary: CloseShiftSummary }
+  | { success: false; error: string };
+
+export async function closeShift(
+  shiftId: string,
+  closingCash: number,
+  closeNotes: string,
+): Promise<CloseShiftResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("close_shift", {
+      p_shift_id: shiftId,
+      p_closing_cash: closingCash,
+      p_close_notes: closeNotes || null,
+    })
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Gagal menutup shift." };
+  }
+
+  return { success: true, summary: data as CloseShiftSummary };
+}

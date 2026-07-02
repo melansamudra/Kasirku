@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { checkout } from "./actions";
+import { checkout, closeShift, type CloseShiftSummary } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 
 type Product = {
@@ -34,12 +34,14 @@ export default function PosScreen({
   businessName,
   cashierId,
   cashierName,
+  shiftId,
   products,
 }: {
   businessId: string;
   businessName: string;
   cashierId: string;
   cashierName: string;
+  shiftId: string;
   products: Product[];
 }) {
   const router = useRouter();
@@ -51,6 +53,13 @@ export default function PosScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
+
+  const [closingShift, setClosingShift] = useState(false);
+  const [closingCash, setClosingCash] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
+  const [closeError, setCloseError] = useState<string | null>(null);
+  const [closeSubmitting, setCloseSubmitting] = useState(false);
+  const [closedSummary, setClosedSummary] = useState<CloseShiftSummary | null>(null);
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -124,6 +133,27 @@ export default function PosScreen({
     setReceived("");
   }
 
+  async function handleConfirmCloseShift() {
+    setCloseError(null);
+
+    const amount = Number(closingCash);
+    if (!closingCash || Number.isNaN(amount) || amount < 0) {
+      setCloseError("Jumlah kas harus angka dan tidak boleh negatif.");
+      return;
+    }
+
+    setCloseSubmitting(true);
+    const result = await closeShift(shiftId, amount, closeNotes);
+    setCloseSubmitting(false);
+
+    if (!result.success) {
+      setCloseError(result.error);
+      return;
+    }
+
+    setClosedSummary(result.summary);
+  }
+
   if (successInvoice) {
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
@@ -142,6 +172,124 @@ export default function PosScreen({
           >
             Transaksi Baru
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (closedSummary) {
+    const diff = closedSummary.difference;
+    return (
+      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
+          <h1 className="text-center text-lg font-bold text-zinc-900">Shift Ditutup</h1>
+          <div className="mt-4 space-y-2 text-sm">
+            <div className="flex justify-between text-zinc-600">
+              <span>Total Penjualan</span>
+              <span className="font-medium text-zinc-900">
+                {formatRupiah(closedSummary.total_sales)}
+              </span>
+            </div>
+            <div className="flex justify-between text-zinc-600">
+              <span>Penjualan Tunai</span>
+              <span className="font-medium text-zinc-900">
+                {formatRupiah(closedSummary.cash_sales)}
+              </span>
+            </div>
+            <div className="flex justify-between text-zinc-600">
+              <span>Penjualan Non-Tunai</span>
+              <span className="font-medium text-zinc-900">
+                {formatRupiah(closedSummary.non_cash_sales)}
+              </span>
+            </div>
+            <div className="flex justify-between text-zinc-600">
+              <span>Jumlah Transaksi</span>
+              <span className="font-medium text-zinc-900">{closedSummary.tx_count}</span>
+            </div>
+            <div className="flex justify-between border-t border-zinc-100 pt-2 text-zinc-600">
+              <span>Kas Diharapkan</span>
+              <span className="font-medium text-zinc-900">
+                {formatRupiah(closedSummary.expected_cash)}
+              </span>
+            </div>
+            <div className="flex justify-between font-semibold">
+              <span className={diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}>
+                Selisih
+              </span>
+              <span className={diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}>
+                {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => router.refresh()}
+            className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            Selesai
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (closingShift) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
+          <h1 className="text-lg font-bold text-zinc-900">Tutup Shift</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Hitung uang tunai di laci, lalu masukkan jumlahnya.
+          </p>
+
+          <div className="mt-4 space-y-4">
+            <div>
+              <label htmlFor="closingCash" className="mb-1 block text-xs font-medium text-zinc-600">
+                Kas di Laci Sekarang (Rp)
+              </label>
+              <input
+                id="closingCash"
+                type="number"
+                min="0"
+                value={closingCash}
+                onChange={(e) => setClosingCash(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                placeholder="mis. 750000"
+              />
+            </div>
+            <div>
+              <label htmlFor="closeNotes" className="mb-1 block text-xs font-medium text-zinc-600">
+                Catatan (opsional)
+              </label>
+              <input
+                id="closeNotes"
+                type="text"
+                value={closeNotes}
+                onChange={(e) => setCloseNotes(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+
+            {closeError && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{closeError}</p>
+            )}
+
+            <button
+              onClick={handleConfirmCloseShift}
+              disabled={closeSubmitting}
+              className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {closeSubmitting ? "Memproses…" : "Tutup Shift"}
+            </button>
+            <button
+              onClick={() => {
+                setClosingShift(false);
+                setCloseError(null);
+              }}
+              className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
+            >
+              Batal
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -267,6 +415,12 @@ export default function PosScreen({
                 className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Bayar
+              </button>
+              <button
+                onClick={() => setClosingShift(true)}
+                className="mt-2 w-full rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
+              >
+                Tutup Shift
               </button>
               <SwitchCashierButton />
             </>

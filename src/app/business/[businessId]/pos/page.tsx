@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCashierSession } from "@/lib/cashier-session";
 import PinScreen from "./pin-screen";
+import OpenShiftScreen from "./open-shift-screen";
 import PosScreen from "./pos-screen";
 
 export default async function PosPage({
@@ -41,6 +42,24 @@ export default async function PosPage({
     );
   }
 
+  const { data: activeShift } = await supabase
+    .from("shifts")
+    .select("id, opening_cash, opened_at")
+    .eq("business_id", businessId)
+    .is("closed_at", null)
+    .maybeSingle();
+
+  if (!activeShift) {
+    return (
+      <OpenShiftScreen
+        businessId={businessId}
+        businessName={business.name}
+        cashierId={session.cashierId}
+        cashierName={session.name}
+      />
+    );
+  }
+
   const { data: products } = await supabase
     .from("products")
     .select("id, name, category, price, cost, stock, emoji")
@@ -54,6 +73,7 @@ export default async function PosPage({
       businessName={business.name}
       cashierId={session.cashierId}
       cashierName={session.name}
+      shiftId={activeShift.id}
       products={products ?? []}
     />
   );
