@@ -1,0 +1,127 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+function formatRupiah(value: number) {
+  return `Rp${value.toLocaleString("id-ID")}`;
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("id-ID", {
+    dateStyle: "long",
+    timeStyle: "short",
+  });
+}
+
+export default async function TransactionDetailPage({
+  params,
+}: {
+  params: Promise<{ businessId: string; transactionId: string }>;
+}) {
+  const { businessId, transactionId } = await params;
+  const supabase = await createClient();
+
+  const { data: transaction } = await supabase
+    .from("transactions")
+    .select(
+      "id, invoice_number, date, subtotal, total, total_cost, gross_profit, voided, cashiers!transactions_cashier_id_fkey(name)",
+    )
+    .eq("id", transactionId)
+    .eq("business_id", businessId)
+    .single();
+
+  if (!transaction) {
+    notFound();
+  }
+
+  const { data: items } = await supabase
+    .from("transaction_items")
+    .select("id, name, category, price, qty")
+    .eq("transaction_id", transactionId)
+    .order("id", { ascending: true });
+
+  const { data: payments } = await supabase
+    .from("transaction_payments")
+    .select("id, method, amount, received, change")
+    .eq("transaction_id", transactionId);
+
+  return (
+    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-10">
+      <div className="w-full max-w-sm">
+        <Link
+          href={`/business/${businessId}/transactions`}
+          className="text-xs font-medium text-zinc-500 hover:underline"
+        >
+          ← Kembali ke riwayat
+        </Link>
+
+        <div className="mt-3 flex items-center justify-between">
+          <h1 className="text-lg font-bold text-zinc-900">{transaction.invoice_number}</h1>
+          {transaction.voided && (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
+              Dibatalkan
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-sm text-zinc-500">{formatDateTime(transaction.date)}</p>
+        <p className="text-xs text-zinc-400">
+          Kasir: {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
+        </p>
+
+        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-900">Item</h2>
+          <div className="space-y-2">
+            {items?.map((item) => (
+              <div key={item.id} className="flex items-center justify-between text-sm">
+                <div>
+                  <p className="text-zinc-900">{item.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {item.qty} × {formatRupiah(Number(item.price))}
+                  </p>
+                </div>
+                <p className="font-medium text-zinc-900">
+                  {formatRupiah(Number(item.price) * Number(item.qty))}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-1 border-t border-zinc-100 pt-3 text-sm">
+            <div className="flex justify-between text-zinc-600">
+              <span>Subtotal</span>
+              <span>{formatRupiah(Number(transaction.subtotal))}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-zinc-900">
+              <span>Total</span>
+              <span>{formatRupiah(Number(transaction.total))}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-900">Pembayaran</h2>
+          {payments?.map((p) => (
+            <div key={p.id} className="space-y-1 text-sm">
+              <div className="flex justify-between text-zinc-600">
+                <span>Metode</span>
+                <span className="font-medium text-zinc-900">{p.method}</span>
+              </div>
+              {p.received !== null && (
+                <div className="flex justify-between text-zinc-600">
+                  <span>Diterima</span>
+                  <span>{formatRupiah(Number(p.received))}</span>
+                </div>
+              )}
+              {p.change !== null && Number(p.change) > 0 && (
+                <div className="flex justify-between text-zinc-600">
+                  <span>Kembalian</span>
+                  <span>{formatRupiah(Number(p.change))}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

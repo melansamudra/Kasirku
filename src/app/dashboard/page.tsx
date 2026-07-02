@@ -33,12 +33,18 @@ export default async function DashboardPage() {
               <p className="text-xs text-zinc-500">
                 {b.business_type === "fnb" ? "🍽️ Restoran / Kafe / F&B" : "🛒 Retail / Toko"}
               </p>
-              <div className="mt-3 flex gap-4">
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
                 <Link
                   href={`/business/${b.id}/pos`}
                   className="text-xs font-medium text-brand-600 hover:underline"
                 >
                   Buka Kasir →
+                </Link>
+                <Link
+                  href={`/business/${b.id}/transactions`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Riwayat Transaksi
                 </Link>
                 <Link
                   href={`/business/${b.id}/products`}
