@@ -46,3 +46,41 @@ export async function verifyPin(
 export async function switchCashier() {
   await clearCashierSession();
 }
+
+export type CartItemInput = { productId: string; qty: number };
+
+export type CheckoutResult =
+  | { success: true; invoiceNumber: string }
+  | { success: false; error: string };
+
+type CheckoutRpcRow = { transaction_id: string; invoice_number: string };
+
+export async function checkout(
+  businessId: string,
+  cashierId: string,
+  items: CartItemInput[],
+  paymentMethod: string,
+  received: number | null,
+): Promise<CheckoutResult> {
+  if (items.length === 0) {
+    return { success: false, error: "Keranjang masih kosong." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("checkout_transaction", {
+      p_business_id: businessId,
+      p_cashier_id: cashierId,
+      p_items: items.map((i) => ({ product_id: i.productId, qty: i.qty })),
+      p_payment_method: paymentMethod,
+      p_received: received,
+    })
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Gagal memproses transaksi." };
+  }
+
+  const result = data as CheckoutRpcRow;
+  return { success: true, invoiceNumber: result.invoice_number };
+}

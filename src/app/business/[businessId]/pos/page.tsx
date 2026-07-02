@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCashierSession } from "@/lib/cashier-session";
 import PinScreen from "./pin-screen";
-import SwitchCashierButton from "./switch-cashier-button";
+import PosScreen from "./pos-screen";
 
 export default async function PosPage({
   params,
@@ -41,18 +41,20 @@ export default async function PosPage({
     );
   }
 
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, name, category, price, cost, stock, emoji")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center">
-        <h1 className="text-lg font-bold text-zinc-900">Halo, {session.name} 👋</h1>
-        <p className="mt-1 text-xs text-zinc-500">
-          {session.role === "manajer" ? "Manajer" : "Kasir"} — {business.name}
-        </p>
-        <p className="mt-4 text-xs text-zinc-400">
-          Layar jual-beli (produk, keranjang, checkout) masih tahap berikutnya.
-        </p>
-        <SwitchCashierButton />
-      </div>
-    </div>
+    <PosScreen
+      businessId={businessId}
+      businessName={business.name}
+      cashierId={session.cashierId}
+      cashierName={session.name}
+      products={products ?? []}
+    />
   );
 }
