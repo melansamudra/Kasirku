@@ -52,6 +52,14 @@ export default async function DashboardPage() {
                 >
                   Kelola Produk
                 </Link>
+                {b.business_type === "fnb" && (
+                  <Link
+                    href={`/business/${b.id}/ingredients`}
+                    className="text-xs font-medium text-zinc-500 hover:underline"
+                  >
+                    Bahan Baku
+                  </Link>
+                )}
                 <Link
                   href={`/business/${b.id}/cashiers`}
                   className="text-xs font-medium text-zinc-500 hover:underline"

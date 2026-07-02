@@ -56,6 +56,12 @@ export default async function ProductsPage({
                   <p className="text-xs text-zinc-500">
                     {p.category || "Tanpa kategori"} · Stok {p.stock}
                   </p>
+                  <Link
+                    href={`/business/${businessId}/products/${p.id}/recipe`}
+                    className="text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    Resep / HPP
+                  </Link>
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-zinc-900">
                   Rp{Number(p.price).toLocaleString("id-ID")}
