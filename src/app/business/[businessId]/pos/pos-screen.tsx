@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { checkout, closeShift, type CloseShiftSummary } from "./actions";
+import {
+  checkout,
+  closeShift,
+  updateSelfOrderStatus,
+  type CloseShiftSummary,
+} from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 
 type Product = {
@@ -23,6 +28,20 @@ type CartItem = {
   maxStock: number;
 };
 
+type SelfOrder = {
+  id: string;
+  status: "baru" | "diproses";
+  createdAt: string;
+  tableName: string;
+  items: {
+    productId: string | null;
+    name: string;
+    qty: number;
+    price: number;
+    note: string | null;
+  }[];
+};
+
 const PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
 
 function formatRupiah(value: number) {
@@ -36,6 +55,8 @@ export default function PosScreen({
   cashierName,
   shiftId,
   products,
+  isFnb,
+  selfOrders,
 }: {
   businessId: string;
   businessName: string;
@@ -43,10 +64,26 @@ export default function PosScreen({
   cashierName: string;
   shiftId: string;
   products: Product[];
+  isFnb: boolean;
+  selfOrders: SelfOrder[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [inboxNotice, setInboxNotice] = useState<string | null>(null);
+  const [orderBusyId, setOrderBusyId] = useState<string | null>(null);
+
+  const newOrderCount = selfOrders.filter((o) => o.status === "baru").length;
+
+  // Order self-order masuk dari perangkat pelanggan; poll supaya badge kasir
+  // ikut terbarui tanpa reload manual. router.refresh() mempertahankan state
+  // client (keranjang tidak hilang).
+  useEffect(() => {
+    if (!isFnb) return;
+    const interval = setInterval(() => router.refresh(), 15000);
+    return () => clearInterval(interval);
+  }, [isFnb, router]);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [received, setReceived] = useState("");
@@ -102,6 +139,55 @@ export default function PosScreen({
 
   function removeFromCart(productId: string) {
     setCart((prev) => prev.filter((i) => i.productId !== productId));
+  }
+
+  async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
+    setOrderBusyId(orderId);
+    await updateSelfOrderStatus(businessId, orderId, status);
+    setOrderBusyId(null);
+    router.refresh();
+  }
+
+  async function handleAddOrderToCart(order: SelfOrder) {
+    const next = cart.map((c) => ({ ...c }));
+    const skipped: string[] = [];
+
+    for (const item of order.items) {
+      const product = item.productId
+        ? products.find((p) => p.id === item.productId)
+        : undefined;
+      if (!product) {
+        skipped.push(item.name);
+        continue;
+      }
+      const existing = next.find((c) => c.productId === product.id);
+      const currentQty = existing ? existing.qty : 0;
+      const addQty = Math.min(item.qty, product.stock - currentQty);
+      if (addQty <= 0) {
+        skipped.push(item.name);
+        continue;
+      }
+      if (existing) {
+        existing.qty += addQty;
+      } else {
+        next.push({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          qty: addQty,
+          maxStock: product.stock,
+        });
+      }
+    }
+
+    setCart(next);
+    setInboxNotice(
+      skipped.length > 0
+        ? `Tidak masuk keranjang (stok habis / produk terhapus): ${skipped.join(", ")}`
+        : null,
+    );
+    setInboxOpen(false);
+    await handleOrderStatus(order.id, "diproses");
   }
 
   async function handleConfirmPayment() {
@@ -307,6 +393,19 @@ export default function PosScreen({
             placeholder="Cari produk…"
             className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
+          {isFnb && (
+            <button
+              onClick={() => setInboxOpen(true)}
+              className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              🛎️ <span className="hidden sm:inline">Order</span>
+              {newOrderCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {newOrderCount}
+                </span>
+              )}
+            </button>
+          )}
           <div className="text-right">
             <p className="text-xs font-semibold text-zinc-700">{cashierName}</p>
             <p className="text-[10px] text-zinc-400">{businessName}</p>
@@ -359,6 +458,17 @@ export default function PosScreen({
       <div className="flex w-full flex-col border-t border-zinc-200 bg-white lg:w-80 lg:border-l lg:border-t-0">
         <div className="flex-1 overflow-y-auto p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">Keranjang</h2>
+          {inboxNotice && (
+            <div className="mb-3 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <span>{inboxNotice}</span>
+              <button
+                onClick={() => setInboxNotice(null)}
+                className="shrink-0 font-bold hover:text-amber-900"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {cart.length === 0 ? (
             <p className="text-xs text-zinc-400">Belum ada item. Klik produk untuk menambah.</p>
           ) : (
@@ -488,6 +598,123 @@ export default function PosScreen({
           )}
         </div>
       </div>
+
+      {/* Self-order inbox */}
+      {inboxOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setInboxOpen(false)}
+          />
+          <div className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h2 className="text-sm font-bold text-zinc-900">🛎️ Order Masuk</h2>
+              <button
+                onClick={() => setInboxOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {selfOrders.length === 0 ? (
+                <p className="py-12 text-center text-xs text-zinc-400">
+                  Belum ada order dari meja.
+                </p>
+              ) : (
+                selfOrders.map((o) => {
+                  const total = o.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+                  const busy = orderBusyId === o.id;
+                  const isNew = o.status === "baru";
+                  return (
+                    <div
+                      key={o.id}
+                      className={`rounded-xl border-2 p-3.5 ${
+                        isNew ? "border-amber-300 bg-amber-50" : "border-sky-200 bg-sky-50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-zinc-800">🪑 {o.tableName}</p>
+                          <p className="text-[11px] text-zinc-400">
+                            Masuk{" "}
+                            {new Date(o.createdAt).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            isNew ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"
+                          }`}
+                        >
+                          {isNew ? "Baru" : "Diproses"}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 space-y-1">
+                        {o.items.map((item, idx) => (
+                          <div key={idx} className="text-xs text-zinc-700">
+                            <div className="flex justify-between">
+                              <span>
+                                <span className="font-bold">{item.qty}×</span> {item.name}
+                              </span>
+                              <span className="tabular-nums text-zinc-500">
+                                {formatRupiah(item.price * item.qty)}
+                              </span>
+                            </div>
+                            {item.note && (
+                              <p className="pl-4 text-[11px] font-medium text-amber-600">
+                                📝 {item.note}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between border-t border-zinc-200/60 pt-2">
+                        <p className="text-xs font-bold text-zinc-800 tabular-nums">
+                          Total {formatRupiah(total)}
+                        </p>
+                        <div className="flex gap-1.5">
+                          {isNew ? (
+                            <>
+                              <button
+                                onClick={() => handleOrderStatus(o.id, "diproses")}
+                                disabled={busy}
+                                className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                              >
+                                Proses
+                              </button>
+                              <button
+                                onClick={() => handleAddOrderToCart(o)}
+                                disabled={busy}
+                                className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+                              >
+                                + Ke Kasir
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleOrderStatus(o.id, "selesai")}
+                              disabled={busy}
+                              className="rounded-lg bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              ✓ Selesai
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

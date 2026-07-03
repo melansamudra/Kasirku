@@ -15,7 +15,7 @@ export default async function PosPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, business_type")
     .eq("id", businessId)
     .single();
 
@@ -67,6 +67,21 @@ export default async function PosPage({
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
+  const isFnb = business.business_type === "fnb";
+
+  let selfOrders: SelfOrderRow[] = [];
+  if (isFnb) {
+    const { data: orderRows } = await supabase
+      .from("self_orders")
+      .select(
+        "id, status, created_at, tables(name), self_order_items(product_id, name, qty, price, note)",
+      )
+      .eq("business_id", businessId)
+      .neq("status", "selesai")
+      .order("created_at", { ascending: true });
+    selfOrders = (orderRows ?? []) as unknown as SelfOrderRow[];
+  }
+
   return (
     <PosScreen
       businessId={businessId}
@@ -75,6 +90,34 @@ export default async function PosPage({
       cashierName={session.name}
       shiftId={activeShift.id}
       products={products ?? []}
+      isFnb={isFnb}
+      selfOrders={selfOrders.map((o) => ({
+        id: o.id,
+        status: o.status,
+        createdAt: o.created_at,
+        tableName: o.tables?.name ?? "Meja terhapus",
+        items: o.self_order_items.map((i) => ({
+          productId: i.product_id,
+          name: i.name,
+          qty: i.qty,
+          price: i.price,
+          note: i.note,
+        })),
+      }))}
     />
   );
 }
+
+type SelfOrderRow = {
+  id: string;
+  status: "baru" | "diproses";
+  created_at: string;
+  tables: { name: string } | null;
+  self_order_items: {
+    product_id: string | null;
+    name: string;
+    qty: number;
+    price: number;
+    note: string | null;
+  }[];
+};

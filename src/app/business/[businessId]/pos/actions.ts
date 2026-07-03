@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
 import { logActivity } from "@/lib/activity-log";
@@ -169,4 +170,36 @@ export async function closeShift(
     `Penjualan Rp${summary.total_sales.toLocaleString("id-ID")} · ${summary.tx_count} transaksi · selisih Rp${summary.difference.toLocaleString("id-ID")}`,
   );
   return { success: true, summary };
+}
+
+export async function updateSelfOrderStatus(
+  businessId: string,
+  orderId: string,
+  status: "diproses" | "selesai",
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("self_orders")
+    .update({ status })
+    .eq("id", orderId)
+    .eq("business_id", businessId)
+    .select("tables(name)")
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  const tableName =
+    (data as unknown as { tables: { name: string } | null }).tables?.name ?? "Meja terhapus";
+  await logActivity(
+    supabase,
+    businessId,
+    "transaksi",
+    "info",
+    `Pesanan ${tableName} → ${status}`,
+  );
+  revalidatePath(`/business/${businessId}/pos`);
+  revalidatePath(`/business/${businessId}/tables`);
+  return { success: true };
 }
