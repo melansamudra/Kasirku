@@ -31,10 +31,13 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const publicPaths = ["/login", "/signup"];
-  const isPublicPath = publicPaths.some((path) =>
+  const authPages = ["/login", "/signup"];
+  const isAuthPage = authPages.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );
+  // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
+  const isPublicPath =
+    isAuthPage || request.nextUrl.pathname.startsWith("/order");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
@@ -42,7 +45,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isPublicPath) {
+  if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
