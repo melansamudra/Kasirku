@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   checkout,
   closeShift,
+  deleteOpenBill,
+  saveOpenBill,
   updateSelfOrderStatus,
   type CloseShiftSummary,
   type DiscountType,
@@ -52,6 +54,20 @@ type SelfOrder = {
   }[];
 };
 
+type OpenBill = {
+  id: string;
+  label: string;
+  updated_at: string;
+  items: {
+    product_id: string;
+    name: string;
+    price: number;
+    qty: number;
+    disc: number;
+    disc_type: DiscountType;
+  }[];
+};
+
 const PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
 
 function formatRupiah(value: number) {
@@ -67,6 +83,7 @@ export default function PosScreen({
   products,
   taxRate,
   serviceRate,
+  openBills,
   isFnb,
   selfOrders,
 }: {
@@ -78,6 +95,7 @@ export default function PosScreen({
   products: Product[];
   taxRate: number;
   serviceRate: number;
+  openBills: OpenBill[];
   isFnb: boolean;
   selfOrders: SelfOrder[];
 }) {
@@ -91,6 +109,13 @@ export default function PosScreen({
   const [orderDisc, setOrderDisc] = useState(0);
   const [orderDiscType, setOrderDiscType] = useState<DiscountType>("pct");
   const [orderDiscOpen, setOrderDiscOpen] = useState(false);
+  const [billsOpen, setBillsOpen] = useState(false);
+  const [billBusyId, setBillBusyId] = useState<string | null>(null);
+  const [activeBill, setActiveBill] = useState<{ id: string; label: string } | null>(null);
+  const [saveBonOpen, setSaveBonOpen] = useState(false);
+  const [bonLabel, setBonLabel] = useState("");
+  const [bonError, setBonError] = useState<string | null>(null);
+  const [bonSaving, setBonSaving] = useState(false);
 
   const newOrderCount = selfOrders.filter((o) => o.status === "baru").length;
 
@@ -186,6 +211,96 @@ export default function PosScreen({
     setCart((prev) => prev.filter((i) => i.productId !== productId));
   }
 
+  async function handleSaveBon() {
+    setBonError(null);
+    setBonSaving(true);
+    const result = await saveOpenBill(
+      businessId,
+      activeBill?.id ?? null,
+      bonLabel,
+      cart.map((i) => ({
+        product_id: i.productId,
+        name: i.name,
+        price: i.price,
+        qty: i.qty,
+        disc: i.disc,
+        disc_type: i.discType,
+      })),
+    );
+    setBonSaving(false);
+
+    if (!result.success) {
+      setBonError(result.error);
+      return;
+    }
+
+    setCart([]);
+    setOrderDisc(0);
+    setOrderDiscType("pct");
+    setActiveBill(null);
+    setSaveBonOpen(false);
+    setBonLabel("");
+    router.refresh();
+  }
+
+  function handleLoadBill(bill: OpenBill) {
+    if (
+      cart.length > 0 &&
+      !window.confirm(`Keranjang aktif akan digabung dengan "${bill.label}". Lanjutkan?`)
+    ) {
+      return;
+    }
+
+    const next = cart.map((c) => ({ ...c }));
+    const skipped: string[] = [];
+
+    for (const item of bill.items) {
+      const product = products.find((p) => p.id === item.product_id);
+      if (!product) {
+        skipped.push(item.name);
+        continue;
+      }
+      const existing = next.find((c) => c.productId === product.id);
+      const currentQty = existing ? existing.qty : 0;
+      const addQty = Math.min(item.qty, product.stock - currentQty);
+      if (addQty <= 0) {
+        skipped.push(item.name);
+        continue;
+      }
+      if (existing) {
+        existing.qty += addQty;
+      } else {
+        next.push({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          qty: addQty,
+          maxStock: product.stock,
+          disc: item.disc,
+          discType: item.disc_type,
+        });
+      }
+    }
+
+    setCart(next);
+    setActiveBill({ id: bill.id, label: bill.label });
+    setInboxNotice(
+      skipped.length > 0
+        ? `Tidak masuk keranjang (stok habis / produk terhapus): ${skipped.join(", ")}`
+        : null,
+    );
+    setBillsOpen(false);
+  }
+
+  async function handleDeleteBill(bill: OpenBill) {
+    if (!window.confirm(`Hapus open bill "${bill.label}"?`)) return;
+    setBillBusyId(bill.id);
+    await deleteOpenBill(businessId, bill.id);
+    setBillBusyId(null);
+    if (activeBill?.id === bill.id) setActiveBill(null);
+    router.refresh();
+  }
+
   async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
     setOrderBusyId(orderId);
     await updateSelfOrderStatus(businessId, orderId, status);
@@ -265,6 +380,12 @@ export default function PosScreen({
     if (!result.success) {
       setError(result.error);
       return;
+    }
+
+    // Bon yang dimuat sudah dibayar — bereskan dari daftar.
+    if (activeBill) {
+      await deleteOpenBill(businessId, activeBill.id);
+      setActiveBill(null);
     }
 
     setSuccessInvoice(result.invoiceNumber);
@@ -451,6 +572,17 @@ export default function PosScreen({
             placeholder="Cari produk…"
             className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
+          <button
+            onClick={() => setBillsOpen(true)}
+            className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            🧾 <span className="hidden sm:inline">Bon</span>
+            {openBills.length > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                {openBills.length}
+              </span>
+            )}
+          </button>
           {isFnb && (
             <button
               onClick={() => setInboxOpen(true)}
@@ -515,7 +647,14 @@ export default function PosScreen({
       {/* Cart */}
       <div className="flex w-full flex-col border-t border-zinc-200 bg-white lg:w-80 lg:border-l lg:border-t-0">
         <div className="flex-1 overflow-y-auto p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-900">Keranjang</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-900">Keranjang</h2>
+            {activeBill && (
+              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+                🧾 {activeBill.label}
+              </span>
+            )}
+          </div>
           {inboxNotice && (
             <div className="mb-3 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
               <span>{inboxNotice}</span>
@@ -748,6 +887,55 @@ export default function PosScreen({
               >
                 Bayar
               </button>
+              {!saveBonOpen ? (
+                <button
+                  onClick={() => {
+                    setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
+                    setBonError(null);
+                    setSaveBonOpen(true);
+                  }}
+                  disabled={cart.length === 0}
+                  className="mt-2 w-full rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  🧾 Simpan Bon
+                </button>
+              ) : (
+                <div className="mt-2 space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
+                  <label
+                    htmlFor="bonLabel"
+                    className="block text-xs font-medium text-zinc-600"
+                  >
+                    Nama bon (mis. nama meja / pelanggan)
+                  </label>
+                  <input
+                    id="bonLabel"
+                    type="text"
+                    value={bonLabel}
+                    onChange={(e) => setBonLabel(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  />
+                  {bonError && (
+                    <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                      {bonError}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSaveBonOpen(false)}
+                      className="flex-1 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleSaveBon}
+                      disabled={bonSaving}
+                      className="flex-1 rounded-xl bg-brand-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+                    >
+                      {bonSaving ? "Menyimpan…" : "Simpan"}
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => setClosingShift(true)}
                 className="mt-2 w-full rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
@@ -820,6 +1008,108 @@ export default function PosScreen({
           )}
         </div>
       </div>
+
+      {/* Open bills */}
+      {billsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setBillsOpen(false)}
+          />
+          <div className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h2 className="text-sm font-bold text-zinc-900">🧾 Open Bill</h2>
+              <button
+                onClick={() => setBillsOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {openBills.length === 0 ? (
+                <p className="py-12 text-center text-xs text-zinc-400">
+                  Belum ada bon tersimpan. Isi keranjang lalu klik Simpan Bon.
+                </p>
+              ) : (
+                openBills.map((bill) => {
+                  const billAfterDisc = bill.items.reduce((sum, i) => {
+                    const gross = i.price * i.qty;
+                    const disc =
+                      i.disc_type === "pct"
+                        ? Math.round((gross * i.disc) / 100)
+                        : Math.min(i.disc * i.qty, gross);
+                    return sum + gross - disc;
+                  }, 0);
+                  const billService = Math.round((billAfterDisc * serviceRate) / 100);
+                  const billTax = Math.round(
+                    ((billAfterDisc + billService) * taxRate) / 100,
+                  );
+                  const billTotal = billAfterDisc + billService + billTax;
+                  const itemCount = bill.items.reduce((s, i) => s + i.qty, 0);
+                  const preview =
+                    bill.items
+                      .slice(0, 2)
+                      .map((i) => i.name)
+                      .join(", ") +
+                    (bill.items.length > 2 ? ` +${bill.items.length - 2}` : "");
+                  const busy = billBusyId === bill.id;
+                  const isLoaded = activeBill?.id === bill.id;
+                  return (
+                    <div
+                      key={bill.id}
+                      className={`rounded-xl border-2 p-3.5 ${
+                        isLoaded ? "border-brand-300 bg-brand-50" : "border-brand-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-zinc-800">
+                            🧾 {bill.label}
+                            {isLoaded && (
+                              <span className="ml-1.5 text-[10px] font-semibold text-brand-700">
+                                · sedang dimuat
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-zinc-400">
+                            {new Date(bill.updated_at).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            · {itemCount} item
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-bold text-brand-700 tabular-nums">
+                          {formatRupiah(billTotal)}
+                        </p>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">{preview}</p>
+                      <div className="mt-2 flex justify-end gap-1.5 border-t border-zinc-100 pt-2">
+                        <button
+                          onClick={() => handleDeleteBill(bill)}
+                          disabled={busy}
+                          className="rounded-lg px-3 py-1.5 text-[11px] font-bold text-red-500 ring-1 ring-red-200 transition-colors hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Hapus
+                        </button>
+                        <button
+                          onClick={() => handleLoadBill(bill)}
+                          disabled={busy || isLoaded}
+                          className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+                        >
+                          {isLoaded ? "Dimuat" : "Muat ke Keranjang"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Self-order inbox */}
       {inboxOpen && (

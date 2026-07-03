@@ -188,6 +188,76 @@ export async function closeShift(
   return { success: true, summary };
 }
 
+export type OpenBillItemInput = {
+  product_id: string;
+  name: string;
+  price: number;
+  qty: number;
+  disc: number;
+  disc_type: DiscountType;
+};
+
+export type SaveOpenBillResult =
+  | { success: true; billId: string }
+  | { success: false; error: string };
+
+export async function saveOpenBill(
+  businessId: string,
+  billId: string | null,
+  label: string,
+  items: OpenBillItemInput[],
+): Promise<SaveOpenBillResult> {
+  const trimmed = label.trim();
+  if (!trimmed) {
+    return { success: false, error: "Nama bon wajib diisi." };
+  }
+  if (items.length === 0) {
+    return { success: false, error: "Keranjang masih kosong." };
+  }
+
+  const supabase = await createClient();
+
+  if (billId) {
+    const { error } = await supabase
+      .from("open_bills")
+      .update({ label: trimmed, items, updated_at: new Date().toISOString() })
+      .eq("id", billId)
+      .eq("business_id", businessId);
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    revalidatePath(`/business/${businessId}/pos`);
+    return { success: true, billId };
+  }
+
+  const { data, error } = await supabase
+    .from("open_bills")
+    .insert({ business_id: businessId, label: trimmed, items })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Gagal menyimpan bon." };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "transaksi",
+    "info",
+    `Open Bill dibuat: ${trimmed}`,
+    `${items.length} jenis item`,
+  );
+  revalidatePath(`/business/${businessId}/pos`);
+  return { success: true, billId: data.id };
+}
+
+export async function deleteOpenBill(businessId: string, billId: string) {
+  const supabase = await createClient();
+  await supabase.from("open_bills").delete().eq("id", billId).eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/pos`);
+}
+
 export async function updateSelfOrderStatus(
   businessId: string,
   orderId: string,

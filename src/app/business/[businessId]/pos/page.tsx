@@ -71,6 +71,12 @@ export default async function PosPage({
 
   const isFnb = business.business_type === "fnb";
 
+  const { data: openBillRows } = await supabase
+    .from("open_bills")
+    .select("id, label, items, updated_at")
+    .eq("business_id", businessId)
+    .order("updated_at", { ascending: false });
+
   let selfOrders: SelfOrderRow[] = [];
   if (isFnb) {
     const { data: orderRows } = await supabase
@@ -94,6 +100,7 @@ export default async function PosPage({
       products={products ?? []}
       taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
       serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
+      openBills={(openBillRows ?? []) as unknown as OpenBillRow[]}
       isFnb={isFnb}
       selfOrders={selfOrders.map((o) => ({
         id: o.id,
@@ -111,6 +118,20 @@ export default async function PosPage({
     />
   );
 }
+
+type OpenBillRow = {
+  id: string;
+  label: string;
+  updated_at: string;
+  items: {
+    product_id: string;
+    name: string;
+    price: number;
+    qty: number;
+    disc: number;
+    disc_type: "pct" | "amt";
+  }[];
+};
 
 type SelfOrderRow = {
   id: string;
