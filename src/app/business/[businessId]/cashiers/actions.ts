@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity-log";
 
 export type AddCashierState = { error: string | null };
 
@@ -40,6 +41,14 @@ export async function addCashier(
     return { error: error.message };
   }
 
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    `Kasir baru: ${name}`,
+    `Peran: ${role}`,
+  );
   revalidatePath(`/business/${businessId}/cashiers`);
   return { error: null };
 }

@@ -143,7 +143,7 @@ export default function PosScreen({
     }
 
     setCloseSubmitting(true);
-    const result = await closeShift(shiftId, amount, closeNotes);
+    const result = await closeShift(businessId, shiftId, amount, closeNotes);
     setCloseSubmitting(false);
 
     if (!result.success) {

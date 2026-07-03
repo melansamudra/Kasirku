@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity-log";
 
 export type PaymentMethodState = { error: string | null };
 
@@ -26,6 +27,13 @@ export async function addPaymentMethod(
     return { error: error.message };
   }
 
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    `Metode pembayaran baru: ${name}`,
+  );
   revalidatePath(`/business/${businessId}/settings`);
   return { error: null };
 }
@@ -68,6 +76,14 @@ export async function addKitchenPrinter(
     return { error: error.message };
   }
 
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    `Printer dapur baru: ${name}`,
+    connectionType === "lan" ? `LAN${address ? ` · ${address}` : ""}` : "Bluetooth",
+  );
   revalidatePath(`/business/${businessId}/settings`);
   return { error: null };
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity-log";
 
 export type AddProductState = { error: string | null };
 
@@ -51,6 +52,14 @@ export async function addProduct(
     return { error: error.message };
   }
 
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "sukses",
+    `Produk baru: ${name}`,
+    `Harga Rp${price.toLocaleString("id-ID")} · stok ${stock}`,
+  );
   revalidatePath(`/business/${businessId}/products`);
   return { error: null };
 }

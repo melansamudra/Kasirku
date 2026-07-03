@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
+import { logActivity } from "@/lib/activity-log";
 
 type VerifyCashierPinRow = {
   id: string;
@@ -82,6 +83,15 @@ export async function checkout(
   }
 
   const result = data as CheckoutRpcRow;
+  const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
+  await logActivity(
+    supabase,
+    businessId,
+    "transaksi",
+    "sukses",
+    `Transaksi ${result.invoice_number}`,
+    `${itemCount} item · ${paymentMethod}`,
+  );
   return { success: true, invoiceNumber: result.invoice_number };
 }
 
@@ -105,6 +115,14 @@ export async function openShift(
     return { success: false, error: error.message };
   }
 
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Shift dibuka",
+    `Kas awal Rp${openingCash.toLocaleString("id-ID")}`,
+  );
   return { success: true };
 }
 
@@ -123,6 +141,7 @@ export type CloseShiftResult =
   | { success: false; error: string };
 
 export async function closeShift(
+  businessId: string,
   shiftId: string,
   closingCash: number,
   closeNotes: string,
@@ -140,5 +159,14 @@ export async function closeShift(
     return { success: false, error: error?.message ?? "Gagal menutup shift." };
   }
 
-  return { success: true, summary: data as CloseShiftSummary };
+  const summary = data as CloseShiftSummary;
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    summary.difference === 0 ? "info" : "warning",
+    "Shift ditutup",
+    `Penjualan Rp${summary.total_sales.toLocaleString("id-ID")} · ${summary.tx_count} transaksi · selisih Rp${summary.difference.toLocaleString("id-ID")}`,
+  );
+  return { success: true, summary };
 }

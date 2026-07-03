@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity-log";
 
 const PURCHASE_INGREDIENT_CATEGORY = "Pembelian Bahan Baku";
 const PURCHASE_PRODUCT_CATEGORY = "Pembelian Barang Dagang";
@@ -123,6 +124,14 @@ export async function addExpense(
     return { error: error.message };
   }
 
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    `Pengeluaran: ${category}`,
+    `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""}`,
+  );
   revalidatePath(`/business/${businessId}/finance`);
   return { error: null };
 }
@@ -132,7 +141,23 @@ export async function deleteExpense(businessId: string, expenseId: string) {
   // Menghapus pengeluaran tidak membalik stok/harga bahan atau produk secara
   // otomatis — harga rata-rata tertimbang sudah bercampur dengan pembelian
   // lain. Kalau salah input, sesuaikan stok manual di halaman terkait.
+  const { data: expense } = await supabase
+    .from("expenses")
+    .select("category, amount")
+    .eq("id", expenseId)
+    .eq("business_id", businessId)
+    .maybeSingle();
   await supabase.from("expenses").delete().eq("id", expenseId).eq("business_id", businessId);
+  if (expense) {
+    await logActivity(
+      supabase,
+      businessId,
+      "sistem",
+      "warning",
+      `Pengeluaran dihapus: ${expense.category}`,
+      `Rp${Number(expense.amount).toLocaleString("id-ID")}`,
+    );
+  }
   revalidatePath(`/business/${businessId}/finance`);
 }
 

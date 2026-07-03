@@ -86,6 +86,12 @@ export default async function DashboardPage() {
                 >
                   Pengaturan
                 </Link>
+                <Link
+                  href={`/business/${b.id}/activity`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Aktivitas
+                </Link>
               </div>
             </div>
           ))}
