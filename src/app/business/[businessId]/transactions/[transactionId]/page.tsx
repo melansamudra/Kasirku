@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import VoidTransactionForm from "./void-transaction-form";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -24,7 +25,7 @@ export default async function TransactionDetailPage({
   const { data: transaction } = await supabase
     .from("transactions")
     .select(
-      "id, invoice_number, date, subtotal, total, total_cost, gross_profit, voided, cashiers!transactions_cashier_id_fkey(name)",
+      "id, invoice_number, date, subtotal, total, total_cost, gross_profit, voided, voided_at, void_reason, cashiers!transactions_cashier_id_fkey(name), voided_by_cashier:cashiers!transactions_voided_by_fkey(name)",
     )
     .eq("id", transactionId)
     .eq("business_id", businessId)
@@ -121,6 +122,27 @@ export default async function TransactionDetailPage({
             </div>
           ))}
         </div>
+
+        {transaction.voided ? (
+          <div className="mt-4 rounded-2xl border-2 border-red-200 bg-red-50 p-4 text-center">
+            <p className="text-sm font-bold text-red-600">✕ TRANSAKSI DIBATALKAN</p>
+            <p className="mt-1 text-xs text-red-500">
+              Oleh:{" "}
+              {(transaction.voided_by_cashier as unknown as { name: string } | null)?.name ??
+                "—"}
+              {transaction.voided_at && ` · ${formatDateTime(transaction.voided_at)}`}
+            </p>
+            {transaction.void_reason && (
+              <p className="mt-0.5 text-xs text-red-500">Alasan: {transaction.void_reason}</p>
+            )}
+          </div>
+        ) : (
+          <VoidTransactionForm
+            businessId={businessId}
+            transactionId={transaction.id}
+            invoiceNumber={transaction.invoice_number}
+          />
+        )}
       </div>
     </div>
   );
