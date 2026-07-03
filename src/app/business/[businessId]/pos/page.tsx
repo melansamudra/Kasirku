@@ -15,7 +15,9 @@ export default async function PosPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type")
+    .select(
+      "id, name, business_type, tax_enabled, tax_rate, service_enabled, service_rate",
+    )
     .eq("id", businessId)
     .single();
 
@@ -90,6 +92,8 @@ export default async function PosPage({
       cashierName={session.name}
       shiftId={activeShift.id}
       products={products ?? []}
+      taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
+      serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
       isFnb={isFnb}
       selfOrders={selfOrders.map((o) => ({
         id: o.id,

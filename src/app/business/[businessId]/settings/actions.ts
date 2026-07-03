@@ -93,3 +93,49 @@ export async function deleteKitchenPrinter(businessId: string, printerId: string
   await supabase.from("kitchen_printers").delete().eq("id", printerId).eq("business_id", businessId);
   revalidatePath(`/business/${businessId}/settings`);
 }
+
+export type TaxServiceState = { error: string | null; saved: boolean };
+
+export async function updateTaxService(
+  businessId: string,
+  _prevState: TaxServiceState,
+  formData: FormData,
+): Promise<TaxServiceState> {
+  const taxEnabled = formData.get("taxEnabled") === "on";
+  const serviceEnabled = formData.get("serviceEnabled") === "on";
+  const taxRate = Number(formData.get("taxRate"));
+  const serviceRate = Number(formData.get("serviceRate"));
+
+  if (taxEnabled && (Number.isNaN(taxRate) || taxRate < 0 || taxRate > 100)) {
+    return { error: "Tarif PPN harus 0–100%.", saved: false };
+  }
+  if (serviceEnabled && (Number.isNaN(serviceRate) || serviceRate < 0 || serviceRate > 100)) {
+    return { error: "Tarif biaya layanan harus 0–100%.", saved: false };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({
+      tax_enabled: taxEnabled,
+      tax_rate: taxEnabled ? taxRate : 0,
+      service_enabled: serviceEnabled,
+      service_rate: serviceEnabled ? serviceRate : 0,
+    })
+    .eq("id", businessId);
+
+  if (error) {
+    return { error: error.message, saved: false };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    "Pajak & biaya layanan diperbarui",
+    `PPN ${taxEnabled ? `${taxRate}%` : "nonaktif"} · Layanan ${serviceEnabled ? `${serviceRate}%` : "nonaktif"}`,
+  );
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null, saved: true };
+}

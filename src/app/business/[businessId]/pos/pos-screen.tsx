@@ -7,6 +7,7 @@ import {
   closeShift,
   updateSelfOrderStatus,
   type CloseShiftSummary,
+  type DiscountType,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 
@@ -26,7 +27,16 @@ type CartItem = {
   price: number;
   qty: number;
   maxStock: number;
+  disc: number;
+  discType: DiscountType;
 };
+
+function itemDiscAmount(item: CartItem) {
+  const lineGross = item.price * item.qty;
+  return item.discType === "pct"
+    ? Math.round((lineGross * item.disc) / 100)
+    : Math.min(item.disc * item.qty, lineGross);
+}
 
 type SelfOrder = {
   id: string;
@@ -55,6 +65,8 @@ export default function PosScreen({
   cashierName,
   shiftId,
   products,
+  taxRate,
+  serviceRate,
   isFnb,
   selfOrders,
 }: {
@@ -64,6 +76,8 @@ export default function PosScreen({
   cashierName: string;
   shiftId: string;
   products: Product[];
+  taxRate: number;
+  serviceRate: number;
   isFnb: boolean;
   selfOrders: SelfOrder[];
 }) {
@@ -73,6 +87,10 @@ export default function PosScreen({
   const [inboxOpen, setInboxOpen] = useState(false);
   const [inboxNotice, setInboxNotice] = useState<string | null>(null);
   const [orderBusyId, setOrderBusyId] = useState<string | null>(null);
+  const [editingDiscId, setEditingDiscId] = useState<string | null>(null);
+  const [orderDisc, setOrderDisc] = useState(0);
+  const [orderDiscType, setOrderDiscType] = useState<DiscountType>("pct");
+  const [orderDiscOpen, setOrderDiscOpen] = useState(false);
 
   const newOrderCount = selfOrders.filter((o) => o.status === "baru").length;
 
@@ -104,9 +122,22 @@ export default function PosScreen({
     return products.filter((p) => p.name.toLowerCase().includes(q));
   }, [search, products]);
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  // Urutan hitung mengikuti aplikasi lama: diskon item -> diskon order ->
+  // layanan dari subtotal -> PPN dari (subtotal + layanan). Angka final tetap
+  // dihitung ulang server-side di RPC; ini hanya tampilan.
+  const subtotalRaw = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const totalItemDisc = cart.reduce((sum, item) => sum + itemDiscAmount(item), 0);
+  const afterItemDisc = subtotalRaw - totalItemDisc;
+  const orderDiscAmt =
+    orderDiscType === "pct"
+      ? Math.round((afterItemDisc * orderDisc) / 100)
+      : Math.min(orderDisc, afterItemDisc);
+  const subtotal = afterItemDisc - orderDiscAmt;
+  const serviceAmt = Math.round((subtotal * serviceRate) / 100);
+  const taxAmt = Math.round(((subtotal + serviceAmt) * taxRate) / 100);
+  const total = subtotal + serviceAmt + taxAmt;
   const receivedAmount = Number(received) || 0;
-  const change = paymentMethod === "Tunai" ? receivedAmount - subtotal : 0;
+  const change = paymentMethod === "Tunai" ? receivedAmount - total : 0;
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -120,9 +151,23 @@ export default function PosScreen({
       if (product.stock <= 0) return prev;
       return [
         ...prev,
-        { productId: product.id, name: product.name, price: product.price, qty: 1, maxStock: product.stock },
+        {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          qty: 1,
+          maxStock: product.stock,
+          disc: 0,
+          discType: "pct" as DiscountType,
+        },
       ];
     });
+  }
+
+  function setItemDisc(productId: string, disc: number, discType: DiscountType) {
+    setCart((prev) =>
+      prev.map((i) => (i.productId === productId ? { ...i, disc, discType } : i)),
+    );
   }
 
   function changeQty(productId: string, delta: number) {
@@ -176,6 +221,8 @@ export default function PosScreen({
           price: product.price,
           qty: addQty,
           maxStock: product.stock,
+          disc: 0,
+          discType: "pct",
         });
       }
     }
@@ -193,7 +240,7 @@ export default function PosScreen({
   async function handleConfirmPayment() {
     setError(null);
 
-    if (paymentMethod === "Tunai" && receivedAmount < subtotal) {
+    if (paymentMethod === "Tunai" && receivedAmount < total) {
       setError("Uang diterima kurang dari total belanja.");
       return;
     }
@@ -202,9 +249,16 @@ export default function PosScreen({
     const result = await checkout(
       businessId,
       cashierId,
-      cart.map((i) => ({ productId: i.productId, qty: i.qty })),
+      cart.map((i) => ({
+        productId: i.productId,
+        qty: i.qty,
+        disc: i.disc,
+        discType: i.discType,
+      })),
       paymentMethod,
-      paymentMethod === "Tunai" ? receivedAmount : subtotal,
+      paymentMethod === "Tunai" ? receivedAmount : total,
+      orderDisc,
+      orderDiscType,
     );
     setSubmitting(false);
 
@@ -217,6 +271,10 @@ export default function PosScreen({
     setCart([]);
     setPaying(false);
     setReceived("");
+    setOrderDisc(0);
+    setOrderDiscType("pct");
+    setOrderDiscOpen(false);
+    setEditingDiscId(null);
   }
 
   async function handleConfirmCloseShift() {
@@ -473,48 +531,212 @@ export default function PosScreen({
             <p className="text-xs text-zinc-400">Belum ada item. Klik produk untuk menambah.</p>
           ) : (
             <div className="space-y-2">
-              {cart.map((item) => (
-                <div key={item.productId} className="rounded-xl border border-zinc-100 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-medium text-zinc-900">{item.name}</p>
-                    <button
-                      onClick={() => removeFromCart(item.productId)}
-                      className="text-xs text-zinc-400 hover:text-red-500"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+              {cart.map((item) => {
+                const discAmt = itemDiscAmount(item);
+                const editing = editingDiscId === item.productId;
+                return (
+                  <div key={item.productId} className="rounded-xl border border-zinc-100 p-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-medium text-zinc-900">{item.name}</p>
                       <button
-                        onClick={() => changeQty(item.productId, -1)}
-                        className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
+                        onClick={() => removeFromCart(item.productId)}
+                        className="text-xs text-zinc-400 hover:text-red-500"
                       >
-                        −
-                      </button>
-                      <span className="w-4 text-center text-xs tabular-nums">{item.qty}</span>
-                      <button
-                        onClick={() => changeQty(item.productId, 1)}
-                        disabled={item.qty >= item.maxStock}
-                        className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200 disabled:opacity-40"
-                      >
-                        +
+                        ✕
                       </button>
                     </div>
-                    <p className="text-xs font-semibold text-zinc-900">
-                      {formatRupiah(item.price * item.qty)}
-                    </p>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => changeQty(item.productId, -1)}
+                          className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
+                        >
+                          −
+                        </button>
+                        <span className="w-4 text-center text-xs tabular-nums">{item.qty}</span>
+                        <button
+                          onClick={() => changeQty(item.productId, 1)}
+                          disabled={item.qty >= item.maxStock}
+                          className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200 disabled:opacity-40"
+                        >
+                          +
+                        </button>
+                      </div>
+                      {discAmt > 0 ? (
+                        <div className="text-right">
+                          <p className="text-[10px] text-zinc-400 line-through tabular-nums">
+                            {formatRupiah(item.price * item.qty)}
+                          </p>
+                          <p className="text-xs font-semibold text-brand-700 tabular-nums">
+                            {formatRupiah(item.price * item.qty - discAmt)}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-semibold text-zinc-900 tabular-nums">
+                          {formatRupiah(item.price * item.qty)}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setEditingDiscId(editing ? null : item.productId)}
+                      className={`mt-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                        item.disc > 0
+                          ? "border-brand-200 bg-brand-50 text-brand-700"
+                          : "border-zinc-200 text-zinc-400 hover:border-brand-300 hover:text-brand-700"
+                      }`}
+                    >
+                      {item.disc > 0
+                        ? `Diskon ${item.discType === "pct" ? `${item.disc}%` : formatRupiah(item.disc)}`
+                        : "% Diskon"}
+                    </button>
+                    {editing && (
+                      <div className="mt-2 flex items-center gap-1.5 border-t border-zinc-100 pt-2">
+                        <div className="flex overflow-hidden rounded-lg border border-zinc-200">
+                          <button
+                            onClick={() => setItemDisc(item.productId, item.disc, "pct")}
+                            className={`px-2 py-1 text-[10px] font-bold ${
+                              item.discType === "pct"
+                                ? "bg-brand-600 text-white"
+                                : "text-zinc-500"
+                            }`}
+                          >
+                            %
+                          </button>
+                          <button
+                            onClick={() => setItemDisc(item.productId, item.disc, "amt")}
+                            className={`px-2 py-1 text-[10px] font-bold ${
+                              item.discType === "amt"
+                                ? "bg-brand-600 text-white"
+                                : "text-zinc-500"
+                            }`}
+                          >
+                            Rp
+                          </button>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.discType === "pct" ? 100 : item.price}
+                          value={item.disc || ""}
+                          onChange={(e) => {
+                            const raw = Number(e.target.value) || 0;
+                            const clamped =
+                              item.discType === "pct"
+                                ? Math.min(100, Math.max(0, raw))
+                                : Math.min(item.price, Math.max(0, raw));
+                            setItemDisc(item.productId, clamped, item.discType);
+                          }}
+                          placeholder="0"
+                          className="w-full flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => setEditingDiscId(null)}
+                          className="shrink-0 rounded-lg bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 hover:bg-zinc-200"
+                        >
+                          OK
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         <div className="border-t border-zinc-200 p-4">
-          <div className="mb-3 flex items-center justify-between text-sm font-semibold text-zinc-900">
-            <span>Total</span>
-            <span>{formatRupiah(subtotal)}</span>
+          <div className="mb-3 space-y-1">
+            {(totalItemDisc > 0 || orderDiscAmt > 0 || serviceAmt > 0 || taxAmt > 0) && (
+              <div className="flex items-center justify-between text-xs text-zinc-500">
+                <span>Subtotal</span>
+                <span className="tabular-nums">{formatRupiah(subtotalRaw)}</span>
+              </div>
+            )}
+            {totalItemDisc > 0 && (
+              <div className="flex items-center justify-between text-xs text-brand-700">
+                <span>Diskon item</span>
+                <span className="tabular-nums">− {formatRupiah(totalItemDisc)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs">
+              <button
+                onClick={() => setOrderDiscOpen((v) => !v)}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                  orderDisc > 0
+                    ? "border-brand-200 bg-brand-50 text-brand-700"
+                    : "border-zinc-200 text-zinc-400 hover:border-brand-300 hover:text-brand-700"
+                }`}
+              >
+                {orderDisc > 0
+                  ? `Diskon order ${orderDiscType === "pct" ? `${orderDisc}%` : formatRupiah(orderDisc)}`
+                  : "% Diskon Order"}
+              </button>
+              {orderDiscAmt > 0 && (
+                <span className="tabular-nums text-brand-700">
+                  − {formatRupiah(orderDiscAmt)}
+                </span>
+              )}
+            </div>
+            {orderDiscOpen && (
+              <div className="flex items-center gap-1.5 py-1">
+                <div className="flex overflow-hidden rounded-lg border border-zinc-200">
+                  <button
+                    onClick={() => setOrderDiscType("pct")}
+                    className={`px-2 py-1 text-[10px] font-bold ${
+                      orderDiscType === "pct" ? "bg-brand-600 text-white" : "text-zinc-500"
+                    }`}
+                  >
+                    %
+                  </button>
+                  <button
+                    onClick={() => setOrderDiscType("amt")}
+                    className={`px-2 py-1 text-[10px] font-bold ${
+                      orderDiscType === "amt" ? "bg-brand-600 text-white" : "text-zinc-500"
+                    }`}
+                  >
+                    Rp
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  max={orderDiscType === "pct" ? 100 : afterItemDisc}
+                  value={orderDisc || ""}
+                  onChange={(e) => {
+                    const raw = Number(e.target.value) || 0;
+                    setOrderDisc(
+                      orderDiscType === "pct"
+                        ? Math.min(100, Math.max(0, raw))
+                        : Math.max(0, raw),
+                    );
+                  }}
+                  placeholder="0"
+                  className="w-full flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
+                />
+                <button
+                  onClick={() => setOrderDiscOpen(false)}
+                  className="shrink-0 rounded-lg bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 hover:bg-zinc-200"
+                >
+                  OK
+                </button>
+              </div>
+            )}
+            {serviceAmt > 0 && (
+              <div className="flex items-center justify-between text-xs text-zinc-500">
+                <span>Layanan ({serviceRate}%)</span>
+                <span className="tabular-nums">{formatRupiah(serviceAmt)}</span>
+              </div>
+            )}
+            {taxAmt > 0 && (
+              <div className="flex items-center justify-between text-xs text-zinc-500">
+                <span>PPN ({taxRate}%)</span>
+                <span className="tabular-nums">{formatRupiah(taxAmt)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-1 text-sm font-semibold text-zinc-900">
+              <span>Total</span>
+              <span className="tabular-nums">{formatRupiah(total)}</span>
+            </div>
           </div>
 
           {!paying ? (
@@ -564,9 +786,9 @@ export default function PosScreen({
                     value={received}
                     onChange={(e) => setReceived(e.target.value)}
                     className="w-full rounded-xl border border-zinc-200 px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                    placeholder={String(subtotal)}
+                    placeholder={String(total)}
                   />
-                  {receivedAmount >= subtotal && received !== "" && (
+                  {receivedAmount >= total && received !== "" && (
                     <p className="mt-1 text-xs text-zinc-500">
                       Kembalian: {formatRupiah(change)}
                     </p>

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, updateTaxService } from "./actions";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DeletePrinterButton from "./delete-printer-button";
+import TaxServiceForm from "./tax-service-form";
 
 export default async function SettingsPage({
   params,
@@ -17,7 +18,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type")
+    .select("id, name, business_type, tax_enabled, tax_rate, service_enabled, service_rate")
     .eq("id", businessId)
     .single();
 
@@ -67,6 +68,23 @@ export default async function SettingsPage({
         </Link>
 
         <h1 className="mt-3 text-lg font-bold text-zinc-900">Pengaturan — {business.name}</h1>
+
+        {/* Pajak & Biaya Layanan */}
+        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Pajak &amp; Biaya Layanan</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Ditambahkan otomatis ke setiap transaksi di kasir.
+          </p>
+          <div className="mt-4">
+            <TaxServiceForm
+              action={updateTaxService.bind(null, businessId)}
+              taxEnabled={business.tax_enabled}
+              taxRate={Number(business.tax_rate)}
+              serviceEnabled={business.service_enabled}
+              serviceRate={Number(business.service_rate)}
+            />
+          </div>
+        </div>
 
         {/* Metode Pembayaran Custom */}
         <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">

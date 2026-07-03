@@ -49,7 +49,14 @@ export async function switchCashier() {
   await clearCashierSession();
 }
 
-export type CartItemInput = { productId: string; qty: number };
+export type DiscountType = "pct" | "amt";
+
+export type CartItemInput = {
+  productId: string;
+  qty: number;
+  disc: number;
+  discType: DiscountType;
+};
 
 export type CheckoutResult =
   | { success: true; invoiceNumber: string }
@@ -63,6 +70,8 @@ export async function checkout(
   items: CartItemInput[],
   paymentMethod: string,
   received: number | null,
+  orderDisc: number,
+  orderDiscType: DiscountType,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -73,9 +82,16 @@ export async function checkout(
     .rpc("checkout_transaction", {
       p_business_id: businessId,
       p_cashier_id: cashierId,
-      p_items: items.map((i) => ({ product_id: i.productId, qty: i.qty })),
+      p_items: items.map((i) => ({
+        product_id: i.productId,
+        qty: i.qty,
+        disc: i.disc,
+        disc_type: i.discType,
+      })),
       p_payment_method: paymentMethod,
       p_received: received,
+      p_order_disc: orderDisc,
+      p_order_disc_type: orderDiscType,
     })
     .single();
 

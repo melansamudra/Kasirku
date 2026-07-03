@@ -25,7 +25,7 @@ export default async function TransactionDetailPage({
   const { data: transaction } = await supabase
     .from("transactions")
     .select(
-      "id, invoice_number, date, subtotal, total, total_cost, gross_profit, voided, voided_at, void_reason, cashiers!transactions_cashier_id_fkey(name), voided_by_cashier:cashiers!transactions_voided_by_fkey(name)",
+      "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, total_cost, gross_profit, voided, voided_at, void_reason, cashiers!transactions_cashier_id_fkey(name), voided_by_cashier:cashiers!transactions_voided_by_fkey(name)",
     )
     .eq("id", transactionId)
     .eq("business_id", businessId)
@@ -90,8 +90,32 @@ export default async function TransactionDetailPage({
           <div className="mt-4 space-y-1 border-t border-zinc-100 pt-3 text-sm">
             <div className="flex justify-between text-zinc-600">
               <span>Subtotal</span>
-              <span>{formatRupiah(Number(transaction.subtotal))}</span>
+              <span>{formatRupiah(Number(transaction.subtotal_raw))}</span>
             </div>
+            {Number(transaction.total_item_disc) > 0 && (
+              <div className="flex justify-between text-brand-700">
+                <span>Diskon item</span>
+                <span>− {formatRupiah(Number(transaction.total_item_disc))}</span>
+              </div>
+            )}
+            {Number(transaction.order_disc_amt) > 0 && (
+              <div className="flex justify-between text-brand-700">
+                <span>Diskon order</span>
+                <span>− {formatRupiah(Number(transaction.order_disc_amt))}</span>
+              </div>
+            )}
+            {Number(transaction.service) > 0 && (
+              <div className="flex justify-between text-zinc-600">
+                <span>Layanan</span>
+                <span>{formatRupiah(Number(transaction.service))}</span>
+              </div>
+            )}
+            {Number(transaction.tax) > 0 && (
+              <div className="flex justify-between text-zinc-600">
+                <span>PPN</span>
+                <span>{formatRupiah(Number(transaction.tax))}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold text-zinc-900">
               <span>Total</span>
               <span>{formatRupiah(Number(transaction.total))}</span>
