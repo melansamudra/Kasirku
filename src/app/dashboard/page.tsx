@@ -66,6 +66,18 @@ export default async function DashboardPage() {
                 >
                   Kelola Kasir
                 </Link>
+                <Link
+                  href={`/business/${b.id}/finance`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Keuangan
+                </Link>
+                <Link
+                  href={`/business/${b.id}/settings`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Pengaturan
+                </Link>
               </div>
             </div>
           ))}
