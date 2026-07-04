@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addProduct } from "./actions";
+import { addProduct, adjustProductStock } from "./actions";
 import AddProductForm from "./add-product-form";
+import AdjustStockForm from "@/components/adjust-stock-form";
 
 export default async function ProductsPage({
   params,
@@ -29,6 +30,14 @@ export default async function ProductsPage({
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
+  const { data: adjustments } = await supabase
+    .from("stock_adjustments")
+    .select("id, item_name, stock_before, stock_after, diff, reason, created_at")
+    .eq("business_id", businessId)
+    .not("product_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
   const boundAddProduct = addProduct.bind(null, businessId);
 
   return (
@@ -46,7 +55,7 @@ export default async function ProductsPage({
             products.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg">
                   {p.emoji || "📦"}
@@ -66,6 +75,11 @@ export default async function ProductsPage({
                 <p className="shrink-0 text-sm font-semibold text-zinc-900">
                   Rp{Number(p.price).toLocaleString("id-ID")}
                 </p>
+                <AdjustStockForm
+                  itemName={p.name}
+                  currentStock={Number(p.stock)}
+                  action={adjustProductStock.bind(null, businessId, p.id)}
+                />
               </div>
             ))
           ) : (
@@ -79,6 +93,36 @@ export default async function ProductsPage({
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Produk</h2>
           <AddProductForm action={boundAddProduct} />
         </div>
+
+        {adjustments && adjustments.length > 0 && (
+          <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-900">Riwayat Penyesuaian Stok</h2>
+            <div className="space-y-2">
+              {adjustments.map((a) => (
+                <div key={a.id} className="border-b border-zinc-100 pb-2 text-xs last:border-0">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-zinc-800">{a.item_name}</p>
+                    <p
+                      className={
+                        Number(a.diff) > 0 ? "font-semibold text-brand-600" : "font-semibold text-red-500"
+                      }
+                    >
+                      {Number(a.diff) > 0 ? "+" : ""}
+                      {a.diff}
+                    </p>
+                  </div>
+                  <p className="text-zinc-500">
+                    {a.stock_before} → {a.stock_after} · {a.reason} ·{" "}
+                    {new Date(a.created_at).toLocaleString("id-ID", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

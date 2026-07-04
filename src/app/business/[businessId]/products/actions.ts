@@ -63,3 +63,70 @@ export async function addProduct(
   revalidatePath(`/business/${businessId}/products`);
   return { error: null };
 }
+
+export type AdjustStockResult = { error: string | null };
+
+export async function adjustProductStock(
+  businessId: string,
+  productId: string,
+  newStock: number,
+  reason: string,
+): Promise<AdjustStockResult> {
+  if (Number.isNaN(newStock) || newStock < 0) {
+    return { error: "Stok fisik harus angka dan tidak boleh negatif." };
+  }
+  reason = reason.trim();
+  if (!reason) {
+    return { error: "Alasan penyesuaian wajib diisi." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("id, name, stock")
+    .eq("id", productId)
+    .eq("business_id", businessId)
+    .single();
+
+  if (!product) {
+    return { error: "Produk tidak ditemukan." };
+  }
+
+  const stockBefore = Number(product.stock);
+  const diff = newStock - stockBefore;
+
+  if (diff === 0) {
+    return { error: "Stok fisik sama dengan stok sistem, tidak ada yang disesuaikan." };
+  }
+
+  const { error: updateError } = await supabase
+    .from("products")
+    .update({ stock: newStock })
+    .eq("id", productId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await supabase.from("stock_adjustments").insert({
+    business_id: businessId,
+    product_id: productId,
+    item_name: product.name,
+    stock_before: stockBefore,
+    stock_after: newStock,
+    diff,
+    reason,
+  });
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "warning",
+    `Penyesuaian stok: ${product.name}`,
+    `${stockBefore} → ${newStock} (${diff > 0 ? "+" : ""}${diff}) · ${reason}`,
+  );
+  revalidatePath(`/business/${businessId}/products`);
+  return { error: null };
+}
