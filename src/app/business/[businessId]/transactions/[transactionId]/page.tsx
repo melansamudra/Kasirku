@@ -64,7 +64,16 @@ export default async function TransactionDetailPage({
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm text-zinc-500">{formatDateTime(transaction.date)}</p>
+        <div className="mt-1 flex items-center justify-between">
+          <p className="text-sm text-zinc-500">{formatDateTime(transaction.date)}</p>
+          <Link
+            href={`/business/${businessId}/transactions/${transactionId}/receipt`}
+            target="_blank"
+            className="text-xs font-medium text-brand-600 hover:underline"
+          >
+            🖨️ Cetak Struk
+          </Link>
+        </div>
         <p className="text-xs text-zinc-400">
           Kasir: {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
         </p>

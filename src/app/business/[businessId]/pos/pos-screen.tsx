@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   checkout,
   closeShift,
@@ -133,6 +134,7 @@ export default function PosScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
+  const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -389,6 +391,7 @@ export default function PosScreen({
     }
 
     setSuccessInvoice(result.invoiceNumber);
+    setSuccessTransactionId(result.transactionId);
     setCart([]);
     setPaying(false);
     setReceived("");
@@ -428,12 +431,22 @@ export default function PosScreen({
           </div>
           <h1 className="text-lg font-bold text-zinc-900">Transaksi berhasil</h1>
           <p className="mt-1 text-sm text-zinc-500">No. Struk: {successInvoice}</p>
+          {successTransactionId && (
+            <Link
+              href={`/business/${businessId}/transactions/${successTransactionId}/receipt`}
+              target="_blank"
+              className="mt-6 block w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              🖨️ Cetak Struk
+            </Link>
+          )}
           <button
             onClick={() => {
               setSuccessInvoice(null);
+              setSuccessTransactionId(null);
               router.refresh();
             }}
-            className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            className="mt-3 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
           >
             Transaksi Baru
           </button>

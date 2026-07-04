@@ -59,7 +59,7 @@ export type CartItemInput = {
 };
 
 export type CheckoutResult =
-  | { success: true; invoiceNumber: string }
+  | { success: true; invoiceNumber: string; transactionId: string }
   | { success: false; error: string };
 
 type CheckoutRpcRow = { transaction_id: string; invoice_number: string };
@@ -109,7 +109,7 @@ export async function checkout(
     `Transaksi ${result.invoice_number}`,
     `${itemCount} item · ${paymentMethod}`,
   );
-  return { success: true, invoiceNumber: result.invoice_number };
+  return { success: true, invoiceNumber: result.invoice_number, transactionId: result.transaction_id };
 }
 
 export type OpenShiftResult = { success: true } | { success: false; error: string };
