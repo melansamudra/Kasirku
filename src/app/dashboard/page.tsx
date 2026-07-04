@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getPeriodRange } from "../business/[businessId]/reports/period";
 import LogoutButton from "./logout-button";
+
+function formatRupiah(value: number) {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -18,6 +23,32 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  const businessIds = businesses.map((b) => b.id);
+  const { fromIso } = getPeriodRange("today");
+
+  const { data: todayTx } = await supabase
+    .from("transactions")
+    .select("business_id, total, voided")
+    .in("business_id", businessIds)
+    .gte("date", fromIso ?? undefined);
+
+  const { data: openShifts } = await supabase
+    .from("shifts")
+    .select("business_id")
+    .in("business_id", businessIds)
+    .is("closed_at", null);
+
+  const openShiftBusinessIds = new Set((openShifts ?? []).map((s) => s.business_id));
+
+  const todaySummary = new Map<string, { revenue: number; count: number }>();
+  for (const t of todayTx ?? []) {
+    if (t.voided) continue;
+    const entry = todaySummary.get(t.business_id) ?? { revenue: 0, count: 0 };
+    entry.revenue += Number(t.total);
+    entry.count += 1;
+    todaySummary.set(t.business_id, entry);
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-4 py-10">
       <div className="w-full max-w-sm">
@@ -27,12 +58,40 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-3">
-          {businesses.map((b) => (
+          {businesses.map((b) => {
+            const summary = todaySummary.get(b.id) ?? { revenue: 0, count: 0 };
+            const shiftOpen = openShiftBusinessIds.has(b.id);
+            return (
             <div key={b.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="font-semibold text-zinc-900">{b.name}</p>
-              <p className="text-xs text-zinc-500">
-                {b.business_type === "fnb" ? "🍽️ Restoran / Kafe / F&B" : "🛒 Retail / Toko"}
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-zinc-900">{b.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {b.business_type === "fnb" ? "🍽️ Restoran / Kafe / F&B" : "🛒 Retail / Toko"}
+                  </p>
+                </div>
+                {shiftOpen && (
+                  <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                    ● Shift aktif
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center gap-4 rounded-xl bg-zinc-50 px-3 py-2.5">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-zinc-400">
+                    Penjualan Hari Ini
+                  </p>
+                  <p className="text-base font-bold text-zinc-900">
+                    {formatRupiah(summary.revenue)}
+                  </p>
+                </div>
+                <div className="border-l border-zinc-200 pl-4">
+                  <p className="text-[10px] font-semibold uppercase text-zinc-400">Transaksi</p>
+                  <p className="text-base font-bold text-zinc-900">{summary.count}</p>
+                </div>
+              </div>
+
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
                 <Link
                   href={`/business/${b.id}/pos`}
@@ -106,7 +165,8 @@ export default async function DashboardPage() {
                 </Link>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <LogoutButton />
