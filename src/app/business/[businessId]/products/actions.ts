@@ -64,6 +64,56 @@ export async function addProduct(
   return { error: null };
 }
 
+export type EditProductState = { error: string | null };
+
+export async function editProduct(
+  businessId: string,
+  productId: string,
+  _prevState: EditProductState,
+  formData: FormData,
+): Promise<EditProductState> {
+  const name = (formData.get("name") as string)?.trim();
+  const category = (formData.get("category") as string)?.trim();
+  const priceRaw = formData.get("price") as string;
+  const costRaw = formData.get("cost") as string;
+  const emoji = (formData.get("emoji") as string)?.trim();
+
+  if (!name) {
+    return { error: "Nama produk wajib diisi." };
+  }
+
+  const price = Number(priceRaw);
+  if (!priceRaw || Number.isNaN(price) || price < 0) {
+    return { error: "Harga jual harus angka dan tidak boleh negatif." };
+  }
+
+  const cost = costRaw ? Number(costRaw) : 0;
+  if (Number.isNaN(cost) || cost < 0) {
+    return { error: "Modal (HPP) harus angka dan tidak boleh negatif." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({
+      name,
+      category: category || null,
+      price,
+      cost,
+      emoji: emoji || null,
+    })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(supabase, businessId, "produk", "info", `Produk diubah: ${name}`);
+  revalidatePath(`/business/${businessId}/products`);
+  return { error: null };
+}
+
 export type AdjustStockResult = { error: string | null };
 
 export async function adjustProductStock(

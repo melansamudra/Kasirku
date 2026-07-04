@@ -58,6 +58,46 @@ export async function addIngredient(
   return { error: null };
 }
 
+export type EditIngredientState = { error: string | null };
+
+export async function editIngredient(
+  businessId: string,
+  ingredientId: string,
+  _prevState: EditIngredientState,
+  formData: FormData,
+): Promise<EditIngredientState> {
+  const name = (formData.get("name") as string)?.trim();
+  const unit = (formData.get("unit") as string)?.trim();
+  const unitCostRaw = formData.get("unitCost") as string;
+
+  if (!name) {
+    return { error: "Nama bahan wajib diisi." };
+  }
+  if (!unit) {
+    return { error: "Satuan wajib diisi (mis. gr, ml, pcs)." };
+  }
+
+  const unitCost = unitCostRaw ? Number(unitCostRaw) : 0;
+  if (Number.isNaN(unitCost) || unitCost < 0) {
+    return { error: "Harga per satuan harus angka dan tidak boleh negatif." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ingredients")
+    .update({ name, unit, unit_cost: unitCost })
+    .eq("id", ingredientId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(supabase, businessId, "produk", "info", `Bahan baku diubah: ${name}`);
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
 export type AdjustStockResult = { error: string | null };
 
 export async function adjustIngredientStock(

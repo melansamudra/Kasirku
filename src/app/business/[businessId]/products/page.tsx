@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addProduct, adjustProductStock } from "./actions";
+import { addProduct, adjustProductStock, editProduct } from "./actions";
 import AddProductForm from "./add-product-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteProductButton from "./delete-product-button";
+import EditProductForm from "./edit-product-form";
 
 export default async function ProductsPage({
   params,
@@ -76,6 +77,14 @@ export default async function ProductsPage({
                 <p className="shrink-0 text-sm font-semibold text-zinc-900">
                   Rp{Number(p.price).toLocaleString("id-ID")}
                 </p>
+                <EditProductForm
+                  name={p.name}
+                  category={p.category}
+                  price={Number(p.price)}
+                  cost={Number(p.cost)}
+                  emoji={p.emoji}
+                  action={editProduct.bind(null, businessId, p.id)}
+                />
                 <AdjustStockForm
                   itemName={p.name}
                   currentStock={Number(p.stock)}

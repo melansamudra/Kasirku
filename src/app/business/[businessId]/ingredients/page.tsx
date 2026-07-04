@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addIngredient, adjustIngredientStock } from "./actions";
+import { addIngredient, adjustIngredientStock, editIngredient } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
+import EditIngredientForm from "./edit-ingredient-form";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -73,6 +74,12 @@ export default async function IngredientsPage({
                 <p className="text-sm font-semibold text-zinc-900">
                   {formatRupiah(Number(i.unit_cost))}/{i.unit}
                 </p>
+                <EditIngredientForm
+                  name={i.name}
+                  unit={i.unit}
+                  unitCost={Number(i.unit_cost)}
+                  action={editIngredient.bind(null, businessId, i.id)}
+                />
                 <AdjustStockForm
                   itemName={i.name}
                   currentStock={Number(i.stock)}
