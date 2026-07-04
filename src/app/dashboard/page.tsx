@@ -40,6 +40,27 @@ export default async function DashboardPage() {
 
   const openShiftBusinessIds = new Set((openShifts ?? []).map((s) => s.business_id));
 
+  const { data: trackedProducts } = await supabase
+    .from("products")
+    .select("business_id, stock, min_stock")
+    .in("business_id", businessIds)
+    .is("deleted_at", null)
+    .gt("min_stock", 0);
+
+  const { data: trackedIngredients } = await supabase
+    .from("ingredients")
+    .select("business_id, stock, min_stock")
+    .in("business_id", businessIds)
+    .is("deleted_at", null)
+    .gt("min_stock", 0);
+
+  const lowStockCount = new Map<string, number>();
+  for (const item of [...(trackedProducts ?? []), ...(trackedIngredients ?? [])]) {
+    if (Number(item.stock) <= Number(item.min_stock)) {
+      lowStockCount.set(item.business_id, (lowStockCount.get(item.business_id) ?? 0) + 1);
+    }
+  }
+
   const todaySummary = new Map<string, { revenue: number; count: number }>();
   for (const t of todayTx ?? []) {
     if (t.voided) continue;
@@ -61,6 +82,7 @@ export default async function DashboardPage() {
           {businesses.map((b) => {
             const summary = todaySummary.get(b.id) ?? { revenue: 0, count: 0 };
             const shiftOpen = openShiftBusinessIds.has(b.id);
+            const lowStock = lowStockCount.get(b.id) ?? 0;
             return (
             <div key={b.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
               <div className="flex items-start justify-between gap-2">
@@ -70,11 +92,18 @@ export default async function DashboardPage() {
                     {b.business_type === "fnb" ? "🍽️ Restoran / Kafe / F&B" : "🛒 Retail / Toko"}
                   </p>
                 </div>
-                {shiftOpen && (
-                  <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
-                    ● Shift aktif
-                  </span>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {shiftOpen && (
+                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                      ● Shift aktif
+                    </span>
+                  )}
+                  {lowStock > 0 && (
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
+                      ⚠️ {lowStock} stok rendah
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="mt-3 flex items-center gap-4 rounded-xl bg-zinc-50 px-3 py-2.5">

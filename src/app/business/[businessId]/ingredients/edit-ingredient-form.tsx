@@ -8,11 +8,13 @@ export default function EditIngredientForm({
   name,
   unit,
   unitCost,
+  minStock,
   action,
 }: {
   name: string;
   unit: string;
   unitCost: number;
+  minStock: number;
   action: (state: EditIngredientState, formData: FormData) => Promise<EditIngredientState>;
 }) {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function EditIngredientForm({
     name,
     unit,
     unitCost: String(unitCost),
+    minStock: String(minStock),
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -43,6 +46,7 @@ export default function EditIngredientForm({
     formData.set("name", values.name);
     formData.set("unit", values.unit);
     formData.set("unitCost", values.unitCost);
+    formData.set("minStock", values.minStock);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -87,6 +91,19 @@ export default function EditIngredientForm({
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Stok Minimum (0 = tanpa notifikasi)
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={values.minStock}
+          onChange={(e) => setValues((v) => ({ ...v, minStock: e.target.value }))}
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-600">{error}</p>}

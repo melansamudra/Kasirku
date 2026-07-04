@@ -16,6 +16,7 @@ export async function addProduct(
   const priceRaw = formData.get("price") as string;
   const costRaw = formData.get("cost") as string;
   const stockRaw = formData.get("stock") as string;
+  const minStockRaw = formData.get("minStock") as string;
   const emoji = (formData.get("emoji") as string)?.trim();
 
   if (!name) {
@@ -37,6 +38,11 @@ export async function addProduct(
     return { error: "Stok harus angka dan tidak boleh negatif." };
   }
 
+  const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  if (Number.isNaN(minStock) || minStock < 0) {
+    return { error: "Stok minimum harus angka dan tidak boleh negatif." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     business_id: businessId,
@@ -45,6 +51,7 @@ export async function addProduct(
     price,
     cost,
     stock,
+    min_stock: minStock,
     emoji: emoji || null,
   });
 
@@ -76,6 +83,7 @@ export async function editProduct(
   const category = (formData.get("category") as string)?.trim();
   const priceRaw = formData.get("price") as string;
   const costRaw = formData.get("cost") as string;
+  const minStockRaw = formData.get("minStock") as string;
   const emoji = (formData.get("emoji") as string)?.trim();
 
   if (!name) {
@@ -92,6 +100,11 @@ export async function editProduct(
     return { error: "Modal (HPP) harus angka dan tidak boleh negatif." };
   }
 
+  const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  if (Number.isNaN(minStock) || minStock < 0) {
+    return { error: "Stok minimum harus angka dan tidak boleh negatif." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
@@ -100,6 +113,7 @@ export async function editProduct(
       category: category || null,
       price,
       cost,
+      min_stock: minStock,
       emoji: emoji || null,
     })
     .eq("id", productId)

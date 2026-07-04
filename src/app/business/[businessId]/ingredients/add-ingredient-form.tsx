@@ -35,7 +35,7 @@ export default function AddIngredientForm({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="unit" className="mb-1 block text-xs font-medium text-zinc-600">
             Satuan
@@ -63,6 +63,9 @@ export default function AddIngredientForm({
             placeholder="150"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="stock" className="mb-1 block text-xs font-medium text-zinc-600">
             Stok
@@ -75,6 +78,20 @@ export default function AddIngredientForm({
             step="1"
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             placeholder="2000"
+          />
+        </div>
+        <div>
+          <label htmlFor="minStock" className="mb-1 block text-xs font-medium text-zinc-600">
+            Stok Minimum
+          </label>
+          <input
+            id="minStock"
+            name="minStock"
+            type="number"
+            min="0"
+            step="1"
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="0 = tanpa notifikasi"
           />
         </div>
       </div>

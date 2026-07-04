@@ -63,7 +63,7 @@ export default function AddProductForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="price" className="mb-1 block text-xs font-medium text-zinc-600">
             Harga Jual
@@ -93,6 +93,9 @@ export default function AddProductForm({
             placeholder="11000"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="stock" className="mb-1 block text-xs font-medium text-zinc-600">
             Stok
@@ -105,6 +108,20 @@ export default function AddProductForm({
             step="1"
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             placeholder="50"
+          />
+        </div>
+        <div>
+          <label htmlFor="minStock" className="mb-1 block text-xs font-medium text-zinc-600">
+            Stok Minimum
+          </label>
+          <input
+            id="minStock"
+            name="minStock"
+            type="number"
+            min="0"
+            step="1"
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="0 = tanpa notifikasi"
           />
         </div>
       </div>

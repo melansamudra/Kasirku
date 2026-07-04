@@ -27,7 +27,7 @@ export default async function ProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, category, price, cost, stock, emoji")
+    .select("id, name, category, price, cost, stock, min_stock, emoji")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -66,6 +66,11 @@ export default async function ProductsPage({
                   <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
                   <p className="text-xs text-zinc-500">
                     {p.category || "Tanpa kategori"} · Stok {p.stock}
+                    {Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock) && (
+                      <span className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                        ⚠️ Stok Rendah
+                      </span>
+                    )}
                   </p>
                   <Link
                     href={`/business/${businessId}/products/${p.id}/recipe`}
@@ -82,6 +87,7 @@ export default async function ProductsPage({
                   category={p.category}
                   price={Number(p.price)}
                   cost={Number(p.cost)}
+                  minStock={Number(p.min_stock)}
                   emoji={p.emoji}
                   action={editProduct.bind(null, businessId, p.id)}
                 />

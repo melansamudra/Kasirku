@@ -9,6 +9,7 @@ export default function EditProductForm({
   category,
   price,
   cost,
+  minStock,
   emoji,
   action,
 }: {
@@ -16,6 +17,7 @@ export default function EditProductForm({
   category: string | null;
   price: number;
   cost: number;
+  minStock: number;
   emoji: string | null;
   action: (state: EditProductState, formData: FormData) => Promise<EditProductState>;
 }) {
@@ -26,6 +28,7 @@ export default function EditProductForm({
     category: category ?? "",
     price: String(price),
     cost: String(cost),
+    minStock: String(minStock),
     emoji: emoji ?? "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export default function EditProductForm({
     formData.set("category", values.category);
     formData.set("price", values.price);
     formData.set("cost", values.cost);
+    formData.set("minStock", values.minStock);
     formData.set("emoji", values.emoji);
     const result = await action({ error: null }, formData);
     setPending(false);
@@ -118,6 +122,19 @@ export default function EditProductForm({
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Stok Minimum (0 = tanpa notifikasi)
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={values.minStock}
+          onChange={(e) => setValues((v) => ({ ...v, minStock: e.target.value }))}
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-600">{error}</p>}

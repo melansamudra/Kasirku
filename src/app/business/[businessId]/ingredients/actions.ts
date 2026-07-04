@@ -15,6 +15,7 @@ export async function addIngredient(
   const unit = (formData.get("unit") as string)?.trim();
   const unitCostRaw = formData.get("unitCost") as string;
   const stockRaw = formData.get("stock") as string;
+  const minStockRaw = formData.get("minStock") as string;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -33,6 +34,11 @@ export async function addIngredient(
     return { error: "Stok harus angka dan tidak boleh negatif." };
   }
 
+  const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  if (Number.isNaN(minStock) || minStock < 0) {
+    return { error: "Stok minimum harus angka dan tidak boleh negatif." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("ingredients").insert({
     business_id: businessId,
@@ -40,6 +46,7 @@ export async function addIngredient(
     unit,
     unit_cost: unitCost,
     stock,
+    min_stock: minStock,
   });
 
   if (error) {
@@ -69,6 +76,7 @@ export async function editIngredient(
   const name = (formData.get("name") as string)?.trim();
   const unit = (formData.get("unit") as string)?.trim();
   const unitCostRaw = formData.get("unitCost") as string;
+  const minStockRaw = formData.get("minStock") as string;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -82,10 +90,15 @@ export async function editIngredient(
     return { error: "Harga per satuan harus angka dan tidak boleh negatif." };
   }
 
+  const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  if (Number.isNaN(minStock) || minStock < 0) {
+    return { error: "Stok minimum harus angka dan tidak boleh negatif." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("ingredients")
-    .update({ name, unit, unit_cost: unitCost })
+    .update({ name, unit, unit_cost: unitCost, min_stock: minStock })
     .eq("id", ingredientId)
     .eq("business_id", businessId);
 
