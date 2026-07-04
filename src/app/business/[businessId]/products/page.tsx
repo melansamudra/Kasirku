@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addProduct, adjustProductStock } from "./actions";
 import AddProductForm from "./add-product-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
+import DeleteProductButton from "./delete-product-button";
 
 export default async function ProductsPage({
   params,
@@ -80,6 +81,7 @@ export default async function ProductsPage({
                   currentStock={Number(p.stock)}
                   action={adjustProductStock.bind(null, businessId, p.id)}
                 />
+                <DeleteProductButton businessId={businessId} productId={p.id} productName={p.name} />
               </div>
             ))
           ) : (

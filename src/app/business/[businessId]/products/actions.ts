@@ -130,3 +130,25 @@ export async function adjustProductStock(
   revalidatePath(`/business/${businessId}/products`);
   return { error: null };
 }
+
+export async function deleteProduct(businessId: string, productId: string) {
+  const supabase = await createClient();
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("name")
+    .eq("id", productId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  await supabase
+    .from("products")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+
+  if (product) {
+    await logActivity(supabase, businessId, "produk", "warning", `Produk dihapus: ${product.name}`);
+  }
+  revalidatePath(`/business/${businessId}/products`);
+}
