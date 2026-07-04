@@ -125,3 +125,31 @@ export async function adjustIngredientStock(
   revalidatePath(`/business/${businessId}/ingredients`);
   return { error: null };
 }
+
+export async function deleteIngredient(businessId: string, ingredientId: string) {
+  const supabase = await createClient();
+
+  const { data: ingredient } = await supabase
+    .from("ingredients")
+    .select("name")
+    .eq("id", ingredientId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  await supabase
+    .from("ingredients")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", ingredientId)
+    .eq("business_id", businessId);
+
+  if (ingredient) {
+    await logActivity(
+      supabase,
+      businessId,
+      "produk",
+      "warning",
+      `Bahan baku dihapus: ${ingredient.name}`,
+    );
+  }
+  revalidatePath(`/business/${businessId}/ingredients`);
+}

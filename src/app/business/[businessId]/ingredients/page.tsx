@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addIngredient, adjustIngredientStock } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
+import DeleteIngredientButton from "./delete-ingredient-button";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -77,6 +78,11 @@ export default async function IngredientsPage({
                   currentStock={Number(i.stock)}
                   unit={i.unit}
                   action={adjustIngredientStock.bind(null, businessId, i.id)}
+                />
+                <DeleteIngredientButton
+                  businessId={businessId}
+                  ingredientId={i.id}
+                  ingredientName={i.name}
                 />
               </div>
             ))
