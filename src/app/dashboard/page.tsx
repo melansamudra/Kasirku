@@ -69,6 +69,12 @@ export default async function DashboardPage() {
                   </>
                 )}
                 <Link
+                  href={`/business/${b.id}/customers`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Pelanggan
+                </Link>
+                <Link
                   href={`/business/${b.id}/cashiers`}
                   className="text-xs font-medium text-zinc-500 hover:underline"
                 >

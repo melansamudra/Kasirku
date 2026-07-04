@@ -69,6 +69,12 @@ type OpenBill = {
   }[];
 };
 
+type Customer = {
+  id: string;
+  name: string;
+  phone: string | null;
+};
+
 const PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
 
 function formatRupiah(value: number) {
@@ -85,6 +91,7 @@ export default function PosScreen({
   taxRate,
   serviceRate,
   openBills,
+  customers,
   isFnb,
   selfOrders,
 }: {
@@ -97,6 +104,7 @@ export default function PosScreen({
   taxRate: number;
   serviceRate: number;
   openBills: OpenBill[];
+  customers: Customer[];
   isFnb: boolean;
   selfOrders: SelfOrder[];
 }) {
@@ -110,6 +118,9 @@ export default function PosScreen({
   const [orderDisc, setOrderDisc] = useState(0);
   const [orderDiscType, setOrderDiscType] = useState<DiscountType>("pct");
   const [orderDiscOpen, setOrderDiscOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [billsOpen, setBillsOpen] = useState(false);
   const [billBusyId, setBillBusyId] = useState<string | null>(null);
   const [activeBill, setActiveBill] = useState<{ id: string; label: string } | null>(null);
@@ -148,6 +159,14 @@ export default function PosScreen({
     if (!q) return products;
     return products.filter((p) => p.name.toLowerCase().includes(q));
   }, [search, products]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q),
+    );
+  }, [customerSearch, customers]);
 
   // Urutan hitung mengikuti aplikasi lama: diskon item -> diskon order ->
   // layanan dari subtotal -> PPN dari (subtotal + layanan). Angka final tetap
@@ -376,6 +395,7 @@ export default function PosScreen({
       paymentMethod === "Tunai" ? receivedAmount : total,
       orderDisc,
       orderDiscType,
+      selectedCustomer?.id ?? null,
     );
     setSubmitting(false);
 
@@ -399,6 +419,9 @@ export default function PosScreen({
     setOrderDiscType("pct");
     setOrderDiscOpen(false);
     setEditingDiscId(null);
+    setSelectedCustomer(null);
+    setCustomerPickerOpen(false);
+    setCustomerSearch("");
   }
 
   async function handleConfirmCloseShift() {
@@ -797,6 +820,72 @@ export default function PosScreen({
         </div>
 
         <div className="border-t border-zinc-200 p-4">
+          <div className="mb-3">
+            <button
+              onClick={() => setCustomerPickerOpen((v) => !v)}
+              className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                selectedCustomer
+                  ? "border-brand-200 bg-brand-50 text-brand-700"
+                  : "border-zinc-200 text-zinc-400 hover:border-brand-300 hover:text-brand-700"
+              }`}
+            >
+              <span>👤 {selectedCustomer ? selectedCustomer.name : "Tanpa Pelanggan"}</span>
+              {selectedCustomer && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCustomer(null);
+                  }}
+                  className="text-zinc-400 hover:text-red-500"
+                >
+                  ✕
+                </span>
+              )}
+            </button>
+            {customerPickerOpen && (
+              <div className="mt-1.5 rounded-lg border border-zinc-200 bg-white p-2">
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Cari nama / no. telepon…"
+                  className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
+                />
+                <div className="mt-1.5 max-h-40 overflow-y-auto">
+                  <button
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setCustomerPickerOpen(false);
+                      setCustomerSearch("");
+                    }}
+                    className="block w-full rounded-lg px-2 py-1.5 text-left text-xs text-zinc-500 hover:bg-zinc-50"
+                  >
+                    Tanpa pelanggan
+                  </button>
+                  {filteredCustomers.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-zinc-400">Tidak ditemukan.</p>
+                  ) : (
+                    filteredCustomers.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          setSelectedCustomer(c);
+                          setCustomerPickerOpen(false);
+                          setCustomerSearch("");
+                        }}
+                        className="block w-full rounded-lg px-2 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                      >
+                        {c.name}
+                        {c.phone && <span className="text-zinc-400"> · {c.phone}</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="mb-3 space-y-1">
             {(totalItemDisc > 0 || orderDiscAmt > 0 || serviceAmt > 0 || taxAmt > 0) && (
               <div className="flex items-center justify-between text-xs text-zinc-500">

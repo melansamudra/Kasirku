@@ -72,6 +72,7 @@ export async function checkout(
   received: number | null,
   orderDisc: number,
   orderDiscType: DiscountType,
+  customerId: string | null = null,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -92,6 +93,7 @@ export async function checkout(
       p_received: received,
       p_order_disc: orderDisc,
       p_order_disc_type: orderDiscType,
+      p_customer_id: customerId,
     })
     .single();
 

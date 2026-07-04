@@ -77,6 +77,13 @@ export default async function PosPage({
     .eq("business_id", businessId)
     .order("updated_at", { ascending: false });
 
+  const { data: customers } = await supabase
+    .from("customers")
+    .select("id, name, phone")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+
   let selfOrders: SelfOrderRow[] = [];
   if (isFnb) {
     const { data: orderRows } = await supabase
@@ -101,6 +108,7 @@ export default async function PosPage({
       taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
       serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
       openBills={(openBillRows ?? []) as unknown as OpenBillRow[]}
+      customers={customers ?? []}
       isFnb={isFnb}
       selfOrders={selfOrders.map((o) => ({
         id: o.id,
