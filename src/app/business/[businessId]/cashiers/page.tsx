@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addCashier } from "./actions";
+import { addCashier, editCashier, resetCashierPin } from "./actions";
 import AddCashierForm from "./add-cashier-form";
+import EditCashierForm from "./edit-cashier-form";
+import ResetPinForm from "./reset-pin-form";
+import ToggleActiveButton from "./toggle-active-button";
 
 export default async function CashiersPage({
   params,
@@ -48,19 +51,29 @@ export default async function CashiersPage({
             cashiers.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-zinc-900">{c.name}</p>
                   <p className="text-xs text-zinc-500">
                     {c.role === "manajer" ? "Manajer" : "Kasir"}
                   </p>
                 </div>
                 {!c.active && (
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                  <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
                     Nonaktif
                   </span>
                 )}
+                <EditCashierForm
+                  name={c.name}
+                  role={c.role}
+                  action={editCashier.bind(null, businessId, c.id)}
+                />
+                <ResetPinForm
+                  cashierName={c.name}
+                  action={resetCashierPin.bind(null, businessId, c.id)}
+                />
+                <ToggleActiveButton businessId={businessId} cashierId={c.id} active={c.active} />
               </div>
             ))
           ) : (
