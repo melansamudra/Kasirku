@@ -75,7 +75,7 @@ type Customer = {
   phone: string | null;
 };
 
-const PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
+const BUILTIN_PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -94,6 +94,7 @@ export default function PosScreen({
   customers,
   isFnb,
   selfOrders,
+  customPaymentMethods,
 }: {
   businessId: string;
   businessName: string;
@@ -107,8 +108,13 @@ export default function PosScreen({
   customers: Customer[];
   isFnb: boolean;
   selfOrders: SelfOrder[];
+  customPaymentMethods: string[];
 }) {
   const router = useRouter();
+  const paymentMethods = useMemo(
+    () => [...BUILTIN_PAYMENT_METHODS, ...customPaymentMethods],
+    [customPaymentMethods],
+  );
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -140,7 +146,7 @@ export default function PosScreen({
     return () => clearInterval(interval);
   }, [isFnb, router]);
   const [paying, setPaying] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
+  const [paymentMethod, setPaymentMethod] = useState(BUILTIN_PAYMENT_METHODS[0]);
   const [received, setReceived] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1049,7 +1055,7 @@ export default function PosScreen({
           ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2">
-                {PAYMENT_METHODS.map((m) => (
+                {paymentMethods.map((m) => (
                   <button
                     key={m}
                     onClick={() => setPaymentMethod(m)}

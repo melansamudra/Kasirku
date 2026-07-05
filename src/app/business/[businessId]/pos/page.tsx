@@ -84,6 +84,12 @@ export default async function PosPage({
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
+  const { data: customPaymentMethodRows } = await supabase
+    .from("custom_payment_methods")
+    .select("name")
+    .eq("business_id", businessId)
+    .order("name", { ascending: true });
+
   let selfOrders: SelfOrderRow[] = [];
   if (isFnb) {
     const { data: orderRows } = await supabase
@@ -110,6 +116,7 @@ export default async function PosPage({
       openBills={(openBillRows ?? []) as unknown as OpenBillRow[]}
       customers={customers ?? []}
       isFnb={isFnb}
+      customPaymentMethods={(customPaymentMethodRows ?? []).map((m) => m.name)}
       selfOrders={selfOrders.map((o) => ({
         id: o.id,
         status: o.status,
