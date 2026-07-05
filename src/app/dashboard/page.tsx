@@ -181,6 +181,12 @@ export default async function DashboardPage() {
                   Laporan
                 </Link>
                 <Link
+                  href={`/business/${b.id}/reports/laba-rugi`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Laba Rugi
+                </Link>
+                <Link
                   href={`/business/${b.id}/finance`}
                   className="text-xs font-medium text-zinc-500 hover:underline"
                 >
