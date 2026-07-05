@@ -175,6 +175,18 @@ export default async function DashboardPage() {
                   Riwayat Shift
                 </Link>
                 <Link
+                  href={`/business/${b.id}/attendance`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Absensi
+                </Link>
+                <Link
+                  href={`/business/${b.id}/payroll`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Payroll
+                </Link>
+                <Link
                   href={`/business/${b.id}/reports`}
                   className="text-xs font-medium text-zinc-500 hover:underline"
                 >

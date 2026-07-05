@@ -1,0 +1,108 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { CreatePayslipResult } from "./actions";
+
+type CashierOption = { id: string; name: string; dailyRate: number; active: boolean };
+
+export default function CreatePayslipForm({
+  businessId,
+  cashiers,
+  defaultStart,
+  defaultEnd,
+  action,
+}: {
+  businessId: string;
+  cashiers: CashierOption[];
+  defaultStart: string;
+  defaultEnd: string;
+  action: (
+    cashierId: string,
+    periodStart: string,
+    periodEnd: string,
+  ) => Promise<CreatePayslipResult>;
+}) {
+  const router = useRouter();
+  const [cashierId, setCashierId] = useState(cashiers[0]?.id ?? "");
+  const [periodStart, setPeriodStart] = useState(defaultStart);
+  const [periodEnd, setPeriodEnd] = useState(defaultEnd);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit() {
+    setError(null);
+    if (!cashierId) {
+      setError("Pilih kasir dulu.");
+      return;
+    }
+    setPending(true);
+    const result = await action(cashierId, periodStart, periodEnd);
+    setPending(false);
+
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+
+    router.push(`/business/${businessId}/payroll/${result.payslipId}`);
+  }
+
+  if (cashiers.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+        Belum ada kasir. Tambahkan dulu di halaman Kelola Kasir.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Kasir</label>
+        <select
+          value={cashierId}
+          onChange={(e) => setCashierId(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        >
+          {cashiers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {!c.active ? " (nonaktif)" : ""} — Rp{c.dailyRate.toLocaleString("id-ID")}/hari
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Dari</label>
+          <input
+            type="date"
+            value={periodStart}
+            onChange={(e) => setPeriodStart(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Sampai</label>
+          <input
+            type="date"
+            value={periodEnd}
+            onChange={(e) => setPeriodEnd(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      </div>
+
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
+
+      <button
+        onClick={handleSubmit}
+        disabled={pending}
+        className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Membuat…" : "Buat Slip Gaji"}
+      </button>
+    </div>
+  );
+}

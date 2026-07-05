@@ -15,6 +15,7 @@ export async function addCashier(
   const role = formData.get("role") as string;
   const pin = formData.get("pin") as string;
   const confirmPin = formData.get("confirmPin") as string;
+  const dailyRateRaw = formData.get("dailyRate") as string;
 
   if (!name) {
     return { error: "Nama kasir wajib diisi." };
@@ -28,9 +29,13 @@ export async function addCashier(
   if (pin !== confirmPin) {
     return { error: "PIN dan konfirmasi PIN tidak sama." };
   }
+  const dailyRate = dailyRateRaw ? Number(dailyRateRaw) : 0;
+  if (Number.isNaN(dailyRate) || dailyRate < 0) {
+    return { error: "Gaji harian harus angka dan tidak boleh negatif." };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("create_cashier", {
+  const { data: newCashierId, error } = await supabase.rpc("create_cashier", {
     p_business_id: businessId,
     p_name: name,
     p_role: role,
@@ -39,6 +44,14 @@ export async function addCashier(
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (dailyRate > 0 && newCashierId) {
+    await supabase
+      .from("cashiers")
+      .update({ daily_rate: dailyRate })
+      .eq("id", newCashierId)
+      .eq("business_id", businessId);
   }
 
   await logActivity(
@@ -63,6 +76,7 @@ export async function editCashier(
 ): Promise<EditCashierState> {
   const name = (formData.get("name") as string)?.trim();
   const role = formData.get("role") as string;
+  const dailyRateRaw = formData.get("dailyRate") as string;
 
   if (!name) {
     return { error: "Nama kasir wajib diisi." };
@@ -70,11 +84,15 @@ export async function editCashier(
   if (role !== "kasir" && role !== "manajer") {
     return { error: "Pilih peran kasir dulu." };
   }
+  const dailyRate = dailyRateRaw ? Number(dailyRateRaw) : 0;
+  if (Number.isNaN(dailyRate) || dailyRate < 0) {
+    return { error: "Gaji harian harus angka dan tidak boleh negatif." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("cashiers")
-    .update({ name, role })
+    .update({ name, role, daily_rate: dailyRate })
     .eq("id", cashierId)
     .eq("business_id", businessId);
 
