@@ -12,11 +12,10 @@ export default async function BusinessDashboardLayout({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name, business_type")
-    .eq("id", businessId)
-    .single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, business_type").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!business) {
     notFound();
@@ -27,6 +26,7 @@ export default async function BusinessDashboardLayout({
       businessId={businessId}
       businessName={business.name}
       isFnb={business.business_type === "fnb"}
+      userEmail={userData.user?.email ?? ""}
     >
       {children}
     </DashboardShell>

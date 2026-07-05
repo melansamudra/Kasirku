@@ -66,12 +66,14 @@ function SidebarContent({
   isFnb,
   pathname,
   onNavigate,
+  showLogout = true,
 }: {
   businessId: string;
   businessName: string;
   isFnb: boolean;
   pathname: string;
   onNavigate?: () => void;
+  showLogout?: boolean;
 }) {
   const groups = buildNavGroups(businessId, isFnb);
   const activeHref = useActiveHref(groups, pathname);
@@ -135,7 +137,30 @@ function SidebarContent({
         >
           ← Semua Toko
         </Link>
-        <LogoutButton />
+        {showLogout && <LogoutButton />}
+      </div>
+    </div>
+  );
+}
+
+function Topbar({ businessName, userEmail }: { businessName: string; userEmail: string }) {
+  const today = new Date().toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const initial = (userEmail || businessName).charAt(0).toUpperCase();
+
+  return (
+    <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-zinc-200 bg-white px-8 py-4 md:flex print:hidden">
+      <p className="text-sm text-zinc-500">{today}</p>
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+          {initial}
+        </div>
+        {userEmail && <p className="max-w-[180px] truncate text-sm text-zinc-600">{userEmail}</p>}
+        <LogoutButton variant="inline" />
       </div>
     </div>
   );
@@ -145,11 +170,13 @@ export default function DashboardShell({
   businessId,
   businessName,
   isFnb,
+  userEmail,
   children,
 }: {
   businessId: string;
   businessName: string;
   isFnb: boolean;
+  userEmail: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -165,6 +192,7 @@ export default function DashboardShell({
             businessName={businessName}
             isFnb={isFnb}
             pathname={pathname}
+            showLogout={false}
           />
         </div>
       </aside>
@@ -189,6 +217,8 @@ export default function DashboardShell({
       )}
 
       <div className="min-w-0 flex-1">
+        <Topbar businessName={businessName} userEmail={userEmail} />
+
         <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 md:hidden print:hidden">
           <button
             onClick={() => setMobileNavOpen(true)}
