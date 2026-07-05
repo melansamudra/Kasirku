@@ -13,6 +13,7 @@ import {
   type DiscountType,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
+import { itemDiscAmount, calculateCheckoutTotals } from "@/lib/checkout-totals";
 
 type Product = {
   id: string;
@@ -33,13 +34,6 @@ type CartItem = {
   disc: number;
   discType: DiscountType;
 };
-
-function itemDiscAmount(item: CartItem) {
-  const lineGross = item.price * item.qty;
-  return item.discType === "pct"
-    ? Math.round((lineGross * item.disc) / 100)
-    : Math.min(item.disc * item.qty, lineGross);
-}
 
 type SelfOrder = {
   id: string;
@@ -174,20 +168,14 @@ export default function PosScreen({
     );
   }, [customerSearch, customers]);
 
-  // Urutan hitung mengikuti aplikasi lama: diskon item -> diskon order ->
-  // layanan dari subtotal -> PPN dari (subtotal + layanan). Angka final tetap
-  // dihitung ulang server-side di RPC; ini hanya tampilan.
-  const subtotalRaw = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const totalItemDisc = cart.reduce((sum, item) => sum + itemDiscAmount(item), 0);
-  const afterItemDisc = subtotalRaw - totalItemDisc;
-  const orderDiscAmt =
-    orderDiscType === "pct"
-      ? Math.round((afterItemDisc * orderDisc) / 100)
-      : Math.min(orderDisc, afterItemDisc);
-  const subtotal = afterItemDisc - orderDiscAmt;
-  const serviceAmt = Math.round((subtotal * serviceRate) / 100);
-  const taxAmt = Math.round(((subtotal + serviceAmt) * taxRate) / 100);
-  const total = subtotal + serviceAmt + taxAmt;
+  const { subtotalRaw, totalItemDisc, afterItemDisc, orderDiscAmt, subtotal, serviceAmt, taxAmt, total } =
+    calculateCheckoutTotals({
+      items: cart,
+      orderDisc,
+      orderDiscType,
+      serviceRate,
+      taxRate,
+    });
   const receivedAmount = Number(received) || 0;
   const change = paymentMethod === "Tunai" ? receivedAmount - total : 0;
 
