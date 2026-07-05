@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { editCustomer } from "../actions";
 import DeleteCustomerButton from "./delete-customer-button";
+import EditCustomerForm from "./edit-customer-form";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -47,6 +49,8 @@ export default async function CustomerDetailPage({
   const totalSpent = validTransactions.reduce((sum, t) => sum + Number(t.total), 0);
   const lastVisit = transactions?.[0]?.date;
 
+  const boundEditCustomer = editCustomer.bind(null, businessId, customerId);
+
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-10">
       <div className="w-full max-w-sm">
@@ -57,12 +61,23 @@ export default async function CustomerDetailPage({
           ← Kembali ke pelanggan
         </Link>
 
-        <h1 className="mt-3 text-lg font-bold text-zinc-900">{customer.name}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {customer.phone || "—"}
-          {customer.email ? ` · ${customer.email}` : ""}
-        </p>
-        {customer.note && <p className="mt-1 text-xs text-zinc-400">{customer.note}</p>}
+        <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-zinc-900">{customer.name}</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              {customer.phone || "—"}
+              {customer.email ? ` · ${customer.email}` : ""}
+            </p>
+            {customer.note && <p className="mt-1 text-xs text-zinc-400">{customer.note}</p>}
+          </div>
+          <EditCustomerForm
+            name={customer.name}
+            phone={customer.phone}
+            email={customer.email}
+            note={customer.note}
+            action={boundEditCustomer}
+          />
+        </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-zinc-200 bg-white p-3 text-center">
