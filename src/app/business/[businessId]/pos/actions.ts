@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
 import { logActivity } from "@/lib/activity-log";
+import { dispatchKitchenPrint } from "@/lib/kitchen-print";
 
 type VerifyCashierPinRow = {
   id: string;
@@ -111,7 +112,54 @@ export async function checkout(
     `Transaksi ${result.invoice_number}`,
     `${itemCount} item · ${paymentMethod}`,
   );
+
+  await printKitchenTicketsForItems(
+    supabase,
+    businessId,
+    "Kasir",
+    result.invoice_number,
+    items.map((i) => ({ productId: i.productId, qty: i.qty })),
+  );
+
   return { success: true, invoiceNumber: result.invoice_number, transactionId: result.transaction_id };
+}
+
+async function printKitchenTicketsForItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  businessId: string,
+  source: string,
+  label: string,
+  items: { productId: string; qty: number; note?: string | null }[],
+) {
+  const productIds = Array.from(new Set(items.map((i) => i.productId)));
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, name, category")
+    .in("id", productIds);
+  const productMap = new Map((products ?? []).map((p) => [p.id, p]));
+
+  const failures = await dispatchKitchenPrint(supabase, businessId, {
+    source,
+    label,
+    items: items.map((i) => ({
+      name: productMap.get(i.productId)?.name ?? "Item",
+      category: productMap.get(i.productId)?.category ?? null,
+      qty: i.qty,
+      note: i.note,
+    })),
+  }).catch(() => []);
+
+  const failed = failures.filter((f) => !f.ok);
+  if (failed.length > 0) {
+    await logActivity(
+      supabase,
+      businessId,
+      "sistem",
+      "warning",
+      `Gagal cetak ke dapur: ${failed.map((f) => f.printer).join(", ")}`,
+      failed.map((f) => f.error).join(" · "),
+    );
+  }
 }
 
 export type OpenShiftResult = { success: true } | { success: false; error: string };
@@ -287,6 +335,40 @@ export async function updateSelfOrderStatus(
     "info",
     `Pesanan ${tableName} → ${status}`,
   );
+
+  if (status === "diproses") {
+    const { data: orderItems } = await supabase
+      .from("self_order_items")
+      .select("product_id, name, qty, note, products(category)")
+      .eq("self_order_id", orderId);
+
+    if (orderItems && orderItems.length > 0) {
+      const failures = await dispatchKitchenPrint(supabase, businessId, {
+        source: tableName,
+        label: "Pesanan Self-Order",
+        items: orderItems.map((i) => ({
+          name: i.name,
+          category: (i as unknown as { products: { category: string | null } | null }).products
+            ?.category ?? null,
+          qty: Number(i.qty),
+          note: i.note,
+        })),
+      }).catch(() => []);
+
+      const failed = failures.filter((f) => !f.ok);
+      if (failed.length > 0) {
+        await logActivity(
+          supabase,
+          businessId,
+          "sistem",
+          "warning",
+          `Gagal cetak ke dapur: ${failed.map((f) => f.printer).join(", ")}`,
+          failed.map((f) => f.error).join(" · "),
+        );
+      }
+    }
+  }
+
   revalidatePath(`/business/${businessId}/pos`);
   revalidatePath(`/business/${businessId}/tables`);
   return { success: true };
