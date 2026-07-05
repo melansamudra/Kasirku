@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPeriodRange } from "../business/[businessId]/reports/period";
+import { getPeriodRange } from "../business/[businessId]/(dashboard)/reports/period";
 import LogoutButton from "./logout-button";
 
 function formatRupiah(value: number) {
