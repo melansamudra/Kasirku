@@ -31,13 +31,16 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const authPages = ["/login", "/signup"];
+  const authPages = ["/login", "/signup", "/forgot-password"];
   const isAuthPage = authPages.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );
   // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
+  // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
   const isPublicPath =
-    isAuthPage || request.nextUrl.pathname.startsWith("/order");
+    isAuthPage ||
+    request.nextUrl.pathname.startsWith("/order") ||
+    request.nextUrl.pathname.startsWith("/auth/callback");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

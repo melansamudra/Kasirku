@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -18,7 +16,9 @@ export default function LoginPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    });
 
     setLoading(false);
 
@@ -27,8 +27,30 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    setSubmitted(true);
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600">
+            <span className="text-lg font-bold text-white">K</span>
+          </div>
+          <h1 className="text-xl font-bold text-zinc-900">Cek email kamu</h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Kalau <strong>{email}</strong> terdaftar, kami sudah kirim link untuk membuat
+            password baru. Klik link itu untuk melanjutkan.
+          </p>
+          <Link
+            href="/login"
+            className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline"
+          >
+            Kembali ke halaman masuk
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -38,9 +60,9 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600">
             <span className="text-lg font-bold text-white">K</span>
           </div>
-          <h1 className="text-xl font-bold text-zinc-900">Masuk ke KasirKu</h1>
+          <h1 className="text-xl font-bold text-zinc-900">Lupa Password</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Masuk dengan akun pemilik toko kamu
+            Masukkan email akun kamu, kami kirim link untuk buat password baru.
           </p>
         </div>
 
@@ -60,26 +82,6 @@ export default function LoginPage() {
               placeholder="kamu@toko.com"
             />
           </div>
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label htmlFor="password" className="block text-xs font-medium text-zinc-600">
-                Password
-              </label>
-              <Link href="/forgot-password" className="text-xs font-medium text-brand-600 hover:underline">
-                Lupa password?
-              </Link>
-            </div>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              placeholder="••••••••"
-            />
-          </div>
 
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
@@ -90,14 +92,14 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Memproses…" : "Masuk"}
+            {loading ? "Mengirim…" : "Kirim Link Reset"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-zinc-500">
-          Belum punya akun?{" "}
-          <Link href="/signup" className="font-medium text-brand-600 hover:underline">
-            Daftar
+          Sudah ingat password?{" "}
+          <Link href="/login" className="font-medium text-brand-600 hover:underline">
+            Masuk
           </Link>
         </p>
       </div>
