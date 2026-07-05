@@ -169,6 +169,12 @@ export default async function DashboardPage() {
                   Kelola Kasir
                 </Link>
                 <Link
+                  href={`/business/${b.id}/shifts`}
+                  className="text-xs font-medium text-zinc-500 hover:underline"
+                >
+                  Riwayat Shift
+                </Link>
+                <Link
                   href={`/business/${b.id}/reports`}
                   className="text-xs font-medium text-zinc-500 hover:underline"
                 >
