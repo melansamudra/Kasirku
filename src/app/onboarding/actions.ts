@@ -24,7 +24,7 @@ export async function createBusiness(
   if (!name) {
     return { error: "Nama toko wajib diisi." };
   }
-  if (businessType !== "fnb" && businessType !== "retail") {
+  if (businessType !== "fnb" && businessType !== "retail" && businessType !== "tiket") {
     return { error: "Pilih jenis bisnis dulu." };
   }
 

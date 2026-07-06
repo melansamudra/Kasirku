@@ -8,6 +8,12 @@ function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
 
+const BUSINESS_TYPE_BADGE: Record<string, string> = {
+  fnb: "🍽️ Restoran / Kafe / F&B",
+  retail: "🛒 Retail / Toko",
+  tiket: "🎟️ Tempat Wisata / Tiket",
+};
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -28,6 +34,12 @@ export default async function DashboardPage() {
 
   const { data: todayTx } = await supabase
     .from("transactions")
+    .select("business_id, total, voided")
+    .in("business_id", businessIds)
+    .gte("date", fromIso ?? undefined);
+
+  const { data: todayTicketTx } = await supabase
+    .from("ticket_transactions")
     .select("business_id, total, voided")
     .in("business_id", businessIds)
     .gte("date", fromIso ?? undefined);
@@ -62,7 +74,7 @@ export default async function DashboardPage() {
   }
 
   const todaySummary = new Map<string, { revenue: number; count: number }>();
-  for (const t of todayTx ?? []) {
+  for (const t of [...(todayTx ?? []), ...(todayTicketTx ?? [])]) {
     if (t.voided) continue;
     const entry = todaySummary.get(t.business_id) ?? { revenue: 0, count: 0 };
     entry.revenue += Number(t.total);
@@ -89,7 +101,7 @@ export default async function DashboardPage() {
                 <div>
                   <p className="font-semibold text-zinc-900">{b.name}</p>
                   <p className="text-xs text-zinc-500">
-                    {b.business_type === "fnb" ? "🍽️ Restoran / Kafe / F&B" : "🛒 Retail / Toko"}
+                    {BUSINESS_TYPE_BADGE[b.business_type] ?? b.business_type}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
@@ -128,40 +140,59 @@ export default async function DashboardPage() {
                 >
                   Buka Kasir →
                 </Link>
-                <Link
-                  href={`/business/${b.id}/transactions`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Riwayat Transaksi
-                </Link>
-                <Link
-                  href={`/business/${b.id}/products`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Kelola Produk
-                </Link>
-                {b.business_type === "fnb" && (
+                {b.business_type === "tiket" ? (
                   <>
                     <Link
-                      href={`/business/${b.id}/ingredients`}
+                      href={`/business/${b.id}/ticket-reports`}
                       className="text-xs font-medium text-zinc-500 hover:underline"
                     >
-                      Bahan Baku
+                      Laporan Tiket
                     </Link>
                     <Link
-                      href={`/business/${b.id}/tables`}
+                      href={`/business/${b.id}/members`}
                       className="text-xs font-medium text-zinc-500 hover:underline"
                     >
-                      Meja & Self-Order
+                      Anggota
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href={`/business/${b.id}/transactions`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Riwayat Transaksi
+                    </Link>
+                    <Link
+                      href={`/business/${b.id}/products`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Kelola Produk
+                    </Link>
+                    {b.business_type === "fnb" && (
+                      <>
+                        <Link
+                          href={`/business/${b.id}/ingredients`}
+                          className="text-xs font-medium text-zinc-500 hover:underline"
+                        >
+                          Bahan Baku
+                        </Link>
+                        <Link
+                          href={`/business/${b.id}/tables`}
+                          className="text-xs font-medium text-zinc-500 hover:underline"
+                        >
+                          Meja & Self-Order
+                        </Link>
+                      </>
+                    )}
+                    <Link
+                      href={`/business/${b.id}/customers`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Pelanggan
                     </Link>
                   </>
                 )}
-                <Link
-                  href={`/business/${b.id}/customers`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Pelanggan
-                </Link>
                 <Link
                   href={`/business/${b.id}/cashiers`}
                   className="text-xs font-medium text-zinc-500 hover:underline"
@@ -186,24 +217,28 @@ export default async function DashboardPage() {
                 >
                   Payroll
                 </Link>
-                <Link
-                  href={`/business/${b.id}/reports`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Laporan
-                </Link>
-                <Link
-                  href={`/business/${b.id}/reports/laba-rugi`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Laba Rugi
-                </Link>
-                <Link
-                  href={`/business/${b.id}/finance`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Keuangan
-                </Link>
+                {b.business_type !== "tiket" && (
+                  <>
+                    <Link
+                      href={`/business/${b.id}/reports`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Laporan
+                    </Link>
+                    <Link
+                      href={`/business/${b.id}/reports/laba-rugi`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Laba Rugi
+                    </Link>
+                    <Link
+                      href={`/business/${b.id}/finance`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Keuangan
+                    </Link>
+                  </>
+                )}
                 <Link
                   href={`/business/${b.id}/settings`}
                   className="text-xs font-medium text-zinc-500 hover:underline"

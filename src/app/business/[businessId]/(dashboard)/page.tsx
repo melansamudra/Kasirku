@@ -44,7 +44,7 @@ export default async function BusinessDashboardPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, business_type")
     .eq("id", businessId)
     .single();
 
@@ -57,7 +57,7 @@ export default async function BusinessDashboardPage({
   const daysSoFar = Number(today.slice(8, 10));
 
   const { data: transactions } = await supabase
-    .from("transactions")
+    .from(business.business_type === "tiket" ? "ticket_transactions" : "transactions")
     .select("date, total")
     .eq("business_id", businessId)
     .eq("voided", false)
@@ -244,18 +244,29 @@ export default async function BusinessDashboardPage({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link
-          href={`/business/${businessId}/reports/laba-rugi`}
-          className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
-        >
-          Lihat Laba Rugi lengkap →
-        </Link>
-        <Link
-          href={`/business/${businessId}/reports`}
-          className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
-        >
-          Lihat Laporan lengkap →
-        </Link>
+        {business.business_type === "tiket" ? (
+          <Link
+            href={`/business/${businessId}/ticket-reports`}
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+          >
+            Lihat Laporan Tiket lengkap →
+          </Link>
+        ) : (
+          <>
+            <Link
+              href={`/business/${businessId}/reports/laba-rugi`}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            >
+              Lihat Laba Rugi lengkap →
+            </Link>
+            <Link
+              href={`/business/${businessId}/reports`}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            >
+              Lihat Laporan lengkap →
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

@@ -7,33 +7,45 @@ import LogoutButton from "@/app/dashboard/logout-button";
 
 type NavItem = { href: string; label: string; icon: string };
 type NavGroup = { title: string; items: NavItem[] };
+type BusinessType = "fnb" | "retail" | "tiket";
 
-function buildNavGroups(businessId: string, isFnb: boolean): NavGroup[] {
+function buildNavGroups(businessId: string, businessType: BusinessType): NavGroup[] {
+  const isFnb = businessType === "fnb";
+  const isTiket = businessType === "tiket";
   const base = `/business/${businessId}`;
   return [
     {
       title: "Keuangan",
       items: [
         { href: base, label: "Dashboard", icon: "📊" },
-        { href: `${base}/reports`, label: "Laporan", icon: "📈" },
-        { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: "🧮" },
-        { href: `${base}/finance`, label: "Keuangan", icon: "💰" },
-        { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: "🧾" },
+        ...(isTiket
+          ? []
+          : [
+              { href: `${base}/reports`, label: "Laporan", icon: "📈" },
+              { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: "🧮" },
+              { href: `${base}/finance`, label: "Keuangan", icon: "💰" },
+              { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: "🧾" },
+            ]),
         { href: `${base}/shifts`, label: "Riwayat Shift", icon: "⏱️" },
       ],
     },
     {
       title: "Operasional",
-      items: [
-        { href: `${base}/products`, label: "Kelola Produk", icon: "📦" },
-        ...(isFnb
-          ? [
-              { href: `${base}/ingredients`, label: "Bahan Baku", icon: "🧂" },
-              { href: `${base}/tables`, label: "Meja & Self-Order", icon: "🪑" },
-            ]
-          : []),
-        { href: `${base}/customers`, label: "Pelanggan", icon: "👥" },
-      ],
+      items: isTiket
+        ? [
+            { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: "🎟️" },
+            { href: `${base}/members`, label: "Anggota", icon: "👤" },
+          ]
+        : [
+            { href: `${base}/products`, label: "Kelola Produk", icon: "📦" },
+            ...(isFnb
+              ? [
+                  { href: `${base}/ingredients`, label: "Bahan Baku", icon: "🧂" },
+                  { href: `${base}/tables`, label: "Meja & Self-Order", icon: "🪑" },
+                ]
+              : []),
+            { href: `${base}/customers`, label: "Pelanggan", icon: "👥" },
+          ],
     },
     {
       title: "SDM",
@@ -53,6 +65,12 @@ function buildNavGroups(businessId: string, isFnb: boolean): NavGroup[] {
   ];
 }
 
+const BUSINESS_TYPE_SUBTITLE: Record<BusinessType, string> = {
+  fnb: "Restoran / Kafe / F&B",
+  retail: "Retail / Toko",
+  tiket: "Tempat Wisata / Tiket",
+};
+
 function useActiveHref(groups: NavGroup[], pathname: string): string | null {
   const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
   const matches = allHrefs.filter((h) => pathname === h || pathname.startsWith(`${h}/`));
@@ -63,19 +81,19 @@ function useActiveHref(groups: NavGroup[], pathname: string): string | null {
 function SidebarContent({
   businessId,
   businessName,
-  isFnb,
+  businessType,
   pathname,
   onNavigate,
   showLogout = true,
 }: {
   businessId: string;
   businessName: string;
-  isFnb: boolean;
+  businessType: BusinessType;
   pathname: string;
   onNavigate?: () => void;
   showLogout?: boolean;
 }) {
-  const groups = buildNavGroups(businessId, isFnb);
+  const groups = buildNavGroups(businessId, businessType);
   const activeHref = useActiveHref(groups, pathname);
 
   return (
@@ -86,9 +104,7 @@ function SidebarContent({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-zinc-900">{businessName}</p>
-          <p className="text-[11px] text-zinc-400">
-            {isFnb ? "Restoran / Kafe / F&B" : "Retail / Toko"}
-          </p>
+          <p className="text-[11px] text-zinc-400">{BUSINESS_TYPE_SUBTITLE[businessType]}</p>
         </div>
       </div>
 
@@ -169,13 +185,13 @@ function Topbar({ businessName, userEmail }: { businessName: string; userEmail: 
 export default function DashboardShell({
   businessId,
   businessName,
-  isFnb,
+  businessType,
   userEmail,
   children,
 }: {
   businessId: string;
   businessName: string;
-  isFnb: boolean;
+  businessType: BusinessType;
   userEmail: string;
   children: React.ReactNode;
 }) {
@@ -190,7 +206,7 @@ export default function DashboardShell({
           <SidebarContent
             businessId={businessId}
             businessName={businessName}
-            isFnb={isFnb}
+            businessType={businessType}
             pathname={pathname}
             showLogout={false}
           />
@@ -208,7 +224,7 @@ export default function DashboardShell({
             <SidebarContent
               businessId={businessId}
               businessName={businessName}
-              isFnb={isFnb}
+              businessType={businessType}
               pathname={pathname}
               onNavigate={() => setMobileNavOpen(false)}
             />

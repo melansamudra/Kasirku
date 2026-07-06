@@ -70,6 +70,23 @@ export default function OnboardingForm() {
                 <p className="text-xs text-zinc-500">Scan barcode, stok produk, kasir cepat</p>
               </div>
             </label>
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 p-3.5 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
+              <input
+                type="radio"
+                name="business_type"
+                value="tiket"
+                required
+                className="accent-brand-600"
+              />
+              <div>
+                <p className="text-sm font-medium text-zinc-900">
+                  🎟️ Tempat Wisata / Kolam Renang
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Tiket masuk, kategori pengunjung, kalender libur
+                </p>
+              </div>
+            </label>
           </div>
         </fieldset>
 

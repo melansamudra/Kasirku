@@ -25,7 +25,7 @@ export default async function BusinessDashboardLayout({
     <DashboardShell
       businessId={businessId}
       businessName={business.name}
-      isFnb={business.business_type === "fnb"}
+      businessType={business.business_type as "fnb" | "retail" | "tiket"}
       userEmail={userData.user?.email ?? ""}
     >
       {children}

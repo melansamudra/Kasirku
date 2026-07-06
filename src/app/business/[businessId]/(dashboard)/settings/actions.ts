@@ -94,6 +94,172 @@ export async function deleteKitchenPrinter(businessId: string, printerId: string
   revalidatePath(`/business/${businessId}/settings`);
 }
 
+export type TicketCategoryState = { error: string | null };
+
+type ParsedTicketCategoryFields =
+  | { error: string }
+  | {
+      error: null;
+      name: string;
+      priceWeekday: number;
+      priceHoliday: number;
+      memberPrice: number;
+    };
+
+function parseTicketCategoryFields(formData: FormData): ParsedTicketCategoryFields {
+  const name = (formData.get("name") as string)?.trim();
+  const priceWeekday = Number(formData.get("priceWeekday"));
+  const priceHoliday = Number(formData.get("priceHoliday"));
+  const memberPrice = Number(formData.get("memberPrice"));
+
+  if (!name) return { error: "Nama kategori wajib diisi." };
+  if (Number.isNaN(priceWeekday) || priceWeekday < 0) {
+    return { error: "Harga hari kerja harus angka dan tidak boleh negatif." };
+  }
+  if (Number.isNaN(priceHoliday) || priceHoliday < 0) {
+    return { error: "Harga hari libur harus angka dan tidak boleh negatif." };
+  }
+  if (Number.isNaN(memberPrice) || memberPrice < 0) {
+    return { error: "Harga member harus angka dan tidak boleh negatif." };
+  }
+
+  return { error: null, name, priceWeekday, priceHoliday, memberPrice };
+}
+
+export async function addTicketCategory(
+  businessId: string,
+  _prevState: TicketCategoryState,
+  formData: FormData,
+): Promise<TicketCategoryState> {
+  const parsed = parseTicketCategoryFields(formData);
+  if (parsed.error !== null) return { error: parsed.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("ticket_categories").insert({
+    business_id: businessId,
+    name: parsed.name,
+    price_weekday: parsed.priceWeekday,
+    price_holiday: parsed.priceHoliday,
+    member_price: parsed.memberPrice,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Nama kategori sudah dipakai." };
+    }
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    `Kategori tiket baru: ${parsed.name}`,
+  );
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null };
+}
+
+export async function updateTicketCategory(
+  businessId: string,
+  categoryId: string,
+  _prevState: TicketCategoryState,
+  formData: FormData,
+): Promise<TicketCategoryState> {
+  const parsed = parseTicketCategoryFields(formData);
+  if (parsed.error !== null) return { error: parsed.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ticket_categories")
+    .update({
+      name: parsed.name,
+      price_weekday: parsed.priceWeekday,
+      price_holiday: parsed.priceHoliday,
+      member_price: parsed.memberPrice,
+    })
+    .eq("id", categoryId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Nama kategori sudah dipakai." };
+    }
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "info",
+    `Kategori tiket diubah: ${parsed.name}`,
+  );
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null };
+}
+
+export async function deleteTicketCategory(businessId: string, categoryId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("ticket_categories")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", categoryId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/settings`);
+}
+
+export type TicketHolidayState = { error: string | null };
+
+export async function addTicketHoliday(
+  businessId: string,
+  _prevState: TicketHolidayState,
+  formData: FormData,
+): Promise<TicketHolidayState> {
+  const holidayDate = formData.get("holidayDate") as string;
+  const label = (formData.get("label") as string)?.trim();
+
+  if (!holidayDate || !/^\d{4}-\d{2}-\d{2}$/.test(holidayDate)) {
+    return { error: "Tanggal libur wajib diisi." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("ticket_holidays").insert({
+    business_id: businessId,
+    holiday_date: holidayDate,
+    label: label || null,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Tanggal ini sudah ditandai sebagai hari libur." };
+    }
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    `Hari libur ditandai: ${holidayDate}`,
+    label || undefined,
+  );
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null };
+}
+
+export async function deleteTicketHoliday(businessId: string, holidayId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("ticket_holidays")
+    .delete()
+    .eq("id", holidayId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/settings`);
+}
+
 export type TaxServiceState = { error: string | null; saved: boolean };
 
 export async function updateTaxService(
