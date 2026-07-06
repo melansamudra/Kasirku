@@ -8,7 +8,6 @@ import {
   parsePeriod,
   type Period,
 } from "../reports/period";
-import VoidTicketButton from "./void-ticket-button";
 
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
@@ -279,52 +278,41 @@ export default async function TicketReportsPage({
         </div>
         {rows.length > 0 ? (
           <div className="divide-y divide-zinc-100">
-            {(() => {
-              const shownVoidFor = new Set<string>();
-              return rows.slice(0, 100).map((r) => {
-                const showVoidButton = !r.tx.voided && !shownVoidFor.has(r.tx.id);
-                if (showVoidButton) shownVoidFor.add(r.tx.id);
-                return (
-                  <div
-                    key={r.id}
-                    className={`relative px-4 py-3 ${r.tx.voided ? "opacity-60" : ""}`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-zinc-900">
-                          #{r.serial_no} — {r.ticket_categories?.name ?? "Lainnya"}
-                          {r.is_member_price && (
-                            <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
-                              Member
-                            </span>
-                          )}
-                          {r.tx.voided && (
-                            <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-                              VOID
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-zinc-400">
-                          {r.tx.invoice_number} · {formatDateTime(r.tx.date)}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {showVoidButton && (
-                          <VoidTicketButton businessId={businessId} transactionId={r.tx.id} />
-                        )}
-                        <span
-                          className={`text-sm font-bold ${
-                            r.tx.voided ? "text-red-400 line-through" : "text-zinc-900"
-                          }`}
-                        >
-                          {formatRupiah(Number(r.price))}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              });
-            })()}
+            {rows.slice(0, 100).map((r) => (
+              <Link
+                key={r.id}
+                href={`/business/${businessId}/ticket-reports/${r.tx.id}`}
+                className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 ${
+                  r.tx.voided ? "opacity-60" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-zinc-900">
+                    #{r.serial_no} — {r.ticket_categories?.name ?? "Lainnya"}
+                    {r.is_member_price && (
+                      <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
+                        Member
+                      </span>
+                    )}
+                    {r.tx.voided && (
+                      <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                        VOID
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-zinc-400">
+                    {r.tx.invoice_number} · {formatDateTime(r.tx.date)}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 text-sm font-bold ${
+                    r.tx.voided ? "text-red-400 line-through" : "text-zinc-900"
+                  }`}
+                >
+                  {formatRupiah(Number(r.price))}
+                </span>
+              </Link>
+            ))}
           </div>
         ) : (
           <p className="py-14 text-center text-sm text-zinc-300">Belum ada tiket terjual</p>
