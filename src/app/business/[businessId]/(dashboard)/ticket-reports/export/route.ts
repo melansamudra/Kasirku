@@ -71,6 +71,9 @@ export async function GET(
     url.searchParams.get("from") ?? undefined,
     url.searchParams.get("to") ?? undefined,
   );
+  const categoryFilter = url.searchParams.get("category") ?? undefined;
+  const serialFrom = url.searchParams.get("serialFrom") ?? undefined;
+  const serialTo = url.searchParams.get("serialTo") ?? undefined;
 
   const supabase = await createClient();
 
@@ -154,13 +157,17 @@ export async function GET(
     }[] = [];
 
     if (txIds.length > 0) {
-      const { data } = await supabase
+      let serialQuery = supabase
         .from("ticket_serials")
         .select(
           "id, serial_no, manual_number, price, is_member_price, ticket_transaction_id, ticket_categories(name)",
         )
         .in("ticket_transaction_id", txIds)
         .order("serial_no", { ascending: true });
+      if (categoryFilter) serialQuery = serialQuery.eq("ticket_category_id", categoryFilter);
+      if (serialFrom) serialQuery = serialQuery.gte("serial_no", Number(serialFrom));
+      if (serialTo) serialQuery = serialQuery.lte("serial_no", Number(serialTo));
+      const { data } = await serialQuery;
       serials = (data ?? []) as unknown as typeof serials;
     }
 

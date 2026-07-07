@@ -287,13 +287,13 @@ export default async function TicketReportsPage({
             🧾 Transaksi
           </a>
           <a
-            href={`/business/${businessId}/ticket-reports/export?type=tickets&${periodQuery}`}
+            href={`/business/${businessId}/ticket-reports/export?type=tickets&${periodQuery}&${filterQuery.toString()}`}
             className="flex items-center justify-center gap-1.5 rounded-xl bg-zinc-800 py-2.5 text-xs font-bold text-white transition-colors hover:bg-zinc-900"
           >
             🎟️ Per Tiket
           </a>
           <a
-            href={`/business/${businessId}/ticket-reports/export?type=hourly&${periodQuery}`}
+            href={`/business/${businessId}/ticket-reports/export?type=hourly&${periodQuery}&${filterQuery.toString()}`}
             className="flex items-center justify-center gap-1.5 rounded-xl bg-zinc-800 py-2.5 text-xs font-bold text-white transition-colors hover:bg-zinc-900"
           >
             ⏱️ Per Jam
