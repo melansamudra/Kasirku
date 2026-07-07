@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { closeShift, type CloseShiftSummary } from "./actions";
-import { checkoutTicket, lookupMemberByCode, type TicketCartItemInput } from "./ticket-actions";
+import { checkoutTicket, type TicketCartItemInput } from "./ticket-actions";
 import SwitchCashierButton from "./switch-cashier-button";
+import MemberPanel, { type FullMember, type SelectedMember } from "./member-panel";
 
 type TicketCategory = {
   id: string;
@@ -13,8 +14,6 @@ type TicketCategory = {
   priceHoliday: number;
   memberPrice: number;
 };
-
-type Member = { id: string; name: string; memberCode: string; validUntil: string };
 
 const BUILTIN_PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
 
@@ -29,6 +28,7 @@ export default function TicketPosScreen({
   cashierName,
   shiftId,
   categories,
+  members,
   taxRate,
   serviceRate,
   isHoliday,
@@ -40,6 +40,7 @@ export default function TicketPosScreen({
   cashierName: string;
   shiftId: string;
   categories: TicketCategory[];
+  members: FullMember[];
   taxRate: number;
   serviceRate: number;
   isHoliday: boolean;
@@ -51,12 +52,9 @@ export default function TicketPosScreen({
     [customPaymentMethods],
   );
 
-  const [qtyByCategory, setQtyByCategory] = useState<Record<string, number>>({});
+  const [unitsByCategory, setUnitsByCategory] = useState<Record<string, string[]>>({});
 
-  const [memberCode, setMemberCode] = useState("");
-  const [member, setMember] = useState<Member | null>(null);
-  const [memberError, setMemberError] = useState<string | null>(null);
-  const [memberBusy, setMemberBusy] = useState(false);
+  const [member, setMember] = useState<SelectedMember | null>(null);
 
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(BUILTIN_PAYMENT_METHODS[0]);
@@ -77,45 +75,48 @@ export default function TicketPosScreen({
     return isHoliday ? category.priceHoliday : category.priceWeekday;
   }
 
-  function changeQty(categoryId: string, delta: number) {
-    setQtyByCategory((prev) => {
-      const nextQty = Math.max(0, (prev[categoryId] ?? 0) + delta);
+  function addUnit(categoryId: string) {
+    setUnitsByCategory((prev) => ({
+      ...prev,
+      [categoryId]: [...(prev[categoryId] ?? []), ""],
+    }));
+  }
+
+  function removeUnit(categoryId: string, index: number) {
+    setUnitsByCategory((prev) => {
       const next = { ...prev };
-      if (nextQty <= 0) {
+      const arr = (next[categoryId] ?? []).filter((_, i) => i !== index);
+      if (arr.length === 0) {
         delete next[categoryId];
       } else {
-        next[categoryId] = nextQty;
+        next[categoryId] = arr;
       }
       return next;
     });
   }
 
+  function setUnitNumber(categoryId: string, index: number, value: string) {
+    setUnitsByCategory((prev) => {
+      const arr = [...(prev[categoryId] ?? [])];
+      arr[index] = value;
+      return { ...prev, [categoryId]: arr };
+    });
+  }
+
   const cartLines = categories
-    .filter((c) => (qtyByCategory[c.id] ?? 0) > 0)
+    .filter((c) => (unitsByCategory[c.id] ?? []).length > 0)
     .map((c) => ({
       category: c,
-      qty: qtyByCategory[c.id],
+      units: unitsByCategory[c.id] ?? [],
       unitPrice: unitPriceFor(c),
     }));
 
-  const subtotal = cartLines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0);
+  const subtotal = cartLines.reduce((sum, l) => sum + l.unitPrice * l.units.length, 0);
   const serviceAmt = serviceRate > 0 ? Math.round((subtotal * serviceRate) / 100) : 0;
   const taxAmt = taxRate > 0 ? Math.round(((subtotal + serviceAmt) * taxRate) / 100) : 0;
   const total = subtotal + serviceAmt + taxAmt;
   const receivedAmount = Number(received) || 0;
   const change = paymentMethod === "Tunai" ? receivedAmount - total : 0;
-
-  async function handleLookupMember() {
-    setMemberError(null);
-    setMemberBusy(true);
-    const result = await lookupMemberByCode(businessId, memberCode);
-    setMemberBusy(false);
-    if (!result.success) {
-      setMemberError(result.error);
-      return;
-    }
-    setMember(result.member);
-  }
 
   async function handleConfirmPayment() {
     setError(null);
@@ -125,9 +126,14 @@ export default function TicketPosScreen({
       return;
     }
 
+    if (cartLines.some((l) => l.units.some((u) => u.trim() === ""))) {
+      setError("Semua nomor tiket fisik harus diisi.");
+      return;
+    }
+
     const items: TicketCartItemInput[] = cartLines.map((l) => ({
       ticketCategoryId: l.category.id,
-      qty: l.qty,
+      manualNumbers: l.units.map((u) => u.trim()),
     }));
 
     setSubmitting(true);
@@ -172,9 +178,8 @@ export default function TicketPosScreen({
 
   function resetForNextTransaction() {
     setSuccessInvoice(null);
-    setQtyByCategory({});
+    setUnitsByCategory({});
     setMember(null);
-    setMemberCode("");
     setPaying(false);
     setReceived("");
     router.refresh();
@@ -336,80 +341,63 @@ export default function TicketPosScreen({
           </span>
         </div>
 
-        <div className="mb-4 rounded-xl border border-zinc-200 bg-white p-3.5">
-          <p className="mb-2 text-xs font-medium text-zinc-600">Member (opsional)</p>
-          {member ? (
-            <div className="flex items-center justify-between rounded-lg bg-brand-50 px-3 py-2">
-              <div>
-                <p className="text-sm font-semibold text-brand-700">{member.name}</p>
-                <p className="text-[11px] text-brand-600">
-                  {member.memberCode} · berlaku s/d{" "}
-                  {new Date(member.validUntil).toLocaleDateString("id-ID")}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setMember(null);
-                  setMemberCode("");
-                }}
-                className="text-xs font-medium text-brand-700 hover:underline"
-              >
-                Lepas
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={memberCode}
-                onChange={(e) => setMemberCode(e.target.value)}
-                placeholder="Kode member"
-                className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
-              <button
-                onClick={handleLookupMember}
-                disabled={memberBusy}
-                className="rounded-lg bg-zinc-900 px-4 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
-              >
-                {memberBusy ? "Mencari…" : "Cari"}
-              </button>
-            </div>
-          )}
-          {memberError && <p className="mt-1.5 text-xs text-red-600">{memberError}</p>}
-        </div>
+        <MemberPanel
+          businessId={businessId}
+          members={members}
+          member={member}
+          onSelect={setMember}
+          onRelease={() => setMember(null)}
+        />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="space-y-3">
           {categories.map((c) => {
-            const qty = qtyByCategory[c.id] ?? 0;
+            const units = unitsByCategory[c.id] ?? [];
             const price = unitPriceFor(c);
             return (
-              <div
-                key={c.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-4 text-center"
-              >
-                <p className="text-sm font-bold text-zinc-900">{c.name}</p>
-                <p className="mt-1 text-xs text-zinc-500">{formatRupiah(price)}</p>
-                <div className="mt-3 flex items-center justify-center gap-3">
+              <div key={c.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-zinc-900">{c.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      {formatRupiah(price)}
+                      {units.length > 0 &&
+                        ` · ${units.length} tiket · ${formatRupiah(price * units.length)}`}
+                    </p>
+                  </div>
                   <button
-                    onClick={() => changeQty(c.id, -1)}
-                    disabled={qty <= 0}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 text-zinc-600 disabled:opacity-40"
+                    onClick={() => addUnit(c.id)}
+                    className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"
                   >
-                    −
-                  </button>
-                  <span className="w-6 text-sm font-semibold tabular-nums">{qty}</span>
-                  <button
-                    onClick={() => changeQty(c.id, 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:border-brand-300 hover:text-brand-700"
-                  >
-                    +
+                    + Tambah Tiket
                   </button>
                 </div>
+                {units.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {units.map((u, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-5 shrink-0 text-xs text-zinc-400">{i + 1}.</span>
+                        <input
+                          type="text"
+                          value={u}
+                          onChange={(e) => setUnitNumber(c.id, i, e.target.value)}
+                          placeholder="No. tiket fisik"
+                          className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                        />
+                        <button
+                          onClick={() => removeUnit(c.id, i)}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 hover:border-red-300 hover:text-red-600"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
           {categories.length === 0 && (
-            <p className="col-span-full py-12 text-center text-xs text-zinc-400">
+            <p className="py-12 text-center text-xs text-zinc-400">
               Belum ada kategori tiket. Tambahkan lewat menu Pengaturan.
             </p>
           )}
@@ -425,10 +413,10 @@ export default function TicketPosScreen({
             cartLines.map((l) => (
               <div key={l.category.id} className="flex items-center justify-between text-sm">
                 <span className="text-zinc-700">
-                  {l.qty}x {l.category.name}
+                  {l.units.length}x {l.category.name}
                 </span>
                 <span className="tabular-nums text-zinc-900">
-                  {formatRupiah(l.unitPrice * l.qty)}
+                  {formatRupiah(l.unitPrice * l.units.length)}
                 </span>
               </div>
             ))

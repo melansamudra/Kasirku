@@ -42,7 +42,7 @@ export default async function TicketReceiptPage({
 
   const { data: serials } = await supabase
     .from("ticket_serials")
-    .select("id, serial_no, price, ticket_categories(name)")
+    .select("id, serial_no, manual_number, price, ticket_categories(name)")
     .eq("ticket_transaction_id", transactionId)
     .order("serial_no", { ascending: true });
 
@@ -88,7 +88,7 @@ export default async function TicketReceiptPage({
           {serials?.map((s) => (
             <div key={s.id} className="flex justify-between gap-2">
               <span className="flex-1 truncate">
-                #{s.serial_no}{" "}
+                #{s.serial_no} (fisik #{s.manual_number}){" "}
                 {(s.ticket_categories as unknown as { name: string } | null)?.name ?? "Lainnya"}
               </span>
               <span className="shrink-0">{formatRupiah(Number(s.price))}</span>

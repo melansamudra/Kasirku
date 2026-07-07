@@ -92,6 +92,7 @@ export default async function TicketReportsPage({
   let serials: {
     id: string;
     serial_no: number;
+    manual_number: string;
     price: number;
     is_member_price: boolean;
     ticket_transaction_id: string;
@@ -101,7 +102,9 @@ export default async function TicketReportsPage({
   if (txIds.length > 0) {
     let serialQuery = supabase
       .from("ticket_serials")
-      .select("id, serial_no, price, is_member_price, ticket_transaction_id, ticket_categories(name)")
+      .select(
+        "id, serial_no, manual_number, price, is_member_price, ticket_transaction_id, ticket_categories(name)",
+      )
       .in("ticket_transaction_id", txIds)
       .order("serial_no", { ascending: true });
     if (categoryFilter) serialQuery = serialQuery.eq("ticket_category_id", categoryFilter);
@@ -135,6 +138,11 @@ export default async function TicketReportsPage({
   if (categoryFilter) filterQuery.set("category", categoryFilter);
   if (serialFrom) filterQuery.set("serialFrom", serialFrom);
   if (serialTo) filterQuery.set("serialTo", serialTo);
+
+  const periodQuery =
+    period === "custom"
+      ? `period=custom${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`
+      : `period=${period}`;
 
   return (
     <div className="w-full max-w-3xl">
@@ -268,6 +276,31 @@ export default async function TicketReportsPage({
         )}
       </div>
 
+      {/* Ekspor */}
+      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+        <h2 className="mb-3 text-sm font-bold text-zinc-900">⬇️ Ekspor Data</h2>
+        <div className="grid grid-cols-3 gap-2">
+          <a
+            href={`/business/${businessId}/ticket-reports/export?type=transactions&${periodQuery}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 py-2.5 text-xs font-bold text-white transition-colors hover:bg-brand-700"
+          >
+            🧾 Transaksi
+          </a>
+          <a
+            href={`/business/${businessId}/ticket-reports/export?type=tickets&${periodQuery}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-zinc-800 py-2.5 text-xs font-bold text-white transition-colors hover:bg-zinc-900"
+          >
+            🎟️ Per Tiket
+          </a>
+          <a
+            href={`/business/${businessId}/ticket-reports/export?type=hourly&${periodQuery}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-zinc-800 py-2.5 text-xs font-bold text-white transition-colors hover:bg-zinc-900"
+          >
+            ⏱️ Per Jam
+          </a>
+        </div>
+      </div>
+
       {/* Rekonsiliasi nomor seri */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
         <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3.5">
@@ -301,7 +334,7 @@ export default async function TicketReportsPage({
                     )}
                   </p>
                   <p className="text-[11px] text-zinc-400">
-                    {r.tx.invoice_number} · {formatDateTime(r.tx.date)}
+                    {r.tx.invoice_number} · fisik #{r.manual_number} · {formatDateTime(r.tx.date)}
                   </p>
                 </div>
                 <span

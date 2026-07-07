@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { editMember } from "../actions";
@@ -74,6 +75,13 @@ export default async function MemberDetailPage({
             Berlaku {new Date(`${member.valid_from}T00:00:00`).toLocaleDateString("id-ID")} s/d{" "}
             {new Date(`${member.valid_until}T00:00:00`).toLocaleDateString("id-ID")}
           </p>
+          <Link
+            href={`/business/${businessId}/members/${memberId}/card`}
+            target="_blank"
+            className="mt-1 inline-block text-xs font-medium text-brand-600 hover:underline"
+          >
+            🪪 Cetak Kartu
+          </Link>
           {member.note && <p className="mt-1 text-xs text-zinc-400">{member.note}</p>}
         </div>
         <EditMemberForm

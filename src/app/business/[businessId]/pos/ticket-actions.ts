@@ -5,7 +5,7 @@ import { logActivity } from "@/lib/activity-log";
 
 export type TicketCartItemInput = {
   ticketCategoryId: string;
-  qty: number;
+  manualNumbers: string[];
 };
 
 export type CheckoutTicketResult =
@@ -22,7 +22,7 @@ export async function checkoutTicket(
   received: number | null,
   memberId: string | null = null,
 ): Promise<CheckoutTicketResult> {
-  if (items.length === 0) {
+  if (items.length === 0 || items.every((i) => i.manualNumbers.length === 0)) {
     return { success: false, error: "Keranjang masih kosong." };
   }
 
@@ -33,7 +33,7 @@ export async function checkoutTicket(
       p_cashier_id: cashierId,
       p_items: items.map((i) => ({
         ticket_category_id: i.ticketCategoryId,
-        qty: i.qty,
+        manual_numbers: i.manualNumbers,
       })),
       p_payment_method: paymentMethod,
       p_received: received,
@@ -42,11 +42,17 @@ export async function checkoutTicket(
     .single();
 
   if (error || !data) {
+    if (error?.code === "23505") {
+      return {
+        success: false,
+        error: "Nomor tiket fisik ini sudah dipakai untuk kategori ini. Cek kembali nomor booklet.",
+      };
+    }
     return { success: false, error: error?.message ?? "Gagal memproses transaksi." };
   }
 
   const result = data as CheckoutTicketRpcRow;
-  const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
+  const itemCount = items.reduce((sum, i) => sum + i.manualNumbers.length, 0);
   await logActivity(
     supabase,
     businessId,

@@ -78,6 +78,13 @@ export default async function PosPage({
       .eq("business_id", businessId)
       .order("name", { ascending: true });
 
+    const { data: memberRows } = await supabase
+      .from("members")
+      .select("id, name, phone, member_code, valid_from, valid_until")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true });
+
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     const dayOfWeek = new Date(`${todayStr}T00:00:00`).getDay();
     const { data: holidayRow } = await supabase
@@ -101,6 +108,14 @@ export default async function PosPage({
           priceWeekday: Number(c.price_weekday),
           priceHoliday: Number(c.price_holiday),
           memberPrice: Number(c.member_price),
+        }))}
+        members={(memberRows ?? []).map((m) => ({
+          id: m.id,
+          name: m.name,
+          phone: m.phone,
+          memberCode: m.member_code,
+          validFrom: m.valid_from,
+          validUntil: m.valid_until,
         }))}
         taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
         serviceRate={business.service_enabled ? Number(business.service_rate) : 0}

@@ -37,7 +37,7 @@ export default async function TicketTransactionDetailPage({
 
   const { data: serials } = await supabase
     .from("ticket_serials")
-    .select("id, serial_no, price, is_member_price, ticket_categories(name)")
+    .select("id, serial_no, manual_number, price, is_member_price, ticket_categories(name)")
     .eq("ticket_transaction_id", transactionId)
     .order("serial_no", { ascending: true });
 
@@ -79,7 +79,7 @@ export default async function TicketTransactionDetailPage({
             <div key={s.id} className="flex items-center justify-between text-sm">
               <div>
                 <p className="text-zinc-900">
-                  #{s.serial_no} —{" "}
+                  #{s.serial_no} (fisik #{s.manual_number}) —{" "}
                   {(s.ticket_categories as unknown as { name: string } | null)?.name ?? "Lainnya"}
                   {s.is_member_price && (
                     <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
