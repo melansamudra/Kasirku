@@ -132,6 +132,7 @@ export default async function TicketReportsPage({
     manual_number: string;
     price: number;
     is_member_price: boolean;
+    checked_in_at: string | null;
     ticket_transaction_id: string;
     ticket_categories: { name: string } | null;
   }[] = [];
@@ -140,7 +141,7 @@ export default async function TicketReportsPage({
     let serialQuery = supabase
       .from("ticket_serials")
       .select(
-        "id, serial_no, manual_number, price, is_member_price, ticket_transaction_id, ticket_categories(name)",
+        "id, serial_no, manual_number, price, is_member_price, checked_in_at, ticket_transaction_id, ticket_categories(name)",
       )
       .in("ticket_transaction_id", txIds)
       .order("serial_no", { ascending: true });
@@ -477,6 +478,11 @@ export default async function TicketReportsPage({
                     {r.is_member_price && (
                       <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
                         Member
+                      </span>
+                    )}
+                    {r.checked_in_at && !r.tx.voided && (
+                      <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">
+                        ✅ Masuk
                       </span>
                     )}
                     {r.tx.voided && (

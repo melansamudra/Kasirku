@@ -145,3 +145,66 @@ export async function voidTicketTransaction(
 
   return { success: true };
 }
+
+export type CheckInTicketResult =
+  | {
+      success: true;
+      categoryName: string;
+      price: number;
+      isMemberPrice: boolean;
+      invoiceNumber: string;
+      soldAt: string;
+    }
+  | { success: false; error: string };
+
+export async function checkInTicket(
+  businessId: string,
+  cashierId: string,
+  ticketCategoryId: string,
+  manualNumber: string,
+): Promise<CheckInTicketResult> {
+  const trimmed = manualNumber.trim();
+  if (!trimmed) {
+    return { success: false, error: "Nomor tiket wajib diisi." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("check_in_ticket", {
+      p_business_id: businessId,
+      p_cashier_id: cashierId,
+      p_ticket_category_id: ticketCategoryId,
+      p_manual_number: trimmed,
+    })
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Gagal memvalidasi tiket." };
+  }
+
+  const row = data as {
+    category_name: string;
+    price: number;
+    is_member_price: boolean;
+    invoice_number: string;
+    sold_at: string;
+  };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "transaksi",
+    "info",
+    `Check-in tiket ${row.invoice_number}`,
+    `${row.category_name} · fisik #${trimmed}`,
+  );
+
+  return {
+    success: true,
+    categoryName: row.category_name,
+    price: Number(row.price),
+    isMemberPrice: row.is_member_price,
+    invoiceNumber: row.invoice_number,
+    soldAt: row.sold_at,
+  };
+}

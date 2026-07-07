@@ -33,6 +33,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
       title: "Operasional",
       items: isTiket
         ? [
+            { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: "🎫" },
             { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: "🎟️" },
             { href: `${base}/members`, label: "Anggota", icon: "👤" },
           ]

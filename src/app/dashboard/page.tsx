@@ -143,6 +143,12 @@ export default async function DashboardPage() {
                 {b.business_type === "tiket" ? (
                   <>
                     <Link
+                      href={`/business/${b.id}/pos/check-in`}
+                      className="text-xs font-medium text-zinc-500 hover:underline"
+                    >
+                      Check-in Tiket
+                    </Link>
+                    <Link
                       href={`/business/${b.id}/ticket-reports`}
                       className="text-xs font-medium text-zinc-500 hover:underline"
                     >

@@ -490,6 +490,12 @@ export default function TicketPosScreen({
             >
               Bayar
             </button>
+            <Link
+              href={`/business/${businessId}/pos/check-in`}
+              className="mt-2 block w-full rounded-xl border border-zinc-200 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              🎫 Check-in Tiket
+            </Link>
             <button
               onClick={() => setClosingShift(true)}
               className="mt-2 w-full rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
