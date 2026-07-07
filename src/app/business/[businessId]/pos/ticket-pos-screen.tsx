@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { closeShift, type CloseShiftSummary } from "./actions";
 import { checkoutTicket, type TicketCartItemInput } from "./ticket-actions";
@@ -53,6 +53,8 @@ export default function TicketPosScreen({
   );
 
   const [unitsByCategory, setUnitsByCategory] = useState<Record<string, string[]>>({});
+  const lastAddedRef = useRef<{ categoryId: string; index: number } | null>(null);
+  const unitInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   const [member, setMember] = useState<SelectedMember | null>(null);
 
@@ -76,11 +78,19 @@ export default function TicketPosScreen({
   }
 
   function addUnit(categoryId: string) {
-    setUnitsByCategory((prev) => ({
-      ...prev,
-      [categoryId]: [...(prev[categoryId] ?? []), ""],
-    }));
+    setUnitsByCategory((prev) => {
+      const next = [...(prev[categoryId] ?? []), ""];
+      lastAddedRef.current = { categoryId, index: next.length - 1 };
+      return { ...prev, [categoryId]: next };
+    });
   }
+
+  useEffect(() => {
+    if (!lastAddedRef.current) return;
+    const { categoryId, index } = lastAddedRef.current;
+    lastAddedRef.current = null;
+    unitInputRefs.current.get(`${categoryId}-${index}`)?.focus();
+  }, [unitsByCategory]);
 
   function removeUnit(categoryId: string, index: number) {
     setUnitsByCategory((prev) => {
@@ -377,9 +387,20 @@ export default function TicketPosScreen({
                       <div key={i} className="flex items-center gap-2">
                         <span className="w-5 shrink-0 text-xs text-zinc-400">{i + 1}.</span>
                         <input
+                          ref={(el) => {
+                            const key = `${c.id}-${i}`;
+                            if (el) unitInputRefs.current.set(key, el);
+                            else unitInputRefs.current.delete(key);
+                          }}
                           type="text"
                           value={u}
                           onChange={(e) => setUnitNumber(c.id, i, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addUnit(c.id);
+                            }
+                          }}
                           placeholder="No. tiket fisik"
                           className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
                         />
