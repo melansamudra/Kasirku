@@ -309,6 +309,12 @@ export default async function TicketReportsPage({
             {rows.length} tiket
           </span>
         </div>
+        {rows.length > 100 && (
+          <p className="border-b border-zinc-100 bg-amber-50 px-4 py-2 text-[11px] text-amber-700">
+            Menampilkan 100 tiket pertama (urut nomor seri) dari {rows.length}. Persempit periode,
+            kategori, atau rentang nomor seri untuk melihat sisanya.
+          </p>
+        )}
         {rows.length > 0 ? (
           <div className="divide-y divide-zinc-100">
             {rows.slice(0, 100).map((r) => (
