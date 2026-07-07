@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { closeShift, type CloseShiftSummary } from "./actions";
 import { checkoutTicket, type TicketCartItemInput } from "./ticket-actions";
+import { calculateTicketTotals, ticketUnitPrice } from "@/lib/ticket-checkout-totals";
 import SwitchCashierButton from "./switch-cashier-button";
 import MemberPanel, { type FullMember, type SelectedMember } from "./member-panel";
 
@@ -75,8 +76,7 @@ export default function TicketPosScreen({
   const [closedSummary, setClosedSummary] = useState<CloseShiftSummary | null>(null);
 
   function unitPriceFor(category: TicketCategory) {
-    if (member) return category.memberPrice;
-    return isHoliday ? category.priceHoliday : category.priceWeekday;
+    return ticketUnitPrice(category, { isMember: !!member, isHoliday });
   }
 
   function addUnit(categoryId: string) {
@@ -123,10 +123,11 @@ export default function TicketPosScreen({
       unitPrice: unitPriceFor(c),
     }));
 
-  const subtotal = cartLines.reduce((sum, l) => sum + l.unitPrice * l.units.length, 0);
-  const serviceAmt = serviceRate > 0 ? Math.round((subtotal * serviceRate) / 100) : 0;
-  const taxAmt = taxRate > 0 ? Math.round(((subtotal + serviceAmt) * taxRate) / 100) : 0;
-  const total = subtotal + serviceAmt + taxAmt;
+  const { subtotal, serviceAmt, taxAmt, total } = calculateTicketTotals({
+    lines: cartLines.map((l) => ({ unitPrice: l.unitPrice, qty: l.units.length })),
+    serviceRate,
+    taxRate,
+  });
   const receivedAmount = Number(received) || 0;
   const change = paymentMethod === "Tunai" ? receivedAmount - total : 0;
 
