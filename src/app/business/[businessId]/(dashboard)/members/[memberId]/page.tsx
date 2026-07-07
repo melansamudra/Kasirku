@@ -47,7 +47,7 @@ export default async function MemberDetailPage({
 
   const validTransactions = (ticketTransactions ?? []).filter((t) => !t.voided);
   const totalSpent = validTransactions.reduce((sum, t) => sum + Number(t.total), 0);
-  const lastVisit = ticketTransactions?.[0]?.date;
+  const lastVisit = validTransactions[0]?.date;
   const today = new Date().toISOString().slice(0, 10);
   const active = member.valid_until >= today;
 
