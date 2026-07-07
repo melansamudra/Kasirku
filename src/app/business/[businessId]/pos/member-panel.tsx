@@ -72,7 +72,14 @@ export default function MemberPanel({
 
   async function handleAddMember(state: AddMemberState, formData: FormData) {
     const result = await addMember(businessId, state, formData);
-    if (!result.error) {
+    if (!result.error && result.member) {
+      onSelect({
+        id: result.member.id,
+        name: result.member.name,
+        memberCode: result.member.memberCode,
+        validUntil: result.member.validUntil,
+      });
+      setAddOpen(false);
       router.refresh();
     }
     return result;

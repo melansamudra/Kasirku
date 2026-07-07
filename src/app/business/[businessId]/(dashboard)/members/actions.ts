@@ -39,7 +39,10 @@ function parseMemberFields(formData: FormData): ParsedMemberFields {
   return { error: null, name, phone, memberCode, validFrom, validUntil, note };
 }
 
-export type AddMemberState = { error: string | null };
+export type AddMemberState = {
+  error: string | null;
+  member?: { id: string; name: string; memberCode: string; validUntil: string };
+};
 
 export async function addMember(
   businessId: string,
@@ -50,15 +53,19 @@ export async function addMember(
   if (parsed.error !== null) return { error: parsed.error };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("members").insert({
-    business_id: businessId,
-    name: parsed.name,
-    phone: parsed.phone || null,
-    member_code: parsed.memberCode,
-    valid_from: parsed.validFrom,
-    valid_until: parsed.validUntil,
-    note: parsed.note || null,
-  });
+  const { data, error } = await supabase
+    .from("members")
+    .insert({
+      business_id: businessId,
+      name: parsed.name,
+      phone: parsed.phone || null,
+      member_code: parsed.memberCode,
+      valid_from: parsed.validFrom,
+      valid_until: parsed.validUntil,
+      note: parsed.note || null,
+    })
+    .select("id, name, member_code, valid_until")
+    .single();
 
   if (error) {
     if (error.code === "23505") {
@@ -69,7 +76,15 @@ export async function addMember(
 
   await logActivity(supabase, businessId, "produk", "sukses", `Member baru: ${parsed.name}`);
   revalidatePath(`/business/${businessId}/members`);
-  return { error: null };
+  return {
+    error: null,
+    member: {
+      id: data.id,
+      name: data.name,
+      memberCode: data.member_code,
+      validUntil: data.valid_until,
+    },
+  };
 }
 
 export type EditMemberState = { error: string | null };
