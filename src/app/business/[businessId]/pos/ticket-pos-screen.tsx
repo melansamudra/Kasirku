@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { closeShift, type CloseShiftSummary } from "./actions";
 import { checkoutTicket, type TicketCartItemInput } from "./ticket-actions";
@@ -64,6 +65,7 @@ export default function TicketPosScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
+  const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -163,6 +165,7 @@ export default function TicketPosScreen({
     }
 
     setSuccessInvoice(result.invoiceNumber);
+    setSuccessTransactionId(result.transactionId);
   }
 
   async function handleConfirmCloseShift() {
@@ -188,6 +191,7 @@ export default function TicketPosScreen({
 
   function resetForNextTransaction() {
     setSuccessInvoice(null);
+    setSuccessTransactionId(null);
     setUnitsByCategory({});
     setMember(null);
     setPaying(false);
@@ -204,9 +208,18 @@ export default function TicketPosScreen({
           </div>
           <h1 className="text-lg font-bold text-zinc-900">Tiket berhasil terbit</h1>
           <p className="mt-1 text-sm text-zinc-500">No. Tiket: {successInvoice}</p>
+          {successTransactionId && (
+            <Link
+              href={`/business/${businessId}/ticket-reports/${successTransactionId}/receipt`}
+              target="_blank"
+              className="mt-6 block w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              🖨️ Cetak Struk
+            </Link>
+          )}
           <button
             onClick={resetForNextTransaction}
-            className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            className="mt-3 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
           >
             Transaksi Baru
           </button>
