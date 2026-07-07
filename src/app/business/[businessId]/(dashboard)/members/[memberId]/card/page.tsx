@@ -28,9 +28,19 @@ export default async function MemberCardPage({
     notFound();
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+  const active = member.valid_until >= today;
+
   return (
     <div className="w-full max-w-xs print:max-w-none">
       <div className="print:hidden">
+        {!active && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+            Membership {member.name} sudah kadaluarsa sejak{" "}
+            {new Date(`${member.valid_until}T00:00:00`).toLocaleDateString("id-ID")}. Perpanjang
+            dulu sebelum mencetak kartu.
+          </p>
+        )}
         <PrintButton businessId={businessId} memberId={memberId} />
       </div>
 
