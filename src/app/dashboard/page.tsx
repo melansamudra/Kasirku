@@ -8,10 +8,39 @@ function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
 
-const BUSINESS_TYPE_BADGE: Record<string, string> = {
-  fnb: "🍽️ Restoran / Kafe / F&B",
-  retail: "🛒 Retail / Toko",
-  tiket: "🎟️ Tempat Wisata / Tiket",
+const BUSINESS_TYPE_ACCENT: Record<
+  string,
+  { emoji: string; label: string; icon: string; bar: string; chip: string }
+> = {
+  fnb: {
+    emoji: "🍽️",
+    label: "Restoran / Kafe / F&B",
+    icon: "bg-amber-50 text-amber-600",
+    bar: "from-amber-400 to-orange-400",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  retail: {
+    emoji: "🛒",
+    label: "Retail / Toko",
+    icon: "bg-sky-50 text-sky-600",
+    bar: "from-sky-400 to-blue-500",
+    chip: "bg-sky-50 text-sky-700",
+  },
+  tiket: {
+    emoji: "🎟️",
+    label: "Tempat Wisata / Tiket",
+    icon: "bg-violet-50 text-violet-600",
+    bar: "from-violet-400 to-purple-500",
+    chip: "bg-violet-50 text-violet-700",
+  },
+};
+
+const DEFAULT_ACCENT = {
+  emoji: "🏪",
+  label: "Toko",
+  icon: "bg-zinc-100 text-zinc-600",
+  bar: "from-zinc-300 to-zinc-400",
+  chip: "bg-zinc-100 text-zinc-700",
 };
 
 export default async function DashboardPage() {
@@ -82,188 +111,110 @@ export default async function DashboardPage() {
     todaySummary.set(t.business_id, entry);
   }
 
+  const initial = (user?.email ?? "?").charAt(0).toUpperCase();
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-lg font-bold text-zinc-900">Toko kamu</h1>
-          <p className="mt-1 text-sm text-zinc-500">{user?.email}</p>
+    <div className="relative min-h-screen flex-1 overflow-hidden bg-zinc-50 px-4 py-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 h-96 w-[36rem] -translate-x-1/2 rounded-full bg-brand-100/60 blur-3xl"
+      />
+
+      <div className="relative mx-auto w-full max-w-4xl">
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-base font-bold text-white shadow-md shadow-brand-600/20">
+              {initial}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+                Selamat datang kembali
+              </p>
+              <h1 className="text-lg font-bold text-zinc-900">{user?.email}</h1>
+            </div>
+          </div>
+          <LogoutButton variant="inline" />
         </div>
 
-        <div className="space-y-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           {businesses.map((b) => {
             const summary = todaySummary.get(b.id) ?? { revenue: 0, count: 0 };
             const shiftOpen = openShiftBusinessIds.has(b.id);
             const lowStock = lowStockCount.get(b.id) ?? 0;
+            const accent = BUSINESS_TYPE_ACCENT[b.business_type] ?? DEFAULT_ACCENT;
             return (
-            <div key={b.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-zinc-900">{b.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {BUSINESS_TYPE_BADGE[b.business_type] ?? b.business_type}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  {shiftOpen && (
-                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
-                      ● Shift aktif
-                    </span>
-                  )}
-                  {lowStock > 0 && (
-                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
-                      ⚠️ {lowStock} stok rendah
-                    </span>
-                  )}
-                </div>
-              </div>
+              <div
+                key={b.id}
+                className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <div
+                  aria-hidden
+                  className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accent.bar}`}
+                />
 
-              <div className="mt-3 flex items-center gap-4 rounded-xl bg-zinc-50 px-3 py-2.5">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase text-zinc-400">
-                    Penjualan Hari Ini
-                  </p>
-                  <p className="text-base font-bold text-zinc-900">
-                    {formatRupiah(summary.revenue)}
-                  </p>
-                </div>
-                <div className="border-l border-zinc-200 pl-4">
-                  <p className="text-[10px] font-semibold uppercase text-zinc-400">Transaksi</p>
-                  <p className="text-base font-bold text-zinc-900">{summary.count}</p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-                <Link
-                  href={`/business/${b.id}/pos`}
-                  className="text-xs font-medium text-brand-600 hover:underline"
-                >
-                  Buka Kasir →
-                </Link>
-                {b.business_type === "tiket" ? (
-                  <>
-                    <Link
-                      href={`/business/${b.id}/pos/check-in`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl ${accent.icon}`}
                     >
-                      Check-in Tiket
-                    </Link>
-                    <Link
-                      href={`/business/${b.id}/ticket-reports`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Laporan Tiket
-                    </Link>
-                    <Link
-                      href={`/business/${b.id}/members`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Anggota
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href={`/business/${b.id}/transactions`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Riwayat Transaksi
-                    </Link>
-                    <Link
-                      href={`/business/${b.id}/products`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Kelola Produk
-                    </Link>
-                    {b.business_type === "fnb" && (
-                      <>
-                        <Link
-                          href={`/business/${b.id}/ingredients`}
-                          className="text-xs font-medium text-zinc-500 hover:underline"
-                        >
-                          Bahan Baku
-                        </Link>
-                        <Link
-                          href={`/business/${b.id}/tables`}
-                          className="text-xs font-medium text-zinc-500 hover:underline"
-                        >
-                          Meja & Self-Order
-                        </Link>
-                      </>
+                      {accent.emoji}
+                    </div>
+                    <div>
+                      <p className="font-bold text-zinc-900">{b.name}</p>
+                      <p className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${accent.chip}`}>
+                        {accent.label}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {shiftOpen && (
+                      <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                        ● Shift aktif
+                      </span>
                     )}
-                    <Link
-                      href={`/business/${b.id}/customers`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Pelanggan
-                    </Link>
-                  </>
-                )}
-                <Link
-                  href={`/business/${b.id}/cashiers`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Kelola Kasir
-                </Link>
-                <Link
-                  href={`/business/${b.id}/shifts`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Riwayat Shift
-                </Link>
-                <Link
-                  href={`/business/${b.id}/attendance`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Absensi
-                </Link>
-                <Link
-                  href={`/business/${b.id}/payroll`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Payroll
-                </Link>
-                {b.business_type !== "tiket" && (
-                  <>
-                    <Link
-                      href={`/business/${b.id}/reports`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Laporan
-                    </Link>
-                    <Link
-                      href={`/business/${b.id}/reports/laba-rugi`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Laba Rugi
-                    </Link>
-                    <Link
-                      href={`/business/${b.id}/finance`}
-                      className="text-xs font-medium text-zinc-500 hover:underline"
-                    >
-                      Keuangan
-                    </Link>
-                  </>
-                )}
-                <Link
-                  href={`/business/${b.id}/settings`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Pengaturan
-                </Link>
-                <Link
-                  href={`/business/${b.id}/activity`}
-                  className="text-xs font-medium text-zinc-500 hover:underline"
-                >
-                  Aktivitas
-                </Link>
+                    {lowStock > 0 && (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
+                        ⚠️ {lowStock} stok rendah
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-zinc-50 px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase text-zinc-400">
+                      Penjualan Hari Ini
+                    </p>
+                    <p className="text-base font-bold text-zinc-900">
+                      {formatRupiah(summary.revenue)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-zinc-50 px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase text-zinc-400">
+                      Transaksi
+                    </p>
+                    <p className="text-base font-bold text-zinc-900">{summary.count}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <Link
+                    href={`/business/${b.id}/pos`}
+                    className="flex-1 rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white shadow-sm shadow-brand-600/20 transition-colors hover:bg-brand-700"
+                  >
+                    🛎️ Buka Kasir
+                  </Link>
+                  <Link
+                    href={`/business/${b.id}`}
+                    className="flex items-center justify-center rounded-xl border border-zinc-200 px-4 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+                  >
+                    Kelola →
+                  </Link>
+                </div>
               </div>
-            </div>
             );
           })}
         </div>
-
-        <LogoutButton />
       </div>
     </div>
   );
