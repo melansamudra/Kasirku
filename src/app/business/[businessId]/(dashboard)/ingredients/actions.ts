@@ -40,18 +40,29 @@ export async function addIngredient(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("ingredients").insert({
-    business_id: businessId,
-    name,
-    unit,
-    unit_cost: unitCost,
-    stock,
-    min_stock: minStock,
-  });
+  const { data: inserted, error } = await supabase
+    .from("ingredients")
+    .insert({
+      business_id: businessId,
+      name,
+      unit,
+      unit_cost: unitCost,
+      stock,
+      min_stock: minStock,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: error.message };
   }
+
+  await supabase.from("ingredient_price_history").insert({
+    business_id: businessId,
+    ingredient_id: inserted.id,
+    unit_cost: unitCost,
+    source: "awal",
+  });
 
   await logActivity(
     supabase,
@@ -96,6 +107,14 @@ export async function editIngredient(
   }
 
   const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("ingredients")
+    .select("unit_cost")
+    .eq("id", ingredientId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("ingredients")
     .update({ name, unit, unit_cost: unitCost, min_stock: minStock })
@@ -104,6 +123,15 @@ export async function editIngredient(
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (existing && Number(existing.unit_cost) !== unitCost) {
+    await supabase.from("ingredient_price_history").insert({
+      business_id: businessId,
+      ingredient_id: ingredientId,
+      unit_cost: unitCost,
+      source: "manual",
+    });
   }
 
   await logActivity(supabase, businessId, "produk", "info", `Bahan baku diubah: ${name}`);
