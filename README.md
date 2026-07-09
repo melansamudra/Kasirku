@@ -69,10 +69,4 @@ Mengikuti urutan modul di `docs/reference/skema-database-kasirku.md`:
 
 Setiap tabel dengan `business_id` diamankan dengan RLS lewat `private.owns_business(business_id)` — akses hanya untuk businesses milik `auth.uid()` yang sedang login. Tabel anak yang tidak punya `business_id` langsung (`product_recipes`, `transaction_items`, dll) diamankan lewat `EXISTS` join ke tabel induknya.
 
-## Keputusan desain yang masih perlu diambil
-
-Belum diimplementasikan di migration ini — perlu diputuskan sebelum modul terkait mulai di-porting:
-
-- **Verifikasi PIN kasir**: RLS `cashiers` saat ini hanya mengizinkan `owner_id = auth.uid()` (pemilik akun) membaca `pin_hash`. Karena kasir individual tidak punya akun Supabase Auth sendiri (hanya pemilik bisnis yang login), verifikasi PIN sebaiknya lewat Postgres function (`security definer` RPC) yang menerima `cashier_id` + PIN plaintext dan mengembalikan boolean — supaya `pin_hash` tidak perlu ter-expose ke client sama sekali.
-- **Self-order dari pelanggan (scan QR meja)**: pelanggan yang scan QR di meja tidak login sebagai pemilik bisnis, jadi policy `private.owns_business()` pada `self_orders`/`self_order_items` akan memblokir mereka melakukan INSERT. Perlu policy tambahan yang scoped ke `anon` role (misalnya izinkan INSERT kalau `table_id` valid & `self_orders.status = 'baru'`), atau proses lewat Edge Function dengan service role.
-- **Tutup shift**: kalkulasi `cash_sales`/`non_cash_sales`/`total_sales`/`expected_cash`/`difference` sebaiknya jadi Postgres function (RPC) supaya atomic, bukan dihitung di client lalu di-`UPDATE` — sesuai catatan di dokumen skema asli.
+Operasi yang butuh privilege di luar RLS pemilik bisnis (verifikasi PIN kasir, self-order pelanggan lewat scan QR, tutup shift) jalan lewat Postgres function `security definer`: `verify_cashier_pin`, `get_self_order_menu`/`submit_self_order`, dan `close_shift` — lihat masing-masing migration di `supabase/migrations/`.

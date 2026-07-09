@@ -111,6 +111,7 @@ export default function PosScreen({
   );
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartOrderIds, setCartOrderIds] = useState<string[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [inboxNotice, setInboxNotice] = useState<string | null>(null);
   const [orderBusyId, setOrderBusyId] = useState<string | null>(null);
@@ -250,6 +251,7 @@ export default function PosScreen({
     }
 
     setCart([]);
+    setCartOrderIds([]);
     setOrderDisc(0);
     setOrderDiscType("pct");
     setActiveBill(null);
@@ -358,6 +360,7 @@ export default function PosScreen({
     }
 
     setCart(next);
+    setCartOrderIds((prev) => (prev.includes(order.id) ? prev : [...prev, order.id]));
     setInboxNotice(
       skipped.length > 0
         ? `Tidak masuk keranjang (stok habis / produk terhapus): ${skipped.join(", ")}`
@@ -390,6 +393,7 @@ export default function PosScreen({
       orderDisc,
       orderDiscType,
       selectedCustomer?.id ?? null,
+      cartOrderIds,
     );
     setSubmitting(false);
 
@@ -407,6 +411,7 @@ export default function PosScreen({
     setSuccessInvoice(result.invoiceNumber);
     setSuccessTransactionId(result.transactionId);
     setCart([]);
+    setCartOrderIds([]);
     setPaying(false);
     setReceived("");
     setOrderDisc(0);
