@@ -10,17 +10,10 @@ import {
 } from "../../reports/period";
 
 const KAS_ACCOUNT_CODE = "1-001";
-
-const OPERASIONAL_SOURCES = new Set(["penjualan", "void", "pembelian", "beban", "payroll"]);
-
-const SOURCE_LABELS: Record<string, string> = {
-  penjualan: "Penjualan",
-  void: "Void transaksi",
-  pembelian: "Pembelian",
-  beban: "Beban operasional",
-  payroll: "Payroll",
-  manual: "Investasi & Pendanaan (manual)",
-};
+// Kode akun aset tetap — arus kas yang lawan-akunnya kode ini masuk "Investasi".
+// Akun bertipe "modal" (setoran/penarikan modal, pinjaman) masuk "Pendanaan".
+// Selain itu (pendapatan, beban, persediaan, utang dagang/gaji, piutang) masuk "Operasional".
+const ASET_TETAP_CODES = new Set(["1-500"]);
 
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
@@ -51,14 +44,13 @@ export default async function ArusKasPage({
     notFound();
   }
 
-  const { data: kasAccount } = await supabase
+  const { data: accounts } = await supabase
     .from("accounts")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("code", KAS_ACCOUNT_CODE)
-    .single();
+    .select("id, code, name, type")
+    .eq("business_id", businessId);
 
-  const kasAccountId = kasAccount?.id;
+  const accountMap = new Map((accounts ?? []).map((a) => [a.id, a]));
+  const kasAccountId = (accounts ?? []).find((a) => a.code === KAS_ACCOUNT_CODE)?.id;
 
   // Saldo kas sebelum periode ini (untuk saldo awal).
   let openingBalance = 0;
@@ -78,33 +70,68 @@ export default async function ArusKasPage({
     }
   }
 
-  // Arus kas di periode ini, dikelompokkan per sumber.
+  // Arus kas di periode ini. Setiap entry jurnal yang punya baris Kas & Bank
+  // diklasifikasikan Operasional/Investasi/Pendanaan berdasarkan akun
+  // lawannya (bukan `journal_entries.source`, karena RPC manual-entry yang
+  // dipakai pembelian & pengeluaran selalu menulis source='manual' — lihat
+  // catatan di [[mini-erp-scope]] soal bug ini).
   let entryQuery = supabase
     .from("journal_entries")
-    .select("source, journal_lines(debit, credit, account_id)")
+    .select("description, journal_lines(debit, credit, account_id)")
     .eq("business_id", businessId);
   if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
   if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
   const { data: entries } = await entryQuery;
 
-  const bySource = new Map<string, { masuk: number; keluar: number }>();
+  type Bucket = "operasional" | "investasi" | "pendanaan";
+  const byLabel = new Map<Bucket, Map<string, { masuk: number; keluar: number }>>([
+    ["operasional", new Map()],
+    ["investasi", new Map()],
+    ["pendanaan", new Map()],
+  ]);
+
   for (const e of entries ?? []) {
     const lines = e.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
-    for (const l of lines) {
-      if (l.account_id !== kasAccountId) continue;
-      const cur = bySource.get(e.source) ?? { masuk: 0, keluar: 0 };
+    const kasLines = lines.filter((l) => l.account_id === kasAccountId);
+    if (kasLines.length === 0) continue;
+
+    const counterpartAccounts = lines
+      .filter((l) => l.account_id !== kasAccountId)
+      .map((l) => accountMap.get(l.account_id))
+      .filter((a): a is NonNullable<typeof a> => !!a);
+
+    let bucket: Bucket = "operasional";
+    if (counterpartAccounts.some((a) => a.type === "modal")) {
+      bucket = "pendanaan";
+    } else if (counterpartAccounts.some((a) => ASET_TETAP_CODES.has(a.code))) {
+      bucket = "investasi";
+    }
+
+    const label =
+      counterpartAccounts.length > 0
+        ? Array.from(new Set(counterpartAccounts.map((a) => a.name))).join(" / ")
+        : (e.description ?? "Lainnya");
+
+    const group = byLabel.get(bucket)!;
+    const cur = group.get(label) ?? { masuk: 0, keluar: 0 };
+    for (const l of kasLines) {
       cur.masuk += Number(l.debit);
       cur.keluar += Number(l.credit);
-      bySource.set(e.source, cur);
     }
+    group.set(label, cur);
   }
 
-  const rows = Array.from(bySource.entries())
-    .map(([source, v]) => ({ source, ...v, net: v.masuk - v.keluar }))
-    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  function toRows(bucket: Bucket) {
+    return Array.from(byLabel.get(bucket)!.entries())
+      .map(([label, v]) => ({ label, ...v, net: v.masuk - v.keluar }))
+      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  }
 
-  const operasionalRows = rows.filter((r) => OPERASIONAL_SOURCES.has(r.source));
-  const lainnyaRows = rows.filter((r) => !OPERASIONAL_SOURCES.has(r.source));
+  const operasionalRows = toRows("operasional");
+  const investasiRows = toRows("investasi");
+  const pendanaanRows = toRows("pendanaan");
+  const lainnyaRows = [...investasiRows, ...pendanaanRows];
+  const rows = [...operasionalRows, ...lainnyaRows];
 
   const totalMasuk = rows.reduce((s, r) => s + r.masuk, 0);
   const totalKeluar = rows.reduce((s, r) => s + r.keluar, 0);
@@ -186,8 +213,8 @@ export default async function ArusKasPage({
         <div className="divide-y divide-zinc-50 px-4">
           {operasionalRows.length > 0 ? (
             operasionalRows.map((r) => (
-              <div key={r.source} className="flex items-center justify-between py-2 text-xs">
-                <span className="text-zinc-600">{SOURCE_LABELS[r.source] ?? r.source}</span>
+              <div key={r.label} className="flex items-center justify-between py-2 text-xs">
+                <span className="text-zinc-600">{r.label}</span>
                 <span className={`font-medium ${r.net >= 0 ? "text-zinc-800" : "text-red-500"}`}>
                   {r.net >= 0 ? "+" : ""}
                   {formatRupiah(r.net)}
@@ -207,8 +234,8 @@ export default async function ArusKasPage({
           </div>
           <div className="divide-y divide-zinc-50 px-4">
             {lainnyaRows.map((r) => (
-              <div key={r.source} className="flex items-center justify-between py-2 text-xs">
-                <span className="text-zinc-600">{SOURCE_LABELS[r.source] ?? r.source}</span>
+              <div key={r.label} className="flex items-center justify-between py-2 text-xs">
+                <span className="text-zinc-600">{r.label}</span>
                 <span className={`font-medium ${r.net >= 0 ? "text-zinc-800" : "text-red-500"}`}>
                   {r.net >= 0 ? "+" : ""}
                   {formatRupiah(r.net)}
