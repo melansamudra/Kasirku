@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 
 export type AddIngredientState = { error: string | null };
 
@@ -132,6 +133,7 @@ export async function editIngredient(
       unit_cost: unitCost,
       source: "manual",
     });
+    await recalculateProductCostsForIngredient(supabase, ingredientId);
   }
 
   await logActivity(supabase, businessId, "produk", "info", `Bahan baku diubah: ${name}`);

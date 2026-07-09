@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -116,6 +117,7 @@ export async function addPurchase(
         unit_cost: newUnitCost,
         source: "pembelian",
       });
+      await recalculateProductCostsForIngredient(supabase, ingredientId);
     }
   } else {
     productId = formData.get("productId") as string;

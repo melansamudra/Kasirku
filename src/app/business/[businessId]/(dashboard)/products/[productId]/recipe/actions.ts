@@ -2,22 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-
-async function recalculateProductCost(supabase: SupabaseServerClient, productId: string) {
-  const { data: items } = await supabase
-    .from("product_recipes")
-    .select("qty, ingredients(unit_cost)")
-    .eq("product_id", productId);
-
-  const totalCost = (items ?? []).reduce((sum, item) => {
-    const ingredient = item.ingredients as unknown as { unit_cost: number } | null;
-    return sum + Number(ingredient?.unit_cost ?? 0) * Number(item.qty);
-  }, 0);
-
-  await supabase.from("products").update({ cost: totalCost }).eq("id", productId);
-}
+import { recalculateProductCost } from "@/lib/recalculate-product-cost";
 
 export type RecipeState = { error: string | null };
 
