@@ -145,7 +145,15 @@ export default function SignupPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-zinc-500">
+      <p className="mt-4 text-center text-xs text-zinc-400">
+        Dengan mendaftar, kamu menyetujui{" "}
+        <Link href="/terms" className="font-medium text-brand-600 hover:underline">
+          Syarat &amp; Ketentuan
+        </Link>{" "}
+        kami.
+      </p>
+
+      <p className="mt-4 text-center text-sm text-zinc-500">
         Sudah punya akun?{" "}
         <Link href="/login" className="font-medium text-brand-600 hover:underline">
           Masuk

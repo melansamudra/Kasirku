@@ -38,11 +38,13 @@ export async function updateSession(request: NextRequest) {
   // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
   // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
   // "/" adalah landing page publik untuk calon pengguna yang belum daftar.
+  // /terms adalah halaman Syarat & Ketentuan, juga harus bisa dibaca tanpa login.
   const isPublicPath =
     isAuthPage ||
     request.nextUrl.pathname === "/" ||
     request.nextUrl.pathname.startsWith("/order") ||
-    request.nextUrl.pathname.startsWith("/auth/callback");
+    request.nextUrl.pathname.startsWith("/auth/callback") ||
+    request.nextUrl.pathname.startsWith("/terms");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

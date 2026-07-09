@@ -304,6 +304,9 @@ export default async function Home() {
             </div>
             <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
           </div>
+          <Link href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+            Syarat &amp; Ketentuan
+          </Link>
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>
