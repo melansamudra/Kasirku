@@ -4,8 +4,42 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
 const PURCHASE_INGREDIENT_CATEGORY = "Pembelian Bahan Baku";
 const PURCHASE_PRODUCT_CATEGORY = "Pembelian Barang Dagang";
+
+// Kategori pengeluaran non-pembelian → akun beban di Daftar Akun. Kategori di
+// luar daftar ini (harusnya tidak terjadi karena dropdown form sudah dibatasi)
+// jatuh ke "Beban Lain-lain".
+const EXPENSE_CATEGORY_ACCOUNT: Record<string, string> = {
+  Sewa: "5-102",
+  "Gaji & Upah": "5-100",
+  "Listrik & Air": "5-101",
+  Marketing: "5-103",
+  Perlengkapan: "5-104",
+  "Lain-lain": "5-999",
+};
+
+async function postExpenseJournal(
+  supabase: SupabaseServerClient,
+  businessId: string,
+  date: string,
+  category: string,
+  amount: number,
+  isPurchase: boolean,
+) {
+  const debitAccount = isPurchase ? "1-200" : EXPENSE_CATEGORY_ACCOUNT[category] ?? "5-999";
+  await supabase.rpc("post_journal_entry", {
+    p_business_id: businessId,
+    p_date: date,
+    p_description: `Pengeluaran: ${category}`,
+    p_lines: [
+      { account_code: debitAccount, debit: amount, credit: 0 },
+      { account_code: "1-001", debit: 0, credit: amount },
+    ],
+  });
+}
 
 export type ExpenseState = { error: string | null };
 
@@ -73,6 +107,15 @@ export async function addExpense(
     if (updateError) {
       return { error: updateError.message };
     }
+
+    if (newUnitCost !== Number(ingredient.unit_cost)) {
+      await supabase.from("ingredient_price_history").insert({
+        business_id: businessId,
+        ingredient_id: ingredientId,
+        unit_cost: newUnitCost,
+        source: "pembelian",
+      });
+    }
   }
 
   if (isProductPurchase) {
@@ -123,6 +166,15 @@ export async function addExpense(
   if (error) {
     return { error: error.message };
   }
+
+  await postExpenseJournal(
+    supabase,
+    businessId,
+    date,
+    category,
+    amount,
+    isIngredientPurchase || isProductPurchase,
+  );
 
   await logActivity(
     supabase,

@@ -418,7 +418,11 @@ export default async function FinancePage({
           <p className="mb-4 text-[11px] text-zinc-400">
             Teori dihitung dari HPP produk (resep untuk F&amp;B, atau harga modal langsung untuk
             retail) × qty terjual. Aktual dihitung dari nilai persediaan: Persediaan Awal +
-            Pembelian − Persediaan Akhir.
+            Pembelian − Persediaan Akhir. Untuk breakdown COGS teori per produk/kategori, lihat{" "}
+            <Link href={`/business/${businessId}/reports/cogs`} className="text-brand-600 hover:underline">
+              Laporan COGS
+            </Link>
+            .
           </p>
           <div className="mb-3 grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-zinc-50 p-3">
