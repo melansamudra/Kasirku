@@ -23,12 +23,27 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
           : [
               { href: `${base}/reports`, label: "Laporan", icon: "📈" },
               { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: "🧮" },
+              { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: "📐" },
               { href: `${base}/finance`, label: "Keuangan", icon: "💰" },
               { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: "🧾" },
             ]),
         { href: `${base}/shifts`, label: "Riwayat Shift", icon: "⏱️" },
       ],
     },
+    ...(isTiket
+      ? []
+      : [
+          {
+            title: "Akuntansi",
+            items: [
+              { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: "📒" },
+              { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: "📝" },
+              { href: `${base}/accounting/neraca`, label: "Neraca", icon: "⚖️" },
+              { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: "🔄" },
+              { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: "🎯" },
+            ],
+          },
+        ]),
     {
       title: "Operasional",
       items: isTiket
@@ -42,10 +57,13 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
             ...(isFnb
               ? [
                   { href: `${base}/ingredients`, label: "Bahan Baku", icon: "🧂" },
+                  { href: `${base}/reports/price-trend`, label: "Tren Harga", icon: "🏷️" },
                   { href: `${base}/tables`, label: "Meja & Self-Order", icon: "🪑" },
                 ]
               : []),
             { href: `${base}/customers`, label: "Pelanggan", icon: "👥" },
+            { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: "🧾" },
+            { href: `${base}/suppliers`, label: "Supplier", icon: "🏬" },
           ],
     },
     {
