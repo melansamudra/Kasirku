@@ -7,6 +7,9 @@ import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
+// Return value: pesan error kalau posting jurnal gagal, null kalau sukses —
+// baris purchases sudah kadung tersimpan di titik pemanggilan, jadi kegagalan
+// di sini hanya dilaporkan, bukan membatalkan pembelian (lihat [[mini-erp-scope]]).
 async function postPurchaseJournal(
   supabase: SupabaseServerClient,
   businessId: string,
@@ -14,7 +17,7 @@ async function postPurchaseJournal(
   description: string,
   amount: number,
   paidAmount: number,
-) {
+): Promise<string | null> {
   const lines: { account_code: string; debit: number; credit: number }[] = [
     { account_code: "1-200", debit: amount, credit: 0 },
   ];
@@ -25,12 +28,13 @@ async function postPurchaseJournal(
   if (sisaUtang > 0) {
     lines.push({ account_code: "2-001", debit: 0, credit: sisaUtang });
   }
-  await supabase.rpc("post_journal_entry", {
+  const { error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: description,
     p_lines: lines,
   });
+  return error?.message ?? null;
 }
 
 export type AddPurchaseState = { error: string | null };
@@ -167,20 +171,33 @@ export async function addPurchase(
     return { error: error.message };
   }
 
-  await postPurchaseJournal(supabase, businessId, date, `Pembelian: ${itemName}`, amount, paidAmount);
+  const journalError = await postPurchaseJournal(
+    supabase,
+    businessId,
+    date,
+    `Pembelian: ${itemName}`,
+    amount,
+    paidAmount,
+  );
 
   await logActivity(
     supabase,
     businessId,
     "produk",
-    "sukses",
+    journalError ? "warning" : "sukses",
     `Pembelian: ${itemName}`,
-    `Rp${amount.toLocaleString("id-ID")}${paidAmount < amount ? " · sebagian/seluruhnya utang" : " · lunas"}`,
+    journalError
+      ? `Rp${amount.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
+      : `Rp${amount.toLocaleString("id-ID")}${paidAmount < amount ? " · sebagian/seluruhnya utang" : " · lunas"}`,
   );
 
   revalidatePath(`/business/${businessId}/purchases`);
   revalidatePath(`/business/${businessId}/suppliers`);
-  return { error: null };
+  return {
+    error: journalError
+      ? `Pembelian tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
+      : null,
+  };
 }
 
 export type AddPaymentState = { error: string | null };
@@ -245,7 +262,7 @@ export async function addPurchasePayment(
     return { error: error.message };
   }
 
-  await supabase.rpc("post_journal_entry", {
+  const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: "Bayar utang dagang",
@@ -254,17 +271,24 @@ export async function addPurchasePayment(
       { account_code: "1-001", debit: 0, credit: amount },
     ],
   });
+  const journalError = journalRpcError?.message ?? null;
 
   await logActivity(
     supabase,
     businessId,
     "sistem",
-    "info",
+    journalError ? "warning" : "info",
     "Bayar utang dagang",
-    `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""}`,
+    journalError
+      ? `Rp${amount.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
+      : `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""}`,
   );
 
   revalidatePath(`/business/${businessId}/purchases`);
   revalidatePath(`/business/${businessId}/suppliers`);
-  return { error: null };
+  return {
+    error: journalError
+      ? `Pembayaran tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
+      : null,
+  };
 }

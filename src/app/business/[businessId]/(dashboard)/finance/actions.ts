@@ -22,6 +22,10 @@ const EXPENSE_CATEGORY_ACCOUNT: Record<string, string> = {
   "Lain-lain": "5-999",
 };
 
+// Return value: pesan error kalau posting jurnal gagal, null kalau sukses.
+// Baris expenses sudah kadung tersimpan di titik ini (lihat pemanggil) — jadi
+// kegagalan di sini tidak dibatalkan, hanya dilaporkan supaya tidak diam-diam
+// bikin buku besar tidak lengkap (lihat [[mini-erp-scope]]).
 async function postExpenseJournal(
   supabase: SupabaseServerClient,
   businessId: string,
@@ -29,9 +33,9 @@ async function postExpenseJournal(
   category: string,
   amount: number,
   isPurchase: boolean,
-) {
+): Promise<string | null> {
   const debitAccount = isPurchase ? "1-200" : EXPENSE_CATEGORY_ACCOUNT[category] ?? "5-999";
-  await supabase.rpc("post_journal_entry", {
+  const { error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: `Pengeluaran: ${category}`,
@@ -40,6 +44,7 @@ async function postExpenseJournal(
       { account_code: "1-001", debit: 0, credit: amount },
     ],
   });
+  return error?.message ?? null;
 }
 
 export type ExpenseState = { error: string | null };
@@ -169,7 +174,7 @@ export async function addExpense(
     return { error: error.message };
   }
 
-  await postExpenseJournal(
+  const journalError = await postExpenseJournal(
     supabase,
     businessId,
     date,
@@ -182,12 +187,18 @@ export async function addExpense(
     supabase,
     businessId,
     "sistem",
-    "info",
+    journalError ? "warning" : "info",
     `Pengeluaran: ${category}`,
-    `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""}`,
+    journalError
+      ? `Rp${amount.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
+      : `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""}`,
   );
   revalidatePath(`/business/${businessId}/finance`);
-  return { error: null };
+  return {
+    error: journalError
+      ? `Pengeluaran tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
+      : null,
+  };
 }
 
 export async function deleteExpense(businessId: string, expenseId: string) {
