@@ -304,9 +304,14 @@ export default async function Home() {
             </div>
             <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
           </div>
-          <Link href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-            Syarat &amp; Ketentuan
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Syarat &amp; Ketentuan
+            </Link>
+            <Link href="/privacy" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Kebijakan Privasi
+            </Link>
+          </div>
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>

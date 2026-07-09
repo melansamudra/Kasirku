@@ -150,6 +150,10 @@ export default function SignupPage() {
         <Link href="/terms" className="font-medium text-brand-600 hover:underline">
           Syarat &amp; Ketentuan
         </Link>{" "}
+        dan{" "}
+        <Link href="/privacy" className="font-medium text-brand-600 hover:underline">
+          Kebijakan Privasi
+        </Link>{" "}
         kami.
       </p>
 

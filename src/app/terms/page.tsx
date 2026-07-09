@@ -130,6 +130,14 @@ export default function TermsPage() {
             </section>
           ))}
         </div>
+
+        <p className="mt-10 text-center text-xs text-zinc-400">
+          Lihat juga{" "}
+          <Link href="/privacy" className="font-medium text-brand-600 hover:underline">
+            Kebijakan Privasi
+          </Link>{" "}
+          kami.
+        </p>
       </main>
 
       <footer className="border-t border-zinc-100 px-4 py-8">
