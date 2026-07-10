@@ -62,6 +62,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
                 ]
               : []),
             { href: `${base}/customers`, label: "Pelanggan", icon: "👥" },
+            { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: "💳" },
             { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: "🧾" },
             { href: `${base}/suppliers`, label: "Supplier", icon: "🏬" },
           ],
