@@ -20,7 +20,12 @@ export default function DeleteAdjustmentButton({
     <button
       onClick={async () => {
         setPending(true);
-        await deletePayslipAdjustment(businessId, payslipId, adjustmentId);
+        const result = await deletePayslipAdjustment(businessId, payslipId, adjustmentId);
+        setPending(false);
+        if (result.error) {
+          alert(result.error);
+          return;
+        }
         router.refresh();
       }}
       disabled={pending}

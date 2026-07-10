@@ -49,7 +49,7 @@ export default async function PayrollPage({
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, base_pay, hadir_count, created_at, cashiers(name), payslip_adjustments(type, amount)",
+      "id, period_start, period_end, base_pay, hadir_count, created_at, paid_at, cashiers(name), payslip_adjustments(type, amount)",
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
@@ -119,6 +119,7 @@ export default async function PayrollPage({
                   <p className="mt-1 text-xs text-zinc-500">
                     {formatDate(p.period_start)} – {formatDate(p.period_end)} · {p.hadir_count} hari
                     kerja
+                    {p.paid_at && <span className="ml-1.5 font-medium text-brand-600">· ✓ Dibayar</span>}
                   </p>
                 </Link>
               );

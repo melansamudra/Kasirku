@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addPayslipAdjustment } from "../actions";
+import { addPayslipAdjustment, markPayslipPaid } from "../actions";
 import AddAdjustmentForm from "./add-adjustment-form";
 import DeleteAdjustmentButton from "./delete-adjustment-button";
+import MarkPaidButton from "./mark-paid-button";
 import PrintButton from "./print-button";
 
 function formatRupiah(value: number) {
@@ -35,7 +36,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, created_at, cashiers(name, role)",
+      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, created_at, paid_at, cashiers(name, role)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -60,6 +61,8 @@ export default async function PayslipDetailPage({
   const totalDiterima = basePay + totalTunjangan - totalPotongan;
 
   const boundAddAdjustment = addPayslipAdjustment.bind(null, businessId, payslipId);
+  const boundMarkPaid = markPayslipPaid.bind(null, businessId, payslipId);
+  const isPaid = Boolean(payslip.paid_at);
 
   return (
     <div className="w-full max-w-sm print:max-w-none">
@@ -124,13 +127,15 @@ export default async function PayslipDetailPage({
                 <span className="hidden print:inline">+ {a.label}</span>
                 <span className="flex items-center gap-1.5">
                   {formatRupiah(Number(a.amount))}
-                  <span className="print:hidden">
-                    <DeleteAdjustmentButton
-                      businessId={businessId}
-                      payslipId={payslipId}
-                      adjustmentId={a.id}
-                    />
-                  </span>
+                  {!isPaid && (
+                    <span className="print:hidden">
+                      <DeleteAdjustmentButton
+                        businessId={businessId}
+                        payslipId={payslipId}
+                        adjustmentId={a.id}
+                      />
+                    </span>
+                  )}
                 </span>
               </div>
             ))}
@@ -139,13 +144,15 @@ export default async function PayslipDetailPage({
                 <span>− {a.label}</span>
                 <span className="flex items-center gap-1.5">
                   {formatRupiah(Number(a.amount))}
-                  <span className="print:hidden">
-                    <DeleteAdjustmentButton
-                      businessId={businessId}
-                      payslipId={payslipId}
-                      adjustmentId={a.id}
-                    />
-                  </span>
+                  {!isPaid && (
+                    <span className="print:hidden">
+                      <DeleteAdjustmentButton
+                        businessId={businessId}
+                        payslipId={payslipId}
+                        adjustmentId={a.id}
+                      />
+                    </span>
+                  )}
                 </span>
               </div>
             ))}
@@ -153,11 +160,25 @@ export default async function PayslipDetailPage({
               <span>Total Diterima</span>
               <span>{formatRupiah(totalDiterima)}</span>
             </div>
+            {isPaid && (
+              <p className="text-right text-xs font-medium text-brand-600">
+                ✓ Dibayar {formatDate(payslip.paid_at!.slice(0, 10))}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="mt-4 print:hidden">
-          <AddAdjustmentForm action={boundAddAdjustment} />
+          {isPaid ? (
+            <div className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-center text-xs font-medium text-brand-700">
+              ✓ Slip ini sudah dibayar dan tercatat di jurnal (Beban Gaji / Kas &amp; Bank).
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <AddAdjustmentForm action={boundAddAdjustment} />
+              <MarkPaidButton action={boundMarkPaid} totalDiterima={totalDiterima} />
+            </div>
+          )}
         </div>
     </div>
   );
