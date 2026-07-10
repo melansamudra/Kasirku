@@ -62,7 +62,7 @@ export default function AddAdjustmentForm({
         type="text"
         value={label}
         onChange={(e) => setLabel(e.target.value)}
-        placeholder={type === "tunjangan" ? "mis. Bonus, THR" : "mis. Kasbon, Telat"}
+        placeholder={type === "tunjangan" ? "mis. Bonus, Uang Makan" : "mis. Kasbon, Telat"}
         className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
       />
       <input

@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addPayslipAdjustment, markPayslipPaid } from "../actions";
+import { addPayslipAdjustment, markPayslipPaid, updatePayslipExtras } from "../actions";
 import AddAdjustmentForm from "./add-adjustment-form";
 import DeleteAdjustmentButton from "./delete-adjustment-button";
+import LemburThrForm from "./lembur-thr-form";
 import MarkPaidButton from "./mark-paid-button";
 import PrintButton from "./print-button";
 
@@ -36,7 +37,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, created_at, paid_at, cashiers(name, role)",
+      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, lembur_amount, thr_amount, created_at, paid_at, cashiers(name, role)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -58,9 +59,12 @@ export default async function PayslipDetailPage({
   const totalTunjangan = tunjangan.reduce((s, a) => s + Number(a.amount), 0);
   const totalPotongan = potongan.reduce((s, a) => s + Number(a.amount), 0);
   const basePay = Number(payslip.base_pay);
-  const totalDiterima = basePay + totalTunjangan - totalPotongan;
+  const lemburAmount = Number(payslip.lembur_amount);
+  const thrAmount = Number(payslip.thr_amount);
+  const totalDiterima = basePay + lemburAmount + thrAmount + totalTunjangan - totalPotongan;
 
   const boundAddAdjustment = addPayslipAdjustment.bind(null, businessId, payslipId);
+  const boundUpdateExtras = updatePayslipExtras.bind(null, businessId, payslipId);
   const boundMarkPaid = markPayslipPaid.bind(null, businessId, payslipId);
   const isPaid = Boolean(payslip.paid_at);
 
@@ -121,6 +125,18 @@ export default async function PayslipDetailPage({
               </span>
               <span className="font-semibold text-zinc-900">{formatRupiah(basePay)}</span>
             </div>
+            {lemburAmount > 0 && (
+              <div className="flex justify-between text-brand-700">
+                <span>+ Lembur</span>
+                <span>{formatRupiah(lemburAmount)}</span>
+              </div>
+            )}
+            {thrAmount > 0 && (
+              <div className="flex justify-between text-brand-700">
+                <span>+ THR</span>
+                <span>{formatRupiah(thrAmount)}</span>
+              </div>
+            )}
             {tunjangan.map((a) => (
               <div key={a.id} className="flex justify-between text-brand-700">
                 <span className="print:hidden">+ {a.label}</span>
@@ -175,6 +191,11 @@ export default async function PayslipDetailPage({
             </div>
           ) : (
             <div className="space-y-3">
+              <LemburThrForm
+                action={boundUpdateExtras}
+                initialLembur={lemburAmount}
+                initialThr={thrAmount}
+              />
               <AddAdjustmentForm action={boundAddAdjustment} />
               <MarkPaidButton action={boundMarkPaid} totalDiterima={totalDiterima} />
             </div>

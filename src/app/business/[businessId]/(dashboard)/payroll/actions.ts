@@ -140,7 +140,7 @@ export async function markPayslipPaid(
 
   const { data: payslip } = await supabase
     .from("payslips")
-    .select("id, base_pay, paid_at, period_end, cashiers(name)")
+    .select("id, base_pay, lembur_amount, thr_amount, paid_at, period_end, cashiers(name)")
     .eq("id", payslipId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -163,7 +163,12 @@ export async function markPayslipPaid(
   const potongan = (adjustments ?? [])
     .filter((a) => a.type === "potongan")
     .reduce((s, a) => s + Number(a.amount), 0);
-  const total = Number(payslip.base_pay) + tunjangan - potongan;
+  const total =
+    Number(payslip.base_pay) +
+    Number(payslip.lembur_amount) +
+    Number(payslip.thr_amount) +
+    tunjangan -
+    potongan;
 
   if (total <= 0) {
     return { error: "Total gaji harus lebih dari 0 untuk ditandai dibayar." };
@@ -208,6 +213,54 @@ export async function markPayslipPaid(
       ? `Slip gaji ditandai dibayar, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
       : null,
   };
+}
+
+export async function updatePayslipExtras(
+  businessId: string,
+  payslipId: string,
+  lemburAmount: number,
+  thrAmount: number,
+): Promise<{ error: string | null }> {
+  if (Number.isNaN(lemburAmount) || lemburAmount < 0 || Number.isNaN(thrAmount) || thrAmount < 0) {
+    return { error: "Nominal lembur dan THR harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: payslip } = await supabase
+    .from("payslips")
+    .select("id, paid_at")
+    .eq("id", payslipId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!payslip) {
+    return { error: "Slip gaji tidak ditemukan." };
+  }
+  if (payslip.paid_at) {
+    return { error: "Slip gaji sudah dibayar, tidak bisa diubah lagi." };
+  }
+
+  const { error } = await supabase
+    .from("payslips")
+    .update({ lembur_amount: lemburAmount, thr_amount: thrAmount })
+    .eq("id", payslipId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Lembur/THR diperbarui",
+    `Lembur Rp${lemburAmount.toLocaleString("id-ID")} · THR Rp${thrAmount.toLocaleString("id-ID")}`,
+  );
+
+  revalidatePath(`/business/${businessId}/payroll/${payslipId}`);
+  return { error: null };
 }
 
 export type AdjustmentType = "tunjangan" | "potongan";

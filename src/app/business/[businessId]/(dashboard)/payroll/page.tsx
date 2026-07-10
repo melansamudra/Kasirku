@@ -49,7 +49,7 @@ export default async function PayrollPage({
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, base_pay, hadir_count, created_at, paid_at, cashiers(name), payslip_adjustments(type, amount)",
+      "id, period_start, period_end, base_pay, lembur_amount, thr_amount, hadir_count, created_at, paid_at, cashiers(name), payslip_adjustments(type, amount)",
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
@@ -97,7 +97,8 @@ export default async function PayrollPage({
               const potongan = adjustments
                 .filter((a) => a.type === "potongan")
                 .reduce((s, a) => s + Number(a.amount), 0);
-              const total = Number(p.base_pay) + tunjangan - potongan;
+              const total =
+                Number(p.base_pay) + Number(p.lembur_amount) + Number(p.thr_amount) + tunjangan - potongan;
               const cashierName =
                 (p.cashiers as unknown as { name: string } | null)?.name ?? "Kasir terhapus";
 
