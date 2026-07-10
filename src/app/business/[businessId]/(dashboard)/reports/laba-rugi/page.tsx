@@ -241,6 +241,10 @@ export default async function LabaRugiPage({
           <Link href={`/business/${businessId}/finance?${periodQuery}`} className="text-brand-600 hover:underline">
             Keuangan
           </Link>
+          . Untuk versi akrual (termasuk piutang belum dibayar), lihat{" "}
+          <Link href={`/business/${businessId}/accounting/laba-rugi`} className="text-brand-600 hover:underline">
+            Laba Rugi (Akrual)
+          </Link>
           .
         </p>
     </div>

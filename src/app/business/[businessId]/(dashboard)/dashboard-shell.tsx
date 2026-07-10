@@ -37,6 +37,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
             title: "Akuntansi",
             items: [
               { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: "📒" },
+              { href: `${base}/accounting/laba-rugi`, label: "Laba Rugi (Akrual)", icon: "🧮" },
               { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: "📝" },
               { href: `${base}/accounting/neraca`, label: "Neraca", icon: "⚖️" },
               { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: "🔄" },
