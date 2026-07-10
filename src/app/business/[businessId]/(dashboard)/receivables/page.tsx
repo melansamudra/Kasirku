@@ -22,6 +22,20 @@ function toDateStr(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+const AGING_BUCKETS = ["0-30 hari", "31-60 hari", "61-90 hari", "90+ hari"] as const;
+type AgingBucket = (typeof AGING_BUCKETS)[number];
+
+function agingBucketOf(dateStr: string, todayIso: string): AgingBucket {
+  const days = Math.floor(
+    (new Date(`${todayIso}T00:00:00Z`).getTime() - new Date(`${dateStr}T00:00:00Z`).getTime()) /
+      86400000,
+  );
+  if (days <= 30) return "0-30 hari";
+  if (days <= 60) return "31-60 hari";
+  if (days <= 90) return "61-90 hari";
+  return "90+ hari";
+}
+
 type ReceivableRow = {
   id: string;
   date: string;
@@ -73,6 +87,14 @@ export default async function ReceivablesPage({
   const totalPiutang = rows.reduce((s, r) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
   const belumLunasCount = rows.filter((r) => Number(r.paid_amount) < Number(r.amount)).length;
 
+  const agingTotals = new Map<AgingBucket, number>();
+  for (const r of rows) {
+    const sisa = Number(r.amount) - Number(r.paid_amount);
+    if (sisa <= 0) continue;
+    const bucket = agingBucketOf(r.date, today);
+    agingTotals.set(bucket, (agingTotals.get(bucket) ?? 0) + sisa);
+  }
+
   const boundAddReceivable = addReceivable.bind(null, businessId);
 
   return (
@@ -106,6 +128,34 @@ export default async function ReceivablesPage({
           <p className="text-xl font-bold text-zinc-900">{belumLunasCount} tagihan</p>
         </div>
       </div>
+
+      {totalPiutang > 0 && (
+        <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <div className="border-b border-zinc-100 px-4 py-3">
+            <h2 className="text-xs font-bold uppercase text-zinc-500">Umur Piutang</h2>
+          </div>
+          <div className="grid grid-cols-4 divide-x divide-zinc-100">
+            {AGING_BUCKETS.map((bucket, i) => (
+              <div key={bucket} className="px-2.5 py-3 text-center">
+                <p
+                  className={`text-sm font-bold ${
+                    i === 0
+                      ? "text-zinc-900"
+                      : i === 1
+                        ? "text-amber-600"
+                        : i === 2
+                          ? "text-orange-600"
+                          : "text-red-600"
+                  }`}
+                >
+                  {formatRupiah(agingTotals.get(bucket) ?? 0)}
+                </p>
+                <p className="mt-0.5 text-[10px] text-zinc-400">{bucket}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Catat Piutang</h2>

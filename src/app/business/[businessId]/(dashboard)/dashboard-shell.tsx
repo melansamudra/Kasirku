@@ -42,6 +42,8 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
               { href: `${base}/accounting/neraca`, label: "Neraca", icon: "⚖️" },
               { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: "🔄" },
               { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: "🎯" },
+              { href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: "📜" },
+              { href: `${base}/accounting/transfer-kas`, label: "Transfer Kas/Bank", icon: "🔀" },
               { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: "🔒" },
             ],
           },
@@ -67,6 +69,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
             { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: "💳" },
             { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: "🧾" },
             { href: `${base}/suppliers`, label: "Supplier", icon: "🏬" },
+            { href: `${base}/assets`, label: "Aset Tetap", icon: "🖥️" },
           ],
     },
     {
