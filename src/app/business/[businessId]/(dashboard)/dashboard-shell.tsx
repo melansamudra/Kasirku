@@ -41,6 +41,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
               { href: `${base}/accounting/neraca`, label: "Neraca", icon: "⚖️" },
               { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: "🔄" },
               { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: "🎯" },
+              { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: "🔒" },
             ],
           },
         ]),

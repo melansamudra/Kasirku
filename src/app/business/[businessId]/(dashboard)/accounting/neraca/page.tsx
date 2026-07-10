@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -179,9 +180,13 @@ export default async function NeracaPage({
       </div>
 
       <p className="mt-3 text-center text-[11px] text-zinc-400">
-        "Laba Berjalan" adalah pendapatan dikurangi beban sejak awal pencatatan sampai tanggal ini
-        — sistem ini belum punya proses tutup buku formal, jadi laba berjalan selalu dihitung
-        ulang secara otomatis di baris Modal.
+        "Laba Berjalan" adalah pendapatan dikurangi beban sejak tutup buku terakhir (atau sejak
+        awal pencatatan kalau belum pernah tutup buku) sampai tanggal ini. Kunci periode yang
+        sudah selesai lewat{" "}
+        <Link href={`/business/${businessId}/accounting/tutup-buku`} className="text-brand-600 hover:underline">
+          Tutup Buku
+        </Link>
+        .
       </p>
     </div>
   );
