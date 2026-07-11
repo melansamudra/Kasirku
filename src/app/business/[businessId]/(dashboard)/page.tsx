@@ -134,14 +134,14 @@ export default async function BusinessDashboardPage({
 
       {/* Stat cards */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Total Pendapatan
           </p>
           <p className="text-xl font-bold text-zinc-900">{formatRupiahShort(revenue)}</p>
           <p className="mt-0.5 text-[10.5px] text-zinc-400">{monthLabel(today.slice(0, 7))}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Laba Bersih</p>
           <p
             className={`text-xl font-bold ${netProfit >= 0 ? "text-zinc-900" : "text-red-600"}`}
@@ -152,12 +152,12 @@ export default async function BusinessDashboardPage({
             {marginDisplay === null ? "belum ada penjualan" : `Margin ${marginDisplay}%`}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Total Beban</p>
           <p className="text-xl font-bold text-zinc-900">{formatRupiahShort(totalExpenses)}</p>
           <p className="mt-0.5 text-[10.5px] text-zinc-400">HPP + Operasional</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Transaksi</p>
           <p className="text-xl font-bold text-zinc-900">{txCount}</p>
           <p className="mt-0.5 text-[10.5px] text-zinc-400">bulan ini</p>
@@ -166,7 +166,7 @@ export default async function BusinessDashboardPage({
 
       {/* Arus kas & margin */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 lg:col-span-2">
+        <div className="rounded-xl bg-white shadow-sm p-4 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-zinc-900">Arus Kas Harian</h2>
             <span className="text-[11px] text-zinc-400">{monthLabel(today.slice(0, 7))}</span>
@@ -202,7 +202,7 @@ export default async function BusinessDashboardPage({
           )}
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <h2 className="text-sm font-bold text-zinc-900">Net Profit Margin</h2>
           <p className="mt-0.5 text-[11px] text-zinc-400">Bulan ini</p>
           <div className="mt-4 flex flex-col items-center">
@@ -233,11 +233,11 @@ export default async function BusinessDashboardPage({
 
       {/* Ringkasan beban */}
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1 text-[10.5px] font-semibold uppercase text-amber-700">HPP (Pembelian)</p>
           <p className="text-lg font-bold text-zinc-900">{formatRupiah(cogs)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1 text-[10.5px] font-semibold uppercase text-zinc-500">Beban Operasional</p>
           <p className="text-lg font-bold text-zinc-900">{formatRupiah(operationalExpenses)}</p>
         </div>

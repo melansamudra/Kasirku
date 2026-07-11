@@ -112,7 +112,7 @@ export default async function AnggaranPage({
         </form>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Set Target Bulan Ini</h2>
         <AddBudgetForm action={boundSetBudget} period={period} accounts={accounts ?? []} />
       </div>
@@ -121,7 +121,7 @@ export default async function AnggaranPage({
         { label: "Pendapatan", list: pendapatanRows },
         { label: "Beban", list: bebanRows },
       ].map((group) => (
-        <div key={group.label} className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div key={group.label} className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-zinc-100 px-4 py-3">
             <h2 className="text-sm font-bold text-zinc-900">{group.label}</h2>
           </div>

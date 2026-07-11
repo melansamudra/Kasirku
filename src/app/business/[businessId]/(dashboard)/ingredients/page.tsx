@@ -100,13 +100,13 @@ export default async function IngredientsPage({
           )}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan Baku</h2>
           <AddIngredientForm action={boundAddIngredient} />
         </div>
 
         {adjustments && adjustments.length > 0 && (
-          <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
             <h2 className="mb-3 text-sm font-semibold text-zinc-900">Riwayat Penyesuaian Stok</h2>
             <div className="space-y-2">
               {adjustments.map((a) => (

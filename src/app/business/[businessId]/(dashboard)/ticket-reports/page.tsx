@@ -237,13 +237,13 @@ export default async function TicketReportsPage({
           </p>
           <p className="text-2xl font-bold text-white">{activeMemberCount ?? 0}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Tiket Terjual
           </p>
           <p className="text-2xl font-bold text-zinc-900">{totalTickets}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Pendapatan</p>
           <p className="text-xl font-bold text-zinc-900">{formatRupiah(totalRevenue)}</p>
         </div>
@@ -252,7 +252,7 @@ export default async function TicketReportsPage({
       {/* Filter */}
       <form
         method="get"
-        className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4"
+        className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
       >
         <input type="hidden" name="period" value={period} />
         {period === "custom" && (
@@ -321,7 +321,7 @@ export default async function TicketReportsPage({
       </form>
 
       {/* Penjualan per jam */}
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
         <h2 className="text-sm font-bold text-zinc-900">Penjualan per Jam</h2>
         <p className="mt-0.5 text-[11px] text-zinc-400">
           Distribusi pendapatan tiket sepanjang hari (WIB)
@@ -361,7 +361,7 @@ export default async function TicketReportsPage({
 
       {/* Metode pembayaran & ringkasan kategori */}
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <h2 className="text-sm font-bold text-zinc-900">Metode Pembayaran</h2>
           <p className="mb-4 mt-0.5 text-[11px] text-zinc-400">Komposisi penerimaan</p>
           {methodTotal > 0 ? (
@@ -404,7 +404,7 @@ export default async function TicketReportsPage({
           )}
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <h2 className="text-sm font-bold text-zinc-900">Ringkasan per Kategori</h2>
           {categorySummary.length > 0 ? (
             <div className="mt-3 space-y-2">
@@ -424,7 +424,7 @@ export default async function TicketReportsPage({
       </div>
 
       {/* Ekspor */}
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
         <h2 className="mb-3 text-sm font-bold text-zinc-900">⬇️ Ekspor Data</h2>
         <div className="grid grid-cols-3 gap-2">
           <a
@@ -449,7 +449,7 @@ export default async function TicketReportsPage({
       </div>
 
       {/* Rekonsiliasi nomor seri */}
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Rekonsiliasi Tiket</h2>
           <span className="text-[10.5px] font-semibold uppercase text-zinc-400">

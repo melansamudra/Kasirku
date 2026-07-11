@@ -79,7 +79,7 @@ export default function CheckInScreen({
 
         <form
           onSubmit={handleSubmit}
-          className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4"
+          className="mt-4 rounded-xl bg-white shadow-sm p-4"
         >
           <label className="mb-1 block text-xs font-medium text-zinc-600">Kategori</label>
           <select

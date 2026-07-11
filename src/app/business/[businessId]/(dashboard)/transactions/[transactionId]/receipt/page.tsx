@@ -57,7 +57,7 @@ export default async function ReceiptPage({
           <PrintButton businessId={businessId} transactionId={transactionId} />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 print:mt-0 print:rounded-none print:border-0 print:p-0">
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5 print:mt-0 print:rounded-none print:border-0 print:p-0">
           <div className="text-center">
             <p className="text-sm font-bold uppercase">{business.name}</p>
             {transaction.voided && (

@@ -70,7 +70,7 @@ export default async function TransactionDetailPage({
           Kasir: {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
         </p>
 
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">Item</h2>
           <div className="space-y-2">
             {items?.map((item) => (
@@ -124,7 +124,7 @@ export default async function TransactionDetailPage({
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">Pembayaran</h2>
           {payments?.map((p) => (
             <div key={p.id} className="space-y-1 text-sm">

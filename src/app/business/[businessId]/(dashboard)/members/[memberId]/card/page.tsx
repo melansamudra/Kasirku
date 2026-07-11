@@ -44,7 +44,7 @@ export default async function MemberCardPage({
         <PrintButton businessId={businessId} memberId={memberId} />
       </div>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 text-center print:mt-0 print:rounded-none print:border-0">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-6 text-center print:mt-0 print:rounded-none print:border-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
           {business.name}
         </p>

@@ -145,7 +145,7 @@ export default async function DashboardPage() {
             return (
               <div
                 key={b.id}
-                className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                className="relative overflow-hidden rounded-xl bg-white shadow-sm p-5 transition-shadow hover:shadow-md"
               >
                 <div
                   aria-hidden

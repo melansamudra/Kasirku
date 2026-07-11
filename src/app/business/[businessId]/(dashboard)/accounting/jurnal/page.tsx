@@ -110,7 +110,7 @@ export default async function JurnalPage({
       {period === "custom" && (
         <form
           method="get"
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4"
+          className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
         >
           <input type="hidden" name="period" value="custom" />
           <label className="text-xs font-medium text-zinc-600">
@@ -140,7 +140,7 @@ export default async function JurnalPage({
         </form>
       )}
 
-      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Jurnal Manual</h2>
         <p className="mb-4 text-[11px] text-zinc-400">
           Penjualan &amp; void sudah otomatis ter-posting dari POS. Gunakan ini untuk transaksi
@@ -164,7 +164,7 @@ export default async function JurnalPage({
           }[];
           const total = lines.reduce((s, l) => s + Number(l.debit), 0);
           return (
-            <div key={e.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+            <div key={e.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
               <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-zinc-900">{e.description}</p>

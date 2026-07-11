@@ -63,7 +63,7 @@ export default async function DaftarAkunPage({
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 {TYPE_LABELS[type]}
               </h2>
-              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+              <div className="overflow-hidden rounded-xl bg-white shadow-sm">
                 <div className="divide-y divide-zinc-100">
                   {list.map((a) => (
                     <div key={a.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
@@ -91,7 +91,7 @@ export default async function DaftarAkunPage({
         })}
       </div>
 
-      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Akun Custom</h2>
         <AddAccountForm action={boundAddAccount} />
       </div>

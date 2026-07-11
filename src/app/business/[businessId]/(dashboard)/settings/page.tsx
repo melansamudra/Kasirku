@@ -98,7 +98,7 @@ export default async function SettingsPage({
         <h1 className="text-lg font-bold text-zinc-900">Pengaturan — {business.name}</h1>
 
         {/* Pajak & Biaya Layanan */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Pajak &amp; Biaya Layanan</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Ditambahkan otomatis ke setiap transaksi di kasir.
@@ -115,7 +115,7 @@ export default async function SettingsPage({
         </div>
 
         {/* Metode Pembayaran Custom */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Metode Pembayaran Custom</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Tambahan di luar Tunai, Kartu, QRIS — misalnya dompet digital atau transfer bank
@@ -147,7 +147,7 @@ export default async function SettingsPage({
 
         {/* Printer Dapur & Bar (F&B only) */}
         {isFnb && (
-          <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
             <h2 className="text-sm font-semibold text-zinc-900">Printer Dapur &amp; Bar</h2>
             <p className="mt-1 text-xs text-zinc-500">
               Cetak order otomatis ke printer dapur/bar sesuai kategori menu — bukan ke kasir.

@@ -11,15 +11,17 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Brand palette carried over from the original prototype (deep green). */
-  --color-brand-50: #ecfdf5;
-  --color-brand-100: #d1fae5;
-  --color-brand-200: #a7f3d0;
-  --color-brand-300: #6ee7b7;
-  --color-brand-400: #34d399;
-  --color-brand-500: #10b981;
-  --color-brand-600: #0f4c3a;
-  --color-brand-700: #0c3d2e;
+  /* Brand palette — Majoo-style bright green (primary ~#00A651). */
+  --color-brand-50: #e6f9f0;
+  --color-brand-100: #c3f0dc;
+  --color-brand-200: #8fe0be;
+  --color-brand-300: #57ce9c;
+  --color-brand-400: #22b87a;
+  --color-brand-500: #00a651;
+  --color-brand-600: #00944a;
+  --color-brand-700: #007a3d;
+  --color-brand-800: #005c2e;
+  --color-brand-900: #003d1f;
 }
 
 @media (prefers-color-scheme: dark) {

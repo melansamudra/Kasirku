@@ -67,7 +67,7 @@ export default async function PayrollPage({
           Buat slip gaji dari data absensi, tambah tunjangan/potongan di halaman slip.
         </p>
 
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Buat Slip Gaji</h2>
           <CreatePayslipForm
             businessId={businessId}

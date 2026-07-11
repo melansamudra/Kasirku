@@ -224,7 +224,7 @@ export default async function Home() {
             {BUSINESS_TYPES.map((b) => (
               <div
                 key={b.title}
-                className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+                className="rounded-xl bg-white shadow-sm p-6 transition-shadow hover:shadow-md"
               >
                 <div
                   className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${b.icon}`}
@@ -257,7 +257,7 @@ export default async function Home() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+                className="rounded-xl bg-white shadow-sm p-5"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-lg">
                   {f.icon}

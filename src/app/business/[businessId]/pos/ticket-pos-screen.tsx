@@ -203,7 +203,7 @@ export default function TicketPosScreen({
   if (successInvoice) {
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-sm p-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">
             🎟️
           </div>
@@ -233,7 +233,7 @@ export default function TicketPosScreen({
     const diff = closedSummary.difference;
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-sm p-6">
           <h1 className="text-center text-lg font-bold text-zinc-900">Shift Ditutup</h1>
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between text-zinc-600">
@@ -287,7 +287,7 @@ export default function TicketPosScreen({
   if (closingShift) {
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-sm p-6">
           <h1 className="text-lg font-bold text-zinc-900">Tutup Shift</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Hitung uang tunai di laci, lalu masukkan jumlahnya.
@@ -378,7 +378,7 @@ export default function TicketPosScreen({
             const units = unitsByCategory[c.id] ?? [];
             const price = unitPriceFor(c);
             return (
-              <div key={c.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
+              <div key={c.id} className="rounded-xl bg-white shadow-sm p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-zinc-900">{c.name}</p>

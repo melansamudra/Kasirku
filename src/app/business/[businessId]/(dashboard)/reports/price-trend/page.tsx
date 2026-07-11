@@ -134,7 +134,7 @@ export default async function PriceTrendPage({
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Semua Bahan Baku</h2>
         </div>

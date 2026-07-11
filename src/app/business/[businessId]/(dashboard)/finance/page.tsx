@@ -287,11 +287,11 @@ export default async function FinancePage({
 
         {/* Ringkasan */}
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Total Pendapatan</p>
             <p className="text-lg font-bold text-zinc-900">{formatRupiah(revenue)}</p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Beban Operasional</p>
             <p className="text-lg font-bold text-zinc-900">{formatRupiah(totalOtherExp)}</p>
             <p className="mt-0.5 text-[10px] text-zinc-400">di luar bahan baku</p>
@@ -304,7 +304,7 @@ export default async function FinancePage({
         </div>
 
         {/* Rekonsiliasi */}
-        <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-zinc-100 px-4 py-3.5">
             <h2 className="text-sm font-bold text-zinc-900">Rekonsiliasi Pembayaran &amp; Biaya Merchant</h2>
             <p className="mt-0.5 text-[11px] text-zinc-400">
@@ -413,7 +413,7 @@ export default async function FinancePage({
         </div>
 
         {/* Kontrol HPP teori vs aktual */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-4">
           <h2 className="mb-1 text-sm font-bold text-zinc-900">Kontrol HPP — Teori vs Aktual</h2>
           <p className="mb-4 text-[11px] text-zinc-400">
             Teori dihitung dari HPP produk (resep untuk F&amp;B, atau harga modal langsung untuk
@@ -475,7 +475,7 @@ export default async function FinancePage({
         </div>
 
         {/* Tambah pengeluaran */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Catat Pengeluaran</h2>
           <AddExpenseForm
             action={boundAddExpense}
@@ -496,7 +496,7 @@ export default async function FinancePage({
         </div>
 
         {/* Riwayat pengeluaran */}
-        <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3.5">
             <h2 className="text-sm font-bold text-zinc-900">Riwayat Pengeluaran</h2>
             <span className="text-[10.5px] font-semibold uppercase text-zinc-400">

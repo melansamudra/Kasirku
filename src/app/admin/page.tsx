@@ -82,21 +82,21 @@ export default async function AdminPage() {
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl bg-white shadow-sm p-5">
             <p className="text-[10px] font-semibold uppercase text-zinc-400">Total Toko</p>
             <p className="mt-1 text-2xl font-bold text-zinc-900">{s.total_businesses}</p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl bg-white shadow-sm p-5">
             <p className="text-[10px] font-semibold uppercase text-zinc-400">Total Pemilik</p>
             <p className="mt-1 text-2xl font-bold text-zinc-900">{s.total_owners}</p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl bg-white shadow-sm p-5">
             <p className="text-[10px] font-semibold uppercase text-zinc-400">
               Transaksi Hari Ini
             </p>
             <p className="mt-1 text-2xl font-bold text-zinc-900">{s.tx_today}</p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl bg-white shadow-sm p-5">
             <p className="text-[10px] font-semibold uppercase text-zinc-400">
               Toko Baru (7 Hari)
             </p>
@@ -116,7 +116,7 @@ export default async function AdminPage() {
           </span>
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="mt-8 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-zinc-100 px-5 py-4">
             <p className="text-sm font-bold text-zinc-900">Semua Toko</p>
           </div>

@@ -227,7 +227,7 @@ export default async function ReportsPage({
         {period === "custom" && (
           <form
             method="get"
-            className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4"
+            className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
           >
             <input type="hidden" name="period" value="custom" />
             <label className="text-xs font-medium text-zinc-600">
@@ -268,14 +268,14 @@ export default async function ReportsPage({
               {count > 0 ? `↑ ${count} transaksi` : "— Belum ada transaksi"}
             </p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Transaksi</p>
             <p className="text-2xl font-bold text-zinc-900">{count}</p>
             <p className="mt-1 text-[11px] text-zinc-400">
               sukses · <span className="text-red-400">{voidCount} void</span>
             </p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
               Rata-rata Bill
             </p>
@@ -297,7 +297,7 @@ export default async function ReportsPage({
                 : "omzet dikurangi HPP"}
             </p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
               Margin Rata-rata
             </p>
@@ -332,7 +332,7 @@ export default async function ReportsPage({
         </div>
 
         {/* Penjualan per jam */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-4">
           <h2 className="text-sm font-bold text-zinc-900">Penjualan per Jam</h2>
           <p className="mt-0.5 text-[11px] text-zinc-400">
             Distribusi pendapatan sepanjang hari (WIB)
@@ -372,7 +372,7 @@ export default async function ReportsPage({
 
         {/* Metode pembayaran & kategori */}
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <h2 className="text-sm font-bold text-zinc-900">Metode Pembayaran</h2>
             <p className="mb-4 mt-0.5 text-[11px] text-zinc-400">Komposisi penerimaan</p>
             {methodTotal > 0 ? (
@@ -422,7 +422,7 @@ export default async function ReportsPage({
             )}
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl bg-white shadow-sm p-4">
             <h2 className="text-sm font-bold text-zinc-900">Penjualan per Kategori</h2>
             <p className="mb-4 mt-0.5 text-[11px] text-zinc-400">Kontribusi tiap kategori menu</p>
             {categoryEntries.length > 0 ? (
@@ -452,7 +452,7 @@ export default async function ReportsPage({
         </div>
 
         {/* Menu terlaris */}
-        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3.5">
             <h2 className="text-sm font-bold text-zinc-900">🏆 Menu Terlaris</h2>
             <span className="text-[10.5px] font-semibold uppercase text-zinc-400">periode ini</span>
@@ -493,7 +493,7 @@ export default async function ReportsPage({
         </div>
 
         {/* Ekspor */}
-        <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
           <h2 className="mb-3 text-sm font-bold text-zinc-900">⬇️ Ekspor Data</h2>
           <div className="grid grid-cols-2 gap-2">
             <a
@@ -512,7 +512,7 @@ export default async function ReportsPage({
         </div>
 
         {/* Riwayat transaksi periode ini */}
-        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3.5">
             <h2 className="text-sm font-bold text-zinc-900">Riwayat Transaksi</h2>
             <span className="text-[10.5px] font-semibold uppercase text-zinc-400">

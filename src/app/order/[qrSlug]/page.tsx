@@ -29,7 +29,7 @@ export default async function SelfOrderPage({
   if (!data) {
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-sm p-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 text-2xl">
             🔍
           </div>

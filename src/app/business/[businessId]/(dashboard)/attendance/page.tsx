@@ -132,7 +132,7 @@ export default async function AttendancePage({
         </div>
 
         {employees && employees.length > 0 && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-4 py-3">
               <h2 className="text-sm font-bold text-zinc-900">Rekap Bulan Ini</h2>
               <p className="mt-0.5 text-[11px] text-zinc-400">

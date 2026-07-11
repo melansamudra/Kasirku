@@ -33,7 +33,7 @@ export default function HppCalculator({ menuItems }: { menuItems: MenuItem[] }) 
 
   return (
     <div className="mt-6 space-y-4">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="rounded-xl bg-white shadow-sm p-4">
         <label className="mb-1 block text-xs font-medium text-zinc-600">Pilih Menu</label>
         <select
           value={selectedId}
@@ -51,7 +51,7 @@ export default function HppCalculator({ menuItems }: { menuItems: MenuItem[] }) 
 
       {selected && (
         <>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-4 py-3.5">
               <h2 className="text-sm font-bold text-zinc-900">Rincian Bahan — {selected.name}</h2>
             </div>
@@ -83,7 +83,7 @@ export default function HppCalculator({ menuItems }: { menuItems: MenuItem[] }) 
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+            <div className="rounded-xl bg-white shadow-sm p-4">
               <h2 className="text-sm font-bold text-zinc-900">Uji Harga Jual</h2>
               <p className="mt-0.5 text-[11px] text-zinc-400">Isi harga jual, lihat marginnya</p>
               <input
@@ -102,7 +102,7 @@ export default function HppCalculator({ menuItems }: { menuItems: MenuItem[] }) 
               )}
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+            <div className="rounded-xl bg-white shadow-sm p-4">
               <h2 className="text-sm font-bold text-zinc-900">Target Margin</h2>
               <p className="mt-0.5 text-[11px] text-zinc-400">Isi target %, lihat saran harga</p>
               <input

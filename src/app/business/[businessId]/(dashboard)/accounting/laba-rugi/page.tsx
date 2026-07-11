@@ -120,7 +120,7 @@ export default async function LabaRugiAkrualPage({
       {period === "custom" && (
         <form
           method="get"
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4"
+          className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
         >
           <input type="hidden" name="period" value="custom" />
           <label className="text-xs font-medium text-zinc-600">
@@ -150,7 +150,7 @@ export default async function LabaRugiAkrualPage({
         </form>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="space-y-3 p-5">
           <p className="text-xs font-semibold uppercase text-zinc-400">Pendapatan</p>
           {pendapatanRows.length > 0 ? (
@@ -199,7 +199,7 @@ export default async function LabaRugiAkrualPage({
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Rincian Beban Operasional</h2>
         </div>

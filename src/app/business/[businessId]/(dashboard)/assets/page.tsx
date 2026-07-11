@@ -106,11 +106,11 @@ export default async function AssetsPage({
       </p>
 
       <div className="mt-6 grid grid-cols-3 gap-2.5">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-3.5">
+        <div className="rounded-xl bg-white shadow-sm p-3.5">
           <p className="mb-1 text-[10px] font-semibold uppercase text-zinc-400">Nilai Perolehan</p>
           <p className="text-base font-bold text-zinc-900">{formatRupiah(totalCost)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-3.5">
+        <div className="rounded-xl bg-white shadow-sm p-3.5">
           <p className="mb-1 text-[10px] font-semibold uppercase text-zinc-400">Akum. Penyusutan</p>
           <p className="text-base font-bold text-amber-600">{formatRupiah(totalAccumulated)}</p>
         </div>
@@ -120,12 +120,12 @@ export default async function AssetsPage({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Catat Aset Tetap</h2>
         <AddAssetForm action={boundAddAsset} today={today} />
       </div>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">Penyusutan Bulanan</h2>
         <p className="mb-4 text-[11px] text-zinc-400">
           Metode garis lurus: (harga beli − nilai residu) ÷ umur ekonomis, dihitung otomatis dari
@@ -138,7 +138,7 @@ export default async function AssetsPage({
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Daftar Aset</h2>
         </div>
@@ -175,7 +175,7 @@ export default async function AssetsPage({
         )}
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Riwayat Penyusutan</h2>
         </div>

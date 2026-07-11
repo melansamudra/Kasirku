@@ -70,7 +70,7 @@ export default async function TablesPage({
         </h1>
 
         {/* Order masuk */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Order Masuk</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Pesanan dari pelanggan yang scan QR meja. Selesaikan pembayarannya di kasir.
@@ -149,7 +149,7 @@ export default async function TablesPage({
         </div>
 
         {/* Daftar meja */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Daftar Meja</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Setiap meja punya link order sendiri. Salin link-nya, jadikan QR code, lalu

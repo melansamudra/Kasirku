@@ -3,9 +3,48 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  BarChart3,
+  Calculator,
+  Ruler,
+  Wallet,
+  Receipt,
+  Clock,
+  BookOpen,
+  TrendingUp,
+  FileText,
+  Scale,
+  RefreshCw,
+  Target,
+  ScrollText,
+  ArrowLeftRight,
+  Lock,
+  QrCode,
+  Ticket,
+  UserCircle,
+  Package,
+  Beaker,
+  Tag,
+  UtensilsCrossed,
+  Users,
+  CreditCard,
+  ShoppingBag,
+  Store,
+  Monitor,
+  UserCog,
+  UserCheck,
+  CalendarCheck,
+  Banknote,
+  Settings,
+  Activity,
+  ShoppingCart,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
 
-type NavItem = { href: string; label: string; icon: string };
+type NavItem = { href: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string; items: NavItem[] };
 type BusinessType = "fnb" | "retail" | "tiket";
 
@@ -17,18 +56,18 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
     {
       title: "Keuangan",
       items: [
-        { href: base, label: "Dashboard", icon: "📊" },
+        { href: base, label: "Dashboard", icon: LayoutDashboard },
         ...(isTiket
           ? []
           : [
-              { href: `${base}/reports`, label: "Laporan", icon: "📈" },
-              { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: "🧮" },
-              { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: "📐" },
-              { href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: "🧮" },
-              { href: `${base}/finance`, label: "Keuangan", icon: "💰" },
-              { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: "🧾" },
+              { href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
+              { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
+              { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
+              { href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
+              { href: `${base}/finance`, label: "Keuangan", icon: Wallet },
+              { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
             ]),
-        { href: `${base}/shifts`, label: "Riwayat Shift", icon: "⏱️" },
+        { href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
       ],
     },
     ...(isTiket
@@ -37,15 +76,23 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
           {
             title: "Akuntansi",
             items: [
-              { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: "📒" },
-              { href: `${base}/accounting/laba-rugi`, label: "Laba Rugi (Akrual)", icon: "🧮" },
-              { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: "📝" },
-              { href: `${base}/accounting/neraca`, label: "Neraca", icon: "⚖️" },
-              { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: "🔄" },
-              { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: "🎯" },
-              { href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: "📜" },
-              { href: `${base}/accounting/transfer-kas`, label: "Transfer Kas/Bank", icon: "🔀" },
-              { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: "🔒" },
+              { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
+              {
+                href: `${base}/accounting/laba-rugi`,
+                label: "Laba Rugi (Akrual)",
+                icon: TrendingUp,
+              },
+              { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
+              { href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
+              { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
+              { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
+              { href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
+              {
+                href: `${base}/accounting/transfer-kas`,
+                label: "Transfer Kas/Bank",
+                icon: ArrowLeftRight,
+              },
+              { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
             ],
           },
         ]),
@@ -53,40 +100,44 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
       title: "Operasional",
       items: isTiket
         ? [
-            { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: "🎫" },
-            { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: "🎟️" },
-            { href: `${base}/members`, label: "Anggota", icon: "👤" },
+            { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
+            { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
+            { href: `${base}/members`, label: "Anggota", icon: UserCircle },
           ]
         : [
-            { href: `${base}/products`, label: "Kelola Produk", icon: "📦" },
+            { href: `${base}/products`, label: "Kelola Produk", icon: Package },
             ...(isFnb
               ? [
-                  { href: `${base}/ingredients`, label: "Bahan Baku", icon: "🧂" },
-                  { href: `${base}/reports/price-trend`, label: "Tren Harga", icon: "🏷️" },
-                  { href: `${base}/tables`, label: "Meja & Self-Order", icon: "🪑" },
+                  { href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+                  { href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag },
+                  {
+                    href: `${base}/tables`,
+                    label: "Meja & Self-Order",
+                    icon: UtensilsCrossed,
+                  },
                 ]
               : []),
-            { href: `${base}/customers`, label: "Pelanggan", icon: "👥" },
-            { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: "💳" },
-            { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: "🧾" },
-            { href: `${base}/suppliers`, label: "Supplier", icon: "🏬" },
-            { href: `${base}/assets`, label: "Aset Tetap", icon: "🖥️" },
+            { href: `${base}/customers`, label: "Pelanggan", icon: Users },
+            { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
+            { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+            { href: `${base}/suppliers`, label: "Supplier", icon: Store },
+            { href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
           ],
     },
     {
       title: "SDM",
       items: [
-        { href: `${base}/employees`, label: "Karyawan", icon: "🧑‍🍳" },
-        { href: `${base}/cashiers`, label: "Kelola Kasir", icon: "🧑‍💼" },
-        { href: `${base}/attendance`, label: "Absensi", icon: "📅" },
-        { href: `${base}/payroll`, label: "Payroll", icon: "💵" },
+        { href: `${base}/employees`, label: "Karyawan", icon: UserCog },
+        { href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
+        { href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
+        { href: `${base}/payroll`, label: "Payroll", icon: Banknote },
       ],
     },
     {
       title: "Lainnya",
       items: [
-        { href: `${base}/settings`, label: "Pengaturan", icon: "🔧" },
-        { href: `${base}/activity`, label: "Aktivitas", icon: "⚙️" },
+        { href: `${base}/settings`, label: "Pengaturan", icon: Settings },
+        { href: `${base}/activity`, label: "Aktivitas", icon: Activity },
       ],
     },
   ];
@@ -137,13 +188,13 @@ function SidebarContent({
   }, [activeGroupTitle]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white">
       <div className="flex items-center gap-2.5 border-b border-zinc-100 px-5 py-5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600">
           <span className="text-sm font-bold text-white">K</span>
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-zinc-900">{businessName}</p>
+          <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
           <p className="text-[11px] text-zinc-400">{BUSINESS_TYPE_SUBTITLE[businessType]}</p>
         </div>
       </div>
@@ -154,7 +205,8 @@ function SidebarContent({
           onClick={onNavigate}
           className="flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
-          🛎️ Buka Kasir
+          <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+          Buka Kasir
         </Link>
       </div>
 
@@ -169,29 +221,38 @@ function SidebarContent({
                 className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
               >
                 <span>{group.title}</span>
-                <span
-                  className={`text-xs transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
-                >
-                  ›
-                </span>
+                <ChevronRight
+                  className={`h-3.5 w-3.5 transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
+                  aria-hidden="true"
+                />
               </button>
               {isOpen && (
                 <div className="mt-0.5 space-y-0.5 pb-1">
-                  {group.items.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
-                      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                        activeHref === item.href
-                          ? "bg-brand-50 text-brand-700"
-                          : "text-zinc-600 hover:bg-zinc-50"
-                      }`}
-                    >
-                      <span className="text-base leading-none">{item.icon}</span>
-                      {item.label}
-                    </Link>
-                  ))}
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeHref === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
+                          isActive
+                            ? "bg-brand-50 text-brand-700"
+                            : "text-zinc-600 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <Icon
+                          className={`h-[18px] w-[18px] shrink-0 ${
+                            isActive ? "text-brand-600" : "text-zinc-400"
+                          }`}
+                          strokeWidth={isActive ? 2.25 : 1.75}
+                          aria-hidden="true"
+                        />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -223,8 +284,11 @@ function Topbar({ businessName, userEmail }: { businessName: string; userEmail: 
   const initial = (userEmail || businessName).charAt(0).toUpperCase();
 
   return (
-    <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-zinc-200 bg-white px-8 py-4 md:flex print:hidden">
-      <p className="text-sm text-zinc-500">{today}</p>
+    <div className="sticky top-0 z-10 hidden items-center justify-between bg-white px-8 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] md:flex print:hidden">
+      <div>
+        <p className="text-sm font-bold text-zinc-800">{businessName}</p>
+        <p className="text-[11.5px] text-zinc-400">{today}</p>
+      </div>
       <div className="flex items-center gap-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
           {initial}
@@ -253,9 +317,9 @@ export default function DashboardShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full bg-zinc-50 print:bg-white">
+    <div className="flex min-h-screen w-full bg-[#F4F6F9] print:bg-white">
       {/* Sidebar tetap — desktop */}
-      <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-white md:block print:hidden">
+      <aside className="hidden w-64 shrink-0 bg-white shadow-[1px_0_3px_rgba(0,0,0,0.04)] md:block print:hidden">
         <div className="sticky top-0 h-screen">
           <SidebarContent
             businessId={businessId}
@@ -289,7 +353,7 @@ export default function DashboardShell({
       <div className="min-w-0 flex-1">
         <Topbar businessName={businessName} userEmail={userEmail} />
 
-        <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 md:hidden print:hidden">
+        <div className="flex items-center gap-3 bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] md:hidden print:hidden">
           <button
             onClick={() => setMobileNavOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600"
@@ -297,7 +361,7 @@ export default function DashboardShell({
           >
             ☰
           </button>
-          <p className="truncate text-sm font-bold text-zinc-900">{businessName}</p>
+          <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
         </div>
 
         <main className="w-full px-4 py-8 md:px-8 md:py-10 print:p-0">

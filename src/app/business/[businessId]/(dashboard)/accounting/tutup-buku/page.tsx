@@ -118,7 +118,7 @@ export default async function TutupBukuPage({
             {formatRupiah(labaBerjalan)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Tutup Buku Terakhir
           </p>
@@ -128,7 +128,7 @@ export default async function TutupBukuPage({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tutup Periode Baru</h2>
         <ClosePeriodForm
           businessId={businessId}
@@ -137,7 +137,7 @@ export default async function TutupBukuPage({
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Riwayat Tutup Buku</h2>
         </div>

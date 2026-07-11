@@ -145,7 +145,7 @@ export default async function PurchasesPage({
           </p>
           <p className="text-xl font-bold text-amber-700">{formatRupiah(totalUtang)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Belum Lunas
           </p>
@@ -154,7 +154,7 @@ export default async function PurchasesPage({
       </div>
 
       {totalUtang > 0 && (
-        <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-3 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-zinc-100 px-4 py-3">
             <h2 className="text-xs font-bold uppercase text-zinc-500">Umur Utang</h2>
           </div>
@@ -181,7 +181,7 @@ export default async function PurchasesPage({
         </div>
       )}
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Catat Pembelian</h2>
         <AddPurchaseForm
           action={boundAddPurchase}
@@ -193,7 +193,7 @@ export default async function PurchasesPage({
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">Riwayat Pembelian</h2>
         </div>

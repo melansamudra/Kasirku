@@ -112,7 +112,7 @@ export default async function LabaRugiPage({
         {period === "custom" && (
           <form
             method="get"
-            className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4"
+            className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
           >
             <input type="hidden" name="period" value="custom" />
             <label className="text-xs font-medium text-zinc-600">
@@ -143,7 +143,7 @@ export default async function LabaRugiPage({
         )}
 
         {/* Ringkasan laba rugi */}
-        <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="space-y-3 p-5">
             <div className="flex items-center justify-between">
               <span className="text-sm text-zinc-600">Pendapatan</span>
@@ -188,7 +188,7 @@ export default async function LabaRugiPage({
         </div>
 
         {/* Rincian pengeluaran per kategori */}
-        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-zinc-100 px-4 py-3.5">
             <h2 className="text-sm font-bold text-zinc-900">Rincian Pengeluaran per Kategori</h2>
             <p className="mt-0.5 text-[11px] text-zinc-400">

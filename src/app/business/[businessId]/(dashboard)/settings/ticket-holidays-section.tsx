@@ -27,7 +27,7 @@ export default function TicketHolidaysSection({
   const sorted = [...holidays].sort((a, b) => a.holiday_date.localeCompare(b.holiday_date));
 
   return (
-    <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
+    <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
       <h2 className="text-sm font-semibold text-zinc-900">Kalender Libur</h2>
       <p className="mt-1 text-xs text-zinc-500">
         Tandai tanggal tambahan (mis. libur nasional/cuti bersama) yang ikut kena harga hari

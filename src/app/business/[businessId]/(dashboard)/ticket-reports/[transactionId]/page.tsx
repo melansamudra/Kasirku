@@ -72,7 +72,7 @@ export default async function TicketTransactionDetailPage({
         {transaction.is_holiday ? "🌴 Hari Libur" : "📅 Hari Kerja"}
       </p>
 
-      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-4">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">Tiket</h2>
         <div className="space-y-2">
           {serials?.map((s) => (
@@ -117,7 +117,7 @@ export default async function TicketTransactionDetailPage({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">Pembayaran</h2>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between text-zinc-600">

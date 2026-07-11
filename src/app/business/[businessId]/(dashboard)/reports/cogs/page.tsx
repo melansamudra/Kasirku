@@ -155,7 +155,7 @@ export default async function CogsReportPage({
       {period === "custom" && (
         <form
           method="get"
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4"
+          className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
         >
           <input type="hidden" name="period" value="custom" />
           <label className="text-xs font-medium text-zinc-600">
@@ -187,13 +187,13 @@ export default async function CogsReportPage({
 
       {/* KPI utama */}
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Total Pendapatan
           </p>
           <p className="text-xl font-bold text-zinc-900">{formatRupiah(totalRevenue)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Total COGS (Teori)
           </p>
@@ -205,7 +205,7 @@ export default async function CogsReportPage({
           </p>
           <p className="text-xl font-bold text-brand-700">{formatRupiah(totalMargin)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl bg-white shadow-sm p-4">
           <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
             Margin Rata-rata
           </p>
@@ -233,7 +233,7 @@ export default async function CogsReportPage({
       )}
 
       {/* Per kategori */}
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">COGS per Kategori</h2>
         </div>
@@ -270,7 +270,7 @@ export default async function CogsReportPage({
       </div>
 
       {/* Per produk */}
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3.5">
           <h2 className="text-sm font-bold text-zinc-900">COGS per Produk</h2>
           <span className="text-[10.5px] font-semibold uppercase text-zinc-400">
