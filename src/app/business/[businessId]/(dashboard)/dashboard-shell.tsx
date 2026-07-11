@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -105,6 +105,11 @@ function useActiveHref(groups: NavGroup[], pathname: string): string | null {
   return matches.sort((a, b) => b.length - a.length)[0];
 }
 
+function activeGroupTitleOf(groups: NavGroup[], activeHref: string | null): string | null {
+  if (!activeHref) return groups[0]?.title ?? null;
+  return groups.find((g) => g.items.some((i) => i.href === activeHref))?.title ?? groups[0]?.title ?? null;
+}
+
 function SidebarContent({
   businessId,
   businessName,
@@ -122,6 +127,14 @@ function SidebarContent({
 }) {
   const groups = buildNavGroups(businessId, businessType);
   const activeHref = useActiveHref(groups, pathname);
+  const activeGroupTitle = activeGroupTitleOf(groups, activeHref);
+  const [openGroup, setOpenGroup] = useState<string | null>(activeGroupTitle);
+
+  // Setelah navigasi ke halaman baru, buka grup yang memuat halaman itu —
+  // supaya sidebar selalu menunjukkan konteks tanpa perlu klik manual.
+  useEffect(() => {
+    setOpenGroup(activeGroupTitle);
+  }, [activeGroupTitle]);
 
   return (
     <div className="flex h-full flex-col">
@@ -145,31 +158,45 @@ function SidebarContent({
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {groups.map((group) => (
-          <div key={group.title}>
-            <p className="mb-1.5 px-2 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
-              {group.title}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                    activeHref === item.href
-                      ? "bg-brand-50 text-brand-700"
-                      : "text-zinc-600 hover:bg-zinc-50"
-                  }`}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        {groups.map((group) => {
+          const isOpen = openGroup === group.title;
+          return (
+            <div key={group.title}>
+              <button
+                type="button"
+                onClick={() => setOpenGroup((g) => (g === group.title ? null : group.title))}
+                className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
+              >
+                <span>{group.title}</span>
+                <span
+                  className={`text-xs transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
                 >
-                  <span className="text-base leading-none">{item.icon}</span>
-                  {item.label}
-                </Link>
-              ))}
+                  ›
+                </span>
+              </button>
+              {isOpen && (
+                <div className="mt-0.5 space-y-0.5 pb-1">
+                  {group.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
+                        activeHref === item.href
+                          ? "bg-brand-50 text-brand-700"
+                          : "text-zinc-600 hover:bg-zinc-50"
+                      }`}
+                    >
+                      <span className="text-base leading-none">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-zinc-100 px-3 py-3">
