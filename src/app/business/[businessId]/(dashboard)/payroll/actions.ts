@@ -35,7 +35,7 @@ export type CreatePayslipResult =
 
 export async function createPayslip(
   businessId: string,
-  cashierId: string,
+  employeeId: string,
   periodStart: string,
   periodEnd: string,
 ): Promise<CreatePayslipResult> {
@@ -45,22 +45,22 @@ export async function createPayslip(
 
   const supabase = await createClient();
 
-  const { data: cashier } = await supabase
-    .from("cashiers")
+  const { data: employee } = await supabase
+    .from("employees")
     .select("name, daily_rate")
-    .eq("id", cashierId)
+    .eq("id", employeeId)
     .eq("business_id", businessId)
     .maybeSingle();
 
-  if (!cashier) {
-    return { success: false, error: "Kasir tidak ditemukan." };
+  if (!employee) {
+    return { success: false, error: "Karyawan tidak ditemukan." };
   }
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
     .select("status")
     .eq("business_id", businessId)
-    .eq("cashier_id", cashierId)
+    .eq("employee_id", employeeId)
     .gte("date", periodStart)
     .lte("date", periodEnd);
 
@@ -69,14 +69,14 @@ export async function createPayslip(
     counts[r.status as keyof typeof counts] += 1;
   }
 
-  const dailyRate = Number(cashier.daily_rate);
+  const dailyRate = Number(employee.daily_rate);
   const basePay = dailyRate * counts.hadir;
 
   const { data: payslip, error } = await supabase
     .from("payslips")
     .insert({
       business_id: businessId,
-      cashier_id: cashierId,
+      employee_id: employeeId,
       period_start: periodStart,
       period_end: periodEnd,
       daily_rate: dailyRate,
@@ -98,7 +98,7 @@ export async function createPayslip(
     businessId,
     "sistem",
     "sukses",
-    `Slip gaji dibuat: ${cashier.name}`,
+    `Slip gaji dibuat: ${employee.name}`,
     `${periodStart} s/d ${periodEnd} · ${counts.hadir} hari kerja`,
   );
 
@@ -140,7 +140,7 @@ export async function markPayslipPaid(
 
   const { data: payslip } = await supabase
     .from("payslips")
-    .select("id, base_pay, lembur_amount, thr_amount, paid_at, period_end, cashiers(name)")
+    .select("id, base_pay, lembur_amount, thr_amount, paid_at, period_end, employees(name)")
     .eq("id", payslipId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -174,8 +174,8 @@ export async function markPayslipPaid(
     return { error: "Total gaji harus lebih dari 0 untuk ditandai dibayar." };
   }
 
-  const cashierName =
-    (payslip.cashiers as unknown as { name: string } | null)?.name ?? "Kasir terhapus";
+  const employeeName =
+    (payslip.employees as unknown as { name: string } | null)?.name ?? "Karyawan terhapus";
 
   const { error } = await supabase
     .from("payslips")
@@ -190,7 +190,7 @@ export async function markPayslipPaid(
     supabase,
     businessId,
     payslip.period_end,
-    `Gaji: ${cashierName}`,
+    `Gaji: ${employeeName}`,
     total,
   );
 
@@ -199,7 +199,7 @@ export async function markPayslipPaid(
     businessId,
     "sistem",
     journalError ? "warning" : "sukses",
-    `Slip gaji dibayar: ${cashierName}`,
+    `Slip gaji dibayar: ${employeeName}`,
     journalError
       ? `Rp${total.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
       : `Rp${total.toLocaleString("id-ID")}`,

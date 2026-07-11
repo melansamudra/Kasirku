@@ -40,8 +40,8 @@ export default async function PayrollPage({
     notFound();
   }
 
-  const { data: cashiers } = await supabase
-    .from("cashiers")
+  const { data: employees } = await supabase
+    .from("employees")
     .select("id, name, daily_rate, active")
     .eq("business_id", businessId)
     .order("name", { ascending: true });
@@ -49,7 +49,7 @@ export default async function PayrollPage({
   const { data: payslips } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, base_pay, lembur_amount, thr_amount, hadir_count, created_at, paid_at, cashiers(name), payslip_adjustments(type, amount)",
+      "id, period_start, period_end, base_pay, lembur_amount, thr_amount, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
@@ -71,11 +71,11 @@ export default async function PayrollPage({
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Buat Slip Gaji</h2>
           <CreatePayslipForm
             businessId={businessId}
-            cashiers={(cashiers ?? []).map((c) => ({
-              id: c.id,
-              name: c.name,
-              dailyRate: Number(c.daily_rate),
-              active: c.active,
+            employees={(employees ?? []).map((e) => ({
+              id: e.id,
+              name: e.name,
+              dailyRate: Number(e.daily_rate),
+              active: e.active,
             }))}
             defaultStart={defaultStart}
             defaultEnd={today}
@@ -99,8 +99,8 @@ export default async function PayrollPage({
                 .reduce((s, a) => s + Number(a.amount), 0);
               const total =
                 Number(p.base_pay) + Number(p.lembur_amount) + Number(p.thr_amount) + tunjangan - potongan;
-              const cashierName =
-                (p.cashiers as unknown as { name: string } | null)?.name ?? "Kasir terhapus";
+              const employeeName =
+                (p.employees as unknown as { name: string } | null)?.name ?? "Karyawan terhapus";
 
               return (
                 <Link
@@ -109,7 +109,7 @@ export default async function PayrollPage({
                   className="block rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-brand-300"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium text-zinc-900">{cashierName}</p>
+                    <p className="truncate text-sm font-medium text-zinc-900">{employeeName}</p>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="text-sm font-semibold text-zinc-900">
                         {formatRupiah(total)}

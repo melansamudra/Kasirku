@@ -49,8 +49,8 @@ export default async function AttendancePage({
     notFound();
   }
 
-  const { data: cashiers } = await supabase
-    .from("cashiers")
+  const { data: employees } = await supabase
+    .from("employees")
     .select("id, name")
     .eq("business_id", businessId)
     .eq("active", true)
@@ -58,29 +58,29 @@ export default async function AttendancePage({
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
-    .select("cashier_id, status")
+    .select("employee_id, status")
     .eq("business_id", businessId)
     .eq("date", date);
 
-  const statusByCashier = new Map(
-    (attendanceRows ?? []).map((r) => [r.cashier_id, r.status as AttendanceStatus]),
+  const statusByEmployee = new Map(
+    (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
 
   // ── Rekap bulan berjalan (berdasarkan tanggal yang sedang dilihat) ──
   const monthStart = `${date.slice(0, 7)}-01`;
   const { data: monthRows } = await supabase
     .from("attendance")
-    .select("cashier_id, status")
+    .select("employee_id, status")
     .eq("business_id", businessId)
     .gte("date", monthStart)
     .lte("date", date);
 
   const recap = new Map<string, Record<AttendanceStatus, number>>();
-  for (const c of cashiers ?? []) {
-    recap.set(c.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
+  for (const e of employees ?? []) {
+    recap.set(e.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
   }
   for (const r of monthRows ?? []) {
-    const entry = recap.get(r.cashier_id);
+    const entry = recap.get(r.employee_id);
     if (entry) entry[r.status as AttendanceStatus] += 1;
   }
 
@@ -115,23 +115,23 @@ export default async function AttendancePage({
         </div>
 
         <div className="mt-4 space-y-2">
-          {cashiers && cashiers.length > 0 ? (
-            cashiers.map((c) => (
+          {employees && employees.length > 0 ? (
+            employees.map((e) => (
               <AttendanceRow
-                key={c.id}
-                cashierName={c.name}
-                currentStatus={statusByCashier.get(c.id) ?? null}
-                action={setAttendance.bind(null, businessId, c.id, date)}
+                key={e.id}
+                employeeName={e.name}
+                currentStatus={statusByEmployee.get(e.id) ?? null}
+                action={setAttendance.bind(null, businessId, e.id, date)}
               />
             ))
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-              Belum ada kasir aktif. Tambahkan dulu di halaman Kelola Kasir.
+              Belum ada karyawan aktif. Tambahkan dulu di halaman Karyawan.
             </p>
           )}
         </div>
 
-        {cashiers && cashiers.length > 0 && (
+        {employees && employees.length > 0 && (
           <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
             <div className="border-b border-zinc-100 px-4 py-3">
               <h2 className="text-sm font-bold text-zinc-900">Rekap Bulan Ini</h2>
@@ -140,11 +140,11 @@ export default async function AttendancePage({
               </p>
             </div>
             <div className="divide-y divide-zinc-100">
-              {cashiers.map((c) => {
-                const r = recap.get(c.id)!;
+              {employees.map((e) => {
+                const r = recap.get(e.id)!;
                 return (
-                  <div key={c.id} className="flex items-center justify-between px-4 py-2.5">
-                    <span className="text-xs font-medium text-zinc-700">{c.name}</span>
+                  <div key={e.id} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-xs font-medium text-zinc-700">{e.name}</span>
                     <span className="text-[11px] text-zinc-500">
                       <span className="text-brand-700">{r.hadir} hadir</span> ·{" "}
                       <span className="text-amber-600">{r.izin} izin</span> ·{" "}

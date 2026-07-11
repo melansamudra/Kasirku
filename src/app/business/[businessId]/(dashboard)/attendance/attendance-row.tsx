@@ -19,11 +19,11 @@ const STATUS_STYLES: Record<AttendanceStatus, string> = {
 };
 
 export default function AttendanceRow({
-  cashierName,
+  employeeName,
   currentStatus,
   action,
 }: {
-  cashierName: string;
+  employeeName: string;
   currentStatus: AttendanceStatus | null;
   action: (status: AttendanceStatus) => Promise<{ error: string | null }>;
 }) {
@@ -45,7 +45,7 @@ export default function AttendanceRow({
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-      <p className="text-sm font-medium text-zinc-900">{cashierName}</p>
+      <p className="text-sm font-medium text-zinc-900">{employeeName}</p>
       <div className="mt-2 grid grid-cols-4 gap-1.5">
         {STATUS_OPTIONS.map((opt) => (
           <button

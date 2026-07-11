@@ -8,37 +8,37 @@ export type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpa";
 
 export async function setAttendance(
   businessId: string,
-  cashierId: string,
+  employeeId: string,
   date: string,
   status: AttendanceStatus,
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
-  const { data: cashier } = await supabase
-    .from("cashiers")
+  const { data: employee } = await supabase
+    .from("employees")
     .select("name")
-    .eq("id", cashierId)
+    .eq("id", employeeId)
     .eq("business_id", businessId)
     .maybeSingle();
 
   const { error } = await supabase
     .from("attendance")
     .upsert(
-      { business_id: businessId, cashier_id: cashierId, date, status },
-      { onConflict: "cashier_id,date" },
+      { business_id: businessId, employee_id: employeeId, date, status },
+      { onConflict: "employee_id,date" },
     );
 
   if (error) {
     return { error: error.message };
   }
 
-  if (cashier) {
+  if (employee) {
     await logActivity(
       supabase,
       businessId,
       "sistem",
       status === "alpa" ? "warning" : "info",
-      `Absensi ${cashier.name}: ${status}`,
+      `Absensi ${employee.name}: ${status}`,
       date,
     );
   }

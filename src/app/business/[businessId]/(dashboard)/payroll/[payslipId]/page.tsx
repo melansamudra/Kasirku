@@ -37,7 +37,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, lembur_amount, thr_amount, created_at, paid_at, cashiers(name, role)",
+      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, lembur_amount, thr_amount, created_at, paid_at, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -53,7 +53,7 @@ export default async function PayslipDetailPage({
     .eq("payslip_id", payslipId)
     .order("created_at", { ascending: true });
 
-  const cashier = payslip.cashiers as unknown as { name: string; role: string } | null;
+  const employee = payslip.employees as unknown as { name: string } | null;
   const tunjangan = (adjustments ?? []).filter((a) => a.type === "tunjangan");
   const potongan = (adjustments ?? []).filter((a) => a.type === "potongan");
   const totalTunjangan = tunjangan.reduce((s, a) => s + Number(a.amount), 0);
@@ -83,12 +83,8 @@ export default async function PayslipDetailPage({
           <div className="mt-4 space-y-1 border-t border-dashed border-zinc-300 pt-3 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-500">Nama</span>
-              <span className="font-medium text-zinc-900">{cashier?.name ?? "Kasir terhapus"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Peran</span>
               <span className="font-medium text-zinc-900">
-                {cashier?.role === "manajer" ? "Manajer" : "Kasir"}
+                {employee?.name ?? "Karyawan terhapus"}
               </span>
             </div>
             <div className="flex justify-between">

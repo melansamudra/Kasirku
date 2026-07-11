@@ -27,7 +27,7 @@ export default async function CashiersPage({
   // Explicit column list — pin_hash must never be requested from the client.
   const { data: cashiers } = await supabase
     .from("cashiers")
-    .select("id, name, role, active, daily_rate")
+    .select("id, name, role, active")
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
@@ -49,12 +49,7 @@ export default async function CashiersPage({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-zinc-900">{c.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {c.role === "manajer" ? "Manajer" : "Kasir"}
-                    {Number(c.daily_rate) > 0 && (
-                      <> · Rp{Number(c.daily_rate).toLocaleString("id-ID")}/hari</>
-                    )}
-                  </p>
+                  <p className="text-xs text-zinc-500">{c.role === "manajer" ? "Manajer" : "Kasir"}</p>
                 </div>
                 {!c.active && (
                   <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
@@ -64,7 +59,6 @@ export default async function CashiersPage({
                 <EditCashierForm
                   name={c.name}
                   role={c.role}
-                  dailyRate={Number(c.daily_rate)}
                   action={editCashier.bind(null, businessId, c.id)}
                 />
                 <ResetPinForm

@@ -24,6 +24,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
               { href: `${base}/reports`, label: "Laporan", icon: "📈" },
               { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: "🧮" },
               { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: "📐" },
+              { href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: "🧮" },
               { href: `${base}/finance`, label: "Keuangan", icon: "💰" },
               { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: "🧾" },
             ]),
@@ -75,6 +76,7 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
     {
       title: "SDM",
       items: [
+        { href: `${base}/employees`, label: "Karyawan", icon: "🧑‍🍳" },
         { href: `${base}/cashiers`, label: "Kelola Kasir", icon: "🧑‍💼" },
         { href: `${base}/attendance`, label: "Absensi", icon: "📅" },
         { href: `${base}/payroll`, label: "Payroll", icon: "💵" },

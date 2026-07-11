@@ -7,17 +7,15 @@ import type { EditCashierState } from "./actions";
 export default function EditCashierForm({
   name,
   role,
-  dailyRate,
   action,
 }: {
   name: string;
   role: string;
-  dailyRate: number;
   action: (state: EditCashierState, formData: FormData) => Promise<EditCashierState>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState({ name, role, dailyRate: String(dailyRate) });
+  const [values, setValues] = useState({ name, role });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -38,7 +36,6 @@ export default function EditCashierForm({
     const formData = new FormData();
     formData.set("name", values.name);
     formData.set("role", values.role);
-    formData.set("dailyRate", values.dailyRate);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -90,20 +87,6 @@ export default function EditCashierForm({
           Manajer
         </label>
       </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">
-          Gaji Harian (Rp)
-        </label>
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={values.dailyRate}
-          onChange={(e) => setValues((v) => ({ ...v, dailyRate: e.target.value }))}
-          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </div>
-
       {error && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-600">{error}</p>}
 
       <div className="flex gap-2">

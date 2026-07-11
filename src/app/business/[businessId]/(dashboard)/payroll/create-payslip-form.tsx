@@ -4,27 +4,27 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CreatePayslipResult } from "./actions";
 
-type CashierOption = { id: string; name: string; dailyRate: number; active: boolean };
+type EmployeeOption = { id: string; name: string; dailyRate: number; active: boolean };
 
 export default function CreatePayslipForm({
   businessId,
-  cashiers,
+  employees,
   defaultStart,
   defaultEnd,
   action,
 }: {
   businessId: string;
-  cashiers: CashierOption[];
+  employees: EmployeeOption[];
   defaultStart: string;
   defaultEnd: string;
   action: (
-    cashierId: string,
+    employeeId: string,
     periodStart: string,
     periodEnd: string,
   ) => Promise<CreatePayslipResult>;
 }) {
   const router = useRouter();
-  const [cashierId, setCashierId] = useState(cashiers[0]?.id ?? "");
+  const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? "");
   const [periodStart, setPeriodStart] = useState(defaultStart);
   const [periodEnd, setPeriodEnd] = useState(defaultEnd);
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +32,12 @@ export default function CreatePayslipForm({
 
   async function handleSubmit() {
     setError(null);
-    if (!cashierId) {
-      setError("Pilih kasir dulu.");
+    if (!employeeId) {
+      setError("Pilih karyawan dulu.");
       return;
     }
     setPending(true);
-    const result = await action(cashierId, periodStart, periodEnd);
+    const result = await action(employeeId, periodStart, periodEnd);
     setPending(false);
 
     if (!result.success) {
@@ -48,10 +48,10 @@ export default function CreatePayslipForm({
     router.push(`/business/${businessId}/payroll/${result.payslipId}`);
   }
 
-  if (cashiers.length === 0) {
+  if (employees.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-        Belum ada kasir. Tambahkan dulu di halaman Kelola Kasir.
+        Belum ada karyawan. Tambahkan dulu di halaman Karyawan.
       </p>
     );
   }
@@ -59,16 +59,16 @@ export default function CreatePayslipForm({
   return (
     <div className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Kasir</label>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Karyawan</label>
         <select
-          value={cashierId}
-          onChange={(e) => setCashierId(e.target.value)}
+          value={employeeId}
+          onChange={(e) => setEmployeeId(e.target.value)}
           className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         >
-          {cashiers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-              {!c.active ? " (nonaktif)" : ""} — Rp{c.dailyRate.toLocaleString("id-ID")}/hari
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+              {!e.active ? " (nonaktif)" : ""} — Rp{e.dailyRate.toLocaleString("id-ID")}/hari
             </option>
           ))}
         </select>
