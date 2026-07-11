@@ -122,8 +122,8 @@ export default async function AdminPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-[10px] font-semibold uppercase text-zinc-400">
+              <thead className="bg-zinc-50">
+                <tr className="text-left text-[10px] font-semibold uppercase text-zinc-500">
                   <th className="px-5 py-3">Nama Toko</th>
                   <th className="px-5 py-3">Jenis</th>
                   <th className="px-5 py-3">Pemilik</th>
