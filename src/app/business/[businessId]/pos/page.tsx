@@ -14,19 +14,22 @@ export default async function PosPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select(
-      "id, name, business_type, tax_enabled, tax_rate, service_enabled, service_rate",
-    )
-    .eq("id", businessId)
-    .single();
+  // business (DB) and the cashier session (a cookie read, not a query) don't
+  // depend on each other — fire both at once instead of waiting in sequence.
+  const [{ data: business }, session] = await Promise.all([
+    supabase
+      .from("businesses")
+      .select(
+        "id, name, business_type, tax_enabled, tax_rate, service_enabled, service_rate",
+      )
+      .eq("id", businessId)
+      .single(),
+    getCashierSession(businessId),
+  ]);
 
   if (!business) {
     notFound();
   }
-
-  const session = await getCashierSession(businessId);
 
   if (!session) {
     const { data: cashiers } = await supabase
@@ -64,35 +67,41 @@ export default async function PosPage({
   }
 
   if (business.business_type === "tiket") {
-    const { data: categoryRows } = await supabase
-      .from("ticket_categories")
-      .select("id, name, price_weekday, price_holiday, member_price")
-      .eq("business_id", businessId)
-      .eq("active", true)
-      .is("deleted_at", null)
-      .order("name", { ascending: true });
-
-    const { data: customPaymentMethodRowsForTiket } = await supabase
-      .from("custom_payment_methods")
-      .select("name")
-      .eq("business_id", businessId)
-      .order("name", { ascending: true });
-
-    const { data: memberRows } = await supabase
-      .from("members")
-      .select("id, name, phone, member_code, valid_from, valid_until")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true });
-
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     const dayOfWeek = new Date(`${todayStr}T00:00:00`).getDay();
-    const { data: holidayRow } = await supabase
-      .from("ticket_holidays")
-      .select("id")
-      .eq("business_id", businessId)
-      .eq("holiday_date", todayStr)
-      .maybeSingle();
+
+    // None of these 4 queries depend on each other's results — run together.
+    const [
+      { data: categoryRows },
+      { data: customPaymentMethodRowsForTiket },
+      { data: memberRows },
+      { data: holidayRow },
+    ] = await Promise.all([
+      supabase
+        .from("ticket_categories")
+        .select("id, name, price_weekday, price_holiday, member_price")
+        .eq("business_id", businessId)
+        .eq("active", true)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("custom_payment_methods")
+        .select("name")
+        .eq("business_id", businessId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("members")
+        .select("id, name, phone, member_code, valid_from, valid_until")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("ticket_holidays")
+        .select("id")
+        .eq("business_id", businessId)
+        .eq("holiday_date", todayStr)
+        .maybeSingle(),
+    ]);
     const isHoliday = dayOfWeek === 0 || dayOfWeek === 6 || !!holidayRow;
 
     return (
@@ -125,33 +134,38 @@ export default async function PosPage({
     );
   }
 
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name, category, price, cost, stock, emoji")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
-
   const isFnb = business.business_type === "fnb";
 
-  const { data: openBillRows } = await supabase
-    .from("open_bills")
-    .select("id, label, items, updated_at")
-    .eq("business_id", businessId)
-    .order("updated_at", { ascending: false });
-
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, phone")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
-
-  const { data: customPaymentMethodRows } = await supabase
-    .from("custom_payment_methods")
-    .select("name")
-    .eq("business_id", businessId)
-    .order("name", { ascending: true });
+  // Same idea as the ticket branch above — these 4 queries are independent.
+  const [
+    { data: products },
+    { data: openBillRows },
+    { data: customers },
+    { data: customPaymentMethodRows },
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, category, price, cost, stock, emoji")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("open_bills")
+      .select("id, label, items, updated_at")
+      .eq("business_id", businessId)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("customers")
+      .select("id, name, phone")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("custom_payment_methods")
+      .select("name")
+      .eq("business_id", businessId)
+      .order("name", { ascending: true }),
+  ]);
 
   let selfOrders: SelfOrderRow[] = [];
   if (isFnb) {
