@@ -37,6 +37,11 @@ export async function updateSession(request: NextRequest) {
   );
   // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
   // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
+  // /reset-password sama kasusnya: link reset dari email membawa token di URL
+  // fragment (#access_token=...), yang cuma bisa dibaca & diproses oleh
+  // supabase-js di browser — belum ada sesi/cookie sama sekali saat request
+  // pertama ini sampai ke middleware, jadi tidak boleh di-redirect ke /login
+  // sebelum halamannya sempat jalan.
   // "/" adalah landing page publik untuk calon pengguna yang belum daftar.
   // /terms dan /privacy juga harus bisa dibaca tanpa login.
   // /api/midtrans (webhook Midtrans) dan /api/cron (dipicu Vercel Cron) adalah
@@ -48,6 +53,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/" ||
     request.nextUrl.pathname.startsWith("/order") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
+    request.nextUrl.pathname.startsWith("/reset-password") ||
     request.nextUrl.pathname.startsWith("/terms") ||
     request.nextUrl.pathname.startsWith("/privacy") ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||
