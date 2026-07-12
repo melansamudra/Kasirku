@@ -44,6 +44,8 @@ export async function updateSession(request: NextRequest) {
   // sebelum halamannya sempat jalan.
   // "/" adalah landing page publik untuk calon pengguna yang belum daftar.
   // /terms dan /privacy juga harus bisa dibaca tanpa login.
+  // /rekomendasi-alat adalah halaman afiliasi publik — harus bisa diakses
+  // pengunjung mana pun tanpa daftar/login dulu, itu tujuannya.
   // /api/midtrans (webhook Midtrans) dan /api/cron (dipicu Vercel Cron) adalah
   // panggilan server-to-server tanpa sesi browser sama sekali — masing-masing
   // punya otentikasinya sendiri (verifikasi signature / CRON_SECRET), bukan
@@ -56,6 +58,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/reset-password") ||
     request.nextUrl.pathname.startsWith("/terms") ||
     request.nextUrl.pathname.startsWith("/privacy") ||
+    request.nextUrl.pathname.startsWith("/rekomendasi-alat") ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||
     request.nextUrl.pathname.startsWith("/api/cron");
 
