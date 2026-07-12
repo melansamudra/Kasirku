@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { parseCsv } from "@/lib/csv";
 
 export type AddProductState = { error: string | null };
 
@@ -241,4 +242,139 @@ export async function deleteProduct(businessId: string, productId: string) {
     await logActivity(supabase, businessId, "produk", "warning", `Produk dihapus: ${product.name}`);
   }
   revalidatePath(`/business/${businessId}/products`);
+}
+
+export type ImportProductsState = {
+  error: string | null;
+  result: { created: number; updated: number; skipped: number; errors: string[] } | null;
+};
+
+// Matches export/route.ts's column order exactly, so a downloaded-then-
+// re-uploaded file round-trips without edits.
+const IMPORT_COLUMNS = [
+  "name",
+  "category",
+  "price",
+  "cost",
+  "stock",
+  "minStock",
+  "barcode",
+  "sku",
+  "variantLabel",
+  "emoji",
+] as const;
+
+export async function importProducts(
+  businessId: string,
+  _prevState: ImportProductsState,
+  formData: FormData,
+): Promise<ImportProductsState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "Pilih file CSV dulu.", result: null };
+  }
+
+  const text = await file.text();
+  const rows = parseCsv(text).filter((r) => r.some((c) => c.trim() !== ""));
+  if (rows.length < 2) {
+    return { error: "File CSV kosong atau cuma berisi header.", result: null };
+  }
+
+  const dataRows = rows.slice(1);
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id, sku, barcode")
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
+
+  const bySku = new Map(
+    (existing ?? []).filter((p) => p.sku).map((p) => [p.sku as string, p.id]),
+  );
+  const byBarcode = new Map(
+    (existing ?? []).filter((p) => p.barcode).map((p) => [p.barcode as string, p.id]),
+  );
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    const line = i + 2; // +1 for header, +1 for 1-indexing
+    const get = (col: (typeof IMPORT_COLUMNS)[number]) =>
+      row[IMPORT_COLUMNS.indexOf(col)]?.trim() || "";
+
+    const name = get("name");
+    if (!name) {
+      skipped++;
+      errors.push(`Baris ${line}: nama produk kosong`);
+      continue;
+    }
+    const price = Number(get("price"));
+    if (get("price") === "" || Number.isNaN(price) || price < 0) {
+      skipped++;
+      errors.push(`Baris ${line}: harga jual tidak valid`);
+      continue;
+    }
+    const cost = Number(get("cost")) || 0;
+    const stock = Number(get("stock")) || 0;
+    const minStock = Number(get("minStock")) || 0;
+    const category = get("category") || null;
+    const barcode = get("barcode") || null;
+    const sku = get("sku") || null;
+    const variantLabel = get("variantLabel") || null;
+    const emoji = get("emoji") || null;
+
+    const record = {
+      name,
+      category,
+      price,
+      cost,
+      stock,
+      min_stock: minStock,
+      barcode,
+      sku,
+      variant_label: variantLabel,
+      emoji,
+    };
+
+    const matchId = (sku && bySku.get(sku)) || (barcode && byBarcode.get(barcode)) || null;
+
+    if (matchId) {
+      const { error } = await supabase
+        .from("products")
+        .update(record)
+        .eq("id", matchId)
+        .eq("business_id", businessId);
+      if (error) {
+        skipped++;
+        errors.push(`Baris ${line}: ${error.message}`);
+      } else {
+        updated++;
+      }
+    } else {
+      const { error } = await supabase
+        .from("products")
+        .insert({ business_id: businessId, ...record });
+      if (error) {
+        skipped++;
+        errors.push(`Baris ${line}: ${error.message}`);
+      } else {
+        created++;
+      }
+    }
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    skipped > 0 ? "warning" : "sukses",
+    `Impor CSV produk: ${created} baru, ${updated} diperbarui, ${skipped} dilewati`,
+  );
+  revalidatePath(`/business/${businessId}/products`);
+  return { error: null, result: { created, updated, skipped, errors: errors.slice(0, 20) } };
 }

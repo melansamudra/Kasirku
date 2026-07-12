@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addProduct, adjustProductStock, editProduct } from "./actions";
+import { addProduct, adjustProductStock, editProduct, importProducts } from "./actions";
 import AddProductForm from "./add-product-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteProductButton from "./delete-product-button";
 import EditProductForm from "./edit-product-form";
+import ImportProductsForm from "./import-products-form";
 
 export default async function ProductsPage({
   params,
@@ -53,11 +54,33 @@ export default async function ProductsPage({
     .limit(10);
 
   const boundAddProduct = addProduct.bind(null, businessId);
+  const boundImportProducts = importProducts.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
-        <h1 className="text-lg font-bold text-zinc-900">Produk — {business.name}</h1>
-        <p className="mt-1 text-sm text-zinc-500">Daftar produk yang bisa dijual di kasir.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-zinc-900">Produk — {business.name}</h1>
+            <p className="mt-1 text-sm text-zinc-500">Daftar produk yang bisa dijual di kasir.</p>
+          </div>
+          <a
+            href={`/business/${businessId}/products/export`}
+            className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            ⬇️ Ekspor CSV
+          </a>
+        </div>
+
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Impor dari CSV</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Format kolom sama dengan hasil Ekspor CSV. Produk dengan Barcode/SKU yang sudah ada
+            akan diperbarui, sisanya ditambahkan sebagai produk baru.
+          </p>
+          <div className="mt-4">
+            <ImportProductsForm action={boundImportProducts} />
+          </div>
+        </div>
 
         <div className="mt-6 space-y-2">
           {groups.length > 0 ? (
