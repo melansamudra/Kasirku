@@ -260,6 +260,60 @@ export async function deleteTicketHoliday(businessId: string, holidayId: string)
   revalidatePath(`/business/${businessId}/settings`);
 }
 
+export type BusinessTypeState = { error: string | null; saved: boolean };
+
+const BUSINESS_TYPE_LABELS: Record<string, string> = {
+  fnb: "F&B",
+  retail: "Retail",
+  tiket: "Tempat Wisata / Tiket",
+};
+
+export async function updateBusinessType(
+  businessId: string,
+  _prevState: BusinessTypeState,
+  formData: FormData,
+): Promise<BusinessTypeState> {
+  const businessType = formData.get("businessType") as string;
+
+  if (!["fnb", "retail", "tiket"].includes(businessType)) {
+    return { error: "Pilih jenis usaha dulu.", saved: false };
+  }
+
+  const supabase = await createClient();
+
+  const [{ data: tx }, { data: ticketTx }] = await Promise.all([
+    supabase.from("transactions").select("id").eq("business_id", businessId).limit(1),
+    supabase.from("ticket_transactions").select("id").eq("business_id", businessId).limit(1),
+  ]);
+
+  if ((tx && tx.length > 0) || (ticketTx && ticketTx.length > 0)) {
+    return {
+      error:
+        "Toko ini sudah punya transaksi, jenis usaha tidak bisa diganti lagi. Hubungi kami kalau butuh bantuan.",
+      saved: false,
+    };
+  }
+
+  const { error } = await supabase
+    .from("businesses")
+    .update({ business_type: businessType })
+    .eq("id", businessId);
+
+  if (error) {
+    return { error: error.message, saved: false };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    `Jenis usaha diubah ke ${BUSINESS_TYPE_LABELS[businessType]}`,
+  );
+  revalidatePath(`/business/${businessId}`, "layout");
+  return { error: null, saved: true };
+}
+
 export type TaxServiceState = { error: string | null; saved: boolean };
 
 export async function updateTaxService(

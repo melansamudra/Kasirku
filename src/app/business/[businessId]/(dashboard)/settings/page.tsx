@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod, updateTaxService } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, updateBusinessType, updateTaxService } from "./actions";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
+import BusinessTypeForm from "./business-type-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DeletePrinterButton from "./delete-printer-button";
 import TaxServiceForm from "./tax-service-form";
@@ -67,7 +68,14 @@ export default async function SettingsPage({
     .eq("business_id", businessId)
     .order("name", { ascending: true });
 
+  const [{ data: txRows }, { data: ticketTxRows }] = await Promise.all([
+    supabase.from("transactions").select("id").eq("business_id", businessId).limit(1),
+    supabase.from("ticket_transactions").select("id").eq("business_id", businessId).limit(1),
+  ]);
+  const hasTransactions = (txRows && txRows.length > 0) || (ticketTxRows && ticketTxRows.length > 0);
+
   const boundAddPaymentMethod = addPaymentMethod.bind(null, businessId);
+  const boundUpdateBusinessType = updateBusinessType.bind(null, businessId);
 
   let printers: { id: string; name: string; categories: string[]; connection_type: string; address: string | null }[] = [];
   let productCategories: string[] = [];
@@ -96,6 +104,28 @@ export default async function SettingsPage({
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Pengaturan — {business.name}</h1>
+
+        {/* Jenis Usaha */}
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Jenis Usaha</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Menentukan menu &amp; alur kasir yang muncul (F&amp;B, Retail, atau Tempat
+            Wisata/Tiket).
+          </p>
+          <div className="mt-4">
+            {hasTransactions ? (
+              <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-4 text-xs text-zinc-500">
+                🔒 Toko ini sudah punya transaksi, jadi jenis usaha tidak bisa diganti lagi.
+                Hubungi kami kalau butuh bantuan.
+              </p>
+            ) : (
+              <BusinessTypeForm
+                action={boundUpdateBusinessType}
+                businessType={business.business_type}
+              />
+            )}
+          </div>
+        </div>
 
         {/* Pajak & Biaya Layanan */}
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
