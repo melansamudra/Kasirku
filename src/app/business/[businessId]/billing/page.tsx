@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionAccess } from "@/lib/billing/status";
 import { PLANS, getPlan } from "@/lib/billing/plans";
+import { BILLING_MANUAL_MODE, BILLING_CONTACT } from "@/lib/billing/config";
 import PayButton from "./pay-button";
 
 function formatRupiah(value: number) {
@@ -88,18 +89,47 @@ export default async function BillingPage({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {PLANS.map((plan) => (
-          <div key={plan.code} className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5">
-            <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
-            <p className="mt-1 text-xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
-            <p className="text-[11px] text-zinc-400">
-              {plan.kind === "lifetime" ? "Sekali bayar, seterusnya" : `Setiap ${plan.periodDays} hari`}
-            </p>
-            <div className="mt-4">
-              <PayButton businessId={businessId} planCode={plan.code} />
+        {PLANS.map((plan) => {
+          const message = encodeURIComponent(
+            `Halo, saya mau aktivasi paket ${plan.name} untuk toko "${business.name}" di KasirKu.`,
+          );
+          return (
+            <div key={plan.code} className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5">
+              <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
+              <p className="mt-1 text-xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
+              <p className="text-[11px] text-zinc-400">
+                {plan.kind === "lifetime" ? "Sekali bayar, seterusnya" : `Setiap ${plan.periodDays} hari`}
+              </p>
+              <div className="mt-4">
+                {BILLING_MANUAL_MODE ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-zinc-500">
+                      Pembayaran otomatis belum aktif — hubungi kami dulu untuk aktivasi.
+                    </p>
+                    <a
+                      href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${message}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+                    >
+                      💬 Chat WhatsApp
+                    </a>
+                    <a
+                      href={`mailto:${BILLING_CONTACT.email}?subject=${encodeURIComponent(
+                        `Aktivasi paket ${plan.name} — ${business.name}`,
+                      )}&body=${message}`}
+                      className="block w-full rounded-xl border border-zinc-200 py-2.5 text-center text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+                    >
+                      ✉️ Email
+                    </a>
+                  </div>
+                ) : (
+                  <PayButton businessId={businessId} planCode={plan.code} />
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
