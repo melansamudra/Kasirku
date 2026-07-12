@@ -24,6 +24,8 @@ type Product = {
   stock: number;
   emoji: string | null;
   barcode: string | null;
+  sku: string | null;
+  variant_label: string | null;
 };
 
 type CartItem = {
@@ -161,12 +163,43 @@ export default function PosScreen({
     const q = search.trim().toLowerCase();
     if (!q) return products;
     return products.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.barcode?.toLowerCase() === q,
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.barcode?.toLowerCase() === q ||
+        p.sku?.toLowerCase() === q,
     );
   }, [search, products]);
 
+  // Variants are just extra product rows sharing the same name — group them
+  // here purely for display, no schema relationship involved.
+  const productGroups = useMemo(() => {
+    const groups: { name: string; variants: Product[] }[] = [];
+    for (const p of filteredProducts) {
+      const existing = groups.find((g) => g.name === p.name);
+      if (existing) {
+        existing.variants.push(p);
+      } else {
+        groups.push({ name: p.name, variants: [p] });
+      }
+    }
+    return groups;
+  }, [filteredProducts]);
+
+  const [variantPickerGroup, setVariantPickerGroup] = useState<{
+    name: string;
+    variants: Product[];
+  } | null>(null);
+
+  function handleProductClick(group: { name: string; variants: Product[] }) {
+    if (group.variants.length === 1) {
+      addToCart(group.variants[0]);
+    } else {
+      setVariantPickerGroup(group);
+    }
+  }
+
   // Barcode scanners act like a keyboard: they type the code then send
-  // Enter. On Enter, an exact barcode match jumps straight into the cart
+  // Enter. On Enter, an exact barcode/SKU match jumps straight into the cart
   // instead of just filtering the grid.
   useEffect(() => {
     if (!scanFeedback) return;
@@ -178,13 +211,13 @@ export default function PosScreen({
     if (e.key !== "Enter") return;
     const q = search.trim();
     if (!q) return;
-    const match = products.find((p) => p.barcode === q);
+    const match = products.find((p) => p.barcode === q || p.sku === q);
     if (match) {
       addToCart(match);
       setSearch("");
       setScanFeedback(null);
-    } else if (products.some((p) => p.barcode)) {
-      setScanFeedback(`Barcode "${q}" tidak ditemukan.`);
+    } else if (products.some((p) => p.barcode || p.sku)) {
+      setScanFeedback(`"${q}" tidak ditemukan.`);
     }
   }
 
@@ -221,7 +254,7 @@ export default function PosScreen({
         ...prev,
         {
           productId: product.id,
-          name: product.name,
+          name: product.variant_label ? `${product.name} (${product.variant_label})` : product.name,
           price: product.price,
           qty: 1,
           maxStock: product.stock,
@@ -679,14 +712,20 @@ export default function PosScreen({
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {filteredProducts.map((p) => {
-                const inCart = cart.find((i) => i.productId === p.id)?.qty ?? 0;
-                const soldOut = p.stock <= 0;
+              {productGroups.map((g) => {
+                const isVariantGroup = g.variants.length > 1;
+                const single = g.variants[0];
+                const inCart = g.variants.reduce(
+                  (sum, v) => sum + (cart.find((i) => i.productId === v.id)?.qty ?? 0),
+                  0,
+                );
+                const totalStock = g.variants.reduce((sum, v) => sum + v.stock, 0);
+                const soldOut = isVariantGroup ? totalStock <= 0 : single.stock <= 0;
                 return (
                   <button
-                    key={p.id}
-                    onClick={() => addToCart(p)}
-                    disabled={soldOut || inCart >= p.stock}
+                    key={g.name}
+                    onClick={() => handleProductClick(g)}
+                    disabled={soldOut || (!isVariantGroup && inCart >= single.stock)}
                     className="relative rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-brand-300 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {inCart > 0 && (
@@ -695,14 +734,22 @@ export default function PosScreen({
                       </span>
                     )}
                     <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-lg">
-                      {p.emoji || "📦"}
+                      {single.emoji || "📦"}
                     </div>
-                    <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
+                    <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
                     <p className="text-xs text-zinc-500">
-                      {soldOut ? "Stok habis" : `Stok ${p.stock}`}
+                      {isVariantGroup
+                        ? `${g.variants.length} varian`
+                        : soldOut
+                          ? "Stok habis"
+                          : `Stok ${single.stock}`}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-zinc-900">
-                      {formatRupiah(p.price)}
+                      {isVariantGroup
+                        ? `${formatRupiah(Math.min(...g.variants.map((v) => v.price)))}${
+                            new Set(g.variants.map((v) => v.price)).size > 1 ? "+" : ""
+                          }`
+                        : formatRupiah(single.price)}
                     </p>
                   </button>
                 );
@@ -711,6 +758,51 @@ export default function PosScreen({
           )}
         </div>
       </div>
+
+      {variantPickerGroup && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+          <div className="max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-white p-4 sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-zinc-900">Pilih Varian — {variantPickerGroup.name}</h3>
+              <button
+                onClick={() => setVariantPickerGroup(null)}
+                className="text-zinc-400 hover:text-zinc-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              {variantPickerGroup.variants.map((v) => {
+                const inCart = cart.find((i) => i.productId === v.id)?.qty ?? 0;
+                const soldOut = v.stock <= 0;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      addToCart(v);
+                      setVariantPickerGroup(null);
+                    }}
+                    disabled={soldOut || inCart >= v.stock}
+                    className="flex w-full items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-brand-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span>
+                      <span className="block text-sm font-medium text-zinc-900">
+                        {v.variant_label || "Varian"}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {soldOut ? "Stok habis" : `Stok ${v.stock}`}
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold text-zinc-900">
+                      {formatRupiah(v.price)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cart */}
       <div className="flex w-full flex-col border-t border-zinc-200 bg-white lg:w-80 lg:border-l lg:border-t-0">

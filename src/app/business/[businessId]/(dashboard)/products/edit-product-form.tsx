@@ -12,6 +12,8 @@ export default function EditProductForm({
   minStock,
   emoji,
   barcode,
+  sku,
+  variantLabel,
   action,
 }: {
   name: string;
@@ -21,6 +23,8 @@ export default function EditProductForm({
   minStock: number;
   emoji: string | null;
   barcode: string | null;
+  sku: string | null;
+  variantLabel: string | null;
   action: (state: EditProductState, formData: FormData) => Promise<EditProductState>;
 }) {
   const router = useRouter();
@@ -33,6 +37,8 @@ export default function EditProductForm({
     minStock: String(minStock),
     emoji: emoji ?? "",
     barcode: barcode ?? "",
+    sku: sku ?? "",
+    variantLabel: variantLabel ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -59,6 +65,8 @@ export default function EditProductForm({
     formData.set("minStock", values.minStock);
     formData.set("emoji", values.emoji);
     formData.set("barcode", values.barcode);
+    formData.set("sku", values.sku);
+    formData.set("variantLabel", values.variantLabel);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -82,12 +90,34 @@ export default function EditProductForm({
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Barcode</label>
+          <input
+            type="text"
+            value={values.barcode}
+            onChange={(e) => setValues((v) => ({ ...v, barcode: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">SKU</label>
+          <input
+            type="text"
+            value={values.sku}
+            onChange={(e) => setValues((v) => ({ ...v, sku: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Barcode</label>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Varian (mis. Merah / S)
+        </label>
         <input
           type="text"
-          value={values.barcode}
-          onChange={(e) => setValues((v) => ({ ...v, barcode: e.target.value }))}
+          value={values.variantLabel}
+          onChange={(e) => setValues((v) => ({ ...v, variantLabel: e.target.value }))}
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>

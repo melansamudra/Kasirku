@@ -145,7 +145,7 @@ export default async function PosPage({
   ] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, category, price, cost, stock, emoji, barcode")
+      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),

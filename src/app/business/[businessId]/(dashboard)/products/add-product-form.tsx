@@ -35,17 +35,48 @@ export default function AddProductForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="barcode" className="mb-1 block text-xs font-medium text-zinc-600">
+            Barcode (opsional)
+          </label>
+          <input
+            id="barcode"
+            name="barcode"
+            type="text"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="Scan atau ketik"
+          />
+        </div>
+        <div>
+          <label htmlFor="sku" className="mb-1 block text-xs font-medium text-zinc-600">
+            SKU (opsional)
+          </label>
+          <input
+            id="sku"
+            name="sku"
+            type="text"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="mis. KJ-RED-S"
+          />
+        </div>
+      </div>
+
       <div>
-        <label htmlFor="barcode" className="mb-1 block text-xs font-medium text-zinc-600">
-          Barcode (opsional)
+        <label htmlFor="variantLabel" className="mb-1 block text-xs font-medium text-zinc-600">
+          Varian (opsional)
         </label>
         <input
-          id="barcode"
-          name="barcode"
+          id="variantLabel"
+          name="variantLabel"
           type="text"
           className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          placeholder="Scan atau ketik kode barcode"
+          placeholder="mis. Merah / S"
         />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Isi ini kalau produk punya beberapa pilihan (ukuran/warna). Pakai Nama Produk yang
+          sama untuk tiap variannya — nanti dikelompokkan otomatis.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

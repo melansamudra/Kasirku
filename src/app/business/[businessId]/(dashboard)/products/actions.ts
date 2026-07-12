@@ -19,6 +19,8 @@ export async function addProduct(
   const minStockRaw = formData.get("minStock") as string;
   const emoji = (formData.get("emoji") as string)?.trim();
   const barcode = (formData.get("barcode") as string)?.trim();
+  const sku = (formData.get("sku") as string)?.trim();
+  const variantLabel = (formData.get("variantLabel") as string)?.trim();
 
   if (!name) {
     return { error: "Nama produk wajib diisi." };
@@ -55,11 +57,17 @@ export async function addProduct(
     min_stock: minStock,
     emoji: emoji || null,
     barcode: barcode || null,
+    sku: sku || null,
+    variant_label: variantLabel || null,
   });
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "Barcode ini sudah dipakai produk lain." };
+      return {
+        error: error.message.includes("sku")
+          ? "SKU ini sudah dipakai produk lain."
+          : "Barcode ini sudah dipakai produk lain.",
+      };
     }
     return { error: error.message };
   }
@@ -91,6 +99,8 @@ export async function editProduct(
   const minStockRaw = formData.get("minStock") as string;
   const emoji = (formData.get("emoji") as string)?.trim();
   const barcode = (formData.get("barcode") as string)?.trim();
+  const sku = (formData.get("sku") as string)?.trim();
+  const variantLabel = (formData.get("variantLabel") as string)?.trim();
 
   if (!name) {
     return { error: "Nama produk wajib diisi." };
@@ -122,13 +132,19 @@ export async function editProduct(
       min_stock: minStock,
       emoji: emoji || null,
       barcode: barcode || null,
+      sku: sku || null,
+      variant_label: variantLabel || null,
     })
     .eq("id", productId)
     .eq("business_id", businessId);
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "Barcode ini sudah dipakai produk lain." };
+      return {
+        error: error.message.includes("sku")
+          ? "SKU ini sudah dipakai produk lain."
+          : "Barcode ini sudah dipakai produk lain.",
+      };
     }
     return { error: error.message };
   }
