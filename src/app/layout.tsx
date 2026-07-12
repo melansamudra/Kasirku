@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "KasirKu",
   description: "POS kasir untuk F&B dan Retail.",
+  verification: {
+    google: "a8-RYBLlDsqb6rdrJxASlLL4WWKWRiWAC50TCyKIYGA",
+  },
 };
 
 export default function RootLayout({
