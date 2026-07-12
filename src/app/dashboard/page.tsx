@@ -214,6 +214,14 @@ export default async function DashboardPage() {
               </div>
             );
           })}
+
+          <Link
+            href="/onboarding"
+            className="flex min-h-[11rem] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 p-5 text-zinc-400 transition-colors hover:border-brand-300 hover:text-brand-600"
+          >
+            <span className="text-2xl">＋</span>
+            <span className="text-sm font-semibold">Tambah Toko Baru</span>
+          </Link>
         </div>
       </div>
     </div>

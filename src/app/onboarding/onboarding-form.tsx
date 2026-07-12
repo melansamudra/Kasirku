@@ -1,22 +1,39 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { createBusiness, type CreateBusinessState } from "./actions";
 
 const initialState: CreateBusinessState = { error: null };
 
-export default function OnboardingForm() {
+export default function OnboardingForm({
+  hasExistingBusinesses,
+}: {
+  hasExistingBusinesses: boolean;
+}) {
   const [state, formAction, pending] = useActionState(createBusiness, initialState);
 
   return (
     <div className="w-full max-w-sm">
+      {hasExistingBusinesses && (
+        <Link
+          href="/dashboard"
+          className="mb-4 inline-block text-xs font-medium text-brand-600 hover:underline"
+        >
+          ← Kembali ke Dashboard
+        </Link>
+      )}
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600">
           <span className="text-lg font-bold text-white">K</span>
         </div>
-        <h1 className="text-xl font-bold text-zinc-900">Daftarkan Toko Kamu</h1>
+        <h1 className="text-xl font-bold text-zinc-900">
+          {hasExistingBusinesses ? "Tambah Toko Baru" : "Daftarkan Toko Kamu"}
+        </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Satu langkah lagi sebelum mulai pakai KasirKu
+          {hasExistingBusinesses
+            ? "Unit usaha baru ini butuh langganan sendiri, terpisah dari toko yang sudah ada."
+            : "Satu langkah lagi sebelum mulai pakai KasirKu"}
         </p>
       </div>
 
@@ -99,7 +116,7 @@ export default function OnboardingForm() {
           disabled={pending}
           className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "Menyimpan…" : "Mulai Pakai KasirKu"}
+          {pending ? "Menyimpan…" : hasExistingBusinesses ? "Tambah Toko" : "Mulai Pakai KasirKu"}
         </button>
       </form>
     </div>
