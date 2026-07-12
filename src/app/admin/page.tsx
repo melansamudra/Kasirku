@@ -20,12 +20,28 @@ type BusinessRow = {
   created_at: string;
   shift_open: boolean;
   tx_count: number;
+  subscription_status: string;
+  plan_code: string | null;
 };
 
 const BUSINESS_TYPE_ACCENT: Record<string, { label: string; chip: string }> = {
   fnb: { label: "🍽️ F&B", chip: "bg-amber-50 text-amber-700" },
   retail: { label: "🛒 Retail", chip: "bg-sky-50 text-sky-700" },
   tiket: { label: "🎟️ Tiket", chip: "bg-violet-50 text-violet-700" },
+};
+
+const SUBSCRIPTION_BADGE: Record<string, string> = {
+  unpaid: "bg-zinc-100 text-zinc-600",
+  active: "bg-brand-50 text-brand-700",
+  past_due: "bg-amber-50 text-amber-700",
+  expired: "bg-red-50 text-red-600",
+};
+
+const SUBSCRIPTION_LABELS: Record<string, string> = {
+  unpaid: "Belum Bayar",
+  active: "Aktif",
+  past_due: "Jatuh Tempo",
+  expired: "Kedaluwarsa",
 };
 
 function formatDate(dateStr: string) {
@@ -129,6 +145,7 @@ export default async function AdminPage() {
                   <th className="px-5 py-3">Pemilik</th>
                   <th className="px-5 py-3">Terdaftar</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Langganan</th>
                   <th className="px-5 py-3">Transaksi</th>
                 </tr>
               </thead>
@@ -159,13 +176,25 @@ export default async function AdminPage() {
                           <span className="text-xs text-zinc-400">—</span>
                         )}
                       </td>
+                      <td className="px-5 py-3">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            SUBSCRIPTION_BADGE[b.subscription_status] ?? "bg-zinc-100 text-zinc-600"
+                          }`}
+                        >
+                          {SUBSCRIPTION_LABELS[b.subscription_status] ?? b.subscription_status}
+                        </span>
+                        {b.plan_code && (
+                          <span className="ml-1.5 text-[10px] text-zinc-400">{b.plan_code}</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3 font-medium text-zinc-900">{b.tx_count}</td>
                     </tr>
                   );
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-zinc-400">
+                    <td colSpan={7} className="px-5 py-8 text-center text-sm text-zinc-400">
                       Belum ada toko terdaftar.
                     </td>
                   </tr>

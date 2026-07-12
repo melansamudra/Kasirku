@@ -28,15 +28,31 @@ export async function createBusiness(
     return { error: "Pilih jenis bisnis dulu." };
   }
 
-  const { error } = await supabase.from("businesses").insert({
-    owner_id: user.id,
-    name,
-    business_type: businessType,
-  });
+  const { data: business, error } = await supabase
+    .from("businesses")
+    .insert({
+      owner_id: user.id,
+      name,
+      business_type: businessType,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    return { error: error.message };
+  if (error || !business) {
+    return { error: error?.message ?? "Gagal membuat bisnis." };
   }
 
-  redirect("/dashboard");
+  // Belum ada trial — pemilik baru harus pilih & bayar paket dulu sebelum
+  // bisa masuk ke dashboard/kasir (lihat gating di layout.tsx dashboard & pos).
+  const { error: subscriptionError } = await supabase.from("subscriptions").insert({
+    business_id: business.id,
+    plan_code: "",
+    status: "unpaid",
+  });
+
+  if (subscriptionError) {
+    return { error: subscriptionError.message };
+  }
+
+  redirect(`/business/${business.id}/billing`);
 }

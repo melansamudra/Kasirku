@@ -314,12 +314,14 @@ export default function DashboardShell({
   businessName,
   businessType,
   userEmail,
+  billingPastDuePeriodEnd,
   children,
 }: {
   businessId: string;
   businessName: string;
   businessType: BusinessType;
   userEmail: string;
+  billingPastDuePeriodEnd?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -372,6 +374,26 @@ export default function DashboardShell({
           </button>
           <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
         </div>
+
+        {billingPastDuePeriodEnd && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800 print:hidden md:px-8">
+            <span>
+              Langganan jatuh tempo sejak{" "}
+              {new Date(billingPastDuePeriodEnd).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+              — bayar sebelum masa tenggang habis agar akses tidak terkunci.
+            </span>
+            <Link
+              href={`/business/${businessId}/billing`}
+              className="shrink-0 rounded-full bg-amber-600 px-3 py-1 text-white hover:bg-amber-700"
+            >
+              Bayar Sekarang
+            </Link>
+          </div>
+        )}
 
         <main className="w-full px-4 py-8 md:px-8 md:py-10 print:p-0">
           <div className="mx-auto w-full max-w-6xl print:max-w-none">{children}</div>

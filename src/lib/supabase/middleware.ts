@@ -39,13 +39,19 @@ export async function updateSession(request: NextRequest) {
   // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
   // "/" adalah landing page publik untuk calon pengguna yang belum daftar.
   // /terms dan /privacy juga harus bisa dibaca tanpa login.
+  // /api/midtrans (webhook Midtrans) dan /api/cron (dipicu Vercel Cron) adalah
+  // panggilan server-to-server tanpa sesi browser sama sekali — masing-masing
+  // punya otentikasinya sendiri (verifikasi signature / CRON_SECRET), bukan
+  // sesi login, jadi middleware tidak boleh me-redirect mereka ke /login.
   const isPublicPath =
     isAuthPage ||
     request.nextUrl.pathname === "/" ||
     request.nextUrl.pathname.startsWith("/order") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/terms") ||
-    request.nextUrl.pathname.startsWith("/privacy");
+    request.nextUrl.pathname.startsWith("/privacy") ||
+    request.nextUrl.pathname.startsWith("/api/midtrans") ||
+    request.nextUrl.pathname.startsWith("/api/cron");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
