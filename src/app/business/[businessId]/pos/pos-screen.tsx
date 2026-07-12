@@ -169,7 +169,7 @@ export default function PosScreen({
     );
   }, [customerSearch, customers]);
 
-  const { subtotalRaw, totalItemDisc, afterItemDisc, orderDiscAmt, subtotal, serviceAmt, taxAmt, total } =
+  const { subtotalRaw, totalItemDisc, afterItemDisc, orderDiscAmt, serviceAmt, taxAmt, total } =
     calculateCheckoutTotals({
       items: cart,
       orderDisc,

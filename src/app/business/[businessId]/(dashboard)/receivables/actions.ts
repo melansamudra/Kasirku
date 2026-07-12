@@ -37,13 +37,15 @@ async function postReceivableJournal(
   return error?.message ?? null;
 }
 
-export type AddReceivableState = { error: string | null };
+export type AddReceivableState = { error: string | null; resetToken: number };
 
 export async function addReceivable(
   businessId: string,
-  _prevState: AddReceivableState,
+  prevState: AddReceivableState,
   formData: FormData,
 ): Promise<AddReceivableState> {
+  const fail = (msg: string): AddReceivableState => ({ error: msg, resetToken: prevState.resetToken });
+
   const customerId = (formData.get("customerId") as string) || null;
   const date = formData.get("date") as string;
   const description = (formData.get("description") as string)?.trim();
@@ -51,23 +53,23 @@ export async function addReceivable(
   const paidAmountRaw = formData.get("paidAmount") as string;
 
   if (!date) {
-    return { error: "Tanggal wajib diisi." };
+    return fail("Tanggal wajib diisi.");
   }
   if (!description) {
-    return { error: "Deskripsi wajib diisi." };
+    return fail("Deskripsi wajib diisi.");
   }
 
   const amount = Number(amountRaw);
   if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
-    return { error: "Total tagihan harus angka lebih dari 0." };
+    return fail("Total tagihan harus angka lebih dari 0.");
   }
 
   const paidAmount = paidAmountRaw ? Number(paidAmountRaw) : 0;
   if (Number.isNaN(paidAmount) || paidAmount < 0) {
-    return { error: "Jumlah dibayar harus angka dan tidak boleh negatif." };
+    return fail("Jumlah dibayar harus angka dan tidak boleh negatif.");
   }
   if (paidAmount > amount) {
-    return { error: "Jumlah dibayar tidak boleh lebih besar dari total tagihan." };
+    return fail("Jumlah dibayar tidak boleh lebih besar dari total tagihan.");
   }
 
   const supabase = await createClient();
@@ -82,7 +84,7 @@ export async function addReceivable(
   });
 
   if (error) {
-    return { error: error.message };
+    return fail(error.message);
   }
 
   const journalError = await postReceivableJournal(
@@ -107,11 +109,11 @@ export async function addReceivable(
 
   revalidatePath(`/business/${businessId}/receivables`);
   revalidatePath(`/business/${businessId}/customers`);
-  return {
-    error: journalError
-      ? `Piutang tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
-      : null,
-  };
+  return journalError
+    ? fail(
+        `Piutang tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`,
+      )
+    : { error: null, resetToken: prevState.resetToken + 1 };
 }
 
 export type AddReceivablePaymentState = { error: string | null };

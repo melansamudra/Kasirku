@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useRef, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import type { AddPurchaseState } from "./actions";
 
-const initialState: AddPurchaseState = { error: null };
+const initialState: AddPurchaseState = { error: null, resetToken: 0 };
 
 type SupplierOption = { id: string; name: string };
 type IngredientOption = { id: string; name: string; unit: string; stock: number };
@@ -25,21 +25,46 @@ export default function AddPurchaseForm({
   products: ProductOption[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const formRef = useRef<HTMLFormElement>(null);
+
+  return (
+    <PurchaseFormFields
+      key={state.resetToken}
+      formAction={formAction}
+      pending={pending}
+      error={state.error}
+      today={today}
+      isFnb={isFnb}
+      suppliers={suppliers}
+      ingredients={ingredients}
+      products={products}
+    />
+  );
+}
+
+function PurchaseFormFields({
+  formAction,
+  pending,
+  error,
+  today,
+  isFnb,
+  suppliers,
+  ingredients,
+  products,
+}: {
+  formAction: (formData: FormData) => void;
+  pending: boolean;
+  error: string | null;
+  today: string;
+  isFnb: boolean;
+  suppliers: SupplierOption[];
+  ingredients: IngredientOption[];
+  products: ProductOption[];
+}) {
   const [category, setCategory] = useState(isFnb ? "Bahan Baku" : "Barang Dagang");
   const [ingredientId, setIngredientId] = useState(ingredients[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
-
-  useEffect(() => {
-    if (!pending && !state.error) {
-      formRef.current?.reset();
-      setPaymentMode("lunas");
-      setPaidAmount("");
-      setAmount("");
-    }
-  }, [pending, state.error]);
 
   const isIngredientPurchase = category === "Bahan Baku";
   const selectedIngredient = ingredients.find((i) => i.id === ingredientId);
@@ -48,7 +73,7 @@ export default function AddPurchaseForm({
     paymentMode === "lunas" ? amount : paymentMode === "utang" ? "0" : paidAmount;
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-3">
+    <form action={formAction} className="space-y-3">
       <div className="grid grid-cols-2 gap-2.5">
         <div>
           <label htmlFor="date" className="mb-1 block text-xs font-medium text-zinc-600">
@@ -261,8 +286,8 @@ export default function AddPurchaseForm({
         />
       </div>
 
-      {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
       )}
 
       <button

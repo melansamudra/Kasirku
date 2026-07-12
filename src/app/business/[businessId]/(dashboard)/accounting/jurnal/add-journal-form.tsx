@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useRef, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import type { JournalState } from "./actions";
 
-const initialState: JournalState = { error: null };
+const initialState: JournalState = { error: null, resetToken: 0 };
 
 type Account = { code: string; name: string };
 type Line = { accountCode: string; debit: string; credit: string };
@@ -22,17 +22,34 @@ export default function AddJournalForm({
   accounts: Account[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const formRef = useRef<HTMLFormElement>(null);
+
+  return (
+    <JournalFormFields
+      key={state.resetToken}
+      formAction={formAction}
+      pending={pending}
+      error={state.error}
+      today={today}
+      accounts={accounts}
+    />
+  );
+}
+
+function JournalFormFields({
+  formAction,
+  pending,
+  error,
+  today,
+  accounts,
+}: {
+  formAction: (formData: FormData) => void;
+  pending: boolean;
+  error: string | null;
+  today: string;
+  accounts: Account[];
+}) {
   const defaultCode = accounts[0]?.code ?? "";
   const [lines, setLines] = useState<Line[]>([emptyLine(defaultCode), emptyLine(defaultCode)]);
-
-  useEffect(() => {
-    if (!pending && !state.error) {
-      formRef.current?.reset();
-      setLines([emptyLine(defaultCode), emptyLine(defaultCode)]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, state.error]);
 
   function updateLine(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -59,7 +76,7 @@ export default function AddJournalForm({
   );
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-3">
+    <form action={formAction} className="space-y-3">
       <input type="hidden" name="lines" value={linesPayload} readOnly />
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -140,8 +157,8 @@ export default function AddJournalForm({
         <span>{balanced ? "✓ Seimbang" : "Belum seimbang"}</span>
       </div>
 
-      {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
       )}
 
       <button

@@ -44,8 +44,8 @@ export default async function TransferKasPage({
       {onlyOneAccount ? (
         <div className="mt-6 rounded-2xl border border-dashed border-zinc-200 bg-white p-6 text-center">
           <p className="text-sm text-zinc-500">
-            Baru ada satu akun kas/bank ("Kas & Bank"). Tambahkan rekening lain dulu (mis. "Bank
-            BCA") lewat{" "}
+            Baru ada satu akun kas/bank (&quot;Kas &amp; Bank&quot;). Tambahkan rekening lain dulu (mis. &quot;Bank
+            BCA&quot;) lewat{" "}
             <Link href={`/business/${businessId}/accounting/daftar-akun`} className="text-brand-600 hover:underline">
               Daftar Akun
             </Link>{" "}
@@ -60,8 +60,8 @@ export default async function TransferKasPage({
       )}
 
       <p className="mt-3 text-center text-[11px] text-zinc-400">
-        Penjualan, pengeluaran, pembelian, payroll, dan piutang selalu memposting otomatis ke "Kas
-        &amp; Bank" (1-001) — akun kas/bank tambahan cuma dipakai untuk transfer manual seperti ini.
+        Penjualan, pengeluaran, pembelian, payroll, dan piutang selalu memposting otomatis ke &quot;Kas
+        &amp; Bank&quot; (1-001) — akun kas/bank tambahan cuma dipakai untuk transfer manual seperti ini.
         Riwayat transfer bisa dilihat di{" "}
         <Link href={`/business/${businessId}/accounting/jurnal`} className="text-brand-600 hover:underline">
           Jurnal Transaksi

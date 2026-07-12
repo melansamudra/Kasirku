@@ -231,7 +231,7 @@ export default async function LaporanPerubahanModalPage({
       </div>
 
       <p className="mt-3 text-center text-[11px] text-zinc-400">
-        "Laba Bersih Periode Ini" dihitung dari selisih Total Modal awal dan akhir periode,
+        &quot;Laba Bersih Periode Ini&quot; dihitung dari selisih Total Modal awal dan akhir periode,
         dikurangi setoran/prive — jadi tetap akurat walau ada{" "}
         <Link href={`/business/${businessId}/accounting/tutup-buku`} className="text-brand-600 hover:underline">
           Tutup Buku

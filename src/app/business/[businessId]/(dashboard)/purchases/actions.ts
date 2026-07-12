@@ -37,13 +37,15 @@ async function postPurchaseJournal(
   return error?.message ?? null;
 }
 
-export type AddPurchaseState = { error: string | null };
+export type AddPurchaseState = { error: string | null; resetToken: number };
 
 export async function addPurchase(
   businessId: string,
-  _prevState: AddPurchaseState,
+  prevState: AddPurchaseState,
   formData: FormData,
 ): Promise<AddPurchaseState> {
+  const fail = (msg: string): AddPurchaseState => ({ error: msg, resetToken: prevState.resetToken });
+
   const supplierId = (formData.get("supplierId") as string) || null;
   const date = formData.get("date") as string;
   const category = formData.get("category") as string;
@@ -53,28 +55,28 @@ export async function addPurchase(
   const qtyRaw = formData.get("qty") as string;
 
   if (!date) {
-    return { error: "Tanggal wajib diisi." };
+    return fail("Tanggal wajib diisi.");
   }
   if (category !== "Bahan Baku" && category !== "Barang Dagang") {
-    return { error: "Kategori tidak valid." };
+    return fail("Kategori tidak valid.");
   }
 
   const amount = Number(amountRaw);
   if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
-    return { error: "Total pembelian harus angka lebih dari 0." };
+    return fail("Total pembelian harus angka lebih dari 0.");
   }
 
   const paidAmount = paidAmountRaw ? Number(paidAmountRaw) : 0;
   if (Number.isNaN(paidAmount) || paidAmount < 0) {
-    return { error: "Jumlah dibayar harus angka dan tidak boleh negatif." };
+    return fail("Jumlah dibayar harus angka dan tidak boleh negatif.");
   }
   if (paidAmount > amount) {
-    return { error: "Jumlah dibayar tidak boleh lebih besar dari total pembelian." };
+    return fail("Jumlah dibayar tidak boleh lebih besar dari total pembelian.");
   }
 
   const qty = Number(qtyRaw);
   if (!qtyRaw || Number.isNaN(qty) || qty <= 0) {
-    return { error: "Qty dibeli harus angka lebih dari 0." };
+    return fail("Qty dibeli harus angka lebih dari 0.");
   }
 
   const supabase = await createClient();
@@ -86,7 +88,7 @@ export async function addPurchase(
   if (category === "Bahan Baku") {
     ingredientId = formData.get("ingredientId") as string;
     if (!ingredientId) {
-      return { error: "Pilih bahan yang dibeli." };
+      return fail("Pilih bahan yang dibeli.");
     }
 
     const { data: ingredient } = await supabase
@@ -96,7 +98,7 @@ export async function addPurchase(
       .single();
 
     if (!ingredient || ingredient.business_id !== businessId) {
-      return { error: "Bahan baku tidak ditemukan." };
+      return fail("Bahan baku tidak ditemukan.");
     }
     itemName = ingredient.name;
 
@@ -111,7 +113,7 @@ export async function addPurchase(
       .eq("id", ingredientId);
 
     if (updateError) {
-      return { error: updateError.message };
+      return fail(updateError.message);
     }
 
     if (newUnitCost !== Number(ingredient.unit_cost)) {
@@ -126,7 +128,7 @@ export async function addPurchase(
   } else {
     productId = formData.get("productId") as string;
     if (!productId) {
-      return { error: "Pilih produk yang dibeli." };
+      return fail("Pilih produk yang dibeli.");
     }
 
     const { data: product } = await supabase
@@ -136,7 +138,7 @@ export async function addPurchase(
       .single();
 
     if (!product || product.business_id !== businessId) {
-      return { error: "Produk tidak ditemukan." };
+      return fail("Produk tidak ditemukan.");
     }
     itemName = product.name;
 
@@ -150,7 +152,7 @@ export async function addPurchase(
       .eq("id", productId);
 
     if (updateError) {
-      return { error: updateError.message };
+      return fail(updateError.message);
     }
   }
 
@@ -168,7 +170,7 @@ export async function addPurchase(
   });
 
   if (error) {
-    return { error: error.message };
+    return fail(error.message);
   }
 
   const journalError = await postPurchaseJournal(
@@ -193,11 +195,11 @@ export async function addPurchase(
 
   revalidatePath(`/business/${businessId}/purchases`);
   revalidatePath(`/business/${businessId}/suppliers`);
-  return {
-    error: journalError
-      ? `Pembelian tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
-      : null,
-  };
+  return journalError
+    ? fail(
+        `Pembelian tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`,
+      )
+    : { error: null, resetToken: prevState.resetToken + 1 };
 }
 
 export type AddPaymentState = { error: string | null };

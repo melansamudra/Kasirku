@@ -267,7 +267,7 @@ export default async function ArusKasPage({
       </div>
 
       <p className="mt-3 text-center text-[11px] text-zinc-400">
-        Dihitung dari akun "Kas &amp; Bank" di jurnal — belum memisahkan kas fisik vs saldo bank.
+        Dihitung dari akun &quot;Kas &amp; Bank&quot; di jurnal — belum memisahkan kas fisik vs saldo bank.
       </p>
     </div>
   );

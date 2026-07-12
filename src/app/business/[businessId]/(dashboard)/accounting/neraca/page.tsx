@@ -180,7 +180,7 @@ export default async function NeracaPage({
       </div>
 
       <p className="mt-3 text-center text-[11px] text-zinc-400">
-        "Laba Berjalan" adalah pendapatan dikurangi beban sejak tutup buku terakhir (atau sejak
+        &quot;Laba Berjalan&quot; adalah pendapatan dikurangi beban sejak tutup buku terakhir (atau sejak
         awal pencatatan kalau belum pernah tutup buku) sampai tanggal ini. Kunci periode yang
         sudah selesai lewat{" "}
         <Link href={`/business/${businessId}/accounting/tutup-buku`} className="text-brand-600 hover:underline">

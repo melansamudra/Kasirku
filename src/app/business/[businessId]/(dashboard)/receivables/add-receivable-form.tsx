@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useRef, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import type { AddReceivableState } from "./actions";
 
-const initialState: AddReceivableState = { error: null };
+const initialState: AddReceivableState = { error: null, resetToken: 0 };
 
 type CustomerOption = { id: string; name: string };
 
@@ -17,24 +17,40 @@ export default function AddReceivableForm({
   customers: CustomerOption[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const formRef = useRef<HTMLFormElement>(null);
+
+  return (
+    <ReceivableFormFields
+      key={state.resetToken}
+      formAction={formAction}
+      pending={pending}
+      error={state.error}
+      today={today}
+      customers={customers}
+    />
+  );
+}
+
+function ReceivableFormFields({
+  formAction,
+  pending,
+  error,
+  today,
+  customers,
+}: {
+  formAction: (formData: FormData) => void;
+  pending: boolean;
+  error: string | null;
+  today: string;
+  customers: CustomerOption[];
+}) {
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<"utang" | "sebagian">("utang");
   const [paidAmount, setPaidAmount] = useState("");
 
-  useEffect(() => {
-    if (!pending && !state.error) {
-      formRef.current?.reset();
-      setPaymentMode("utang");
-      setPaidAmount("");
-      setAmount("");
-    }
-  }, [pending, state.error]);
-
   const effectivePaidAmount = paymentMode === "utang" ? "0" : paidAmount;
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-3">
+    <form action={formAction} className="space-y-3">
       <div className="grid grid-cols-2 gap-2.5">
         <div>
           <label htmlFor="date" className="mb-1 block text-xs font-medium text-zinc-600">
@@ -138,8 +154,8 @@ export default function AddReceivableForm({
         <input type="hidden" name="paidAmount" value={effectivePaidAmount} />
       </div>
 
-      {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
       )}
 
       <button

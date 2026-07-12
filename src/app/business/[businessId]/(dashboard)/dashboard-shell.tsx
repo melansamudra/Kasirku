@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -182,10 +182,13 @@ function SidebarContent({
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupTitle);
 
   // Setelah navigasi ke halaman baru, buka grup yang memuat halaman itu —
-  // supaya sidebar selalu menunjukkan konteks tanpa perlu klik manual.
-  useEffect(() => {
+  // supaya sidebar selalu menunjukkan konteks tanpa perlu klik manual. Disesuaikan
+  // saat render (bukan di useEffect) supaya tetap bisa di-override oleh klik manual.
+  const [prevActiveGroupTitle, setPrevActiveGroupTitle] = useState(activeGroupTitle);
+  if (activeGroupTitle !== prevActiveGroupTitle) {
+    setPrevActiveGroupTitle(activeGroupTitle);
     setOpenGroup(activeGroupTitle);
-  }, [activeGroupTitle]);
+  }
 
   return (
     <div className="flex h-full flex-col bg-white">
