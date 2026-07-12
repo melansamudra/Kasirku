@@ -3,7 +3,14 @@ import { ARTICLES } from "@/lib/blog/articles";
 import { SITE_URL } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticPages: MetadataRoute.Sitemap = ["", "/rekomendasi-alat", "/blog", "/terms", "/privacy"].map(
+  const staticPages: MetadataRoute.Sitemap = [
+    "",
+    "/rekomendasi-alat",
+    "/blog",
+    "/kalkulator-hpp",
+    "/terms",
+    "/privacy",
+  ].map(
     (path) => ({
       url: `${SITE_URL}${path}`,
       lastModified: new Date(),

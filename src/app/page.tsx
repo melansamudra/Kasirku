@@ -123,6 +123,17 @@ export default async function Home() {
         </div>
       </header>
 
+      {/* Banner Kalkulator HPP */}
+      <Link
+        href="/kalkulator-hpp"
+        className="block border-b border-amber-100 bg-gradient-to-r from-amber-50 via-brand-50 to-amber-50 px-4 py-3 text-center transition-colors hover:from-amber-100 hover:to-amber-100"
+      >
+        <span className="text-sm font-semibold text-zinc-700">
+          🧮 Baru: <span className="text-brand-700">Kalkulator HPP Gratis</span> — cek harga pokok
+          produkmu dalam hitungan detik <span aria-hidden>→</span>
+        </span>
+      </Link>
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-zinc-50 px-4 py-20">
         <div
@@ -317,6 +328,9 @@ export default async function Home() {
             <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/kalkulator-hpp" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Kalkulator HPP
+            </Link>
             <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Artikel
             </Link>
