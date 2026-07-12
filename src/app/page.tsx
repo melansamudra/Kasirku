@@ -96,6 +96,12 @@ export default async function Home() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              href="/blog"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
+            >
+              Artikel
+            </Link>
+            <Link
               href="/rekomendasi-alat"
               className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
             >
@@ -311,6 +317,9 @@ export default async function Home() {
             <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Artikel
+            </Link>
             <Link href="/rekomendasi-alat" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Rekomendasi Alat
             </Link>

@@ -46,6 +46,9 @@ export async function updateSession(request: NextRequest) {
   // /terms dan /privacy juga harus bisa dibaca tanpa login.
   // /rekomendasi-alat adalah halaman afiliasi publik — harus bisa diakses
   // pengunjung mana pun tanpa daftar/login dulu, itu tujuannya.
+  // /blog adalah artikel SEO publik, sama alasannya.
+  // /sitemap.xml dan /robots.txt dipanggil crawler mesin pencari tanpa sesi
+  // browser sama sekali — harus tetap terbaca meski tidak ada user login.
   // /api/midtrans (webhook Midtrans) dan /api/cron (dipicu Vercel Cron) adalah
   // panggilan server-to-server tanpa sesi browser sama sekali — masing-masing
   // punya otentikasinya sendiri (verifikasi signature / CRON_SECRET), bukan
@@ -59,6 +62,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/terms") ||
     request.nextUrl.pathname.startsWith("/privacy") ||
     request.nextUrl.pathname.startsWith("/rekomendasi-alat") ||
+    request.nextUrl.pathname.startsWith("/blog") ||
+    request.nextUrl.pathname === "/sitemap.xml" ||
+    request.nextUrl.pathname === "/robots.txt" ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||
     request.nextUrl.pathname.startsWith("/api/cron");
 
