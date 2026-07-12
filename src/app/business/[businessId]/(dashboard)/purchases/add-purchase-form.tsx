@@ -8,6 +8,12 @@ const initialState: AddPurchaseState = { error: null, resetToken: 0 };
 type SupplierOption = { id: string; name: string };
 type IngredientOption = { id: string; name: string; unit: string; stock: number };
 type ProductOption = { id: string; name: string; stock: number };
+export type PurchasePrefill = {
+  category: "Bahan Baku" | "Barang Dagang";
+  itemId: string;
+  qty: number;
+  amount: number;
+};
 
 export default function AddPurchaseForm({
   action,
@@ -16,6 +22,7 @@ export default function AddPurchaseForm({
   suppliers,
   ingredients,
   products,
+  prefill,
 }: {
   action: (state: AddPurchaseState, formData: FormData) => Promise<AddPurchaseState>;
   today: string;
@@ -23,12 +30,13 @@ export default function AddPurchaseForm({
   suppliers: SupplierOption[];
   ingredients: IngredientOption[];
   products: ProductOption[];
+  prefill?: PurchasePrefill | null;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
     <PurchaseFormFields
-      key={state.resetToken}
+      key={`${state.resetToken}-${prefill?.itemId ?? "none"}`}
       formAction={formAction}
       pending={pending}
       error={state.error}
@@ -37,6 +45,7 @@ export default function AddPurchaseForm({
       suppliers={suppliers}
       ingredients={ingredients}
       products={products}
+      prefill={prefill}
     />
   );
 }
@@ -50,6 +59,7 @@ function PurchaseFormFields({
   suppliers,
   ingredients,
   products,
+  prefill,
 }: {
   formAction: (formData: FormData) => void;
   pending: boolean;
@@ -59,10 +69,15 @@ function PurchaseFormFields({
   suppliers: SupplierOption[];
   ingredients: IngredientOption[];
   products: ProductOption[];
+  prefill?: PurchasePrefill | null;
 }) {
-  const [category, setCategory] = useState(isFnb ? "Bahan Baku" : "Barang Dagang");
-  const [ingredientId, setIngredientId] = useState(ingredients[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState<string>(
+    prefill?.category ?? (isFnb ? "Bahan Baku" : "Barang Dagang"),
+  );
+  const [ingredientId, setIngredientId] = useState(
+    prefill?.category === "Bahan Baku" ? prefill.itemId : ingredients[0]?.id ?? "",
+  );
+  const [amount, setAmount] = useState(prefill ? String(prefill.amount) : "");
   const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
 
@@ -160,6 +175,7 @@ function PurchaseFormFields({
                 step="0.01"
                 placeholder="1000"
                 required
+                defaultValue={prefill?.category === "Bahan Baku" ? prefill.qty : undefined}
                 className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
             </div>
@@ -186,6 +202,7 @@ function PurchaseFormFields({
             <select
               id="productId"
               name="productId"
+              defaultValue={prefill?.category === "Barang Dagang" ? prefill.itemId : undefined}
               className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             >
               {products.length === 0 && <option value="">Belum ada produk</option>}
@@ -208,6 +225,7 @@ function PurchaseFormFields({
               step="0.01"
               placeholder="50"
               required
+              defaultValue={prefill?.category === "Barang Dagang" ? prefill.qty : undefined}
               className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
           </div>

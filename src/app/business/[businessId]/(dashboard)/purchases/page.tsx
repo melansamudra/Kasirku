@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { addPurchase, addPurchasePayment } from "./actions";
-import AddPurchaseForm from "./add-purchase-form";
 import AddPaymentForm from "./add-payment-form";
+import PurchaseFormWithRecommendations from "./purchase-form-with-recommendations";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -81,14 +81,14 @@ export default async function PurchasesPage({
       isFnb
         ? supabase
             .from("ingredients")
-            .select("id, name, unit, stock")
+            .select("id, name, unit, stock, min_stock, unit_cost")
             .eq("business_id", businessId)
             .is("deleted_at", null)
             .order("name", { ascending: true })
         : Promise.resolve({ data: [] }),
       supabase
         .from("products")
-        .select("id, name, stock")
+        .select("id, name, stock, min_stock, cost")
         .eq("business_id", businessId)
         .is("deleted_at", null)
         .order("name", { ascending: true }),
@@ -120,6 +120,32 @@ export default async function PurchasesPage({
   }
 
   const boundAddPurchase = addPurchase.bind(null, businessId);
+
+  // Reorder suggestion: top up back to 2x the minimum-stock threshold,
+  // floored at 1 unit — a simple heuristic, not a demand forecast. The qty
+  // stays editable in the form, this just saves typing the obvious case.
+  const lowStockIngredients = (ingredients ?? [])
+    .filter((i) => Number(i.min_stock) > 0 && Number(i.stock) <= Number(i.min_stock))
+    .map((i) => ({
+      id: i.id,
+      name: i.name,
+      unit: i.unit,
+      stock: Number(i.stock),
+      minStock: Number(i.min_stock),
+      suggestedQty: Math.max(Number(i.min_stock) * 2 - Number(i.stock), 1),
+      unitCost: Number(i.unit_cost),
+    }));
+
+  const lowStockProducts = (products ?? [])
+    .filter((p) => Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      stock: Number(p.stock),
+      minStock: Number(p.min_stock),
+      suggestedQty: Math.max(Number(p.min_stock) * 2 - Number(p.stock), 1),
+      unitCost: Number(p.cost),
+    }));
 
   return (
     <div className="w-full max-w-2xl">
@@ -181,17 +207,16 @@ export default async function PurchasesPage({
         </div>
       )}
 
-      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Catat Pembelian</h2>
-        <AddPurchaseForm
-          action={boundAddPurchase}
-          today={today}
-          isFnb={isFnb}
-          suppliers={suppliers ?? []}
-          ingredients={ingredients ?? []}
-          products={products ?? []}
-        />
-      </div>
+      <PurchaseFormWithRecommendations
+        action={boundAddPurchase}
+        today={today}
+        isFnb={isFnb}
+        suppliers={suppliers ?? []}
+        ingredients={ingredients ?? []}
+        products={products ?? []}
+        lowStockIngredients={lowStockIngredients}
+        lowStockProducts={lowStockProducts}
+      />
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3.5">
