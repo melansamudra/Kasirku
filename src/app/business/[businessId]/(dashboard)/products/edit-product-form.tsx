@@ -11,6 +11,7 @@ export default function EditProductForm({
   cost,
   minStock,
   emoji,
+  barcode,
   action,
 }: {
   name: string;
@@ -19,6 +20,7 @@ export default function EditProductForm({
   cost: number;
   minStock: number;
   emoji: string | null;
+  barcode: string | null;
   action: (state: EditProductState, formData: FormData) => Promise<EditProductState>;
 }) {
   const router = useRouter();
@@ -30,6 +32,7 @@ export default function EditProductForm({
     cost: String(cost),
     minStock: String(minStock),
     emoji: emoji ?? "",
+    barcode: barcode ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -55,6 +58,7 @@ export default function EditProductForm({
     formData.set("cost", values.cost);
     formData.set("minStock", values.minStock);
     formData.set("emoji", values.emoji);
+    formData.set("barcode", values.barcode);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -75,6 +79,15 @@ export default function EditProductForm({
           type="text"
           value={values.name}
           onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Barcode</label>
+        <input
+          type="text"
+          value={values.barcode}
+          onChange={(e) => setValues((v) => ({ ...v, barcode: e.target.value }))}
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>

@@ -18,6 +18,7 @@ export async function addProduct(
   const stockRaw = formData.get("stock") as string;
   const minStockRaw = formData.get("minStock") as string;
   const emoji = (formData.get("emoji") as string)?.trim();
+  const barcode = (formData.get("barcode") as string)?.trim();
 
   if (!name) {
     return { error: "Nama produk wajib diisi." };
@@ -53,9 +54,13 @@ export async function addProduct(
     stock,
     min_stock: minStock,
     emoji: emoji || null,
+    barcode: barcode || null,
   });
 
   if (error) {
+    if (error.code === "23505") {
+      return { error: "Barcode ini sudah dipakai produk lain." };
+    }
     return { error: error.message };
   }
 
@@ -85,6 +90,7 @@ export async function editProduct(
   const costRaw = formData.get("cost") as string;
   const minStockRaw = formData.get("minStock") as string;
   const emoji = (formData.get("emoji") as string)?.trim();
+  const barcode = (formData.get("barcode") as string)?.trim();
 
   if (!name) {
     return { error: "Nama produk wajib diisi." };
@@ -115,11 +121,15 @@ export async function editProduct(
       cost,
       min_stock: minStock,
       emoji: emoji || null,
+      barcode: barcode || null,
     })
     .eq("id", productId)
     .eq("business_id", businessId);
 
   if (error) {
+    if (error.code === "23505") {
+      return { error: "Barcode ini sudah dipakai produk lain." };
+    }
     return { error: error.message };
   }
 

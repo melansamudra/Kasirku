@@ -27,7 +27,7 @@ export default async function ProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, category, price, cost, stock, min_stock, emoji")
+    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -67,6 +67,9 @@ export default async function ProductsPage({
                       </span>
                     )}
                   </p>
+                  {p.barcode && (
+                    <p className="text-[11px] text-zinc-400">🔖 {p.barcode}</p>
+                  )}
                   <Link
                     href={`/business/${businessId}/products/${p.id}/recipe`}
                     className="text-xs font-medium text-brand-600 hover:underline"
@@ -84,6 +87,7 @@ export default async function ProductsPage({
                   cost={Number(p.cost)}
                   minStock={Number(p.min_stock)}
                   emoji={p.emoji}
+                  barcode={p.barcode}
                   action={editProduct.bind(null, businessId, p.id)}
                 />
                 <AdjustStockForm

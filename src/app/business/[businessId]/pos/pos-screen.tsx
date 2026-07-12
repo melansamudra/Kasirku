@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,6 +23,7 @@ type Product = {
   cost: number;
   stock: number;
   emoji: string | null;
+  barcode: string | null;
 };
 
 type CartItem = {
@@ -110,6 +111,7 @@ export default function PosScreen({
     [customPaymentMethods],
   );
   const [search, setSearch] = useState("");
+  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOrderIds, setCartOrderIds] = useState<string[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -158,8 +160,33 @@ export default function PosScreen({
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q));
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.barcode?.toLowerCase() === q,
+    );
   }, [search, products]);
+
+  // Barcode scanners act like a keyboard: they type the code then send
+  // Enter. On Enter, an exact barcode match jumps straight into the cart
+  // instead of just filtering the grid.
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const timer = setTimeout(() => setScanFeedback(null), 2500);
+    return () => clearTimeout(timer);
+  }, [scanFeedback]);
+
+  function handleSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    const q = search.trim();
+    if (!q) return;
+    const match = products.find((p) => p.barcode === q);
+    if (match) {
+      addToCart(match);
+      setSearch("");
+      setScanFeedback(null);
+    } else if (products.some((p) => p.barcode)) {
+      setScanFeedback(`Barcode "${q}" tidak ditemukan.`);
+    }
+  }
 
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
@@ -600,13 +627,19 @@ export default function PosScreen({
       {/* Catalog */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari produk…"
-            className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Cari produk atau scan barcode…"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+            {scanFeedback && (
+              <p className="absolute left-0 top-full mt-1 text-xs text-red-600">{scanFeedback}</p>
+            )}
+          </div>
           <button
             onClick={() => setBillsOpen(true)}
             className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"

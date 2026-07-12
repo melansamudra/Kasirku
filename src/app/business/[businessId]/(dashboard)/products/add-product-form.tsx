@@ -35,6 +35,19 @@ export default function AddProductForm({
         />
       </div>
 
+      <div>
+        <label htmlFor="barcode" className="mb-1 block text-xs font-medium text-zinc-600">
+          Barcode (opsional)
+        </label>
+        <input
+          id="barcode"
+          name="barcode"
+          type="text"
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          placeholder="Scan atau ketik kode barcode"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="category" className="mb-1 block text-xs font-medium text-zinc-600">
