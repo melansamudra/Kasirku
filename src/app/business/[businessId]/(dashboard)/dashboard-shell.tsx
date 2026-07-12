@@ -71,37 +71,39 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
         { href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
       ],
     },
-    ...(isTiket
-      ? []
-      : [
-          {
-            title: "Akuntansi",
-            items: [
-              { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
-              {
-                href: `${base}/accounting/laba-rugi`,
-                label: "Laba Rugi (Akrual)",
-                icon: TrendingUp,
-              },
-              { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
-              { href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
-              { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
-              { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
-              { href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
-              {
-                href: `${base}/accounting/transfer-kas`,
-                label: "Transfer Kas/Bank",
-                icon: ArrowLeftRight,
-              },
-              {
-                href: `${base}/accounting/rekonsiliasi`,
-                label: "Rekonsiliasi Rekening",
-                icon: Landmark,
-              },
-              { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
-            ],
-          },
-        ]),
+    // Unlike the cash-basis "Keuangan" items above (which read straight from
+    // `transactions` and would show nothing for tiket, since ticket sales
+    // deliberately live in a separate table), everything here reads
+    // generically from `accounts`/`journal_lines` — now that ticket sales
+    // post to the journal too (see 20260712150000_ticket_journal_posting.sql),
+    // this group is accurate for tiket businesses as well.
+    {
+      title: "Akuntansi",
+      items: [
+        { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
+        {
+          href: `${base}/accounting/laba-rugi`,
+          label: "Laba Rugi (Akrual)",
+          icon: TrendingUp,
+        },
+        { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
+        { href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
+        { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
+        { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
+        { href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
+        {
+          href: `${base}/accounting/transfer-kas`,
+          label: "Transfer Kas/Bank",
+          icon: ArrowLeftRight,
+        },
+        {
+          href: `${base}/accounting/rekonsiliasi`,
+          label: "Rekonsiliasi Rekening",
+          icon: Landmark,
+        },
+        { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
+      ],
+    },
     {
       title: "Operasional",
       items: isTiket
