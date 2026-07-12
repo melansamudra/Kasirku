@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/app/dashboard/logout-button";
+import { activateSubscriptionManually } from "./actions";
+import ActivateSubscriptionForm from "./activate-subscription-form";
 
 type Stats = {
   total_businesses: number;
@@ -147,6 +149,7 @@ export default async function AdminPage() {
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Langganan</th>
                   <th className="px-5 py-3">Transaksi</th>
+                  <th className="px-5 py-3">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,12 +192,15 @@ export default async function AdminPage() {
                         )}
                       </td>
                       <td className="px-5 py-3 font-medium text-zinc-900">{b.tx_count}</td>
+                      <td className="px-5 py-3">
+                        <ActivateSubscriptionForm action={activateSubscriptionManually.bind(null, b.id)} />
+                      </td>
                     </tr>
                   );
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-sm text-zinc-400">
+                    <td colSpan={8} className="px-5 py-8 text-center text-sm text-zinc-400">
                       Belum ada toko terdaftar.
                     </td>
                   </tr>
