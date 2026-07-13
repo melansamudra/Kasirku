@@ -20,6 +20,8 @@ type TicketCategory = {
   price_weekday: number;
   price_holiday: number;
   member_price: number;
+  group_min_qty: number;
+  group_price: number | null;
 };
 
 function CategoryEditForm({
@@ -73,7 +75,7 @@ function CategoryEditForm({
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
-      <div className="col-span-2">
+      <div>
         <label className="mb-1 block text-[11px] text-zinc-500">Harga Member</label>
         <input
           name="memberPrice"
@@ -83,6 +85,30 @@ function CategoryEditForm({
           required
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
+      </div>
+      <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-zinc-200 pt-2">
+        <div>
+          <label className="mb-1 block text-[11px] text-zinc-500">Min. Qty Rombongan</label>
+          <input
+            name="groupMinQty"
+            type="number"
+            min="0"
+            defaultValue={category.group_min_qty || ""}
+            placeholder="0 = nonaktif"
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-zinc-500">Harga Rombongan</label>
+          <input
+            name="groupPrice"
+            type="number"
+            min="0"
+            defaultValue={category.group_price ?? ""}
+            placeholder="opsional"
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
       </div>
       {state.error && <p className="col-span-2 text-xs text-red-600">{state.error}</p>}
       <div className="col-span-2 flex gap-2">
@@ -141,6 +167,11 @@ function CategoryRow({ businessId, category }: { businessId: string; category: T
         Hari kerja {formatRupiah(category.price_weekday)} · Hari libur{" "}
         {formatRupiah(category.price_holiday)} · Member {formatRupiah(category.member_price)}
       </p>
+      {category.group_min_qty > 0 && category.group_price != null && (
+        <p className="mt-0.5 text-[11px] text-brand-600">
+          🎟️ Rombongan {category.group_min_qty}+ tiket: {formatRupiah(category.group_price)}
+        </p>
+      )}
     </div>
   );
 }
@@ -224,6 +255,26 @@ export default function TicketCategoriesSection({
             min="0"
             required
             placeholder="mis. 0"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-zinc-500">Min. Qty Rombongan</label>
+          <input
+            name="groupMinQty"
+            type="number"
+            min="0"
+            placeholder="0 = nonaktif"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-zinc-500">Harga Rombongan</label>
+          <input
+            name="groupPrice"
+            type="number"
+            min="0"
+            placeholder="opsional"
             className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>

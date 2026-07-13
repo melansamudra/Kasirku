@@ -4,10 +4,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { closeShift, type CloseShiftSummary } from "./actions";
-import { checkoutTicket, type TicketCartItemInput } from "./ticket-actions";
+import {
+  checkoutTicket,
+  type CheckoutTicketResult,
+  type TicketCartItemInput,
+} from "./ticket-actions";
 import { calculateTicketTotals, ticketUnitPrice } from "@/lib/ticket-checkout-totals";
 import SwitchCashierButton from "./switch-cashier-button";
+import OfflineStatus from "./offline-status";
 import MemberPanel, { type FullMember, type SelectedMember } from "./member-panel";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { enqueueSale } from "@/lib/offline-queue";
+import { withTimeout } from "@/lib/with-timeout";
 
 type TicketCategory = {
   id: string;
@@ -15,6 +23,8 @@ type TicketCategory = {
   priceWeekday: number;
   priceHoliday: number;
   memberPrice: number;
+  groupMinQty: number;
+  groupPrice: number | null;
 };
 
 const BUILTIN_PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
@@ -67,6 +77,9 @@ export default function TicketPosScreen({
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
   const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
+  const [successOffline, setSuccessOffline] = useState(false);
+
+  const { isOnline, pending, syncNow, discard } = useOfflineSync(businessId);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -75,8 +88,8 @@ export default function TicketPosScreen({
   const [closeSubmitting, setCloseSubmitting] = useState(false);
   const [closedSummary, setClosedSummary] = useState<CloseShiftSummary | null>(null);
 
-  function unitPriceFor(category: TicketCategory) {
-    return ticketUnitPrice(category, { isMember: !!member, isHoliday });
+  function unitPriceFor(category: TicketCategory, qty: number) {
+    return ticketUnitPrice(category, { isMember: !!member, isHoliday, qty });
   }
 
   function addUnit(categoryId: string) {
@@ -117,11 +130,10 @@ export default function TicketPosScreen({
 
   const cartLines = categories
     .filter((c) => (unitsByCategory[c.id] ?? []).length > 0)
-    .map((c) => ({
-      category: c,
-      units: unitsByCategory[c.id] ?? [],
-      unitPrice: unitPriceFor(c),
-    }));
+    .map((c) => {
+      const units = unitsByCategory[c.id] ?? [];
+      return { category: c, units, unitPrice: unitPriceFor(c, units.length) };
+    });
 
   const { subtotal, serviceAmt, taxAmt, total } = calculateTicketTotals({
     lines: cartLines.map((l) => ({ unitPrice: l.unitPrice, qty: l.units.length })),
@@ -148,16 +160,53 @@ export default function TicketPosScreen({
       ticketCategoryId: l.category.id,
       manualNumbers: l.units.map((u) => u.trim()),
     }));
+    const receivedForCheckout = paymentMethod === "Tunai" ? receivedAmount : total;
+    const clientRef = crypto.randomUUID();
 
     setSubmitting(true);
-    const result = await checkoutTicket(
-      businessId,
-      cashierId,
-      items,
-      paymentMethod,
-      paymentMethod === "Tunai" ? receivedAmount : total,
-      member?.id ?? null,
-    );
+
+    let result: CheckoutTicketResult;
+    try {
+      result = await withTimeout(
+        checkoutTicket(
+          businessId,
+          cashierId,
+          items,
+          paymentMethod,
+          receivedForCheckout,
+          member?.id ?? null,
+          clientRef,
+        ),
+        10000,
+      );
+    } catch {
+      // Jaringan bermasalah — simpan ke antrian offline, sama seperti
+      // pos-screen.tsx. Catatan: nomor tiket fisik baru divalidasi unik saat
+      // sync ke server (lihat OfflineStatus) — kalau dua kasir offline
+      // kebetulan pakai nomor fisik sama, salah satunya akan ditandai
+      // "perlu ditinjau" saat sync, bukan dicegah di sini.
+      await enqueueSale({
+        clientRef,
+        businessId,
+        kind: "ticket",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+        payload: {
+          cashierId,
+          items,
+          paymentMethod,
+          received: receivedForCheckout,
+          memberId: member?.id ?? null,
+        },
+      });
+
+      setSubmitting(false);
+      setSuccessOffline(true);
+      setSuccessInvoice(`OFFLINE-${clientRef.slice(0, 8).toUpperCase()}`);
+      setSuccessTransactionId(null);
+      void syncNow();
+      return;
+    }
     setSubmitting(false);
 
     if (!result.success) {
@@ -165,6 +214,7 @@ export default function TicketPosScreen({
       return;
     }
 
+    setSuccessOffline(false);
     setSuccessInvoice(result.invoiceNumber);
     setSuccessTransactionId(result.transactionId);
   }
@@ -193,6 +243,7 @@ export default function TicketPosScreen({
   function resetForNextTransaction() {
     setSuccessInvoice(null);
     setSuccessTransactionId(null);
+    setSuccessOffline(false);
     setUnitsByCategory({});
     setMember(null);
     setPaying(false);
@@ -209,6 +260,12 @@ export default function TicketPosScreen({
           </div>
           <h1 className="text-lg font-bold text-zinc-900">Tiket berhasil terbit</h1>
           <p className="mt-1 text-sm text-zinc-500">No. Tiket: {successInvoice}</p>
+          {successOffline && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Tersimpan offline — nomor tiket final & cetak struk baru tersedia setelah
+              tersinkron otomatis ke server.
+            </p>
+          )}
           {successTransactionId && (
             <Link
               href={`/business/${businessId}/ticket-reports/${successTransactionId}/receipt`}
@@ -356,13 +413,21 @@ export default function TicketPosScreen({
             <h1 className="text-lg font-bold text-zinc-900">{businessName}</h1>
             <p className="text-xs text-zinc-500">Kasir: {cashierName}</p>
           </div>
-          <span
-            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-              isHoliday ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-600"
-            }`}
-          >
-            {isHoliday ? "🌴 Hari Libur" : "📅 Hari Kerja"}
-          </span>
+          <div className="flex items-center gap-2">
+            <OfflineStatus
+              isOnline={isOnline}
+              pending={pending}
+              onSyncNow={() => void syncNow()}
+              onDiscard={discard}
+            />
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                isHoliday ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-600"
+              }`}
+            >
+              {isHoliday ? "🌴 Hari Libur" : "📅 Hari Kerja"}
+            </span>
+          </div>
         </div>
 
         <MemberPanel
@@ -376,7 +441,9 @@ export default function TicketPosScreen({
         <div className="space-y-3">
           {categories.map((c) => {
             const units = unitsByCategory[c.id] ?? [];
-            const price = unitPriceFor(c);
+            const price = unitPriceFor(c, units.length);
+            const groupActive =
+              c.groupMinQty > 0 && c.groupPrice != null && units.length >= c.groupMinQty;
             return (
               <div key={c.id} className="rounded-xl bg-white shadow-sm p-4">
                 <div className="flex items-center justify-between">
@@ -386,7 +453,13 @@ export default function TicketPosScreen({
                       {formatRupiah(price)}
                       {units.length > 0 &&
                         ` · ${units.length} tiket · ${formatRupiah(price * units.length)}`}
+                      {groupActive && " · 🎟️ harga rombongan"}
                     </p>
+                    {c.groupMinQty > 0 && c.groupPrice != null && !groupActive && (
+                      <p className="text-[10px] text-brand-600">
+                        Beli {c.groupMinQty}+ dapat harga rombongan {formatRupiah(c.groupPrice)}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => addUnit(c.id)}

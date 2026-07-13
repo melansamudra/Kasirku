@@ -79,7 +79,9 @@ export default async function PosPage({
     ] = await Promise.all([
       supabase
         .from("ticket_categories")
-        .select("id, name, price_weekday, price_holiday, member_price")
+        .select(
+          "id, name, price_weekday, price_holiday, member_price, group_min_qty, group_price",
+        )
         .eq("business_id", businessId)
         .eq("active", true)
         .is("deleted_at", null)
@@ -117,6 +119,8 @@ export default async function PosPage({
           priceWeekday: Number(c.price_weekday),
           priceHoliday: Number(c.price_holiday),
           memberPrice: Number(c.member_price),
+          groupMinQty: Number(c.group_min_qty),
+          groupPrice: c.group_price == null ? null : Number(c.group_price),
         }))}
         members={(memberRows ?? []).map((m) => ({
           id: m.id,

@@ -104,6 +104,8 @@ type ParsedTicketCategoryFields =
       priceWeekday: number;
       priceHoliday: number;
       memberPrice: number;
+      groupMinQty: number;
+      groupPrice: number | null;
     };
 
 function parseTicketCategoryFields(formData: FormData): ParsedTicketCategoryFields {
@@ -111,6 +113,8 @@ function parseTicketCategoryFields(formData: FormData): ParsedTicketCategoryFiel
   const priceWeekday = Number(formData.get("priceWeekday"));
   const priceHoliday = Number(formData.get("priceHoliday"));
   const memberPrice = Number(formData.get("memberPrice"));
+  const groupMinQtyRaw = (formData.get("groupMinQty") as string)?.trim();
+  const groupPriceRaw = (formData.get("groupPrice") as string)?.trim();
 
   if (!name) return { error: "Nama kategori wajib diisi." };
   if (Number.isNaN(priceWeekday) || priceWeekday < 0) {
@@ -123,7 +127,16 @@ function parseTicketCategoryFields(formData: FormData): ParsedTicketCategoryFiel
     return { error: "Harga member harus angka dan tidak boleh negatif." };
   }
 
-  return { error: null, name, priceWeekday, priceHoliday, memberPrice };
+  const groupMinQty = groupMinQtyRaw ? Number(groupMinQtyRaw) : 0;
+  if (Number.isNaN(groupMinQty) || groupMinQty < 0) {
+    return { error: "Minimal qty rombongan harus angka dan tidak boleh negatif." };
+  }
+  const groupPrice = groupPriceRaw ? Number(groupPriceRaw) : null;
+  if (groupPrice !== null && (Number.isNaN(groupPrice) || groupPrice < 0)) {
+    return { error: "Harga rombongan harus angka dan tidak boleh negatif." };
+  }
+
+  return { error: null, name, priceWeekday, priceHoliday, memberPrice, groupMinQty, groupPrice };
 }
 
 export async function addTicketCategory(
@@ -141,6 +154,8 @@ export async function addTicketCategory(
     price_weekday: parsed.priceWeekday,
     price_holiday: parsed.priceHoliday,
     member_price: parsed.memberPrice,
+    group_min_qty: parsed.groupMinQty,
+    group_price: parsed.groupPrice,
   });
 
   if (error) {
@@ -178,6 +193,8 @@ export async function updateTicketCategory(
       price_weekday: parsed.priceWeekday,
       price_holiday: parsed.priceHoliday,
       member_price: parsed.memberPrice,
+      group_min_qty: parsed.groupMinQty,
+      group_price: parsed.groupPrice,
     })
     .eq("id", categoryId)
     .eq("business_id", businessId);

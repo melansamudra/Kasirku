@@ -1,20 +1,46 @@
 import { describe, expect, it } from "vitest";
 import { calculateTicketTotals, ticketUnitPrice } from "./ticket-checkout-totals";
 
-const category = { priceWeekday: 25000, priceHoliday: 35000, memberPrice: 0 };
+const category = {
+  priceWeekday: 25000,
+  priceHoliday: 35000,
+  memberPrice: 0,
+  groupMinQty: 0,
+  groupPrice: null,
+};
+
+const categoryWithGroup = { ...category, groupMinQty: 10, groupPrice: 20000 };
 
 describe("ticketUnitPrice", () => {
   it("uses the weekday price on a regular day", () => {
-    expect(ticketUnitPrice(category, { isMember: false, isHoliday: false })).toBe(25000);
+    expect(ticketUnitPrice(category, { isMember: false, isHoliday: false, qty: 1 })).toBe(25000);
   });
 
   it("uses the holiday price on a holiday", () => {
-    expect(ticketUnitPrice(category, { isMember: false, isHoliday: true })).toBe(35000);
+    expect(ticketUnitPrice(category, { isMember: false, isHoliday: true, qty: 1 })).toBe(35000);
   });
 
   it("uses the member price regardless of holiday", () => {
-    expect(ticketUnitPrice(category, { isMember: true, isHoliday: false })).toBe(0);
-    expect(ticketUnitPrice(category, { isMember: true, isHoliday: true })).toBe(0);
+    expect(ticketUnitPrice(category, { isMember: true, isHoliday: false, qty: 1 })).toBe(0);
+    expect(ticketUnitPrice(category, { isMember: true, isHoliday: true, qty: 1 })).toBe(0);
+  });
+
+  it("ignores group pricing when qty is below the threshold", () => {
+    expect(
+      ticketUnitPrice(categoryWithGroup, { isMember: false, isHoliday: false, qty: 9 }),
+    ).toBe(25000);
+  });
+
+  it("uses the group price once qty reaches the threshold", () => {
+    expect(
+      ticketUnitPrice(categoryWithGroup, { isMember: false, isHoliday: true, qty: 10 }),
+    ).toBe(20000);
+  });
+
+  it("prefers member price over group price even if qty qualifies", () => {
+    expect(
+      ticketUnitPrice(categoryWithGroup, { isMember: true, isHoliday: false, qty: 10 }),
+    ).toBe(0);
   });
 });
 

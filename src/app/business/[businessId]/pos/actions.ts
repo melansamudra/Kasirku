@@ -63,7 +63,7 @@ export type CheckoutResult =
   | { success: true; invoiceNumber: string; transactionId: string }
   | { success: false; error: string };
 
-type CheckoutRpcRow = { transaction_id: string; invoice_number: string };
+type CheckoutRpcRow = { transaction_id: string; invoice_number: string; already_existed: boolean };
 
 export async function checkout(
   businessId: string,
@@ -75,6 +75,12 @@ export async function checkout(
   orderDiscType: DiscountType,
   customerId: string | null = null,
   selfOrderIds: string[] = [],
+  // Dibuat sekali di browser per penjualan (crypto.randomUUID()) dan dikirim
+  // ulang apa adanya kalau ini retry dari antrian offline — RPC memakainya
+  // untuk mengenali retry yang mengulang penjualan yang sebenarnya sudah
+  // sukses (respons sebelumnya tidak sempat sampai ke browser), supaya tidak
+  // membuat transaksi duplikat. Lihat src/hooks/use-offline-sync.ts.
+  clientRef: string | null = null,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -97,6 +103,7 @@ export async function checkout(
       p_order_disc_type: orderDiscType,
       p_customer_id: customerId,
       p_self_order_ids: selfOrderIds.length > 0 ? selfOrderIds : null,
+      p_client_ref: clientRef,
     })
     .single();
 
@@ -105,23 +112,28 @@ export async function checkout(
   }
 
   const result = data as CheckoutRpcRow;
-  const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
-  await logActivity(
-    supabase,
-    businessId,
-    "transaksi",
-    "sukses",
-    `Transaksi ${result.invoice_number}`,
-    `${itemCount} item · ${paymentMethod}`,
-  );
 
-  await printKitchenTicketsForItems(
-    supabase,
-    businessId,
-    "Kasir",
-    result.invoice_number,
-    items.map((i) => ({ productId: i.productId, qty: i.qty })),
-  );
+  // Retry offline yang ternyata sudah pernah sukses sebelumnya — jangan catat
+  // aktivitas/cetak dapur dua kali untuk penjualan yang sama.
+  if (!result.already_existed) {
+    const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
+    await logActivity(
+      supabase,
+      businessId,
+      "transaksi",
+      "sukses",
+      `Transaksi ${result.invoice_number}`,
+      `${itemCount} item · ${paymentMethod}`,
+    );
+
+    await printKitchenTicketsForItems(
+      supabase,
+      businessId,
+      "Kasir",
+      result.invoice_number,
+      items.map((i) => ({ productId: i.productId, qty: i.qty })),
+    );
+  }
 
   return { success: true, invoiceNumber: result.invoice_number, transactionId: result.transaction_id };
 }

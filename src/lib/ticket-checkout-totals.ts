@@ -2,16 +2,23 @@ export type TicketCategoryPricing = {
   priceWeekday: number;
   priceHoliday: number;
   memberPrice: number;
+  groupMinQty: number;
+  groupPrice: number | null;
 };
 
-// Member price selalu menang, tidak peduli hari libur atau bukan — sama
-// seperti checkout_ticket_transaction di database (lihat migration
-// 20260706200000_ticket_venue.sql).
+// Precedence mirrors checkout_ticket_transaction in the database (see
+// migration 20260712160000_ticket_group_pricing.sql): member price always
+// wins; otherwise, once qty in this category reaches groupMinQty, every
+// ticket in that category for this cart gets groupPrice; otherwise
+// weekday/holiday as usual.
 export function ticketUnitPrice(
   category: TicketCategoryPricing,
-  opts: { isMember: boolean; isHoliday: boolean },
+  opts: { isMember: boolean; isHoliday: boolean; qty: number },
 ): number {
   if (opts.isMember) return category.memberPrice;
+  if (category.groupMinQty > 0 && category.groupPrice != null && opts.qty >= category.groupMinQty) {
+    return category.groupPrice;
+  }
   return opts.isHoliday ? category.priceHoliday : category.priceWeekday;
 }
 

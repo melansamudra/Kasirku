@@ -37,13 +37,17 @@ export default async function SettingsPage({
     price_weekday: number;
     price_holiday: number;
     member_price: number;
+    group_min_qty: number;
+    group_price: number | null;
   }[] = [];
   let ticketHolidays: { id: string; holiday_date: string; label: string | null }[] = [];
 
   if (isTiket) {
     const { data: categoryRows } = await supabase
       .from("ticket_categories")
-      .select("id, name, price_weekday, price_holiday, member_price")
+      .select(
+        "id, name, price_weekday, price_holiday, member_price, group_min_qty, group_price",
+      )
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true });
@@ -52,6 +56,8 @@ export default async function SettingsPage({
       price_weekday: Number(c.price_weekday),
       price_holiday: Number(c.price_holiday),
       member_price: Number(c.member_price),
+      group_min_qty: Number(c.group_min_qty),
+      group_price: c.group_price == null ? null : Number(c.group_price),
     }));
 
     const { data: holidayRows } = await supabase

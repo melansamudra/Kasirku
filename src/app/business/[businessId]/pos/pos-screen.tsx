@@ -9,11 +9,16 @@ import {
   deleteOpenBill,
   saveOpenBill,
   updateSelfOrderStatus,
+  type CheckoutResult,
   type CloseShiftSummary,
   type DiscountType,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
+import OfflineStatus from "./offline-status";
 import { itemDiscAmount, calculateCheckoutTotals } from "@/lib/checkout-totals";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
+import { withTimeout } from "@/lib/with-timeout";
 
 type Product = {
   id: string;
@@ -151,6 +156,16 @@ export default function PosScreen({
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
   const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
+  const [successOffline, setSuccessOffline] = useState(false);
+
+  const { isOnline, pending, syncNow, discard } = useOfflineSync(businessId);
+  const effectiveProducts = useMemo(() => {
+    const deltas = pendingStockDeltas(pending);
+    if (Object.keys(deltas).length === 0) return products;
+    return products.map((p) =>
+      deltas[p.id] ? { ...p, stock: Math.max(0, p.stock - deltas[p.id]) } : p,
+    );
+  }, [products, pending]);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -161,14 +176,14 @@ export default function PosScreen({
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    if (!q) return effectiveProducts;
+    return effectiveProducts.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.barcode?.toLowerCase() === q ||
         p.sku?.toLowerCase() === q,
     );
-  }, [search, products]);
+  }, [search, effectiveProducts]);
 
   // Variants are just extra product rows sharing the same name — group them
   // here purely for display, no schema relationship involved.
@@ -211,12 +226,12 @@ export default function PosScreen({
     if (e.key !== "Enter") return;
     const q = search.trim();
     if (!q) return;
-    const match = products.find((p) => p.barcode === q || p.sku === q);
+    const match = effectiveProducts.find((p) => p.barcode === q || p.sku === q);
     if (match) {
       addToCart(match);
       setSearch("");
       setScanFeedback(null);
-    } else if (products.some((p) => p.barcode || p.sku)) {
+    } else if (effectiveProducts.some((p) => p.barcode || p.sku)) {
       setScanFeedback(`"${q}" tidak ditemukan.`);
     }
   }
@@ -332,7 +347,7 @@ export default function PosScreen({
     const skipped: string[] = [];
 
     for (const item of bill.items) {
-      const product = products.find((p) => p.id === item.product_id);
+      const product = effectiveProducts.find((p) => p.id === item.product_id);
       if (!product) {
         skipped.push(item.name);
         continue;
@@ -391,7 +406,7 @@ export default function PosScreen({
 
     for (const item of order.items) {
       const product = item.productId
-        ? products.find((p) => p.id === item.productId)
+        ? effectiveProducts.find((p) => p.id === item.productId)
         : undefined;
       if (!product) {
         skipped.push(item.name);
@@ -439,22 +454,74 @@ export default function PosScreen({
     }
 
     setSubmitting(true);
-    const result = await checkout(
-      businessId,
-      cashierId,
-      cart.map((i) => ({
-        productId: i.productId,
-        qty: i.qty,
-        disc: i.disc,
-        discType: i.discType,
-      })),
-      paymentMethod,
-      paymentMethod === "Tunai" ? receivedAmount : total,
-      orderDisc,
-      orderDiscType,
-      selectedCustomer?.id ?? null,
-      cartOrderIds,
-    );
+
+    const itemsPayload = cart.map((i) => ({
+      productId: i.productId,
+      qty: i.qty,
+      disc: i.disc,
+      discType: i.discType,
+    }));
+    const receivedForCheckout = paymentMethod === "Tunai" ? receivedAmount : total;
+    const clientRef = crypto.randomUUID();
+
+    let result: CheckoutResult;
+    try {
+      result = await withTimeout(
+        checkout(
+          businessId,
+          cashierId,
+          itemsPayload,
+          paymentMethod,
+          receivedForCheckout,
+          orderDisc,
+          orderDiscType,
+          selectedCustomer?.id ?? null,
+          cartOrderIds,
+          clientRef,
+        ),
+        10000,
+      );
+    } catch {
+      // Jaringan bermasalah (fetch gagal total / macet >10 detik) — simpan
+      // ke antrian offline dan tetap tampilkan sukses ke kasir. clientRef
+      // yang sama menjamin retry lewat antrian tidak membuat transaksi
+      // duplikat kalaupun request asli ternyata belakangan tetap sukses.
+      await enqueueSale({
+        clientRef,
+        businessId,
+        kind: "retail",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+        payload: {
+          cashierId,
+          items: itemsPayload,
+          paymentMethod,
+          received: receivedForCheckout,
+          orderDisc,
+          orderDiscType,
+          customerId: selectedCustomer?.id ?? null,
+          selfOrderIds: cartOrderIds,
+        },
+      });
+
+      setSubmitting(false);
+      setSuccessOffline(true);
+      setSuccessInvoice(`OFFLINE-${clientRef.slice(0, 8).toUpperCase()}`);
+      setSuccessTransactionId(null);
+      setCart([]);
+      setCartOrderIds([]);
+      setPaying(false);
+      setReceived("");
+      setOrderDisc(0);
+      setOrderDiscType("pct");
+      setOrderDiscOpen(false);
+      setEditingDiscId(null);
+      setSelectedCustomer(null);
+      setCustomerPickerOpen(false);
+      setCustomerSearch("");
+      void syncNow();
+      return;
+    }
     setSubmitting(false);
 
     if (!result.success) {
@@ -462,12 +529,15 @@ export default function PosScreen({
       return;
     }
 
-    // Bon yang dimuat sudah dibayar — bereskan dari daftar.
-    if (activeBill) {
+    // Bon yang dimuat sudah dibayar — bereskan dari daftar. Dilewati kalau
+    // koneksi sedang bermasalah (deleteOpenBill juga butuh network); bon
+    // akan tetap ada di daftar sampai dihapus manual.
+    if (activeBill && isOnline) {
       await deleteOpenBill(businessId, activeBill.id);
       setActiveBill(null);
     }
 
+    setSuccessOffline(false);
     setSuccessInvoice(result.invoiceNumber);
     setSuccessTransactionId(result.transactionId);
     setCart([]);
@@ -513,6 +583,12 @@ export default function PosScreen({
           </div>
           <h1 className="text-lg font-bold text-zinc-900">Transaksi berhasil</h1>
           <p className="mt-1 text-sm text-zinc-500">No. Struk: {successInvoice}</p>
+          {successOffline && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Tersimpan offline — nomor struk final & cetak struk baru tersedia setelah
+              tersinkron otomatis ke server.
+            </p>
+          )}
           {successTransactionId && (
             <Link
               href={`/business/${businessId}/transactions/${successTransactionId}/receipt`}
@@ -526,6 +602,7 @@ export default function PosScreen({
             onClick={() => {
               setSuccessInvoice(null);
               setSuccessTransactionId(null);
+              setSuccessOffline(false);
               router.refresh();
             }}
             className="mt-3 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
@@ -697,6 +774,7 @@ export default function PosScreen({
               )}
             </button>
           )}
+          <OfflineStatus isOnline={isOnline} pending={pending} onSyncNow={() => void syncNow()} onDiscard={discard} />
           <div className="text-right">
             <p className="text-xs font-semibold text-zinc-700">{cashierName}</p>
             <p className="text-[10px] text-zinc-400">{businessName}</p>
@@ -706,7 +784,7 @@ export default function PosScreen({
         <div className="flex-1 overflow-y-auto p-4">
           {filteredProducts.length === 0 ? (
             <p className="mt-10 text-center text-sm text-zinc-400">
-              {products.length === 0
+              {effectiveProducts.length === 0
                 ? "Belum ada produk. Tambahkan dulu di halaman Kelola Produk."
                 : "Produk tidak ditemukan."}
             </p>

@@ -12,7 +12,7 @@ export type CheckoutTicketResult =
   | { success: true; invoiceNumber: string; transactionId: string }
   | { success: false; error: string };
 
-type CheckoutTicketRpcRow = { transaction_id: string; invoice_number: string };
+type CheckoutTicketRpcRow = { transaction_id: string; invoice_number: string; already_existed: boolean };
 
 export async function checkoutTicket(
   businessId: string,
@@ -21,6 +21,9 @@ export async function checkoutTicket(
   paymentMethod: string,
   received: number | null,
   memberId: string | null = null,
+  // Lihat komentar clientRef di actions.ts `checkout()` — pola idempotency
+  // retry yang sama, dipakai src/hooks/use-offline-sync.ts.
+  clientRef: string | null = null,
 ): Promise<CheckoutTicketResult> {
   if (items.length === 0 || items.every((i) => i.manualNumbers.length === 0)) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -38,6 +41,7 @@ export async function checkoutTicket(
       p_payment_method: paymentMethod,
       p_received: received,
       p_member_id: memberId,
+      p_client_ref: clientRef,
     })
     .single();
 
@@ -52,15 +56,18 @@ export async function checkoutTicket(
   }
 
   const result = data as CheckoutTicketRpcRow;
-  const itemCount = items.reduce((sum, i) => sum + i.manualNumbers.length, 0);
-  await logActivity(
-    supabase,
-    businessId,
-    "transaksi",
-    "sukses",
-    `Tiket ${result.invoice_number}`,
-    `${itemCount} tiket · ${paymentMethod}`,
-  );
+
+  if (!result.already_existed) {
+    const itemCount = items.reduce((sum, i) => sum + i.manualNumbers.length, 0);
+    await logActivity(
+      supabase,
+      businessId,
+      "transaksi",
+      "sukses",
+      `Tiket ${result.invoice_number}`,
+      `${itemCount} tiket · ${paymentMethod}`,
+    );
+  }
 
   return {
     success: true,
