@@ -99,6 +99,18 @@ export function useOfflineSync(businessId: string) {
   );
 
   useEffect(() => {
+    // Fase 2 (cold-start offline): daftarkan service worker yang cache
+    // halaman POS + aset statis, supaya reload/buka tab saat benar-benar
+    // offline masih bisa menampilkan UI terakhir (lihat public/sw.js).
+    // Idempotent — aman dipanggil di setiap mount/businessId berganti.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
     listPending(businessId).then(setPending);
 
     function handleOnline() {
