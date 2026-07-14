@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionAccess } from "@/lib/billing/status";
+import { isFinancePlan } from "@/lib/billing/plans";
 import DashboardShell from "./dashboard-shell";
 
 export default async function BusinessDashboardLayout({
@@ -34,6 +35,7 @@ export default async function BusinessDashboardLayout({
       businessType={business.business_type as "fnb" | "retail" | "tiket"}
       userEmail={userData.user?.email ?? ""}
       billingPastDuePeriodEnd={access.status === "past_due" ? access.periodEnd : null}
+      isFinanceOnly={isFinancePlan(access.planCode)}
     >
       {children}
     </DashboardShell>

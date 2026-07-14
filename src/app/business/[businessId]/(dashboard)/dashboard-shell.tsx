@@ -49,7 +49,11 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string; items: NavItem[] };
 type BusinessType = "fnb" | "retail" | "tiket";
 
-function buildNavGroups(businessId: string, businessType: BusinessType): NavGroup[] {
+function buildNavGroups(
+  businessId: string,
+  businessType: BusinessType,
+  isFinanceOnly: boolean,
+): NavGroup[] {
   const isFnb = businessType === "fnb";
   const isTiket = businessType === "tiket";
   const base = `/business/${businessId}`;
@@ -104,34 +108,41 @@ function buildNavGroups(businessId: string, businessType: BusinessType): NavGrou
         { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
       ],
     },
-    {
-      title: "Operasional",
-      items: isTiket
-        ? [
-            { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
-            { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
-            { href: `${base}/members`, label: "Anggota", icon: UserCircle },
-          ]
-        : [
-            { href: `${base}/products`, label: "Kelola Produk", icon: Package },
-            ...(isFnb
+    // Businesses on a Finance Only plan already have their own POS elsewhere
+    // — this whole group (and the "Buka Kasir" button below) is irrelevant
+    // to them, so it's omitted entirely rather than just left empty.
+    ...(isFinanceOnly
+      ? []
+      : [
+          {
+            title: "Operasional",
+            items: isTiket
               ? [
-                  { href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
-                  { href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag },
-                  {
-                    href: `${base}/tables`,
-                    label: "Meja & Self-Order",
-                    icon: UtensilsCrossed,
-                  },
+                  { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
+                  { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
+                  { href: `${base}/members`, label: "Anggota", icon: UserCircle },
                 ]
-              : []),
-            { href: `${base}/customers`, label: "Pelanggan", icon: Users },
-            { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
-            { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
-            { href: `${base}/suppliers`, label: "Supplier", icon: Store },
-            { href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
-          ],
-    },
+              : [
+                  { href: `${base}/products`, label: "Kelola Produk", icon: Package },
+                  ...(isFnb
+                    ? [
+                        { href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+                        { href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag },
+                        {
+                          href: `${base}/tables`,
+                          label: "Meja & Self-Order",
+                          icon: UtensilsCrossed,
+                        },
+                      ]
+                    : []),
+                  { href: `${base}/customers`, label: "Pelanggan", icon: Users },
+                  { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
+                  { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+                  { href: `${base}/suppliers`, label: "Supplier", icon: Store },
+                  { href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
+                ],
+          },
+        ]),
     {
       title: "SDM",
       items: [
@@ -173,6 +184,7 @@ function SidebarContent({
   businessId,
   businessName,
   businessType,
+  isFinanceOnly,
   pathname,
   onNavigate,
   showLogout = true,
@@ -180,11 +192,12 @@ function SidebarContent({
   businessId: string;
   businessName: string;
   businessType: BusinessType;
+  isFinanceOnly: boolean;
   pathname: string;
   onNavigate?: () => void;
   showLogout?: boolean;
 }) {
-  const groups = buildNavGroups(businessId, businessType);
+  const groups = buildNavGroups(businessId, businessType, isFinanceOnly);
   const activeHref = useActiveHref(groups, pathname);
   const activeGroupTitle = activeGroupTitleOf(groups, activeHref);
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupTitle);
@@ -210,16 +223,18 @@ function SidebarContent({
         </div>
       </div>
 
-      <div className="px-3 pt-4">
-        <Link
-          href={`/business/${businessId}/pos`}
-          onClick={onNavigate}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-          Buka Kasir
-        </Link>
-      </div>
+      {!isFinanceOnly && (
+        <div className="px-3 pt-4">
+          <Link
+            href={`/business/${businessId}/pos`}
+            onClick={onNavigate}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+            Buka Kasir
+          </Link>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {groups.map((group) => {
@@ -317,6 +332,7 @@ export default function DashboardShell({
   businessType,
   userEmail,
   billingPastDuePeriodEnd,
+  isFinanceOnly = false,
   children,
 }: {
   businessId: string;
@@ -324,6 +340,7 @@ export default function DashboardShell({
   businessType: BusinessType;
   userEmail: string;
   billingPastDuePeriodEnd?: string | null;
+  isFinanceOnly?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -338,6 +355,7 @@ export default function DashboardShell({
             businessId={businessId}
             businessName={businessName}
             businessType={businessType}
+            isFinanceOnly={isFinanceOnly}
             pathname={pathname}
             showLogout={false}
           />
@@ -356,6 +374,7 @@ export default function DashboardShell({
               businessId={businessId}
               businessName={businessName}
               businessType={businessType}
+              isFinanceOnly={isFinanceOnly}
               pathname={pathname}
               onNavigate={() => setMobileNavOpen(false)}
             />
