@@ -66,24 +66,6 @@ export default async function AttendancePage({
     (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
 
-  // ── Rekap bulan berjalan (berdasarkan tanggal yang sedang dilihat) ──
-  const monthStart = `${date.slice(0, 7)}-01`;
-  const { data: monthRows } = await supabase
-    .from("attendance")
-    .select("employee_id, status")
-    .eq("business_id", businessId)
-    .gte("date", monthStart)
-    .lte("date", date);
-
-  const recap = new Map<string, Record<AttendanceStatus, number>>();
-  for (const e of employees ?? []) {
-    recap.set(e.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
-  }
-  for (const r of monthRows ?? []) {
-    const entry = recap.get(r.employee_id);
-    if (entry) entry[r.status as AttendanceStatus] += 1;
-  }
-
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Absensi — {business.name}</h1>
@@ -132,30 +114,13 @@ export default async function AttendancePage({
         </div>
 
         {employees && employees.length > 0 && (
-          <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
-            <div className="border-b border-zinc-100 px-4 py-3">
-              <h2 className="text-sm font-bold text-zinc-900">Rekap Bulan Ini</h2>
-              <p className="mt-0.5 text-[11px] text-zinc-400">
-                {monthStart.slice(0, 7)} sampai {date}
-              </p>
-            </div>
-            <div className="divide-y divide-zinc-100">
-              {employees.map((e) => {
-                const r = recap.get(e.id)!;
-                return (
-                  <div key={e.id} className="flex items-center justify-between px-4 py-2.5">
-                    <span className="text-xs font-medium text-zinc-700">{e.name}</span>
-                    <span className="text-[11px] text-zinc-500">
-                      <span className="text-brand-700">{r.hadir} hadir</span> ·{" "}
-                      <span className="text-amber-600">{r.izin} izin</span> ·{" "}
-                      <span className="text-blue-600">{r.sakit} sakit</span> ·{" "}
-                      <span className="text-red-600">{r.alpa} alpa</span>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <Link
+            href={`/business/${businessId}/attendance/rekap`}
+            className="mt-6 flex items-center justify-between rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
+          >
+            Lihat Rekap Bulanan
+            <span className="text-brand-600">→</span>
+          </Link>
         )}
     </div>
   );
