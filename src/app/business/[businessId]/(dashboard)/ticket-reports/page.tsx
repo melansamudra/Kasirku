@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
+  PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
-  PERIOD_LABELS,
   REPORT_TIMEZONE,
   getPeriodRange,
   parsePeriod,
-  type Period,
 } from "../reports/period";
+import PeriodTabs from "../reports/period-tabs";
 
 const DONUT_PALETTE = ["#0f766e", "#34d399", "#fcd34d", "#a78bfa", "#fb923c", "#60a5fa", "#f87171"];
 
@@ -84,7 +85,8 @@ export default async function TicketReportsPage({
     serialFrom,
     serialTo,
   } = await searchParams;
-  const period = parsePeriod(periodParam);
+  const cookieStore = await cookies();
+  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
@@ -214,19 +216,11 @@ export default async function TicketReportsPage({
           <h1 className="text-lg font-bold text-zinc-900">Laporan Tiket — {business.name}</h1>
           <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
-            <Link
-              key={p}
-              href={`/business/${businessId}/ticket-reports?period=${p}&${filterQuery.toString()}`}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                p === period ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
-              }`}
-            >
-              {PERIOD_LABELS[p]}
-            </Link>
-          ))}
-        </div>
+        <PeriodTabs
+          basePath={`/business/${businessId}/ticket-reports`}
+          period={period}
+          extraQuery={filterQuery.toString()}
+        />
       </div>
 
       {/* KPI */}

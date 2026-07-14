@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import {
+  PERIOD_COOKIE_NAME,
+  PERIOD_DESCRIPTIONS,
+  getPeriodRange,
+  parsePeriod,
+} from "../reports/period";
+import PeriodTabs from "../reports/period-tabs";
 import { addExpense, addReconciliation, setOpeningInventory } from "./actions";
 import AddExpenseForm from "./add-expense-form";
 import AddReconciliationForm from "./add-reconciliation-form";
@@ -11,15 +19,6 @@ import SetOpeningInventoryForm from "./set-opening-inventory-form";
 const PURCHASE_INGREDIENT_CATEGORY = "Pembelian Bahan Baku";
 const PURCHASE_PRODUCT_CATEGORY = "Pembelian Barang Dagang";
 const PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
-
-type Period = "today" | "week" | "month" | "all";
-
-const PERIOD_LABELS: Record<Period, string> = {
-  today: "Hari Ini",
-  week: "7 Hari",
-  month: "Bulan Ini",
-  all: "Semua",
-};
 
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
@@ -45,14 +44,6 @@ function addDaysStr(dateStr: string, days: number) {
   return toDateStr(d);
 }
 
-function getPeriodStartDateStr(period: Period): string | null {
-  const now = new Date();
-  if (period === "today") return toDateStr(now);
-  if (period === "week") return addDaysStr(toDateStr(now), -6);
-  if (period === "month") return toDateStr(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
-  return null;
-}
-
 function getPreviousMonthLastDayStr(): string {
   const now = new Date();
   // Day 0 of the current UTC month == last day of the previous month.
@@ -64,15 +55,13 @@ export default async function FinancePage({
   searchParams,
 }: {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   const { businessId } = await params;
-  const { period: periodParam } = await searchParams;
-  const period: Period = (["today", "week", "month", "all"] as const).includes(
-    periodParam as Period,
-  )
-    ? (periodParam as Period)
-    : "month";
+  const { period: periodParam, from, to } = await searchParams;
+  const cookieStore = await cookies();
+  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
   const today = toDateStr(new Date());
@@ -88,7 +77,6 @@ export default async function FinancePage({
   }
 
   const isFnb = business.business_type === "fnb";
-  const periodStartStr = getPeriodStartDateStr(period);
 
   const boundAddExpense = addExpense.bind(null, businessId);
   const boundAddReconciliation = addReconciliation.bind(null, businessId);
@@ -101,7 +89,8 @@ export default async function FinancePage({
     .select("total, total_cost, transaction_payments(method, amount)")
     .eq("business_id", businessId)
     .eq("voided", false);
-  if (periodStartStr) txQuery = txQuery.gte("date", periodStartStr);
+  if (fromIso) txQuery = txQuery.gte("date", fromIso);
+  if (toIsoExclusive) txQuery = txQuery.lt("date", toIsoExclusive);
   const { data: transactions } = await txQuery;
 
   const revenue = (transactions ?? []).reduce((s, t) => s + Number(t.total), 0);
@@ -123,7 +112,10 @@ export default async function FinancePage({
     .select("id, date, category, amount, note, qty")
     .eq("business_id", businessId)
     .order("date", { ascending: false });
-  if (periodStartStr) expQuery = expQuery.gte("date", periodStartStr);
+  // expenses.date is a plain date column; timestamptz bounds are trimmed to
+  // their date part so both queries stay aligned to the same WIB period.
+  if (fromIso) expQuery = expQuery.gte("date", fromIso.slice(0, 10));
+  if (toIsoExclusive) expQuery = expQuery.lt("date", toIsoExclusive.slice(0, 10));
   const { data: expenses } = await expQuery;
 
   const purchaseExpenses = (expenses ?? []).filter(
@@ -146,7 +138,8 @@ export default async function FinancePage({
     .from("reconciliations")
     .select("method, actual_amount")
     .eq("business_id", businessId);
-  if (periodStartStr) reconQuery = reconQuery.gte("date", periodStartStr);
+  if (fromIso) reconQuery = reconQuery.gte("date", fromIso.slice(0, 10));
+  if (toIsoExclusive) reconQuery = reconQuery.lt("date", toIsoExclusive.slice(0, 10));
   const { data: reconciliations } = await reconQuery;
 
   const reconciliationRows = Array.from(byMethod.entries())
@@ -204,8 +197,8 @@ export default async function FinancePage({
   const closingValue = ingredientsValue + productsValue;
 
   let openingValue: number | null = null;
-  if (periodStartStr) {
-    const dayBefore = addDaysStr(periodStartStr, -1);
+  if (fromIso) {
+    const dayBefore = addDaysStr(fromIso.slice(0, 10), -1);
     const { data: snapshot } = await supabase
       .from("inventory_snapshots")
       .select("value")
@@ -267,23 +260,45 @@ export default async function FinancePage({
   return (
     <div className="w-full max-w-3xl">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-bold text-zinc-900">Keuangan — {business.name}</h1>
-          <div className="flex flex-wrap gap-1.5">
-            {(["today", "week", "month", "all"] as Period[]).map((p) => (
-              <Link
-                key={p}
-                href={`/business/${businessId}/finance?period=${p}`}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  p === period
-                    ? "bg-brand-600 text-white"
-                    : "bg-white text-zinc-600 hover:bg-zinc-100"
-                }`}
-              >
-                {PERIOD_LABELS[p]}
-              </Link>
-            ))}
+          <div>
+            <h1 className="text-lg font-bold text-zinc-900">Keuangan — {business.name}</h1>
+            <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
           </div>
+          <PeriodTabs basePath={`/business/${businessId}/finance`} period={period} />
         </div>
+
+        {period === "custom" && (
+          <form
+            method="get"
+            className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4"
+          >
+            <input type="hidden" name="period" value="custom" />
+            <label className="text-xs font-medium text-zinc-600">
+              Dari
+              <input
+                type="date"
+                name="from"
+                defaultValue={from}
+                className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="text-xs font-medium text-zinc-600">
+              Sampai
+              <input
+                type="date"
+                name="to"
+                defaultValue={to}
+                className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              Terapkan
+            </button>
+          </form>
+        )}
 
         {/* Ringkasan */}
         <div className="mt-6 grid grid-cols-2 gap-3">

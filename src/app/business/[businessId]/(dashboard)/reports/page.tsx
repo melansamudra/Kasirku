@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
+  PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
-  PERIOD_LABELS,
   REPORT_TIMEZONE,
   getPeriodRange,
   parsePeriod,
-  type Period,
 } from "./period";
+import PeriodTabs from "./period-tabs";
 
 const DONUT_PALETTE = ["#0f766e", "#34d399", "#fcd34d", "#a78bfa", "#fb923c", "#60a5fa", "#f87171"];
 const CATEGORY_PALETTE = ["#0f766e", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"];
@@ -72,7 +73,8 @@ export default async function ReportsPage({
 }) {
   const { businessId } = await params;
   const { period: periodParam, from, to } = await searchParams;
-  const period = parsePeriod(periodParam);
+  const cookieStore = await cookies();
+  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
@@ -207,21 +209,7 @@ export default async function ReportsPage({
             <h1 className="text-lg font-bold text-zinc-900">Laporan — {business.name}</h1>
             <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
-              <Link
-                key={p}
-                href={`/business/${businessId}/reports?period=${p}`}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  p === period
-                    ? "bg-brand-600 text-white"
-                    : "bg-white text-zinc-600 hover:bg-zinc-100"
-                }`}
-              >
-                {PERIOD_LABELS[p]}
-              </Link>
-            ))}
-          </div>
+          <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />
         </div>
 
         {period === "custom" && (

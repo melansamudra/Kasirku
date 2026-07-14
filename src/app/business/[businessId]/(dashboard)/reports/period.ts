@@ -1,5 +1,10 @@
 export type Period = "today" | "week" | "month" | "all" | "custom";
 
+// Cookie yang menyimpan pilihan periode terakhir supaya persist lintas
+// halaman laporan/akuntansi (Fase 7 — sinkronisasi periode global). Cuma
+// nama string biasa, aman diimpor dari client maupun server component.
+export const PERIOD_COOKIE_NAME = "kk_period";
+
 export const PERIOD_LABELS: Record<Period, string> = {
   today: "Hari Ini",
   week: "7 Hari",

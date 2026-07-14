@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
+  PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
-  PERIOD_LABELS,
   getPeriodRange,
   parsePeriod,
-  type Period,
 } from "../reports/period";
+import PeriodTabs from "../reports/period-tabs";
 import AddCashForm from "./add-cash-form";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -60,7 +60,8 @@ export default async function KasHarianPage({
 }) {
   const { businessId } = await params;
   const { period: periodParam, from, to } = await searchParams;
-  const period = parsePeriod(periodParam);
+  const cookieStore = await cookies();
+  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
@@ -107,21 +108,7 @@ export default async function KasHarianPage({
           <h1 className="text-lg font-bold text-zinc-900">Kas Harian — {business.name}</h1>
           <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
-            <Link
-              key={p}
-              href={`/business/${businessId}/kas-harian?period=${p}`}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                p === period
-                  ? "bg-brand-600 text-white"
-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
-              }`}
-            >
-              {PERIOD_LABELS[p]}
-            </Link>
-          ))}
-        </div>
+        <PeriodTabs basePath={`/business/${businessId}/kas-harian`} period={period} />
       </div>
 
       {period === "custom" && (
