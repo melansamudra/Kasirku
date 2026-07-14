@@ -91,6 +91,7 @@ function buildNavGroups(
           icon: TrendingUp,
         },
         { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
+        { href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet },
         { href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
         { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
         { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
