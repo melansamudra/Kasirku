@@ -39,6 +39,7 @@ import {
   Banknote,
   Settings,
   Activity,
+  Bell,
   ShoppingCart,
   ChevronRight,
   type LucideIcon,
@@ -157,6 +158,7 @@ function buildNavGroups(
     {
       title: "Lainnya",
       items: [
+        { href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
         { href: `${base}/settings`, label: "Pengaturan", icon: Settings },
         { href: `${base}/activity`, label: "Aktivitas", icon: Activity },
       ],
