@@ -105,6 +105,7 @@ function buildNavGroups(
           label: "Rekonsiliasi Rekening",
           icon: Landmark,
         },
+        { href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
         { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
       ],
     },
