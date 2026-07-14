@@ -55,6 +55,9 @@ export async function updateSession(request: NextRequest) {
   // panggilan server-to-server tanpa sesi browser sama sekali — masing-masing
   // punya otentikasinya sendiri (verifikasi signature / CRON_SECRET), bukan
   // sesi login, jadi middleware tidak boleh me-redirect mereka ke /login.
+  // /api/kalkulator-hpp-desktop/download dipanggil pembeli yang memang tidak
+  // punya akun KasirKu sama sekali (guest checkout) — otentikasinya sendiri
+  // lewat order_id+download_token di query string, bukan sesi login.
   const isPublicPath =
     isAuthPage ||
     request.nextUrl.pathname === "/" ||
@@ -69,7 +72,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/sitemap.xml" ||
     request.nextUrl.pathname === "/robots.txt" ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||
-    request.nextUrl.pathname.startsWith("/api/cron");
+    request.nextUrl.pathname.startsWith("/api/cron") ||
+    request.nextUrl.pathname.startsWith("/api/kalkulator-hpp-desktop");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

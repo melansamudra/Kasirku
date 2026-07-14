@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>Kalkulator HPP Desktop</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.55"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.55"/><rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor"/></svg>
+          Kalkulator HPP
+        </div>
+
+        <div class="nav-scroll">
+          <button type="button" class="nav-item active" data-tab="dashboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3v-8zM10 3h4v18h-4V3zM17 9h4v12h-4V9z" fill="currentColor"/></svg>
+            Dashboard
+          </button>
+          <button type="button" class="nav-item" data-tab="bahan">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4V4zm2 6h12l-1.2 10.2a2 2 0 01-2 1.8H9.2a2 2 0 01-2-1.8L6 10z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+            Bahan Baku
+          </button>
+          <button type="button" class="nav-item nav-parent" id="nav-menu-toggle" data-tab="menu">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Menu
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="nav-sub" id="nav-category-list"></div>
+        </div>
+
+        <div class="sidebar-footer">
+          <button type="button" class="footer-btn" id="backup-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Backup Data
+          </button>
+          <button type="button" class="footer-btn" id="restore-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Pulihkan Data
+          </button>
+          <p class="sidebar-note" id="sidebar-message">Data tersimpan lokal — tidak butuh internet.</p>
+        </div>
+      </aside>
+
+      <main class="content">
+        <!-- DASHBOARD -->
+        <section class="panel" id="panel-dashboard">
+          <h1>Dashboard</h1>
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="stat-label">Total Menu</div>
+              <div class="stat-value" id="dash-total-menu">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total Bahan Baku</div>
+              <div class="stat-value" id="dash-total-bahan">0</div>
+            </div>
+            <div class="stat-card accent">
+              <div class="stat-label">Rata-rata Margin</div>
+              <div class="stat-value" id="dash-avg-margin">0%</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Rata-rata HPP</div>
+              <div class="stat-value" id="dash-avg-hpp">Rp0</div>
+              <div class="stat-sub" id="dash-avg-hpp-percent">≈ 0% dari harga jual</div>
+            </div>
+          </div>
+
+          <div class="chart-row">
+            <div class="card chart-card wide">
+              <div class="chart-title">Rata-rata HPP per Kategori</div>
+              <div class="hbars" id="dash-category-chart"></div>
+            </div>
+            <div class="card chart-card narrow">
+              <div class="chart-title">Margin per Menu</div>
+              <div class="bars" id="dash-margin-chart"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BAHAN BAKU -->
+        <section class="panel hidden" id="panel-bahan">
+          <div class="panel-header">
+            <h1>Bahan Baku</h1>
+            <div class="header-actions">
+              <button type="button" id="import-excel-btn" class="btn secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Import dari Excel
+              </button>
+            </div>
+          </div>
+          <p class="hint">Harga bahan bisa diubah kapan saja — HPP menu ikut ter-update otomatis. Kolom Excel yang dikenali: Nama, Satuan, Harga.</p>
+
+          <div class="card">
+            <table>
+              <thead>
+                <tr><th>Nama Bahan</th><th>Satuan</th><th>Harga/Satuan</th><th></th></tr>
+              </thead>
+              <tbody id="ingredient-list"></tbody>
+            </table>
+          </div>
+
+          <form id="ingredient-form" class="row-form">
+            <input name="name" type="text" placeholder="Nama bahan" required />
+            <input name="unit" type="text" placeholder="Satuan (gr/ml/pcs)" required />
+            <input name="unitCost" type="number" min="0" placeholder="Harga/satuan" required />
+            <button type="submit" class="btn primary">+ Tambah Bahan</button>
+          </form>
+          <p id="ingredient-error" class="error"></p>
+        </section>
+
+        <!-- MENU -->
+        <section class="panel hidden" id="panel-menu">
+          <div class="panel-header">
+            <h1>Menu <span class="crumb hidden" id="menu-category-crumb"></span></h1>
+          </div>
+
+          <div class="subtabs">
+            <button type="button" class="subtab-item active" data-subtab="satuan">Menu Satuan</button>
+            <button type="button" class="subtab-item" data-subtab="bundling">Menu Bundling</button>
+          </div>
+
+          <div class="subpanel" id="subpanel-satuan">
+            <div class="panel-header">
+              <p class="hint">Susun resep tiap menu dari bahan baku — HPP, %HPP, dan margin dihitung otomatis dari Harga Jual.</p>
+              <div class="header-actions">
+                <button type="button" id="export-menu-btn" class="btn secondary">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform-origin:center;transform:rotate(180deg)"/></svg>
+                  Download HPP Menu
+                </button>
+              </div>
+            </div>
+            <div class="card">
+              <table>
+                <thead>
+                  <tr><th>Menu</th><th>Kategori</th><th>Total HPP</th><th>Harga Jual</th><th>% HPP</th><th>Margin</th><th></th></tr>
+                </thead>
+                <tbody id="menu-list"></tbody>
+              </table>
+            </div>
+            <form id="menu-form" class="row-form menu-form-row">
+              <input name="name" type="text" placeholder="Nama menu" required />
+              <input name="category" type="text" placeholder="Kategori (mis. Minuman)" />
+              <input name="sellingPrice" type="number" min="0" placeholder="Harga jual" required />
+              <button type="submit" class="btn primary">+ Tambah Menu</button>
+            </form>
+            <p id="menu-error" class="error"></p>
+          </div>
+
+          <div class="subpanel hidden" id="subpanel-bundling">
+            <p class="hint">Gabungkan beberapa menu satuan jadi satu paket — HPP paket otomatis dijumlah dari HPP menu di dalamnya.</p>
+            <div class="card">
+              <table>
+                <thead>
+                  <tr><th>Nama Paket</th><th>Isi Paket</th><th>Total HPP</th><th>Harga Jual</th><th>% HPP</th><th>Margin</th><th></th></tr>
+                </thead>
+                <tbody id="bundle-list"></tbody>
+              </table>
+            </div>
+            <form id="bundle-form" class="row-form bundle-form-row">
+              <input name="name" type="text" placeholder="Nama paket" required />
+              <input name="sellingPrice" type="number" min="0" placeholder="Harga jual paket" required />
+              <button type="submit" class="btn primary">+ Tambah Paket</button>
+            </form>
+            <p id="bundle-error" class="error"></p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

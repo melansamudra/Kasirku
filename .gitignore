@@ -47,3 +47,9 @@ next-env.d.ts
 
 # local Claude Code settings
 /.claude/settings.local.json
+
+# kalkulator HPP desktop app — installer binary served from here at runtime
+# (src/app/api/kalkulator-hpp-desktop/download/route.ts), never committed
+/private-assets
+desktop-app/node_modules
+desktop-app/dist

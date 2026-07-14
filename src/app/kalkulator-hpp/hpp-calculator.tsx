@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { trackEvent } from "@/lib/analytics/google-analytics";
+import { DesktopAppPreview } from "./desktop-app-preview";
 
 type Ingredient = { id: string; name: string; cost: string };
 
@@ -157,6 +158,24 @@ export function HppCalculator() {
             className="mt-4 inline-block rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow-md transition-colors hover:bg-brand-50"
           >
             Coba KasirKu Gratis →
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-bold text-zinc-900">Cuma Butuh Kalkulator HPP-nya Saja?</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+            Ada versi aplikasi desktop — sekali beli, data tersimpan di komputermu sendiri, tanpa
+            perlu daftar toko/kasir.
+          </p>
+          <div className="mt-3">
+            <DesktopAppPreview />
+          </div>
+          <Link
+            href="/kalkulator-hpp/beli"
+            onClick={() => trackEvent("hpp_calculator_desktop_cta_click")}
+            className="mt-4 inline-block rounded-xl border border-brand-200 px-5 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
+          >
+            💻 Lihat Aplikasi Desktop
           </Link>
         </div>
       </div>

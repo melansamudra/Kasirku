@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getPlan } from "@/lib/billing/plans";
@@ -15,6 +15,52 @@ type MidtransNotification = {
 
 const SETTLED_STATUSES = new Set(["capture", "settlement"]);
 const FAILED_STATUSES = new Set(["deny", "cancel", "expire"]);
+
+// Kalkulator HPP Desktop — pesanan sekali-beli tanpa akun/business_id sama
+// sekali (lihat 20260713130000_hpp_desktop_orders.sql). Order ID-nya diberi
+// prefix "HPP-" (dibuat di kalkulator-hpp/beli/actions.ts) supaya bisa
+// dibedakan dari order langganan bisnis ("KK-...") di webhook yang sama —
+// Midtrans hanya punya satu URL notifikasi per akun, jadi ini tidak bisa
+// dipecah jadi route terpisah.
+async function handleDesktopOrderNotification(
+  supabase: ReturnType<typeof createServiceClient>,
+  body: MidtransNotification,
+) {
+  const { data: order } = await supabase
+    .from("hpp_desktop_orders")
+    .select("id, status")
+    .eq("order_id", body.order_id)
+    .maybeSingle();
+
+  if (!order) {
+    console.error(`Midtrans notification for unknown hpp_desktop_orders order_id: ${body.order_id}`);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (order.status === "settlement") {
+    // Sudah diproses — Midtrans mengulang notifikasi, ini normal.
+    return NextResponse.json({ ok: true });
+  }
+
+  const newStatus = SETTLED_STATUSES.has(body.transaction_status)
+    ? "settlement"
+    : FAILED_STATUSES.has(body.transaction_status)
+      ? body.transaction_status
+      : "pending";
+
+  await supabase
+    .from("hpp_desktop_orders")
+    .update({
+      status: newStatus,
+      midtrans_transaction_id: body.transaction_id ?? null,
+      payment_type: body.payment_type ?? null,
+      raw_notification: body,
+      ...(newStatus === "settlement" ? { download_token: randomUUID() } : {}),
+    })
+    .eq("id", order.id);
+
+  return NextResponse.json({ ok: true });
+}
 
 export async function POST(request: Request) {
   const body = (await request.json()) as MidtransNotification;
@@ -33,6 +79,10 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServiceClient();
+
+  if (body.order_id.startsWith("HPP-")) {
+    return handleDesktopOrderNotification(supabase, body);
+  }
 
   const { data: payment } = await supabase
     .from("payments")

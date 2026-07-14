@@ -1,0 +1,46 @@
+{
+  "name": "kalkulator-hpp-desktop",
+  "version": "1.0.0",
+  "description": "Kalkulator HPP Desktop — kelola bahan baku, resep, dan HPP menu, sepenuhnya offline.",
+  "main": "main.js",
+  "author": "KasirKu",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.kasirku.kalkulatorhppdesktop",
+    "productName": "Kalkulator HPP Desktop",
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "kalkulator-hpp-desktop-setup.exe"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "style.css"
+    ]
+  },
+  "allowScripts": {
+    "electron@30.5.1": true
+  }
+}
