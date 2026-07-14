@@ -9,6 +9,7 @@ function parseEmployeeFields(formData: FormData) {
   const dailyRateRaw = formData.get("dailyRate") as string;
   const note = (formData.get("note") as string)?.trim();
   const cashierId = (formData.get("cashierId") as string) || null;
+  const contractEnd = (formData.get("contractEnd") as string) || null;
 
   if (!name) return { error: "Nama karyawan wajib diisi." } as const;
 
@@ -17,7 +18,7 @@ function parseEmployeeFields(formData: FormData) {
     return { error: "Gaji harian harus angka dan tidak boleh negatif." } as const;
   }
 
-  return { error: null, name, dailyRate, note: note || null, cashierId } as const;
+  return { error: null, name, dailyRate, note: note || null, cashierId, contractEnd } as const;
 }
 
 export type AddEmployeeState = { error: string | null };
@@ -37,6 +38,7 @@ export async function addEmployee(
     daily_rate: parsed.dailyRate,
     note: parsed.note,
     cashier_id: parsed.cashierId,
+    contract_end: parsed.contractEnd,
   });
 
   if (error) {
@@ -70,6 +72,7 @@ export async function editEmployee(
       daily_rate: parsed.dailyRate,
       note: parsed.note,
       cashier_id: parsed.cashierId,
+      contract_end: parsed.contractEnd,
     })
     .eq("id", employeeId)
     .eq("business_id", businessId);

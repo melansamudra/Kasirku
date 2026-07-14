@@ -48,6 +48,7 @@ export async function addPurchase(
 
   const supplierId = (formData.get("supplierId") as string) || null;
   const date = formData.get("date") as string;
+  const dueDate = (formData.get("dueDate") as string) || null;
   const category = formData.get("category") as string;
   const note = (formData.get("note") as string)?.trim();
   const amountRaw = formData.get("amount") as string;
@@ -160,6 +161,7 @@ export async function addPurchase(
     business_id: businessId,
     supplier_id: supplierId,
     date,
+    due_date: dueDate,
     category,
     ingredient_id: ingredientId,
     product_id: productId,

@@ -66,6 +66,21 @@ export default function AddEmployeeForm({
       </div>
 
       <div>
+        <label htmlFor="contractEnd" className="mb-1 block text-xs font-medium text-zinc-600">
+          Tanggal Berakhir Kontrak (opsional)
+        </label>
+        <input
+          id="contractEnd"
+          name="contractEnd"
+          type="date"
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Kosongkan kalau karyawan tetap/tidak ada batas kontrak.
+        </p>
+      </div>
+
+      <div>
         <label htmlFor="cashierId" className="mb-1 block text-xs font-medium text-zinc-600">
           Akun Kasir Terhubung (opsional)
         </label>

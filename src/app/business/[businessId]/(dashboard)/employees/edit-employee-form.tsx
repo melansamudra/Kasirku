@@ -9,6 +9,7 @@ export default function EditEmployeeForm({
   dailyRate,
   note,
   cashierId,
+  contractEnd,
   cashiers,
   action,
 }: {
@@ -16,6 +17,7 @@ export default function EditEmployeeForm({
   dailyRate: number;
   note: string | null;
   cashierId: string | null;
+  contractEnd: string | null;
   cashiers: { id: string; name: string }[];
   action: (state: EditEmployeeState, formData: FormData) => Promise<EditEmployeeState>;
 }) {
@@ -26,6 +28,7 @@ export default function EditEmployeeForm({
     dailyRate: String(dailyRate),
     note: note ?? "",
     cashierId: cashierId ?? "",
+    contractEnd: contractEnd ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -49,6 +52,7 @@ export default function EditEmployeeForm({
     formData.set("dailyRate", values.dailyRate);
     formData.set("note", values.note);
     formData.set("cashierId", values.cashierId);
+    formData.set("contractEnd", values.contractEnd);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -91,6 +95,17 @@ export default function EditEmployeeForm({
           type="text"
           value={values.note}
           onChange={(e) => setValues((v) => ({ ...v, note: e.target.value }))}
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Tanggal Berakhir Kontrak
+        </label>
+        <input
+          type="date"
+          value={values.contractEnd}
+          onChange={(e) => setValues((v) => ({ ...v, contractEnd: e.target.value }))}
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>

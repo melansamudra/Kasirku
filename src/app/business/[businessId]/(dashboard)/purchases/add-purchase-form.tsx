@@ -292,6 +292,20 @@ function PurchaseFormFields({
         <input type="hidden" name="paidAmount" value={effectivePaidAmount} />
       </div>
 
+      {paymentMode !== "lunas" && (
+        <div>
+          <label htmlFor="dueDate" className="mb-1 block text-xs font-medium text-zinc-600">
+            Jatuh Tempo (opsional)
+          </label>
+          <input
+            id="dueDate"
+            name="dueDate"
+            type="date"
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      )}
+
       <div>
         <label htmlFor="note" className="mb-1 block text-xs font-medium text-zinc-600">
           Catatan (opsional)

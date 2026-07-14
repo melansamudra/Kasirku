@@ -25,7 +25,7 @@ export default async function EmployeesPage({
 
   const { data: employees } = await supabase
     .from("employees")
-    .select("id, name, daily_rate, active, note, cashier_id, cashiers(name)")
+    .select("id, name, daily_rate, active, note, cashier_id, contract_end, cashiers(name)")
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
@@ -65,6 +65,17 @@ export default async function EmployeesPage({
                     {linkedCashierName && <> · akun kasir: {linkedCashierName}</>}
                   </p>
                   {e.note && <p className="text-xs text-zinc-400">{e.note}</p>}
+                  {e.contract_end && (
+                    <p className="text-xs text-amber-600">
+                      Kontrak berakhir{" "}
+                      {new Date(`${e.contract_end}T00:00:00Z`).toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      })}
+                    </p>
+                  )}
                 </div>
                 {!e.active && (
                   <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
@@ -76,6 +87,7 @@ export default async function EmployeesPage({
                   dailyRate={Number(e.daily_rate)}
                   note={e.note}
                   cashierId={e.cashier_id}
+                  contractEnd={e.contract_end}
                   cashiers={(cashiers ?? []).filter(
                     (c) => c.id === e.cashier_id || !linkedCashierIds.has(c.id),
                   )}

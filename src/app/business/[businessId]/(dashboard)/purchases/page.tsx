@@ -39,6 +39,7 @@ function agingBucketOf(dateStr: string, todayIso: string): AgingBucket {
 type PurchaseRow = {
   id: string;
   date: string;
+  due_date: string | null;
   category: string;
   qty: number | null;
   note: string | null;
@@ -95,7 +96,7 @@ export default async function PurchasesPage({
       supabase
         .from("purchases")
         .select(
-          "id, date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id",
+          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id",
         )
         .eq("business_id", businessId)
         .order("date", { ascending: false })
@@ -255,6 +256,11 @@ export default async function PurchasesPage({
                       >
                         {lunas ? "Lunas" : `Sisa ${formatRupiah(sisaUtang)}`}
                       </p>
+                      {!lunas && r.due_date && (
+                        <p className="text-[10.5px] text-zinc-400">
+                          Jatuh tempo {formatDate(r.due_date)}
+                        </p>
+                      )}
                     </div>
                     {!lunas && (
                       <AddPaymentForm
