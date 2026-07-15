@@ -331,6 +331,9 @@ export default async function Home() {
             <Link href="/kalkulator-hpp" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Kalkulator HPP
             </Link>
+            <Link href="/sistem-akuntansi" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Sistem Akuntansi
+            </Link>
             <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Artikel
             </Link>

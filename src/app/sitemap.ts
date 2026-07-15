@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/rekomendasi-alat",
     "/blog",
     "/kalkulator-hpp",
+    "/sistem-akuntansi",
     "/terms",
     "/privacy",
   ].map(
