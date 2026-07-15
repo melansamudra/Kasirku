@@ -496,6 +496,12 @@ export default async function ReportsPage({
             >
               🧾 PenjTransaksi.csv
             </a>
+            <a
+              href={`/business/${businessId}/export?${periodQuery}`}
+              className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 py-2.5 text-xs font-bold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              📊 Semua Laporan Akuntansi (Excel)
+            </a>
           </div>
         </div>
 

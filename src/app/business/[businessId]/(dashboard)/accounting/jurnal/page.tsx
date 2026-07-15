@@ -92,6 +92,10 @@ export default async function JurnalPage({
     return lines.reduce((s, l) => s + Number(l.debit), 0);
   });
   const totalNominal = entryTotals.reduce((s, v) => s + v, 0);
+  const periodQuery =
+    period === "custom"
+      ? `period=custom${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`
+      : `period=${period}`;
 
   return (
     <div className="w-full max-w-2xl">
@@ -140,6 +144,13 @@ export default async function JurnalPage({
         <StatCard label="Jumlah Entri" value={String((entries ?? []).length)} icon={BookOpen} tone="zinc" />
         <StatCard label="Total Nominal" value={formatRupiah(totalNominal)} icon={Wallet} tone="brand" />
       </div>
+
+      <a
+        href={`/business/${businessId}/export?${periodQuery}`}
+        className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white py-2.5 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+      >
+        📊 Export Semua Laporan Akuntansi (Excel)
+      </a>
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Jurnal Manual</h2>
