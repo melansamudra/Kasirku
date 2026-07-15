@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { TrendingUp, TrendingDown, Receipt, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -138,7 +140,31 @@ export default async function LabaRugiAkrualPage({
         </form>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Pendapatan" value={formatRupiah(totalPendapatan)} icon={TrendingUp} tone="brand" />
+        <StatCard
+          label="Laba Kotor"
+          value={formatRupiah(labaKotor)}
+          sub={`HPP ${formatRupiah(cogsTotal)}`}
+          icon={Receipt}
+          tone="blue"
+        />
+        <StatCard
+          label="Beban Operasional"
+          value={formatRupiah(operasionalTotal)}
+          icon={TrendingDown}
+          tone="red"
+        />
+        <StatCard
+          label={labaBersih >= 0 ? "Laba Bersih" : "Rugi Bersih"}
+          value={formatRupiah(labaBersih)}
+          sub={margin !== null ? `Margin ${margin}%` : undefined}
+          icon={Wallet}
+          tone={labaBersih >= 0 ? "brand" : "red"}
+        />
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="space-y-3 p-5">
           <p className="text-xs font-semibold uppercase text-zinc-400">Pendapatan</p>
           {pendapatanRows.length > 0 ? (
