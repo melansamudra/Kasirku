@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Landmark, Scale3D, Wallet, CheckCircle2, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 
 const TYPE_LABELS: Record<string, string> = {
   aset: "Aset",
@@ -83,7 +85,7 @@ export default async function NeracaPage({
   const selisih = totalAset - (totalKewajiban + totalModal);
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="w-full max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">Neraca — {business.name}</h1>
@@ -105,7 +107,20 @@ export default async function NeracaPage({
         </form>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Total Aset" value={formatRupiah(totalAset)} icon={Landmark} tone="blue" />
+        <StatCard label="Total Kewajiban" value={formatRupiah(totalKewajiban)} icon={Scale3D} tone="amber" />
+        <StatCard label="Total Modal" value={formatRupiah(totalModal)} icon={Wallet} tone="brand" />
+        <StatCard
+          label="Status"
+          value={Math.abs(selisih) < 1 ? "Seimbang" : "Selisih"}
+          sub={Math.abs(selisih) < 1 ? undefined : formatRupiah(selisih)}
+          icon={Math.abs(selisih) < 1 ? CheckCircle2 : AlertTriangle}
+          tone={Math.abs(selisih) < 1 ? "brand" : "red"}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           <div className="border-b border-zinc-100 px-4 py-3">
             <h2 className="text-sm font-bold text-zinc-900">{TYPE_LABELS.aset}</h2>

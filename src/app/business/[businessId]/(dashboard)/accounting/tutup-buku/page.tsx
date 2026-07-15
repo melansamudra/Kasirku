@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { Wallet, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import { closePeriod } from "./actions";
 import ClosePeriodForm from "./close-period-form";
 
@@ -102,30 +104,18 @@ export default async function TutupBukuPage({
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <div
-          className={`rounded-2xl border p-4 ${
-            labaBerjalan >= 0 ? "border-brand-200 bg-brand-50" : "border-red-200 bg-red-50"
-          }`}
-        >
-          <p
-            className={`mb-1.5 text-[10.5px] font-semibold uppercase ${
-              labaBerjalan >= 0 ? "text-brand-700" : "text-red-600"
-            }`}
-          >
-            Laba Berjalan (belum ditutup)
-          </p>
-          <p className={`text-xl font-bold ${labaBerjalan >= 0 ? "text-brand-700" : "text-red-600"}`}>
-            {formatRupiah(labaBerjalan)}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white shadow-sm p-4">
-          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
-            Tutup Buku Terakhir
-          </p>
-          <p className="text-xl font-bold text-zinc-900">
-            {lastClosing ? formatDate(lastClosing.period_end) : "Belum pernah"}
-          </p>
-        </div>
+        <StatCard
+          label="Laba Berjalan (belum ditutup)"
+          value={formatRupiah(labaBerjalan)}
+          icon={Wallet}
+          tone={labaBerjalan >= 0 ? "brand" : "red"}
+        />
+        <StatCard
+          label="Tutup Buku Terakhir"
+          value={lastClosing ? formatDate(lastClosing.period_end) : "Belum pernah"}
+          icon={Lock}
+          tone="zinc"
+        />
       </div>
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">

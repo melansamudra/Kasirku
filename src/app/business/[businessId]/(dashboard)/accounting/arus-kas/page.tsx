@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -182,15 +184,15 @@ export default async function ArusKasPage({
         </form>
       )}
 
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Kas Masuk</p>
-          <p className="text-xl font-bold text-zinc-900">{formatRupiah(totalMasuk)}</p>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Kas Keluar</p>
-          <p className="text-xl font-bold text-zinc-900">{formatRupiah(totalKeluar)}</p>
-        </div>
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <StatCard label="Kas Masuk" value={formatRupiah(totalMasuk)} icon={TrendingUp} tone="brand" />
+        <StatCard label="Kas Keluar" value={formatRupiah(totalKeluar)} icon={TrendingDown} tone="red" />
+        <StatCard
+          label="Saldo Kas Akhir"
+          value={formatRupiah(closingBalance)}
+          icon={Wallet}
+          tone={closingBalance >= 0 ? "brand" : "red"}
+        />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">

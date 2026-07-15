@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { BookOpen, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
+import { PillBadge, type PillTone } from "@/components/ui/pill-badge";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -20,13 +23,13 @@ const SOURCE_LABELS: Record<string, string> = {
   payroll: "Payroll",
 };
 
-const SOURCE_BADGE: Record<string, string> = {
-  manual: "bg-zinc-100 text-zinc-600",
-  penjualan: "bg-brand-50 text-brand-700",
-  void: "bg-red-50 text-red-600",
-  pembelian: "bg-amber-50 text-amber-700",
-  beban: "bg-amber-50 text-amber-700",
-  payroll: "bg-sky-50 text-sky-700",
+const SOURCE_PILL_TONE: Record<string, PillTone> = {
+  manual: "zinc",
+  penjualan: "green",
+  void: "red",
+  pembelian: "amber",
+  beban: "amber",
+  payroll: "blue",
 };
 
 function formatRupiah(value: number) {
@@ -84,6 +87,12 @@ export default async function JurnalPage({
   const boundAddJournalEntry = addJournalEntry.bind(null, businessId);
   const today = new Date().toISOString().slice(0, 10);
 
+  const entryTotals = (entries ?? []).map((e) => {
+    const lines = e.journal_lines as unknown as { debit: number; credit: number }[];
+    return lines.reduce((s, l) => s + Number(l.debit), 0);
+  });
+  const totalNominal = entryTotals.reduce((s, v) => s + v, 0);
+
   return (
     <div className="w-full max-w-2xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -127,7 +136,12 @@ export default async function JurnalPage({
         </form>
       )}
 
-      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <StatCard label="Jumlah Entri" value={String((entries ?? []).length)} icon={BookOpen} tone="zinc" />
+        <StatCard label="Total Nominal" value={formatRupiah(totalNominal)} icon={Wallet} tone="brand" />
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Jurnal Manual</h2>
         <p className="mb-4 text-[11px] text-zinc-400">
           Penjualan &amp; void sudah otomatis ter-posting dari POS. Gunakan ini untuk transaksi
@@ -158,13 +172,9 @@ export default async function JurnalPage({
                   <p className="text-[11px] text-zinc-400">{formatDate(e.date)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      SOURCE_BADGE[e.source] ?? "bg-zinc-100 text-zinc-600"
-                    }`}
-                  >
+                  <PillBadge tone={SOURCE_PILL_TONE[e.source] ?? "zinc"}>
                     {SOURCE_LABELS[e.source] ?? e.source}
-                  </span>
+                  </PillBadge>
                   <span className="text-xs font-bold text-zinc-700">{formatRupiah(total)}</span>
                 </div>
               </div>

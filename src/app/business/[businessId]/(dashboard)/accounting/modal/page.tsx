@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -138,7 +140,7 @@ export default async function LaporanPerubahanModalPage({
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="w-full max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">Perubahan Modal — {business.name}</h1>
@@ -180,7 +182,14 @@ export default async function LaporanPerubahanModalPage({
         </form>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Modal Awal" value={formatRupiah(modalAwal)} icon={Wallet} tone="zinc" />
+        <StatCard label="Setoran" value={formatRupiah(setoran)} icon={ArrowDownCircle} tone="brand" />
+        <StatCard label="Prive" value={formatRupiah(prive)} icon={ArrowUpCircle} tone="red" />
+        <StatCard label="Modal Akhir" value={formatRupiah(modalAkhir)} icon={Wallet} tone="brand" />
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
         <div className="space-y-2.5 p-5 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-zinc-600">Modal Awal</span>

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { Target, TrendingUp, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import { setBudget } from "./actions";
 import AddBudgetForm from "./add-budget-form";
 
@@ -88,6 +90,9 @@ export default async function AnggaranPage({
 
   const pendapatanRows = rows.filter((r) => r.type === "pendapatan");
   const bebanRows = rows.filter((r) => r.type === "beban");
+  const budgetedCount = rows.filter((r) => r.hasBudget).length;
+  const totalTargetPendapatan = pendapatanRows.reduce((s, r) => s + r.target, 0);
+  const totalAktualPendapatan = pendapatanRows.reduce((s, r) => s + r.actual, 0);
 
   return (
     <div className="w-full max-w-2xl">
@@ -112,7 +117,23 @@ export default async function AnggaranPage({
         </form>
       </div>
 
-      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <StatCard label="Akun Dianggarkan" value={String(budgetedCount)} icon={Target} tone="zinc" />
+        <StatCard
+          label="Target Pendapatan"
+          value={formatRupiah(totalTargetPendapatan)}
+          icon={TrendingUp}
+          tone="brand"
+        />
+        <StatCard
+          label="Aktual Pendapatan"
+          value={formatRupiah(totalAktualPendapatan)}
+          icon={Wallet}
+          tone="blue"
+        />
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Set Target Bulan Ini</h2>
         <AddBudgetForm action={boundSetBudget} period={period} accounts={accounts ?? []} />
       </div>
