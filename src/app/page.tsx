@@ -96,14 +96,26 @@ export default async function Home() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/blog"
+              href="/kalkulator-hpp"
               className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
+            >
+              Kalkulator HPP
+            </Link>
+            <Link
+              href="/sistem-akuntansi"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
+            >
+              Sistem Akuntansi
+            </Link>
+            <Link
+              href="/blog"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
             >
               Artikel
             </Link>
             <Link
               href="/rekomendasi-alat"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
             >
               Rekomendasi Alat
             </Link>
