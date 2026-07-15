@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Users, Wallet, ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
+import { PillBadge } from "@/components/ui/pill-badge";
 import { createPayslip } from "./actions";
 import CreatePayslipForm from "./create-payslip-form";
 import DeletePayslipButton from "./delete-payslip-button";
@@ -60,6 +63,26 @@ export default async function PayrollPage({
 
   const boundCreatePayslip = createPayslip.bind(null, businessId);
 
+  const activeEmployeeCount = (employees ?? []).filter((e) => e.active).length;
+  const payslipTotals = (payslips ?? []).map((p) => {
+    const adjustments = (p.payslip_adjustments ?? []) as unknown as {
+      type: "tunjangan" | "potongan";
+      amount: number;
+    }[];
+    const tunjangan = adjustments
+      .filter((a) => a.type === "tunjangan")
+      .reduce((s, a) => s + Number(a.amount), 0);
+    const potongan = adjustments
+      .filter((a) => a.type === "potongan")
+      .reduce((s, a) => s + Number(a.amount), 0);
+    return {
+      paid: !!p.paid_at,
+      total: Number(p.base_pay) + Number(p.lembur_amount) + Number(p.thr_amount) + tunjangan - potongan,
+    };
+  });
+  const totalDibayarkan = payslipTotals.filter((p) => p.paid).reduce((s, p) => s + p.total, 0);
+  const belumDibayarCount = payslipTotals.filter((p) => !p.paid).length;
+
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Payroll — {business.name}</h1>
@@ -67,7 +90,19 @@ export default async function PayrollPage({
           Buat slip gaji dari data absensi, tambah tunjangan/potongan di halaman slip.
         </p>
 
-        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          <StatCard label="Karyawan Aktif" value={String(activeEmployeeCount)} icon={Users} tone="zinc" />
+          <StatCard label="Total Dibayarkan" value={formatRupiah(totalDibayarkan)} icon={Wallet} tone="brand" />
+          <StatCard
+            label="Belum Dibayar"
+            value={String(belumDibayarCount)}
+            sub={belumDibayarCount > 0 ? "slip gaji" : undefined}
+            icon={ClipboardCheck}
+            tone={belumDibayarCount > 0 ? "amber" : "brand"}
+          />
+        </div>
+
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Buat Slip Gaji</h2>
           <CreatePayslipForm
             businessId={businessId}
@@ -117,11 +152,13 @@ export default async function PayrollPage({
                       <DeletePayslipButton businessId={businessId} payslipId={p.id} />
                     </div>
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {formatDate(p.period_start)} – {formatDate(p.period_end)} · {p.hadir_count} hari
-                    kerja
-                    {p.paid_at && <span className="ml-1.5 font-medium text-brand-600">· ✓ Dibayar</span>}
-                  </p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <p className="text-xs text-zinc-500">
+                      {formatDate(p.period_start)} – {formatDate(p.period_end)} · {p.hadir_count} hari
+                      kerja
+                    </p>
+                    {p.paid_at && <PillBadge tone="green">✓ Dibayar</PillBadge>}
+                  </div>
                 </Link>
               );
             })

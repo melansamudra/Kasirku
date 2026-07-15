@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CalendarCheck, Clock, Thermometer, UserX } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import type { AttendanceStatus } from "../actions";
 import PrintButton from "./rekap-print-button";
 
@@ -79,6 +81,14 @@ export default async function AttendanceRekapPage({
     if (entry) entry[r.status as AttendanceStatus] += 1;
   }
 
+  const totals = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+  for (const entry of recap.values()) {
+    totals.hadir += entry.hadir;
+    totals.izin += entry.izin;
+    totals.sakit += entry.sakit;
+    totals.alpa += entry.alpa;
+  }
+
   return (
     <div className="w-full max-w-2xl print:max-w-none">
       <div className="print:hidden">
@@ -112,6 +122,15 @@ export default async function AttendanceRekapPage({
         </Link>
       </div>
       <p className="mt-1 hidden text-[11px] text-zinc-400 print:block">{monthLabel(month)}</p>
+
+      {employees && employees.length > 0 && (
+        <div className="mt-4 grid grid-cols-4 gap-2.5 print:hidden">
+          <StatCard label="Hadir" value={String(totals.hadir)} icon={CalendarCheck} tone="brand" />
+          <StatCard label="Izin" value={String(totals.izin)} icon={Clock} tone="amber" />
+          <StatCard label="Sakit" value={String(totals.sakit)} icon={Thermometer} tone="blue" />
+          <StatCard label="Alpa" value={String(totals.alpa)} icon={UserX} tone="red" />
+        </div>
+      )}
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm print:mt-4 print:rounded-none print:border-0 print:shadow-none">
         <div className="border-b border-zinc-100 px-4 py-3 print:hidden">

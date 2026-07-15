@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CalendarCheck, Clock, Thermometer, UserX } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { StatCard } from "@/components/ui/stat-card";
 import { setAttendance, type AttendanceStatus } from "./actions";
 import AttendanceRow from "./attendance-row";
 
@@ -66,6 +68,11 @@ export default async function AttendancePage({
     (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
 
+  const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+  for (const status of statusByEmployee.values()) {
+    counts[status] += 1;
+  }
+
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Absensi — {business.name}</h1>
@@ -95,6 +102,15 @@ export default async function AttendancePage({
             →
           </Link>
         </div>
+
+        {employees && employees.length > 0 && (
+          <div className="mt-4 grid grid-cols-4 gap-2.5">
+            <StatCard label="Hadir" value={String(counts.hadir)} icon={CalendarCheck} tone="brand" />
+            <StatCard label="Izin" value={String(counts.izin)} icon={Clock} tone="amber" />
+            <StatCard label="Sakit" value={String(counts.sakit)} icon={Thermometer} tone="blue" />
+            <StatCard label="Alpa" value={String(counts.alpa)} icon={UserX} tone="red" />
+          </div>
+        )}
 
         <div className="mt-4 space-y-2">
           {employees && employees.length > 0 ? (
