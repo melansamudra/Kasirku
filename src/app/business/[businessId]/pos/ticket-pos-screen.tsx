@@ -610,7 +610,9 @@ export default function TicketPosScreen({
                   placeholder={String(total)}
                 />
                 {receivedAmount >= total && received !== "" && (
-                  <p className="mt-1 text-xs text-zinc-500">Kembalian: {formatRupiah(change)}</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Kembalian: <span className="font-bold text-zinc-900">{formatRupiah(change)}</span>
+                  </p>
                 )}
               </div>
             )}

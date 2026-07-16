@@ -1282,7 +1282,7 @@ export default function PosScreen({
                   />
                   {receivedAmount >= total && received !== "" && (
                     <p className="mt-1 text-xs text-zinc-500">
-                      Kembalian: {formatRupiah(change)}
+                      Kembalian: <span className="font-bold text-zinc-900">{formatRupiah(change)}</span>
                     </p>
                   )}
                 </div>

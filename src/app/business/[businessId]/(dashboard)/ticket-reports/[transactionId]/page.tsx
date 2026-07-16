@@ -133,7 +133,7 @@ export default async function TicketTransactionDetailPage({
           {Number(transaction.change) > 0 && (
             <div className="flex justify-between text-zinc-600">
               <span>Kembalian</span>
-              <span>{formatRupiah(Number(transaction.change))}</span>
+              <span className="font-bold text-zinc-900">{formatRupiah(Number(transaction.change))}</span>
             </div>
           )}
         </div>

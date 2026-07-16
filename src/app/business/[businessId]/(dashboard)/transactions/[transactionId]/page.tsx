@@ -141,7 +141,7 @@ export default async function TransactionDetailPage({
               {p.change !== null && Number(p.change) > 0 && (
                 <div className="flex justify-between text-zinc-600">
                   <span>Kembalian</span>
-                  <span>{formatRupiah(Number(p.change))}</span>
+                  <span className="font-bold text-zinc-900">{formatRupiah(Number(p.change))}</span>
                 </div>
               )}
             </div>
