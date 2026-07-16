@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 
 export default function PrintButton({
@@ -9,6 +10,17 @@ export default function PrintButton({
   businessId: string;
   transactionId: string;
 }) {
+  // Struk dibuka dari POS lewat link baru (target="_blank") khusus untuk
+  // dicetak — auto-buka dialog print begitu halaman selesai render, supaya
+  // kasir tidak perlu klik "Cetak" lagi secara manual. Guard `printed` biar
+  // tidak dobel kepanggil (mis. React StrictMode di dev me-render efek 2x).
+  const printed = useRef(false);
+  useEffect(() => {
+    if (printed.current) return;
+    printed.current = true;
+    window.print();
+  }, []);
+
   return (
     <div className="flex gap-2">
       <Link

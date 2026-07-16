@@ -21,35 +21,34 @@ export default async function ReceiptPage({
   const { businessId, transactionId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("name")
-    .eq("id", businessId)
-    .single();
-
-  const { data: transaction } = await supabase
-    .from("transactions")
-    .select(
-      "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)",
-    )
-    .eq("id", transactionId)
-    .eq("business_id", businessId)
-    .single();
+  // Keempat query tidak saling bergantung (semua cuma butuh businessId/
+  // transactionId dari params) — dijalankan paralel, bukan berurutan,
+  // supaya struk render lebih cepat begitu dibuka dari POS.
+  const [{ data: business }, { data: transaction }, { data: items }, { data: payments }] =
+    await Promise.all([
+      supabase.from("businesses").select("name").eq("id", businessId).single(),
+      supabase
+        .from("transactions")
+        .select(
+          "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)",
+        )
+        .eq("id", transactionId)
+        .eq("business_id", businessId)
+        .single(),
+      supabase
+        .from("transaction_items")
+        .select("id, name, price, qty")
+        .eq("transaction_id", transactionId)
+        .order("id", { ascending: true }),
+      supabase
+        .from("transaction_payments")
+        .select("id, method, amount, received, change")
+        .eq("transaction_id", transactionId),
+    ]);
 
   if (!business || !transaction) {
     notFound();
   }
-
-  const { data: items } = await supabase
-    .from("transaction_items")
-    .select("id, name, price, qty")
-    .eq("transaction_id", transactionId)
-    .order("id", { ascending: true });
-
-  const { data: payments } = await supabase
-    .from("transaction_payments")
-    .select("id, method, amount, received, change")
-    .eq("transaction_id", transactionId);
 
   return (
     <div className="w-full max-w-xs font-mono text-xs text-zinc-900 print:max-w-none">

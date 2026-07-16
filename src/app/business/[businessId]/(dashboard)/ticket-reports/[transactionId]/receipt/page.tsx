@@ -21,30 +21,28 @@ export default async function TicketReceiptPage({
   const { businessId, transactionId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("name")
-    .eq("id", businessId)
-    .single();
-
-  const { data: transaction } = await supabase
-    .from("ticket_transactions")
-    .select(
-      "id, invoice_number, date, subtotal, service, tax, total, payment_method, received, change, voided, cashiers!ticket_transactions_cashier_id_fkey(name), members(name, member_code)",
-    )
-    .eq("id", transactionId)
-    .eq("business_id", businessId)
-    .single();
+  // Ketiga query tidak saling bergantung — dijalankan paralel supaya struk
+  // render lebih cepat begitu dibuka dari POS.
+  const [{ data: business }, { data: transaction }, { data: serials }] = await Promise.all([
+    supabase.from("businesses").select("name").eq("id", businessId).single(),
+    supabase
+      .from("ticket_transactions")
+      .select(
+        "id, invoice_number, date, subtotal, service, tax, total, payment_method, received, change, voided, cashiers!ticket_transactions_cashier_id_fkey(name), members(name, member_code)",
+      )
+      .eq("id", transactionId)
+      .eq("business_id", businessId)
+      .single(),
+    supabase
+      .from("ticket_serials")
+      .select("id, serial_no, manual_number, price, ticket_categories(name)")
+      .eq("ticket_transaction_id", transactionId)
+      .order("serial_no", { ascending: true }),
+  ]);
 
   if (!business || !transaction) {
     notFound();
   }
-
-  const { data: serials } = await supabase
-    .from("ticket_serials")
-    .select("id, serial_no, manual_number, price, ticket_categories(name)")
-    .eq("ticket_transaction_id", transactionId)
-    .order("serial_no", { ascending: true });
 
   const cashier = transaction.cashiers as unknown as { name: string } | null;
   const member = transaction.members as unknown as { name: string; member_code: string } | null;
