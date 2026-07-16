@@ -1,17 +1,51 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { createRecoveryClient } from "@/lib/supabase/recovery-client";
 import AuthShell from "@/components/auth-shell";
 
+// Client dibuat sekali per page load (bukan di dalam handleSubmit) supaya
+// sesi yang dideteksi dari URL fragment (#access_token=...) saat halaman
+// dimuat tetap ada di instance yang sama waktu updateUser() dipanggil nanti.
+function useRecoveryClient() {
+  const [client] = useState(() => createRecoveryClient());
+  return client;
+}
+
 export default function ResetPasswordPage() {
-  const router = useRouter();
+  const supabase = useRecoveryClient();
+  const [checking, setChecking] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    // detectSessionInUrl butuh sedikit waktu memproses fragment URL saat
+    // halaman baru dimuat — cek sesinya begitu itu selesai, supaya kita bisa
+    // kasih tahu user secara jelas kalau link-nya sudah tidak valid, bukan
+    // membiarkan mereka isi form lalu baru gagal pas submit ("Auth session
+    // missing").
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setSessionReady(!!data.session);
+      setChecking(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || session) {
+        setSessionReady(true);
+        setChecking(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -27,7 +61,6 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
@@ -39,6 +72,37 @@ export default function ResetPasswordPage() {
     setDone(true);
   }
 
+  if (checking) {
+    return (
+      <AuthShell>
+        <p className="text-center text-sm text-zinc-400">Memeriksa link…</p>
+      </AuthShell>
+    );
+  }
+
+  if (!sessionReady) {
+    return (
+      <AuthShell>
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500 shadow-lg shadow-red-500/20">
+            <span className="text-lg font-bold text-white">!</span>
+          </div>
+          <h1 className="text-xl font-bold text-zinc-900">Link Tidak Valid atau Kedaluwarsa</h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Link reset password ini sudah dipakai atau kedaluwarsa. Minta link baru untuk
+            melanjutkan.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="mt-6 inline-block w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700"
+          >
+            Minta Link Baru
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
+
   if (done) {
     return (
       <AuthShell>
@@ -48,17 +112,14 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-xl font-bold text-zinc-900">Password diperbarui</h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Password baru kamu sudah aktif.
+            Password baru kamu sudah aktif. Silakan masuk kembali pakai password baru.
           </p>
-          <button
-            onClick={() => {
-              router.push("/dashboard");
-              router.refresh();
-            }}
-            className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
+          <Link
+            href="/login"
+            className="mt-6 inline-block w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
           >
-            Ke Dashboard
-          </button>
+            Ke Halaman Masuk
+          </Link>
         </div>
       </AuthShell>
     );

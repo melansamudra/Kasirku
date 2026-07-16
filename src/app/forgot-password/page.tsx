@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createRecoveryClient } from "@/lib/supabase/recovery-client";
 import AuthShell from "@/components/auth-shell";
 
 export default function ForgotPasswordPage() {
@@ -16,12 +16,12 @@ export default function ForgotPasswordPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    // Link reset password Supabase pakai token di URL fragment (#access_token=...),
-    // bukan query param ?code= — jadi harus arahkan langsung ke /reset-password
-    // (diproses supabase-js di browser), bukan lewat /auth/callback yang cuma bisa
-    // menukar ?code= server-side. Lewat /auth/callback di sini bikin exchangeCodeForSession
-    // selalu gagal (tidak ada "code") dan jatuh ke /login — bug yang dilaporkan user.
+    // createRecoveryClient() (bukan client biasa yang PKCE) supaya link
+    // resetnya pakai token di URL fragment (#access_token=...), bukan ?code=
+    // yang butuh code_verifier tersimpan di browser yang sama — gagal kalau
+    // link dibuka dari aplikasi email/perangkat lain. Lihat komentar lengkap
+    // di src/lib/supabase/recovery-client.ts.
+    const supabase = createRecoveryClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
