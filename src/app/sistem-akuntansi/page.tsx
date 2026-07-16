@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PLANS } from "@/lib/billing/plans";
+import AccountingHeroPreview from "./hero-preview";
 
 export const metadata: Metadata = {
   title: "Sistem Akuntansi & SDM untuk Bisnis yang Sudah Punya Kasir Sendiri | KasirKu",
@@ -84,43 +85,47 @@ export default function SistemAkuntansiPage() {
           aria-hidden
           className="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-brand-200/50 blur-3xl"
         />
-        <div className="relative mx-auto max-w-3xl text-center">
-          <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-            Untuk Bisnis yang Sudah Punya Kasir Sendiri
-          </span>
-          <h1 className="mt-4 text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
-            Sistem Akuntansi &amp; SDM — Tanpa Perlu Ganti Kasir
-          </h1>
-          <p className="mt-4 text-sm text-zinc-600 sm:text-base">
-            Sudah nyaman pakai kasir/POS sendiri? Tinggal tambahkan pembukuan double-entry,
-            payroll, absensi, invoice, dan laporan keuangan yang rapi dari KasirKu — tanpa migrasi
-            data penjualan, tanpa ganti sistem kasir yang sudah jalan.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/signup"
-              className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
-            >
-              Mulai Sekarang →
-            </Link>
-            <Link
-              href="#harga"
-              className="rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
-              Lihat Harga
-            </Link>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+          <div>
+            <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              Untuk Bisnis yang Sudah Punya Kasir Sendiri
+            </span>
+            <h1 className="mt-4 text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
+              Sistem Akuntansi &amp; SDM — Tanpa Perlu Ganti Kasir
+            </h1>
+            <p className="mt-4 max-w-lg text-sm text-zinc-600 sm:text-base">
+              Sudah nyaman pakai kasir/POS sendiri? Tinggal tambahkan pembukuan double-entry,
+              payroll, absensi, invoice, dan laporan keuangan yang rapi dari KasirKu — tanpa
+              migrasi data penjualan, tanpa ganti sistem kasir yang sudah jalan.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/signup"
+                className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
+              >
+                Mulai Sekarang →
+              </Link>
+              <Link
+                href="#harga"
+                className="rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                Lihat Harga
+              </Link>
+            </div>
+            <p className="mt-4 text-xs text-zinc-400">
+              Cuma butuh kasir? Coba{" "}
+              <Link href="/kalkulator-hpp" className="font-medium text-brand-600 hover:underline">
+                Kalkulator HPP Desktop
+              </Link>{" "}
+              — atau lihat{" "}
+              <Link href="/" className="font-medium text-brand-600 hover:underline">
+                paket lengkap KasirKu
+              </Link>{" "}
+              kalau mau kasir + akuntansi sekaligus.
+            </p>
           </div>
-          <p className="mt-4 text-xs text-zinc-400">
-            Cuma butuh kasir? Coba{" "}
-            <Link href="/kalkulator-hpp" className="font-medium text-brand-600 hover:underline">
-              Kalkulator HPP Desktop
-            </Link>{" "}
-            — atau lihat{" "}
-            <Link href="/" className="font-medium text-brand-600 hover:underline">
-              paket lengkap KasirKu
-            </Link>{" "}
-            kalau mau kasir + akuntansi sekaligus.
-          </p>
+
+          <AccountingHeroPreview />
         </div>
       </section>
 
