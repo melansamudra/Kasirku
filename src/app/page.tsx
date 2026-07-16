@@ -73,11 +73,19 @@ const FEATURES = [
 
 export default async function Home() {
   const supabase = await createClient();
+  // getSession() (not getUser()) deliberately here — this only decides
+  // whether to bounce an already-logged-in visitor off the marketing page
+  // to /dashboard, a UX nicety with no real access-control stakes (the
+  // dashboard itself is properly gated elsewhere with a validated getUser()
+  // call). getSession() reads the cookie locally with no round-trip to
+  // Supabase's Auth API, unlike getUser() — middleware.ts already does that
+  // round-trip once per request to refresh the session, so calling getUser()
+  // again here was a second redundant network hop on every homepage load.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (user) {
+  if (session) {
     redirect("/dashboard");
   }
 
