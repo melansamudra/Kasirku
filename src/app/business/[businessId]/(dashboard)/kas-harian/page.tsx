@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -38,10 +39,6 @@ function formatDate(iso: string) {
     month: "short",
     year: "numeric",
   });
-}
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 type CashLine = {
@@ -157,7 +154,7 @@ export default async function KasHarianPage({
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">+ Catat Kas Masuk/Keluar</h2>
-        <AddCashForm businessId={businessId} today={todayStr()} />
+        <AddCashForm businessId={businessId} today={todayWibDateString()} />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { addReceivable, addReceivablePayment } from "./actions";
 import AddReceivableForm from "./add-receivable-form";
 import AddPaymentForm from "./add-payment-form";
@@ -16,10 +17,6 @@ function formatDate(dateStr: string) {
     year: "numeric",
     timeZone: "UTC",
   });
-}
-
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
 }
 
 const AGING_BUCKETS = ["0-30 hari", "31-60 hari", "61-90 hari", "90+ hari"] as const;
@@ -63,7 +60,7 @@ export default async function ReceivablesPage({
     notFound();
   }
 
-  const today = toDateStr(new Date());
+  const today = todayWibDateString();
 
   const [{ data: customers }, { data: receivables }] = await Promise.all([
     supabase

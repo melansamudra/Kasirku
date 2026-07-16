@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { addMember } from "./actions";
 import AddMemberForm from "./add-member-form";
 
@@ -29,7 +30,7 @@ export default async function MembersPage({
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayWibDateString();
   const boundAddMember = addMember.bind(null, businessId);
 
   return (

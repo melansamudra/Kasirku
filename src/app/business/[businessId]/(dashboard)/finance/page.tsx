@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -64,7 +65,7 @@ export default async function FinancePage({
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
-  const today = toDateStr(new Date());
+  const today = todayWibDateString();
 
   const { data: business } = await supabase
     .from("businesses")

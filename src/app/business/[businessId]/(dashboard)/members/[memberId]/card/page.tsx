@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import MemberBarcode from "../member-barcode";
 import PrintButton from "./print-button";
 
@@ -28,7 +29,7 @@ export default async function MemberCardPage({
     notFound();
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayWibDateString();
   const active = member.valid_until >= today;
 
   return (

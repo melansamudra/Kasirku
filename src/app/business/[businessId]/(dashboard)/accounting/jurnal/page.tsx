@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { BookOpen, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { StatCard } from "@/components/ui/stat-card";
 import { PillBadge, type PillTone } from "@/components/ui/pill-badge";
 import {
@@ -85,7 +86,7 @@ export default async function JurnalPage({
   const { data: entries } = await entryQuery;
 
   const boundAddJournalEntry = addJournalEntry.bind(null, businessId);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayWibDateString();
 
   const entryTotals = (entries ?? []).map((e) => {
     const lines = e.journal_lines as unknown as { debit: number; credit: number }[];

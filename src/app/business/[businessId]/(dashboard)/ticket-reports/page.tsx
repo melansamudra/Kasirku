@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -108,7 +109,7 @@ export default async function TicketReportsPage({
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayWibDateString();
   const { count: activeMemberCount } = await supabase
     .from("members")
     .select("id", { count: "exact", head: true })

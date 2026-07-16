@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { PERIOD_DESCRIPTIONS, getPeriodRange, parsePeriod } from "../reports/period";
 
 type JournalLine = { debit: number; credit: number; account_id: string };
@@ -58,7 +59,7 @@ export async function GET(
 
   // Neraca — selalu per hari ini (posisi keuangan terkini), lepas dari filter
   // periode Jurnal/Laba Rugi di atas — sama seperti default accounting/neraca.
-  const todayIso = `${new Date().toISOString().slice(0, 10)}T23:59:59+07:00`;
+  const todayIso = `${todayWibDateString()}T23:59:59+07:00`;
   const { data: allEntriesToDate } = await supabase
     .from("journal_entries")
     .select("journal_lines(debit, credit, account_id)")

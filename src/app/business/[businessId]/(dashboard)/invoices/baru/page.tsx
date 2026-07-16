@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import InvoiceForm from "./invoice-form";
-
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
 
 export default async function NewInvoicePage({
   params,
@@ -47,7 +44,7 @@ export default async function NewInvoicePage({
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <InvoiceForm
           businessId={businessId}
-          today={toDateStr(new Date())}
+          today={todayWibDateString()}
           customers={customers ?? []}
         />
       </div>

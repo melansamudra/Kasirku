@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { editMember } from "../actions";
 import DeleteMemberButton from "./delete-member-button";
 import EditMemberForm from "./edit-member-form";
@@ -48,7 +49,7 @@ export default async function MemberDetailPage({
   const validTransactions = (ticketTransactions ?? []).filter((t) => !t.voided);
   const totalSpent = validTransactions.reduce((sum, t) => sum + Number(t.total), 0);
   const lastVisit = validTransactions[0]?.date;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayWibDateString();
   const active = member.valid_until >= today;
 
   const boundEditMember = editMember.bind(null, businessId, memberId);

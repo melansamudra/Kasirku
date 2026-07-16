@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Landmark, Scale3D, Wallet, CheckCircle2, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { StatCard } from "@/components/ui/stat-card";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ export default async function NeracaPage({
 }) {
   const { businessId } = await params;
   const { date } = await searchParams;
-  const asOfDate = /^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? (date as string) : new Date().toISOString().slice(0, 10);
+  const asOfDate = /^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? (date as string) : todayWibDateString();
   const asOfIso = `${asOfDate}T23:59:59+07:00`;
 
   const supabase = await createClient();
