@@ -17,8 +17,13 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     const supabase = createClient();
+    // Link reset password Supabase pakai token di URL fragment (#access_token=...),
+    // bukan query param ?code= — jadi harus arahkan langsung ke /reset-password
+    // (diproses supabase-js di browser), bukan lewat /auth/callback yang cuma bisa
+    // menukar ?code= server-side. Lewat /auth/callback di sini bikin exchangeCodeForSession
+    // selalu gagal (tidak ada "code") dan jatuh ke /login — bug yang dilaporkan user.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
     setLoading(false);
