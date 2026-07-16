@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import HomeMobileNav from "./home-mobile-nav";
+import HeroPreview from "./hero-preview";
 
 const BUSINESS_TYPES = [
   {
@@ -69,8 +71,6 @@ const FEATURES = [
   },
 ];
 
-const CHART_BARS = [40, 65, 50, 80, 60, 95, 70];
-
 export default async function Home() {
   const supabase = await createClient();
   const {
@@ -119,6 +119,7 @@ export default async function Home() {
             >
               Rekomendasi Alat
             </Link>
+            <HomeMobileNav />
             <Link
               href="/login"
               className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
@@ -185,61 +186,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-sm">
-            <div
-              aria-hidden
-              className="absolute -top-5 -right-5 h-20 w-20 rounded-2xl bg-amber-200/60"
-            />
-            <div
-              aria-hidden
-              className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-brand-200/60"
-            />
-            <div className="relative rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl shadow-zinc-300/40">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-              </div>
-
-              <div className="mt-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-                  K
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-zinc-900">Toko Kamu</p>
-                  <p className="text-xs text-zinc-400">Dashboard</p>
-                </div>
-                <span className="ml-auto shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
-                  ● Shift aktif
-                </span>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-zinc-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-zinc-400">
-                    Penjualan
-                  </p>
-                  <p className="text-lg font-bold text-zinc-900">Rp2.450.000</p>
-                </div>
-                <div className="rounded-xl bg-zinc-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-zinc-400">
-                    Transaksi
-                  </p>
-                  <p className="text-lg font-bold text-zinc-900">48</p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex h-20 items-end gap-1.5 rounded-xl bg-zinc-50 p-3">
-                {CHART_BARS.map((h, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-t-sm bg-gradient-to-t from-brand-600 to-brand-400"
-                    style={{ height: `${h}%` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+          <HeroPreview />
         </div>
       </section>
 
