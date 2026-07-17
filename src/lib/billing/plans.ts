@@ -1,7 +1,5 @@
 // Not DB-driven on purpose: fastest to ship, revisit if pricing needs to
-// change without a deploy. Finance-family prices are FINAL (set by Melan
-// 2026-07-17); the "full" family prices are still placeholders — confirm
-// before going live with real payments.
+// change without a deploy. ALL prices are FINAL (set by Melan 2026-07-17).
 export type PlanCode = "monthly" | "yearly" | "lifetime" | "finance_monthly" | "finance_lifetime";
 
 // "full" = Kasir/POS + Akuntansi + SDM bundled (the original product).
@@ -20,9 +18,9 @@ export type Plan = {
 };
 
 export const PLANS: Plan[] = [
-  { code: "monthly", name: "Langganan Bulanan", kind: "subscription", periodDays: 30, price: 99000, family: "full" },
-  { code: "yearly", name: "Langganan Tahunan", kind: "subscription", periodDays: 365, price: 990000, family: "full" },
-  { code: "lifetime", name: "Sekali Bayar (Lifetime)", kind: "lifetime", periodDays: null, price: 2500000, family: "full" },
+  { code: "monthly", name: "Langganan Bulanan", kind: "subscription", periodDays: 30, price: 88000, family: "full" },
+  { code: "yearly", name: "Langganan Tahunan", kind: "subscription", periodDays: 365, price: 588000, family: "full" },
+  { code: "lifetime", name: "Sekali Bayar (Lifetime)", kind: "lifetime", periodDays: null, price: 766000, family: "full" },
   { code: "finance_monthly", name: "Finance Only — Bulanan", kind: "subscription", periodDays: 30, price: 48000, family: "finance" },
   { code: "finance_lifetime", name: "Finance Only — Sekali Bayar", kind: "lifetime", periodDays: null, price: 488000, family: "finance" },
 ];
