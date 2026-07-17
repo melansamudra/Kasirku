@@ -120,6 +120,55 @@ export const ARTICLES: Article[] = [
       },
     ],
   },
+  {
+    slug: "manajemen-stok-bahan-baku-usaha-kecil",
+    title: "Manajemen Stok Bahan Baku: Cara Menghindari Kehabisan dan Pemborosan",
+    description:
+      "Panduan praktis mengelola stok bahan baku untuk usaha F&B dan retail supaya tidak kehabisan saat ramai atau terbuang sia-sia.",
+    publishedAt: "2026-07-18",
+    content: [
+      { type: "heading", text: "Kenapa Stok Sering Jadi Masalah" },
+      {
+        type: "paragraph",
+        text: "Dua masalah stok yang paling sering dialami pemilik usaha kecil justru berlawanan arah: kehabisan bahan di saat ramai (jualan terhenti, pelanggan kecewa), atau menumpuk bahan yang akhirnya basi/kedaluwarsa sebelum sempat terpakai (uang mengendap jadi barang yang terbuang). Keduanya sama-sama merugikan, dan keduanya biasanya terjadi karena stok dicatat 'di kepala' atau di buku catatan yang tidak diperbarui setiap hari.",
+      },
+      { type: "heading", text: "Prinsip Dasar Mengelola Stok" },
+      {
+        type: "list",
+        items: [
+          "Catat stok masuk setiap kali belanja/beli bahan baku, lengkap dengan jumlah dan tanggal",
+          "Stok harus otomatis berkurang setiap kali bahan itu terpakai dalam penjualan — bukan dihitung ulang manual di akhir hari",
+          "Tentukan batas stok minimum per bahan, supaya ada peringatan sebelum benar-benar habis",
+          "Lakukan stock opname (hitung fisik) berkala untuk mencocokkan catatan dengan stok sebenarnya di tempat",
+        ],
+      },
+      { type: "heading", text: "Kenapa Pencatatan Manual Sering Meleset" },
+      {
+        type: "paragraph",
+        text: "Untuk usaha F&B, satu bahan baku biasanya dipakai di banyak menu sekaligus — misalnya telur dipakai di nasi goreng, mie goreng, dan omelet. Kalau stok dicatat manual, pemilik usaha harus menghitung sendiri berapa telur yang terpakai dari puluhan transaksi setiap hari. Dalam praktiknya ini jarang benar-benar dilakukan konsisten, sehingga catatan stok lama-lama menyimpang jauh dari kondisi nyata.",
+      },
+      { type: "heading", text: "Kapan Harus Restock" },
+      {
+        type: "paragraph",
+        text: "Aturan sederhana yang bisa dipakai: tentukan stok minimum berdasarkan pemakaian rata-rata harian dikali lama waktu pemesanan ulang (lead time). Misalnya kalau bahan tertentu habis rata-rata 5 unit per hari dan butuh 2 hari untuk restock, maka stok minimum idealnya di atas 10 unit — supaya tidak kehabisan saat menunggu pesanan baru datang.",
+      },
+      { type: "heading", text: "Menghindari Pemborosan (Waste)" },
+      {
+        type: "list",
+        items: [
+          "Terapkan prinsip FIFO (First In, First Out) — bahan yang datang lebih dulu, dipakai lebih dulu",
+          "Belanja sesuai proyeksi penjualan, bukan sekadar 'kelihatan aman' dalam jumlah besar",
+          "Pantau bahan yang punya masa simpan pendek lebih ketat dibanding bahan kering/tahan lama",
+          "Catat dan evaluasi bahan yang sering terbuang — biasanya menandakan porsi resep atau jumlah pembelian perlu disesuaikan",
+        ],
+      },
+      { type: "heading", text: "Stok yang Terhubung Otomatis ke Penjualan" },
+      {
+        type: "paragraph",
+        text: "Karena stok manual rawan meleset, KasirKu mengurangi stok bahan baku secara otomatis setiap kali resep produknya terjual di kasir, mencatat setiap stok masuk lewat menu pembelian, dan memberi peringatan begitu stok sebuah bahan berada di bawah batas minimum yang ditentukan — jadi pemilik usaha tahu kapan harus restock tanpa perlu hitung manual satu-satu.",
+      },
+    ],
+  },
 ];
 
 export function getArticle(slug: string): Article | undefined {
