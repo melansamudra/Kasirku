@@ -136,6 +136,12 @@ export default async function Home() {
               Perbandingan
             </Link>
             <Link
+              href="/panduan-akuntansi"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
+            >
+              Panduan
+            </Link>
+            <Link
               href="/blog"
               className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
             >
@@ -399,6 +405,9 @@ export default async function Home() {
             </Link>
             <Link href="/perbandingan" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Perbandingan
+            </Link>
+            <Link href="/panduan-akuntansi" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Panduan
             </Link>
             <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Artikel

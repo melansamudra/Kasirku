@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/sistem-akuntansi", label: "Sistem Akuntansi" },
   { href: "#harga", label: "Harga" },
   { href: "/perbandingan", label: "Perbandingan" },
+  { href: "/panduan-akuntansi", label: "Panduan" },
   { href: "/blog", label: "Artikel" },
   { href: "/rekomendasi-alat", label: "Rekomendasi Alat" },
 ];

@@ -123,7 +123,11 @@ export default function SistemAkuntansiPage() {
               <Link href="/" className="font-medium text-brand-600 hover:underline">
                 paket lengkap KasirKu
               </Link>{" "}
-              kalau mau kasir + akuntansi sekaligus.
+              kalau mau kasir + akuntansi sekaligus. Penasaran cara kerjanya?{" "}
+              <Link href="/panduan-akuntansi" className="font-medium text-brand-600 hover:underline">
+                Lihat panduan lengkapnya
+              </Link>
+              .
             </p>
           </div>
 
