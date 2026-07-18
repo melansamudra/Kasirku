@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PLANS } from "@/lib/billing/plans";
+import { BILLING_CONTACT } from "@/lib/billing/config";
 import HomeMobileNav from "./home-mobile-nav";
 import HeroPreview from "./hero-preview";
 
@@ -321,6 +322,16 @@ export default async function Home() {
                   >
                     Pilih Paket Ini →
                   </Link>
+                  <a
+                    href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
+                      `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 block rounded-xl py-2.5 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
+                  >
+                    💬 Tanya dulu via WhatsApp
+                  </a>
                 </div>
               );
             })}
