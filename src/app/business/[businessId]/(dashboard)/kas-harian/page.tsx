@@ -80,6 +80,20 @@ export default async function KasHarianPage({
     .eq("code", "1-001")
     .single();
 
+  // Sebuah jurnal manual yang sudah dibatalkan lewat "↩ Koreksi" (lihat halaman
+  // Jurnal Transaksi) plus jurnal koreksi-nya sendiri secara matematis saling
+  // meniadakan (net 0) — keduanya tetap muncul di Jurnal Transaksi sebagai
+  // jejak audit, tapi di sini (ringkasan kas harian untuk pemilik toko yang
+  // bukan akuntan) itu cuma bikin bingung: seolah ada uang masuk/keluar
+  // padahal transaksinya sudah dianulir. Disaring biar Kas Harian cuma
+  // menampilkan pergerakan kas yang benar-benar masih berlaku.
+  const { data: reversals } = await supabase
+    .from("journal_entries")
+    .select("source_id")
+    .eq("business_id", businessId)
+    .eq("source", "koreksi");
+  const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
+
   let lines: CashLine[] = [];
   if (kasAccount) {
     let lineQuery = supabase
@@ -90,9 +104,16 @@ export default async function KasHarianPage({
     if (fromIso) lineQuery = lineQuery.gte("journal_entries.date", fromIso);
     if (toIsoExclusive) lineQuery = lineQuery.lt("journal_entries.date", toIsoExclusive);
     const { data } = await lineQuery;
-    lines = ((data ?? []) as unknown as CashLine[]).slice().sort(
-      (a, b) => new Date(b.journal_entries.date).getTime() - new Date(a.journal_entries.date).getTime(),
-    );
+    lines = ((data ?? []) as unknown as CashLine[])
+      .filter(
+        (l) =>
+          l.journal_entries.source !== "koreksi" &&
+          !reversedEntryIds.has(l.journal_entries.id),
+      )
+      .slice()
+      .sort(
+        (a, b) => new Date(b.journal_entries.date).getTime() - new Date(a.journal_entries.date).getTime(),
+      );
   }
 
   const totalMasuk = lines.reduce((s, l) => s + Number(l.debit), 0);
