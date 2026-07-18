@@ -51,6 +51,8 @@ export async function updateSession(request: NextRequest) {
   // dipakai siapa pun tanpa daftar/login dulu.
   // /sistem-akuntansi adalah halaman marketing publik untuk plan Finance
   // Only — sama seperti /kalkulator-hpp, harus bisa dibaca tanpa login.
+  // /perbandingan adalah halaman marketing publik (perbandingan kompetitor)
+  // — sama alasannya, harus bisa dibaca tanpa login.
   // /sitemap.xml dan /robots.txt dipanggil crawler mesin pencari tanpa sesi
   // browser sama sekali — harus tetap terbaca meski tidak ada user login.
   // /api/midtrans (webhook Midtrans) dan /api/cron (dipicu Vercel Cron) adalah
@@ -72,6 +74,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/blog") ||
     request.nextUrl.pathname.startsWith("/kalkulator-hpp") ||
     request.nextUrl.pathname.startsWith("/sistem-akuntansi") ||
+    request.nextUrl.pathname.startsWith("/perbandingan") ||
     request.nextUrl.pathname === "/sitemap.xml" ||
     request.nextUrl.pathname === "/robots.txt" ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||

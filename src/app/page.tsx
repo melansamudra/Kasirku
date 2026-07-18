@@ -130,6 +130,12 @@ export default async function Home() {
               Harga
             </Link>
             <Link
+              href="/perbandingan"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
+            >
+              Perbandingan
+            </Link>
+            <Link
               href="/blog"
               className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
             >
@@ -390,6 +396,9 @@ export default async function Home() {
             </Link>
             <Link href="#harga" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Harga
+            </Link>
+            <Link href="/perbandingan" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Perbandingan
             </Link>
             <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Artikel
