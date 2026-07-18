@@ -42,7 +42,11 @@ export async function updateSession(request: NextRequest) {
   // supabase-js di browser — belum ada sesi/cookie sama sekali saat request
   // pertama ini sampai ke middleware, jadi tidak boleh di-redirect ke /login
   // sebelum halamannya sempat jalan.
-  // "/" adalah landing page publik untuk calon pengguna yang belum daftar.
+  // "/" adalah landing page publik untuk calon pengguna yang belum daftar
+  // (sekarang gerbang portal CreateImpact, bukan langsung halaman KasirKu).
+  // /kasirku adalah halaman produk KasirKu sendiri (dulu hidup di "/"), dan
+  // /layanan adalah halaman jasa konsultasi (pajak daerah/review biaya) —
+  // keduanya publik dengan alasan yang sama seperti "/".
   // /terms dan /privacy juga harus bisa dibaca tanpa login.
   // /rekomendasi-alat adalah halaman afiliasi publik — harus bisa diakses
   // pengunjung mana pun tanpa daftar/login dulu, itu tujuannya.
@@ -78,6 +82,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/sistem-akuntansi") ||
     request.nextUrl.pathname.startsWith("/perbandingan") ||
     request.nextUrl.pathname.startsWith("/panduan-akuntansi") ||
+    request.nextUrl.pathname.startsWith("/kasirku") ||
+    request.nextUrl.pathname.startsWith("/layanan") ||
     request.nextUrl.pathname === "/sitemap.xml" ||
     request.nextUrl.pathname === "/robots.txt" ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||

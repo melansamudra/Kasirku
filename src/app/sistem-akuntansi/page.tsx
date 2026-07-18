@@ -120,7 +120,7 @@ export default function SistemAkuntansiPage() {
                 Kalkulator HPP Desktop
               </Link>{" "}
               — atau lihat{" "}
-              <Link href="/" className="font-medium text-brand-600 hover:underline">
+              <Link href="/kasirku" className="font-medium text-brand-600 hover:underline">
                 paket lengkap KasirKu
               </Link>{" "}
               kalau mau kasir + akuntansi sekaligus. Penasaran cara kerjanya?{" "}

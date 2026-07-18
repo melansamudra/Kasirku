@@ -5,10 +5,14 @@ import { SITE_URL } from "@/lib/site";
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [
     "",
+    "/kasirku",
+    "/layanan",
     "/rekomendasi-alat",
     "/blog",
     "/kalkulator-hpp",
     "/sistem-akuntansi",
+    "/perbandingan",
+    "/panduan-akuntansi",
     "/terms",
     "/privacy",
   ].map(
