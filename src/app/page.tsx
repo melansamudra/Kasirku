@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PLANS } from "@/lib/billing/plans";
 import { BILLING_CONTACT } from "@/lib/billing/config";
+import FloatingWhatsApp from "@/components/floating-whatsapp";
 import HomeMobileNav from "./home-mobile-nav";
 import HeroPreview from "./hero-preview";
 
@@ -406,6 +407,8 @@ export default async function Home() {
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>
+
+      <FloatingWhatsApp />
     </div>
   );
 }

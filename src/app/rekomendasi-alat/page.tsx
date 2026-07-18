@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import FloatingWhatsApp from "@/components/floating-whatsapp";
 import { AFFILIATE_CATEGORIES } from "@/lib/affiliate/products";
 import { AffiliateLink } from "./affiliate-link";
 
@@ -110,6 +111,8 @@ export default function RekomendasiAlatPage() {
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>
+
+      <FloatingWhatsApp />
     </div>
   );
 }

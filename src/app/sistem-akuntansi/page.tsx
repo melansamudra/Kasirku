@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PLANS } from "@/lib/billing/plans";
 import { BILLING_CONTACT } from "@/lib/billing/config";
+import FloatingWhatsApp from "@/components/floating-whatsapp";
 import AccountingHeroPreview from "./hero-preview";
 
 export const metadata: Metadata = {
@@ -236,6 +237,8 @@ export default function SistemAkuntansiPage() {
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>
+
+      <FloatingWhatsApp message="Halo, saya mau tanya soal Sistem Akuntansi & SDM KasirKu." />
     </div>
   );
 }

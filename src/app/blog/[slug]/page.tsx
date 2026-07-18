@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import FloatingWhatsApp from "@/components/floating-whatsapp";
 import { ARTICLES, getArticle } from "@/lib/blog/articles";
 import { SITE_URL } from "@/lib/site";
 
@@ -140,6 +141,8 @@ export default async function BlogArticlePage({
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>
+
+      <FloatingWhatsApp />
     </div>
   );
 }

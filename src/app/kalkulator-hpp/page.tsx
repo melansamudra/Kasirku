@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import FloatingWhatsApp from "@/components/floating-whatsapp";
 import { HppCalculator } from "./hpp-calculator";
 
 export const metadata: Metadata = {
@@ -75,6 +76,8 @@ export default function KalkulatorHppPage() {
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
         </div>
       </footer>
+
+      <FloatingWhatsApp message="Halo, saya mau tanya soal Kalkulator HPP / KasirKu." />
     </div>
   );
 }
