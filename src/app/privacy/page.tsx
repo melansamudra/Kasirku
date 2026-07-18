@@ -1,5 +1,6 @@
 import Link from "next/link";
-import Logo from "@/components/logo";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 
 const LAST_UPDATED = "9 Juli 2026";
 
@@ -87,20 +88,7 @@ const SECTIONS = [
 export default function PrivacyPage() {
   return (
     <div className="flex-1">
-      <header className="sticky top-0 z-10 border-b border-zinc-100 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-9 w-9" />
-            <span className="text-base font-bold text-zinc-900">KasirKu</span>
-          </Link>
-          <Link
-            href="/"
-            className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
-          >
-            ← Kembali
-          </Link>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Kebijakan Privasi</h1>
@@ -137,17 +125,7 @@ export default function PrivacyPage() {
         </p>
       </main>
 
-      <footer className="border-t border-zinc-100 px-4 py-8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Logo className="h-7 w-7" />
-            <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
-          </div>
-          <p className="text-xs text-zinc-400">
-            © {new Date().getFullYear()} KasirKu. Semua hak dilindungi.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

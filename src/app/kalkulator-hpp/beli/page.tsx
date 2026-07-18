@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { DESKTOP_PRODUCTS } from "@/lib/billing/desktop-products";
 import { BILLING_MANUAL_MODE, BILLING_CONTACT } from "@/lib/billing/config";
 import BuyForm from "./buy-form";
-import Logo from "@/components/logo";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Beli Kalkulator HPP Desktop — Sekali Bayar | KasirKu",
@@ -16,7 +16,6 @@ function formatRupiah(value: number) {
 }
 
 export default function BeliKalkulatorHppPage() {
-  const year = new Date().getFullYear();
   const product = DESKTOP_PRODUCTS[0];
   const message = encodeURIComponent(
     `Halo, saya mau beli ${product.name} (${formatRupiah(product.price)}).`,
@@ -24,20 +23,7 @@ export default function BeliKalkulatorHppPage() {
 
   return (
     <div className="flex-1">
-      <header className="sticky top-0 z-10 border-b border-zinc-100 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-9 w-9" />
-            <span className="text-base font-bold text-zinc-900">KasirKu</span>
-          </Link>
-          <Link
-            href="/kalkulator-hpp"
-            className="text-sm font-semibold text-zinc-600 hover:text-brand-700"
-          >
-            ← Kalkulator Gratis
-          </Link>
-        </div>
-      </header>
+      <SiteHeader />
 
       <section className="bg-zinc-50 px-4 py-16">
         <div className="mx-auto max-w-md text-center">
@@ -91,15 +77,7 @@ export default function BeliKalkulatorHppPage() {
         </div>
       </section>
 
-      <footer className="border-t border-zinc-100 px-4 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Logo className="h-7 w-7" />
-            <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
-          </div>
-          <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

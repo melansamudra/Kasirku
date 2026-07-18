@@ -5,9 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { PLANS } from "@/lib/billing/plans";
 import { BILLING_CONTACT } from "@/lib/billing/config";
 import FloatingWhatsApp from "@/components/floating-whatsapp";
-import HomeMobileNav from "./home-mobile-nav";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 import HeroPreview from "./hero-preview";
-import Logo from "@/components/logo";
 
 export const metadata: Metadata = {
   title: "KasirKu — Aplikasi Kasir untuk F&B, Retail & Tempat Wisata",
@@ -105,76 +105,9 @@ export default async function KasirkuPage() {
     redirect("/dashboard");
   }
 
-  const year = new Date().getFullYear();
-
   return (
     <div className="flex-1">
-      {/* Nav */}
-      <header className="sticky top-0 z-10 border-b border-zinc-100 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Logo className="h-9 w-9" />
-            <span className="text-base font-bold text-zinc-900">KasirKu</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/kalkulator-hpp"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
-            >
-              Kalkulator HPP
-            </Link>
-            <Link
-              href="/sistem-akuntansi"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
-            >
-              Sistem Akuntansi
-            </Link>
-            <Link
-              href="#harga"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
-            >
-              Harga
-            </Link>
-            <Link
-              href="/perbandingan"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
-            >
-              Perbandingan
-            </Link>
-            <Link
-              href="/panduan-akuntansi"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
-            >
-              Panduan
-            </Link>
-            <Link
-              href="/blog"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
-            >
-              Artikel
-            </Link>
-            <Link
-              href="/rekomendasi-alat"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 md:block"
-            >
-              Rekomendasi Alat
-            </Link>
-            <HomeMobileNav />
-            <Link
-              href="/login"
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              Masuk
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-brand-600/20 transition-colors hover:bg-brand-700"
-            >
-              Daftar Gratis
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Banner Kalkulator HPP */}
       <Link
@@ -390,48 +323,7 @@ export default async function KasirkuPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-100 px-4 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Logo className="h-7 w-7" />
-            <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              ← Portal CreateImpact
-            </Link>
-            <Link href="/kalkulator-hpp" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Kalkulator HPP
-            </Link>
-            <Link href="/sistem-akuntansi" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Sistem Akuntansi
-            </Link>
-            <Link href="#harga" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Harga
-            </Link>
-            <Link href="/perbandingan" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Perbandingan
-            </Link>
-            <Link href="/panduan-akuntansi" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Panduan
-            </Link>
-            <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Artikel
-            </Link>
-            <Link href="/rekomendasi-alat" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Rekomendasi Alat
-            </Link>
-            <Link href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Syarat &amp; Ketentuan
-            </Link>
-            <Link href="/privacy" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Kebijakan Privasi
-            </Link>
-          </div>
-          <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
-        </div>
-      </footer>
+      <SiteFooter />
 
       <FloatingWhatsApp />
     </div>

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import FloatingWhatsApp from "@/components/floating-whatsapp";
-import Logo from "@/components/logo";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "CreateImpact — Portal Bisnis Kuliner & F&B",
@@ -56,50 +57,9 @@ export default async function PortalHomePage() {
     redirect("/dashboard");
   }
 
-  const year = new Date().getFullYear();
-
   return (
     <div className="flex-1">
-      <header className="sticky top-0 z-10 border-b border-zinc-100 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-9 w-9" />
-            <span className="text-base font-bold text-zinc-900">CreateImpact</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/kasirku"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
-            >
-              Aplikasi Kasir
-            </Link>
-            <Link
-              href="/layanan"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
-            >
-              Layanan
-            </Link>
-            <Link
-              href="/blog"
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
-            >
-              Artikel
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              Masuk
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-brand-600/20 transition-colors hover:bg-brand-700"
-            >
-              Daftar Gratis
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-zinc-50 px-4 py-20">
@@ -173,32 +133,7 @@ export default async function PortalHomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-zinc-100 px-4 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Logo className="h-7 w-7" />
-            <span className="text-sm font-semibold text-zinc-700">CreateImpact</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href="/kasirku" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Aplikasi Kasir
-            </Link>
-            <Link href="/layanan" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Layanan
-            </Link>
-            <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Artikel
-            </Link>
-            <Link href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Syarat &amp; Ketentuan
-            </Link>
-            <Link href="/privacy" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
-              Kebijakan Privasi
-            </Link>
-          </div>
-          <p className="text-xs text-zinc-400">© {year} CreateImpact. Semua hak dilindungi.</p>
-        </div>
-      </footer>
+      <SiteFooter />
 
       <FloatingWhatsApp message="Halo, saya mau tanya soal CreateImpact." />
     </div>
