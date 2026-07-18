@@ -14,6 +14,7 @@ import {
 import PeriodTabs from "../../reports/period-tabs";
 import { addJournalEntry } from "./actions";
 import AddJournalForm from "./add-journal-form";
+import ReverseJournalButton from "./reverse-journal-button";
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
@@ -22,6 +23,7 @@ const SOURCE_LABELS: Record<string, string> = {
   pembelian: "Pembelian",
   beban: "Beban",
   payroll: "Payroll",
+  koreksi: "Koreksi",
 };
 
 const SOURCE_PILL_TONE: Record<string, PillTone> = {
@@ -31,6 +33,7 @@ const SOURCE_PILL_TONE: Record<string, PillTone> = {
   pembelian: "amber",
   beban: "amber",
   payroll: "blue",
+  koreksi: "red",
 };
 
 function formatRupiah(value: number) {
@@ -72,7 +75,7 @@ export default async function JurnalPage({
 
   const { data: accounts } = await supabase
     .from("accounts")
-    .select("code, name")
+    .select("code, name, type, normal_balance")
     .eq("business_id", businessId)
     .order("code", { ascending: true });
 
@@ -84,6 +87,16 @@ export default async function JurnalPage({
   if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
   if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
   const { data: entries } = await entryQuery;
+
+  // Terlepas dari filter periode yang sedang aktif — sebuah jurnal manual
+  // lama (di luar rentang tanggal yang sedang dilihat) tetap tidak boleh
+  // ditawari tombol "Koreksi" lagi kalau sudah pernah dikoreksi sebelumnya.
+  const { data: reversals } = await supabase
+    .from("journal_entries")
+    .select("source_id")
+    .eq("business_id", businessId)
+    .eq("source", "koreksi");
+  const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
 
   const boundAddJournalEntry = addJournalEntry.bind(null, businessId);
   const today = todayWibDateString();
@@ -157,8 +170,9 @@ export default async function JurnalPage({
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Jurnal Manual</h2>
         <p className="mb-4 text-[11px] text-zinc-400">
           Penjualan &amp; void sudah otomatis ter-posting dari POS. Gunakan ini untuk transaksi
-          lain (setoran modal, koreksi, dll). Kesalahan input dibetulkan lewat jurnal pembalik,
-          bukan hapus — sama seperti pembukuan pada umumnya.
+          lain (setoran modal, dll). Salah input? Jurnal yang sudah diposting tidak bisa diedit
+          — klik &quot;↩ Koreksi&quot; pada jurnal tersebut untuk membalikkannya secara otomatis,
+          lalu posting jurnal baru yang benar.
         </p>
         <AddJournalForm action={boundAddJournalEntry} today={today} accounts={accounts ?? []} />
       </div>
@@ -203,6 +217,9 @@ export default async function JurnalPage({
                   </div>
                 ))}
               </div>
+              {e.source === "manual" && !reversedEntryIds.has(e.id) && (
+                <ReverseJournalButton businessId={businessId} entryId={e.id} />
+              )}
               <div className="h-2" />
             </div>
           );

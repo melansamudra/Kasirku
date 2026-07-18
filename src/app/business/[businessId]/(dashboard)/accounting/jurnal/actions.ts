@@ -64,3 +64,23 @@ export async function addJournalEntry(
   revalidatePath(`/business/${businessId}/accounting/jurnal`);
   return { error: null, resetToken: prevState.resetToken + 1 };
 }
+
+export async function reverseJournalEntry(
+  businessId: string,
+  entryId: string,
+  note: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reverse_journal_entry", {
+    p_business_id: businessId,
+    p_entry_id: entryId,
+    p_note: note.trim() || null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/accounting/jurnal`);
+  return { error: null };
+}

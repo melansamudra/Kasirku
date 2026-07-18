@@ -5,12 +5,27 @@ import type { JournalState } from "./actions";
 
 const initialState: JournalState = { error: null, resetToken: 0 };
 
-type Account = { code: string; name: string };
+type Account = {
+  code: string;
+  name: string;
+  type: "aset" | "kewajiban" | "modal" | "pendapatan" | "beban";
+  normal_balance: "debit" | "kredit";
+};
 type Line = { accountCode: string; debit: string; credit: string };
 
 function emptyLine(defaultCode: string): Line {
   return { accountCode: defaultCode, debit: "", credit: "" };
 }
+
+// Bahasa awam, bukan istilah akuntansi — supaya orang yang bukan lulusan
+// akuntansi tetap tahu sisi mana yang harus diisi tanpa perlu menghafal.
+const DEBIT_CREDIT_HINT: Record<Account["type"], string> = {
+  aset: "Kas/aset bertambah → isi Debit. Berkurang → isi Kredit.",
+  beban: "Biaya bertambah → isi Debit (paling umum dipakai).",
+  pendapatan: "Pendapatan bertambah → isi Kredit (paling umum dipakai).",
+  kewajiban: "Utang bertambah → isi Kredit. Dibayar/berkurang → isi Debit.",
+  modal: "Modal bertambah → isi Kredit. Ditarik/berkurang → isi Debit.",
+};
 
 export default function AddJournalForm({
   action,
@@ -96,47 +111,57 @@ function JournalFormFields({
         />
       </div>
 
-      <div className="space-y-2">
-        {lines.map((line, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <select
-              value={line.accountCode}
-              onChange={(e) => updateLine(i, { accountCode: e.target.value })}
-              className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            >
-              {accounts.map((a) => (
-                <option key={a.code} value={a.code}>
-                  {a.code} — {a.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="0"
-              placeholder="Debit"
-              value={line.debit}
-              onChange={(e) => updateLine(i, { debit: e.target.value, credit: "" })}
-              className="w-24 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-            <input
-              type="number"
-              min="0"
-              placeholder="Kredit"
-              value={line.credit}
-              onChange={(e) => updateLine(i, { credit: e.target.value, debit: "" })}
-              className="w-24 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-            <button
-              type="button"
-              onClick={() => removeLine(i)}
-              disabled={lines.length <= 2}
-              className="shrink-0 text-xs text-zinc-400 hover:text-red-500 disabled:opacity-30"
-              title="Hapus baris"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+      <div className="space-y-2.5">
+        {lines.map((line, i) => {
+          const selected = accounts.find((a) => a.code === line.accountCode);
+          return (
+            <div key={i}>
+              <div className="flex items-center gap-2">
+                <select
+                  value={line.accountCode}
+                  onChange={(e) => updateLine(i, { accountCode: e.target.value })}
+                  className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                >
+                  {accounts.map((a) => (
+                    <option key={a.code} value={a.code}>
+                      {a.code} — {a.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Debit"
+                  value={line.debit}
+                  onChange={(e) => updateLine(i, { debit: e.target.value, credit: "" })}
+                  className="w-24 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Kredit"
+                  value={line.credit}
+                  onChange={(e) => updateLine(i, { credit: e.target.value, debit: "" })}
+                  className="w-24 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeLine(i)}
+                  disabled={lines.length <= 2}
+                  className="shrink-0 text-xs text-zinc-400 hover:text-red-500 disabled:opacity-30"
+                  title="Hapus baris"
+                >
+                  ✕
+                </button>
+              </div>
+              {selected && (
+                <p className="mt-1 pl-0.5 text-[11px] text-zinc-400">
+                  💡 {DEBIT_CREDIT_HINT[selected.type]}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <button
