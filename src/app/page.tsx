@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PLANS } from "@/lib/billing/plans";
 import HomeMobileNav from "./home-mobile-nav";
 import HeroPreview from "./hero-preview";
 
@@ -71,7 +72,12 @@ const FEATURES = [
   },
 ];
 
+function formatRupiah(value: number) {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
+
 export default async function Home() {
+  const fullPlans = PLANS.filter((p) => p.family === "full");
   const supabase = await createClient();
   // getSession() (not getUser()) deliberately here — this only decides
   // whether to bounce an already-logged-in visitor off the marketing page
@@ -114,6 +120,12 @@ export default async function Home() {
               className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
             >
               Sistem Akuntansi
+            </Link>
+            <Link
+              href="#harga"
+              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:block"
+            >
+              Harga
             </Link>
             <Link
               href="/blog"
@@ -192,6 +204,13 @@ export default async function Home() {
                 Lihat Fitur
               </Link>
             </div>
+            <p className="mt-4 text-xs text-zinc-400">
+              Mulai dari{" "}
+              <Link href="#harga" className="font-semibold text-brand-700 hover:underline">
+                Rp88.000/bulan
+              </Link>{" "}
+              — tanpa kartu kredit untuk mendaftar.
+            </p>
           </div>
 
           <HeroPreview />
@@ -260,6 +279,62 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Harga */}
+      <section id="harga" className="bg-zinc-50 px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-xl text-center">
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Harga Transparan, Tanpa Biaya Tersembunyi</h2>
+            <p className="mt-3 text-sm text-zinc-500">
+              Kasir, stok, laporan, dan akuntansi lengkap — pilih sesuai cara kamu mau bayar.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+            {fullPlans.map((plan) => {
+              const isYearly = plan.code === "yearly";
+              return (
+                <div
+                  key={plan.code}
+                  className={`relative rounded-2xl border p-6 text-left ${
+                    isYearly
+                      ? "border-brand-600 bg-white shadow-lg shadow-brand-600/10"
+                      : "border-zinc-200 bg-white"
+                  }`}
+                >
+                  {isYearly && (
+                    <span className="absolute -top-3 left-6 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-semibold text-white">
+                      Paling Hemat — 44%
+                    </span>
+                  )}
+                  <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
+                  <p className="mt-1 text-3xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
+                  <p className="text-xs text-zinc-400">
+                    {plan.kind === "lifetime" ? "Sekali bayar, seterusnya" : `Setiap ${plan.periodDays} hari`}
+                  </p>
+                  <Link
+                    href="/signup"
+                    className={`mt-5 block rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${
+                      isYearly
+                        ? "bg-brand-600 text-white hover:bg-brand-700"
+                        : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    Pilih Paket Ini →
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-6 text-center text-xs text-zinc-400">
+            Cuma butuh akuntansi &amp; SDM tanpa kasir? Lihat{" "}
+            <Link href="/sistem-akuntansi#harga" className="font-medium text-brand-600 hover:underline">
+              harga Finance Only
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-600 px-4 py-20 text-white">
         <div
@@ -300,6 +375,9 @@ export default async function Home() {
             </Link>
             <Link href="/sistem-akuntansi" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Sistem Akuntansi
+            </Link>
+            <Link href="#harga" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
+              Harga
             </Link>
             <Link href="/blog" className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline">
               Artikel

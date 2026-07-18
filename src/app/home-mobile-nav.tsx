@@ -6,6 +6,7 @@ import Link from "next/link";
 const LINKS = [
   { href: "/kalkulator-hpp", label: "Kalkulator HPP" },
   { href: "/sistem-akuntansi", label: "Sistem Akuntansi" },
+  { href: "#harga", label: "Harga" },
   { href: "/blog", label: "Artikel" },
   { href: "/rekomendasi-alat", label: "Rekomendasi Alat" },
 ];
