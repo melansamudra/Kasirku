@@ -1,5 +1,6 @@
 import Link from "next/link";
 import OrderStatus from "./order-status";
+import Logo from "@/components/logo";
 
 export default async function BeliSelesaiPage({
   searchParams,
@@ -13,9 +14,7 @@ export default async function BeliSelesaiPage({
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-              K
-            </div>
+            <Logo className="h-9 w-9" />
             <span className="text-base font-bold text-zinc-900">KasirKu</span>
           </Link>
           <h1 className="mt-4 text-lg font-bold text-zinc-900">Kalkulator HPP Desktop</h1>

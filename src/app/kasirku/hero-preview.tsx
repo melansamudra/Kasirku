@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Logo from "@/components/logo";
 
 const CHART_BARS = [40, 65, 50, 80, 60, 95, 70];
 const CART_ITEMS = [
@@ -138,9 +139,7 @@ export default function HeroPreview() {
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-            K
-          </div>
+          <Logo className="h-10 w-10" />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-zinc-900">Toko Kamu</p>
             <p className="text-xs text-zinc-400">{SLIDE_LABELS[active]}</p>

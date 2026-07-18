@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import FloatingWhatsApp from "@/components/floating-whatsapp";
+import Logo from "@/components/logo";
 
 export const metadata: Metadata = {
   title: "CreateImpact — Portal Bisnis Kuliner & F&B",
@@ -62,9 +63,7 @@ export default async function PortalHomePage() {
       <header className="sticky top-0 z-10 border-b border-zinc-100 bg-white/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-              K
-            </div>
+            <Logo className="h-9 w-9" />
             <span className="text-base font-bold text-zinc-900">CreateImpact</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -177,9 +176,7 @@ export default async function PortalHomePage() {
       <footer className="border-t border-zinc-100 px-4 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-              K
-            </div>
+            <Logo className="h-7 w-7" />
             <span className="text-sm font-semibold text-zinc-700">CreateImpact</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4">

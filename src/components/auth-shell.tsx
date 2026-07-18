@@ -1,3 +1,5 @@
+import Logo from "@/components/logo";
+
 const FEATURES = [
   { icon: "🧾", label: "Kasir & struk instan" },
   { icon: "📦", label: "Stok & resep otomatis" },
@@ -34,8 +36,8 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         />
 
         <div className="relative flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-            <span className="text-lg font-bold">K</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
+            <Logo className="h-full w-full" />
           </div>
           <span className="text-lg font-bold tracking-tight">KasirKu</span>
         </div>

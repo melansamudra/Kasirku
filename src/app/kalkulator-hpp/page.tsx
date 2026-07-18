@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import FloatingWhatsApp from "@/components/floating-whatsapp";
 import { HppCalculator } from "./hpp-calculator";
+import Logo from "@/components/logo";
 
 export const metadata: Metadata = {
   title: "Kalkulator HPP Gratis — Hitung Harga Pokok Produksi | KasirKu",
@@ -17,9 +18,7 @@ export default function KalkulatorHppPage() {
       <header className="sticky top-0 z-10 border-b border-zinc-100 bg-white/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-              K
-            </div>
+            <Logo className="h-9 w-9" />
             <span className="text-base font-bold text-zinc-900">KasirKu</span>
           </Link>
           <Link
@@ -68,9 +67,7 @@ export default function KalkulatorHppPage() {
       <footer className="border-t border-zinc-100 px-4 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-              K
-            </div>
+            <Logo className="h-7 w-7" />
             <span className="text-sm font-semibold text-zinc-700">KasirKu</span>
           </div>
           <p className="text-xs text-zinc-400">© {year} KasirKu. Semua hak dilindungi.</p>
