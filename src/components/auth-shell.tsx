@@ -63,7 +63,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <p className="relative text-xs text-brand-50/60">
-          Dipercaya pemilik F&amp;B, retail, dan tempat wisata.
+          Coba gratis, tanpa kartu kredit — langsung bisa dipakai dalam hitungan menit.
         </p>
       </div>
 
