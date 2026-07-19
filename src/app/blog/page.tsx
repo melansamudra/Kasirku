@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import FloatingWhatsApp from "@/components/floating-whatsapp";
 import { ARTICLES } from "@/lib/blog/articles";
@@ -44,14 +45,27 @@ export default function BlogIndexPage() {
             <Link
               key={article.slug}
               href={`/blog/${article.slug}`}
-              className="block rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+              className="flex gap-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md sm:gap-5"
             >
-              <p className="text-xs text-zinc-400">{formatDate(article.publishedAt)}</p>
-              <p className="mt-1.5 text-lg font-bold text-zinc-900">{article.title}</p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">{article.description}</p>
-              <span className="mt-3 inline-block text-xs font-semibold text-brand-700">
-                Baca selengkapnya →
-              </span>
+              {article.coverImage && (
+                <div className="relative h-auto w-28 shrink-0 sm:w-40">
+                  <Image
+                    src={article.coverImage}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 112px, 160px"
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div className="min-w-0 flex-1 py-6 pr-6">
+                <p className="text-xs text-zinc-400">{formatDate(article.publishedAt)}</p>
+                <p className="mt-1.5 text-lg font-bold text-zinc-900">{article.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">{article.description}</p>
+                <span className="mt-3 inline-block text-xs font-semibold text-brand-700">
+                  Baca selengkapnya →
+                </span>
+              </div>
             </Link>
           ))}
         </div>

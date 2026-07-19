@@ -8,6 +8,7 @@ export type Article = {
   title: string;
   description: string;
   publishedAt: string; // ISO date
+  coverImage?: string;
   content: ArticleBlock[];
 };
 
@@ -18,6 +19,7 @@ export const ARTICLES: Article[] = [
     description:
       "Panduan dasar menghitung HPP resep makanan/minuman supaya harga jual tidak rugi, lengkap contoh perhitungan.",
     publishedAt: "2026-07-12",
+    coverImage: "/images/blog-hpp.jpg",
     content: [
       { type: "heading", text: "Apa itu HPP?" },
       {
@@ -72,6 +74,7 @@ export const ARTICLES: Article[] = [
     description:
       "Panduan sederhana memahami laporan laba rugi bagi pemilik usaha yang bukan lulusan akuntansi.",
     publishedAt: "2026-07-12",
+    coverImage: "/images/blog-laba-rugi.jpg",
     content: [
       { type: "heading", text: "Kenapa Laporan Laba Rugi Itu Penting" },
       {
@@ -126,6 +129,7 @@ export const ARTICLES: Article[] = [
     description:
       "Panduan praktis mengelola stok bahan baku untuk usaha F&B dan retail supaya tidak kehabisan saat ramai atau terbuang sia-sia.",
     publishedAt: "2026-07-18",
+    coverImage: "/images/blog-stok.jpg",
     content: [
       { type: "heading", text: "Kenapa Stok Sering Jadi Masalah" },
       {

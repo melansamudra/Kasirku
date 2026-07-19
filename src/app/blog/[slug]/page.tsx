@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import FloatingWhatsApp from "@/components/floating-whatsapp";
@@ -74,6 +75,12 @@ export default async function BlogArticlePage({
           <h1 className="mt-1.5 text-2xl font-bold leading-tight text-zinc-900 sm:text-3xl">
             {article.title}
           </h1>
+
+          {article.coverImage && (
+            <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-2xl">
+              <Image src={article.coverImage} alt="" fill sizes="672px" className="object-cover" priority />
+            </div>
+          )}
 
           <div className="mt-8">
             {article.content.map((block, i) => {

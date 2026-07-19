@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -71,17 +72,42 @@ export default async function PortalHomePage() {
           aria-hidden
           className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-brand-300/30 blur-3xl"
         />
-        <div className="relative mx-auto max-w-3xl text-center">
-          <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-            Portal Bisnis Kuliner &amp; F&amp;B
-          </span>
-          <h1 className="mt-4 text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl">
-            Semua yang Dibutuhkan Usaha F&amp;B, dalam Satu Tempat
-          </h1>
-          <p className="mt-4 text-base text-zinc-600">
-            Dari aplikasi kasir, layanan konsultasi pajak &amp; biaya, sampai panduan operasional
-            — CreateImpact menemani usahamu dari hari pertama.
-          </p>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+          <div className="text-center lg:text-left">
+            <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              Portal Bisnis Kuliner &amp; F&amp;B
+            </span>
+            <h1 className="mt-4 text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl">
+              Semua yang Dibutuhkan Usaha F&amp;B, dalam Satu Tempat
+            </h1>
+            <p className="mt-4 text-base text-zinc-600">
+              Dari aplikasi kasir, layanan konsultasi pajak &amp; biaya, sampai panduan operasional
+              — CreateImpact menemani usahamu dari hari pertama.
+            </p>
+          </div>
+
+          <div className="relative mx-auto w-full max-w-sm">
+            <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-zinc-200 shadow-2xl shadow-zinc-300/40">
+              <Image
+                src="/images/hero-ayam-goreng.jpg"
+                alt="Menu makanan siap disajikan"
+                fill
+                sizes="(max-width: 1024px) 384px, 400px"
+                className="object-cover"
+                priority
+              />
+            </div>
+            <div className="absolute -bottom-8 -left-8 h-32 w-32 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36">
+              <Image
+                src="/images/hero-minuman.jpg"
+                alt="Aneka minuman"
+                fill
+                sizes="144px"
+                className="object-cover"
+                priority
+              />
+            </div>
+          </div>
         </div>
       </section>
 
