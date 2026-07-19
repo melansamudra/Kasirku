@@ -98,7 +98,10 @@ export default function SiteHeader() {
             {mobileOpen && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setMobileOpen(false)} />
-                <div className="absolute right-0 z-30 mt-2 w-72 rounded-xl border border-zinc-200 bg-white py-2 shadow-lg">
+                {/* fixed + left-4/right-4 (bukan absolute+right-0 relatif ke
+                    tombol hamburger) — supaya panel selalu pas di dalam layar
+                    HP apa pun lebar tombolnya, tidak kepotong ke kiri. */}
+                <div className="fixed left-4 right-4 top-[72px] z-30 max-h-[75vh] overflow-y-auto rounded-xl border border-zinc-200 bg-white py-2 shadow-lg">
                   <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
                     Aplikasi Kasir
                   </p>
