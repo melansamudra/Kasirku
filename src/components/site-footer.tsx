@@ -18,9 +18,14 @@ export default function SiteFooter() {
   return (
     <footer className="border-t border-zinc-100 px-4 py-8">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
-        <Link href="/" className="flex items-center gap-2">
-          <Logo className="h-7 w-7" />
-          <span className="text-sm font-semibold text-zinc-700">CreateImpact</span>
+        <Link href="/" className="flex flex-col items-center gap-1 sm:items-start">
+          <span className="flex items-center gap-2">
+            <Logo className="h-7 w-7" />
+            <span className="text-sm font-semibold text-zinc-700">CreateImpact</span>
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
+            Finance <span className="text-brand-600">|</span> System <span className="text-brand-600">|</span> Growth
+          </span>
         </Link>
         <div className="flex flex-wrap items-center justify-center gap-4">
           {LINKS.map((l) => (
