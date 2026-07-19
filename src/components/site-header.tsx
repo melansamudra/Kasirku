@@ -5,12 +5,12 @@ import Link from "next/link";
 import Logo from "@/components/logo";
 
 const APLIKASI_KASIR_LINKS = [
-  { href: "/kasirku", label: "KasirKu", desc: "Ringkasan fitur aplikasi kasir" },
-  { href: "/kasirku#harga", label: "Harga", desc: "Paket bulanan, tahunan, sekali bayar" },
-  { href: "/kalkulator-hpp", label: "Kalkulator HPP", desc: "Hitung harga pokok produk, gratis" },
-  { href: "/sistem-akuntansi", label: "Sistem Akuntansi", desc: "Akuntansi & SDM tanpa ganti kasir" },
-  { href: "/perbandingan", label: "Perbandingan", desc: "KasirKu vs aplikasi kasir lain" },
-  { href: "/panduan-akuntansi", label: "Panduan", desc: "Cara kerja kasir, HPP, dan jurnal" },
+  { href: "/kasirku", icon: "🧾", label: "KasirKu", desc: "Ringkasan fitur aplikasi kasir" },
+  { href: "/kasirku#harga", icon: "💰", label: "Harga", desc: "Paket bulanan, tahunan, sekali bayar" },
+  { href: "/kalkulator-hpp", icon: "🧮", label: "Kalkulator HPP", desc: "Hitung harga pokok produk, gratis" },
+  { href: "/sistem-akuntansi", icon: "📊", label: "Sistem Akuntansi", desc: "Akuntansi & SDM tanpa ganti kasir" },
+  { href: "/perbandingan", icon: "⚖️", label: "Perbandingan", desc: "KasirKu vs aplikasi kasir lain" },
+  { href: "/panduan-akuntansi", icon: "📖", label: "Panduan", desc: "Cara kerja kasir, HPP, dan jurnal" },
 ];
 
 const OTHER_LINKS = [
@@ -47,25 +47,35 @@ export default function SiteHeader() {
               type="button"
               onClick={() => setDropdownOpen((v) => !v)}
               aria-expanded={dropdownOpen}
-              className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+              className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-zinc-50 ${
+                dropdownOpen ? "text-brand-600" : "text-zinc-600"
+              }`}
             >
               Aplikasi Kasir
-              <span aria-hidden className={`text-[10px] transition-transform ${dropdownOpen ? "rotate-180" : ""}`}>
+              <span
+                aria-hidden
+                className={`text-[10px] transition-transform ${dropdownOpen ? "rotate-180 text-brand-600" : ""}`}
+              >
                 ▾
               </span>
             </button>
             {dropdownOpen && (
-              <div className="absolute left-0 top-full pt-2">
-                <div className="w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
+              <div className="absolute left-0 top-full w-[560px] max-w-[calc(100vw-2rem)] pt-2">
+                <div className="grid grid-cols-2 gap-1 rounded-2xl border border-zinc-200 bg-white p-3 shadow-xl">
                   {APLIKASI_KASIR_LINKS.map((l) => (
                     <Link
                       key={l.href}
                       href={l.href}
                       onClick={() => setDropdownOpen(false)}
-                      className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-50"
+                      className="flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-brand-50"
                     >
-                      <p className="text-sm font-semibold text-zinc-900">{l.label}</p>
-                      <p className="text-xs text-zinc-500">{l.desc}</p>
+                      <span className="mt-0.5 text-lg" aria-hidden>
+                        {l.icon}
+                      </span>
+                      <span>
+                        <p className="text-sm font-semibold text-zinc-900">{l.label}</p>
+                        <p className="text-xs text-zinc-500">{l.desc}</p>
+                      </span>
                     </Link>
                   ))}
                 </div>
@@ -76,7 +86,7 @@ export default function SiteHeader() {
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-brand-600"
             >
               {l.label}
             </Link>

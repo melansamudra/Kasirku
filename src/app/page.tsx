@@ -74,16 +74,34 @@ export default async function PortalHomePage() {
         />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
           <div className="text-center lg:text-left">
-            <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
+              Finance <span className="text-brand-600">|</span> System <span className="text-brand-600">|</span>{" "}
+              Growth
+            </p>
+            <span className="mt-3 inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
               Portal Bisnis Kuliner &amp; F&amp;B
             </span>
-            <h1 className="mt-4 text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl">
+            <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-zinc-950 sm:text-5xl">
               Semua yang Dibutuhkan Usaha F&amp;B, dalam Satu Tempat
             </h1>
             <p className="mt-4 text-base text-zinc-600">
               Dari aplikasi kasir, layanan konsultasi pajak &amp; biaya, sampai panduan operasional
               — CreateImpact menemani usahamu dari hari pertama.
             </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+              <Link
+                href="/kasirku"
+                className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
+              >
+                Coba Gratis Sekarang →
+              </Link>
+              <Link
+                href="/layanan"
+                className="rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                Lihat Layanan
+              </Link>
+            </div>
           </div>
 
           <div className="relative mx-auto w-full max-w-sm">
