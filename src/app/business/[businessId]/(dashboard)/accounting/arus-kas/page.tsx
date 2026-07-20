@@ -37,40 +37,31 @@ export default async function ArusKasPage({
 
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  // business & accounts tidak saling bergantung — paralel.
+  const [{ data: business }, { data: accounts }] = await Promise.all([
+    supabase.from("businesses").select("id, name").eq("id", businessId).single(),
+    supabase.from("accounts").select("id, code, name, type").eq("business_id", businessId),
+  ]);
 
   if (!business) {
     notFound();
   }
 
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("id, code, name, type")
-    .eq("business_id", businessId);
-
   const accountMap = new Map((accounts ?? []).map((a) => [a.id, a]));
   const kasAccountId = (accounts ?? []).find((a) => a.code === KAS_ACCOUNT_CODE)?.id;
 
-  // Saldo kas sebelum periode ini (untuk saldo awal).
-  let openingBalance = 0;
+  // Saldo kas sebelum periode ini (untuk saldo awal) — difilter ke baris
+  // akun Kas & Bank saja di level query (`journal_lines!inner` + filter
+  // account_id) supaya tidak menarik seluruh baris jurnal semua akun dari
+  // awal pencatatan, cuma yang menyentuh akun Kas.
+  let openingQuery = null;
   if (kasAccountId && fromIso) {
-    const { data: priorEntries } = await supabase
+    openingQuery = supabase
       .from("journal_entries")
-      .select("journal_lines(debit, credit, account_id)")
+      .select("journal_lines!inner(debit, credit, account_id)")
       .eq("business_id", businessId)
+      .eq("journal_lines.account_id", kasAccountId)
       .lt("date", fromIso);
-    for (const e of priorEntries ?? []) {
-      const lines = e.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
-      for (const l of lines) {
-        if (l.account_id === kasAccountId) {
-          openingBalance += Number(l.debit) - Number(l.credit);
-        }
-      }
-    }
   }
 
   // Arus kas di periode ini. Setiap entry jurnal yang punya baris Kas & Bank
@@ -84,7 +75,20 @@ export default async function ArusKasPage({
     .eq("business_id", businessId);
   if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
   if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-  const { data: entries } = await entryQuery;
+
+  // Saldo awal & arus kas periode ini tidak saling bergantung — paralel.
+  const [openingResult, { data: entries }] = await Promise.all([
+    openingQuery ?? Promise.resolve({ data: null as { journal_lines: { debit: number; credit: number; account_id: string }[] }[] | null }),
+    entryQuery,
+  ]);
+
+  let openingBalance = 0;
+  for (const e of openingResult.data ?? []) {
+    const lines = e.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
+    for (const l of lines) {
+      openingBalance += Number(l.debit) - Number(l.credit);
+    }
+  }
 
   type Bucket = "operasional" | "investasi" | "pendanaan";
   const byLabel = new Map<Bucket, Map<string, { masuk: number; keluar: number }>>([

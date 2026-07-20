@@ -63,22 +63,6 @@ export default async function JurnalPage({
 
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
-
-  if (!business) {
-    notFound();
-  }
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("code, name, type, normal_balance")
-    .eq("business_id", businessId)
-    .order("code", { ascending: true });
-
   let entryQuery = supabase
     .from("journal_entries")
     .select("id, date, description, source, journal_lines(debit, credit, accounts(code, name))")
@@ -86,16 +70,34 @@ export default async function JurnalPage({
     .order("date", { ascending: false });
   if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
   if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-  const { data: entries } = await entryQuery;
 
-  // Terlepas dari filter periode yang sedang aktif — sebuah jurnal manual
-  // lama (di luar rentang tanggal yang sedang dilihat) tetap tidak boleh
-  // ditawari tombol "Koreksi" lagi kalau sudah pernah dikoreksi sebelumnya.
-  const { data: reversals } = await supabase
-    .from("journal_entries")
-    .select("source_id")
-    .eq("business_id", businessId)
-    .eq("source", "koreksi");
+  // Keempat query di bawah tidak saling bergantung — dijalankan paralel
+  // (bukan berurutan) supaya waktu tunggu halaman = query terlama, bukan
+  // jumlah semuanya.
+  const [{ data: business }, { data: accounts }, { data: entries }, { data: reversals }] =
+    await Promise.all([
+      supabase.from("businesses").select("id, name").eq("id", businessId).single(),
+      supabase
+        .from("accounts")
+        .select("code, name, type, normal_balance")
+        .eq("business_id", businessId)
+        .order("code", { ascending: true }),
+      entryQuery,
+      // Terlepas dari filter periode yang sedang aktif — sebuah jurnal
+      // manual lama (di luar rentang tanggal yang sedang dilihat) tetap
+      // tidak boleh ditawari tombol "Koreksi" lagi kalau sudah pernah
+      // dikoreksi sebelumnya.
+      supabase
+        .from("journal_entries")
+        .select("source_id")
+        .eq("business_id", businessId)
+        .eq("source", "koreksi"),
+    ]);
+
+  if (!business) {
+    notFound();
+  }
+
   const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
 
   const boundAddJournalEntry = addJournalEntry.bind(null, businessId);

@@ -30,27 +30,25 @@ export default async function NeracaPage({
 
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  // Ketiga query ini tidak saling bergantung — dijalankan paralel supaya
+  // waktu tunggu halaman = query terlama, bukan jumlah semuanya.
+  const [{ data: business }, { data: accounts }, { data: entries }] = await Promise.all([
+    supabase.from("businesses").select("id, name").eq("id", businessId).single(),
+    supabase
+      .from("accounts")
+      .select("id, code, name, type, normal_balance")
+      .eq("business_id", businessId)
+      .order("code", { ascending: true }),
+    supabase
+      .from("journal_entries")
+      .select("journal_lines(debit, credit, account_id)")
+      .eq("business_id", businessId)
+      .lte("date", asOfIso),
+  ]);
 
   if (!business) {
     notFound();
   }
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("id, code, name, type, normal_balance")
-    .eq("business_id", businessId)
-    .order("code", { ascending: true });
-
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .lte("date", asOfIso);
 
   const balanceByAccount = new Map<string, number>();
   for (const entry of entries ?? []) {

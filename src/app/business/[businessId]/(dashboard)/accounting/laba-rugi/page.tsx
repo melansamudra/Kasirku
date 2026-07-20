@@ -34,29 +34,28 @@ export default async function LabaRugiAkrualPage({
 
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
-
-  if (!business) {
-    notFound();
-  }
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("id, code, name, type, normal_balance")
-    .eq("business_id", businessId)
-    .in("type", ["pendapatan", "beban"]);
-
   let entryQuery = supabase
     .from("journal_entries")
     .select("journal_lines(debit, credit, account_id)")
     .eq("business_id", businessId);
   if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
   if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-  const { data: entries } = await entryQuery;
+
+  // Ketiga query ini tidak saling bergantung — dijalankan paralel supaya
+  // waktu tunggu halaman = query terlama, bukan jumlah semuanya.
+  const [{ data: business }, { data: accounts }, { data: entries }] = await Promise.all([
+    supabase.from("businesses").select("id, name").eq("id", businessId).single(),
+    supabase
+      .from("accounts")
+      .select("id, code, name, type, normal_balance")
+      .eq("business_id", businessId)
+      .in("type", ["pendapatan", "beban"]),
+    entryQuery,
+  ]);
+
+  if (!business) {
+    notFound();
+  }
 
   const balanceByAccount = new Map<string, number>();
   for (const entry of entries ?? []) {

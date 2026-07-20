@@ -42,19 +42,31 @@ export default async function BusinessDashboardPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name, business_type")
-    .eq("id", businessId)
-    .single();
+  const today = todayStr();
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const daysSoFar = Number(today.slice(8, 10));
+
+  // business, expenses & openShift tidak saling bergantung — paralel.
+  // transactions menunggu giliran berikutnya karena nama tabelnya
+  // ditentukan oleh business.business_type.
+  const [{ data: business }, { data: expenses }, { data: openShift }] = await Promise.all([
+    supabase.from("businesses").select("id, name, business_type").eq("id", businessId).single(),
+    supabase
+      .from("expenses")
+      .select("date, category, amount")
+      .eq("business_id", businessId)
+      .gte("date", monthStart),
+    supabase
+      .from("shifts")
+      .select("id")
+      .eq("business_id", businessId)
+      .is("closed_at", null)
+      .maybeSingle(),
+  ]);
 
   if (!business) {
     notFound();
   }
-
-  const today = todayStr();
-  const monthStart = `${today.slice(0, 7)}-01`;
-  const daysSoFar = Number(today.slice(8, 10));
 
   const { data: transactions } = await supabase
     .from(business.business_type === "tiket" ? "ticket_transactions" : "transactions")
@@ -62,19 +74,6 @@ export default async function BusinessDashboardPage({
     .eq("business_id", businessId)
     .eq("voided", false)
     .gte("date", wibStartOfDay(monthStart));
-
-  const { data: expenses } = await supabase
-    .from("expenses")
-    .select("date, category, amount")
-    .eq("business_id", businessId)
-    .gte("date", monthStart);
-
-  const { data: openShift } = await supabase
-    .from("shifts")
-    .select("id")
-    .eq("business_id", businessId)
-    .is("closed_at", null)
-    .maybeSingle();
 
   const revenue = (transactions ?? []).reduce((s, t) => s + Number(t.total), 0);
   const txCount = (transactions ?? []).length;
