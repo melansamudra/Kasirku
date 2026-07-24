@@ -6,10 +6,18 @@ import { createBusiness, type CreateBusinessState } from "./actions";
 
 const initialState: CreateBusinessState = { error: null };
 
+const BUSINESS_TYPE_LABEL: Record<string, string> = {
+  fnb: "🍽️ F&B",
+  retail: "🛒 Retail",
+  tiket: "🎟️ Tiket",
+};
+
 export default function OnboardingForm({
   hasExistingBusinesses,
+  otherBusinesses,
 }: {
   hasExistingBusinesses: boolean;
+  otherBusinesses: { id: string; name: string; business_type: string }[];
 }) {
   const [state, formAction, pending] = useActionState(createBusiness, initialState);
 
@@ -106,6 +114,34 @@ export default function OnboardingForm({
             </label>
           </div>
         </fieldset>
+
+        {otherBusinesses.length > 0 && (
+          <div>
+            <label
+              htmlFor="copyFromBusinessId"
+              className="mb-1 block text-xs font-medium text-zinc-600"
+            >
+              Salin menu dari toko lain (opsional)
+            </label>
+            <select
+              id="copyFromBusinessId"
+              name="copyFromBusinessId"
+              defaultValue=""
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">— Mulai dari kosong —</option>
+              {otherBusinesses.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({BUSINESS_TYPE_LABEL[b.business_type] ?? b.business_type})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Produk, bahan baku, dan resepnya disalin sekali di awal — setelah itu tiap
+              toko bisa diedit sendiri-sendiri, tidak ikut berubah kalau salah satu diubah.
+            </p>
+          </div>
+        )}
 
         {state.error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>
