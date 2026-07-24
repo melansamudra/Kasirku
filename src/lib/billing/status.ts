@@ -4,14 +4,15 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 export type SubscriptionAccess = {
   locked: boolean;
-  status: "unpaid" | "active" | "past_due" | "expired";
+  status: "unpaid" | "trialing" | "active" | "past_due" | "expired";
   planCode: string | null;
   periodEnd: string | null;
 };
 
 // `unpaid` (no subscription row yet, or never paid) and `expired` (lapsed
-// past the grace period) block access; `active` and `past_due` don't —
-// past_due only shows a warning banner, per the grace-period design.
+// past the grace period) block access; `trialing`, `active`, and `past_due`
+// don't — `trialing` is a full-access trial window, `past_due` only shows a
+// warning banner, per the grace-period design.
 export async function getSubscriptionAccess(
   supabase: SupabaseServerClient,
   businessId: string,

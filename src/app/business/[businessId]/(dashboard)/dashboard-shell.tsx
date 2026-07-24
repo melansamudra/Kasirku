@@ -338,6 +338,7 @@ export default function DashboardShell({
   businessType,
   userEmail,
   billingPastDuePeriodEnd,
+  trialPeriodEnd,
   isFinanceOnly = false,
   children,
 }: {
@@ -346,6 +347,7 @@ export default function DashboardShell({
   businessType: BusinessType;
   userEmail: string;
   billingPastDuePeriodEnd?: string | null;
+  trialPeriodEnd?: string | null;
   isFinanceOnly?: boolean;
   children: React.ReactNode;
 }) {
@@ -401,6 +403,28 @@ export default function DashboardShell({
           </button>
           <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
         </div>
+
+        {trialPeriodEnd && (
+          <div className="flex items-center justify-between gap-3 bg-brand-50 px-4 py-2.5 text-xs font-medium text-brand-800 print:hidden md:px-8">
+            <span>
+              Uji coba gratis berakhir{" "}
+              {Math.max(
+                0,
+                Math.ceil(
+                  (new Date(trialPeriodEnd).getTime() - new Date().getTime()) /
+                    (24 * 60 * 60 * 1000),
+                ),
+              )}{" "}
+              hari lagi — berlangganan sekarang supaya akses tidak terputus.
+            </span>
+            <Link
+              href={`/business/${businessId}/billing`}
+              className="shrink-0 rounded-full bg-brand-600 px-3 py-1 text-white hover:bg-brand-700"
+            >
+              Berlangganan
+            </Link>
+          </div>
+        )}
 
         {billingPastDuePeriodEnd && (
           <div className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800 print:hidden md:px-8">

@@ -144,12 +144,11 @@ export async function createBusiness(
     return { error: error?.message ?? "Gagal membuat bisnis." };
   }
 
-  // Belum ada trial — pemilik baru harus pilih & bayar paket dulu sebelum
-  // bisa masuk ke dashboard/kasir (lihat gating di layout.tsx dashboard & pos).
-  const { error: subscriptionError } = await supabase.from("subscriptions").insert({
-    business_id: business.id,
-    plan_code: "",
-    status: "unpaid",
+  // Grants a 3-day trial (hardcoded server-side in the RPC) so a new owner
+  // can look around before being asked to pick and pay for a plan — see
+  // start_trial() in 20260725110000_trial_subscriptions.sql.
+  const { error: subscriptionError } = await supabase.rpc("start_trial", {
+    p_business_id: business.id,
   });
 
   if (subscriptionError) {

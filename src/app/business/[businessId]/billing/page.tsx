@@ -11,6 +11,7 @@ function formatRupiah(value: number) {
 
 const STATUS_LABELS: Record<string, string> = {
   unpaid: "Belum Berlangganan",
+  trialing: "Uji Coba",
   active: "Aktif",
   past_due: "Jatuh Tempo",
   expired: "Kedaluwarsa",
@@ -18,6 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_BADGE: Record<string, string> = {
   unpaid: "bg-zinc-100 text-zinc-600",
+  trialing: "bg-brand-50 text-brand-700",
   active: "bg-brand-50 text-brand-700",
   past_due: "bg-amber-50 text-amber-700",
   expired: "bg-red-50 text-red-600",

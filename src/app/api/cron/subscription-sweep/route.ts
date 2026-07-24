@@ -27,9 +27,18 @@ export async function GET(request: Request) {
     .lt("period_end", graceCutoff.toISOString())
     .select("id");
 
-  if (pastDueError || expiredError) {
+  // Trials get no grace period — they lapse straight to unpaid, unlike a
+  // paying customer who gets past_due first.
+  const { data: trialExpired, error: trialExpiredError } = await supabase
+    .from("subscriptions")
+    .update({ status: "unpaid", updated_at: now.toISOString() })
+    .eq("status", "trialing")
+    .lt("period_end", now.toISOString())
+    .select("id");
+
+  if (pastDueError || expiredError || trialExpiredError) {
     return NextResponse.json(
-      { error: pastDueError?.message ?? expiredError?.message },
+      { error: pastDueError?.message ?? expiredError?.message ?? trialExpiredError?.message },
       { status: 500 },
     );
   }
@@ -37,5 +46,6 @@ export async function GET(request: Request) {
   return NextResponse.json({
     pastDueCount: pastDue?.length ?? 0,
     expiredCount: expired?.length ?? 0,
+    trialExpiredCount: trialExpired?.length ?? 0,
   });
 }

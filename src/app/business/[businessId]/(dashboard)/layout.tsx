@@ -35,6 +35,7 @@ export default async function BusinessDashboardLayout({
       businessType={business.business_type as "fnb" | "retail" | "tiket"}
       userEmail={userData.user?.email ?? ""}
       billingPastDuePeriodEnd={access.status === "past_due" ? access.periodEnd : null}
+      trialPeriodEnd={access.status === "trialing" ? access.periodEnd : null}
       isFinanceOnly={isFinancePlan(access.planCode)}
     >
       {children}
