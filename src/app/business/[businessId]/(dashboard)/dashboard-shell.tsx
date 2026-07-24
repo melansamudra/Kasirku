@@ -58,33 +58,70 @@ function buildNavGroups(
   const isFnb = businessType === "fnb";
   const isTiket = businessType === "tiket";
   const base = `/business/${businessId}`;
+
+  // "Utama" mirrors Moka's flat, short sidebar (~13 items) — the things a
+  // typical UMKM owner actually touches day to day. Everything heavier
+  // (full double-entry accounting, payroll/attendance, AR/AP, fixed assets)
+  // lives in "Fitur Lanjutan" instead, collapsed by default, so it doesn't
+  // drown out daily operations the way one flat 30-item list used to.
   return [
     {
-      title: "Keuangan",
+      title: "Utama",
       items: [
         { href: base, label: "Dashboard", icon: LayoutDashboard },
         ...(isTiket
-          ? []
+          ? [
+              { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
+              { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
+              { href: `${base}/members`, label: "Anggota", icon: UserCircle },
+            ]
           : [
               { href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
-              { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
-              { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
-              { href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
-              { href: `${base}/finance`, label: "Keuangan", icon: Wallet },
               { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
             ]),
         { href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
+        ...(isTiket ? [] : [{ href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet }]),
+        ...(isTiket
+          ? []
+          : [
+              { href: `${base}/products`, label: "Kelola Produk", icon: Package },
+              ...(isFnb
+                ? [
+                    { href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+                    {
+                      href: `${base}/tables`,
+                      label: "Meja & Self-Order",
+                      icon: UtensilsCrossed,
+                    },
+                  ]
+                : []),
+            ]),
+        ...(isFinanceOnly
+          ? []
+          : [
+              ...(isTiket ? [] : [{ href: `${base}/customers`, label: "Pelanggan", icon: Users }]),
+              { href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
+            ]),
+        { href: `${base}/settings`, label: "Pengaturan", icon: Settings },
       ],
     },
-    // Unlike the cash-basis "Keuangan" items above (which read straight from
-    // `transactions` and would show nothing for tiket, since ticket sales
-    // deliberately live in a separate table), everything here reads
-    // generically from `accounts`/`journal_lines` — now that ticket sales
-    // post to the journal too (see 20260712150000_ticket_journal_posting.sql),
-    // this group is accurate for tiket businesses as well.
+    // Everything a typical UMKM owner doesn't need day-to-day: full
+    // double-entry bookkeeping (accurate for tiket too, since ticket sales
+    // post to the journal — see 20260712150000_ticket_journal_posting.sql),
+    // extra analytics, AR/AP, fixed assets, and payroll/HR.
     {
-      title: "Akuntansi",
+      title: "Fitur Lanjutan",
       items: [
+        ...(isTiket
+          ? []
+          : [
+              { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
+              { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
+              { href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
+              ...(isFnb
+                ? [{ href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag }]
+                : []),
+            ]),
         { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
         {
           href: `${base}/accounting/laba-rugi`,
@@ -92,7 +129,6 @@ function buildNavGroups(
           icon: TrendingUp,
         },
         { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
-        { href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet },
         { href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
         { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
         { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
@@ -109,48 +145,15 @@ function buildNavGroups(
         },
         { href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
         { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
-      ],
-    },
-    // Businesses on a Finance Only plan already have their own POS elsewhere
-    // — this whole group (and the "Buka Kasir" button below) is irrelevant
-    // to them, so it's omitted entirely rather than just left empty.
-    ...(isFinanceOnly
-      ? []
-      : [
-          {
-            title: "Operasional",
-            items: isTiket
-              ? [
-                  { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
-                  { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
-                  { href: `${base}/members`, label: "Anggota", icon: UserCircle },
-                ]
-              : [
-                  { href: `${base}/products`, label: "Kelola Produk", icon: Package },
-                  ...(isFnb
-                    ? [
-                        { href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
-                        { href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag },
-                        {
-                          href: `${base}/tables`,
-                          label: "Meja & Self-Order",
-                          icon: UtensilsCrossed,
-                        },
-                      ]
-                    : []),
-                  { href: `${base}/customers`, label: "Pelanggan", icon: Users },
-                  { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
-                  { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
-                  { href: `${base}/suppliers`, label: "Supplier", icon: Store },
-                  { href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
-                ],
-          },
-        ]),
-    {
-      title: "SDM",
-      items: [
+        ...(isFinanceOnly || isTiket
+          ? []
+          : [
+              { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
+              { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+              { href: `${base}/suppliers`, label: "Supplier", icon: Store },
+              { href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
+            ]),
         { href: `${base}/employees`, label: "Karyawan", icon: UserCog },
-        { href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
         { href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
         { href: `${base}/payroll`, label: "Payroll", icon: Banknote },
       ],
@@ -159,7 +162,6 @@ function buildNavGroups(
       title: "Lainnya",
       items: [
         { href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
-        { href: `${base}/settings`, label: "Pengaturan", icon: Settings },
         { href: `${base}/activity`, label: "Aktivitas", icon: Activity },
       ],
     },
