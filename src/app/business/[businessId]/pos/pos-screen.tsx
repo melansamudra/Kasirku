@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  addShiftCashMovement,
   checkout,
   closeShift,
   deleteOpenBill,
@@ -173,6 +174,13 @@ export default function PosScreen({
   const [closeError, setCloseError] = useState<string | null>(null);
   const [closeSubmitting, setCloseSubmitting] = useState(false);
   const [closedSummary, setClosedSummary] = useState<CloseShiftSummary | null>(null);
+
+  const [cashMoveOpen, setCashMoveOpen] = useState(false);
+  const [cashMoveDirection, setCashMoveDirection] = useState<"in" | "out">("out");
+  const [cashMoveAmount, setCashMoveAmount] = useState("");
+  const [cashMoveDesc, setCashMoveDesc] = useState("");
+  const [cashMoveError, setCashMoveError] = useState<string | null>(null);
+  const [cashMoveSubmitting, setCashMoveSubmitting] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -574,6 +582,40 @@ export default function PosScreen({
     setClosedSummary(result.summary);
   }
 
+  async function handleConfirmCashMove() {
+    setCashMoveError(null);
+
+    const amount = Number(cashMoveAmount);
+    if (!cashMoveAmount || Number.isNaN(amount) || amount <= 0) {
+      setCashMoveError("Jumlah harus angka lebih dari 0.");
+      return;
+    }
+    if (!cashMoveDesc.trim()) {
+      setCashMoveError("Keterangan wajib diisi.");
+      return;
+    }
+
+    setCashMoveSubmitting(true);
+    const result = await addShiftCashMovement(
+      businessId,
+      shiftId,
+      cashMoveDirection,
+      amount,
+      cashMoveDesc.trim(),
+    );
+    setCashMoveSubmitting(false);
+
+    if (!result.success) {
+      setCashMoveError(result.error);
+      return;
+    }
+
+    setCashMoveOpen(false);
+    setCashMoveAmount("");
+    setCashMoveDesc("");
+    setCashMoveDirection("out");
+  }
+
   if (successInvoice) {
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
@@ -721,6 +763,97 @@ export default function PosScreen({
               onClick={() => {
                 setClosingShift(false);
                 setCloseError(null);
+              }}
+              className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cashMoveOpen) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
+          <h1 className="text-lg font-bold text-zinc-900">Kas Masuk / Keluar</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Catat uang yang masuk/keluar dari laci selama shift ini berjalan.
+          </p>
+
+          <div className="mt-4 space-y-4">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCashMoveDirection("in")}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  cashMoveDirection === "in"
+                    ? "bg-brand-600 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                ↓ Kas Masuk
+              </button>
+              <button
+                type="button"
+                onClick={() => setCashMoveDirection("out")}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  cashMoveDirection === "out"
+                    ? "bg-red-600 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                ↑ Kas Keluar
+              </button>
+            </div>
+
+            <div>
+              <label htmlFor="cashMoveAmount" className="mb-1 block text-xs font-medium text-zinc-600">
+                Jumlah (Rp)
+              </label>
+              <input
+                id="cashMoveAmount"
+                type="number"
+                min="0"
+                value={cashMoveAmount}
+                onChange={(e) => setCashMoveAmount(e.target.value)}
+                placeholder="mis. 50000"
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div>
+              <label htmlFor="cashMoveDesc" className="mb-1 block text-xs font-medium text-zinc-600">
+                Keterangan
+              </label>
+              <input
+                id="cashMoveDesc"
+                type="text"
+                value={cashMoveDesc}
+                onChange={(e) => setCashMoveDesc(e.target.value)}
+                placeholder={cashMoveDirection === "in" ? "mis. Tambahan modal kas" : "mis. Beli galon & kopi kantor"}
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+
+            {cashMoveError && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{cashMoveError}</p>
+            )}
+
+            <button
+              onClick={handleConfirmCashMove}
+              disabled={cashMoveSubmitting}
+              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                cashMoveDirection === "in" ? "bg-brand-600 hover:bg-brand-700" : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {cashMoveSubmitting ? "Menyimpan…" : cashMoveDirection === "in" ? "+ Catat Kas Masuk" : "+ Catat Kas Keluar"}
+            </button>
+            <button
+              onClick={() => {
+                setCashMoveOpen(false);
+                setCashMoveError(null);
               }}
               className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
             >
@@ -1240,6 +1373,12 @@ export default function PosScreen({
                   </div>
                 </div>
               )}
+              <button
+                onClick={() => setCashMoveOpen(true)}
+                className="mt-2 w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+              >
+                💵 Kas Masuk/Keluar
+              </button>
               <button
                 onClick={() => setClosingShift(true)}
                 className="mt-2 w-full rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"

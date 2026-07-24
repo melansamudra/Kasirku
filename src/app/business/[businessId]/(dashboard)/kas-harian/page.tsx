@@ -18,6 +18,7 @@ const SOURCE_LABELS: Record<string, string> = {
   pembelian: "Pembelian",
   beban: "Beban",
   payroll: "Payroll",
+  shift: "Shift",
 };
 
 const SOURCE_BADGE: Record<string, string> = {
@@ -27,6 +28,7 @@ const SOURCE_BADGE: Record<string, string> = {
   pembelian: "bg-amber-50 text-amber-700",
   beban: "bg-amber-50 text-amber-700",
   payroll: "bg-sky-50 text-sky-700",
+  shift: "bg-violet-50 text-violet-700",
 };
 
 function formatRupiah(value: number) {

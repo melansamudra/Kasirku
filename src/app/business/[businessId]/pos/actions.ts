@@ -252,6 +252,41 @@ export async function closeShift(
   return { success: true, summary };
 }
 
+export type CashMovementResult = { success: true } | { success: false; error: string };
+
+export async function addShiftCashMovement(
+  businessId: string,
+  shiftId: string,
+  direction: "in" | "out",
+  amount: number,
+  description: string,
+): Promise<CashMovementResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("post_shift_cash_movement", {
+    p_business_id: businessId,
+    p_shift_id: shiftId,
+    p_direction: direction,
+    p_amount: amount,
+    p_description: description,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    direction === "in" ? `Kas Masuk (shift): ${description}` : `Kas Keluar (shift): ${description}`,
+    `Rp${amount.toLocaleString("id-ID")}`,
+  );
+
+  revalidatePath(`/business/${businessId}/kas-harian`);
+  return { success: true };
+}
+
 export type OpenBillItemInput = {
   product_id: string;
   name: string;
