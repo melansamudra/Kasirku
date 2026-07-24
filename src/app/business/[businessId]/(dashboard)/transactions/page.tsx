@@ -44,9 +44,17 @@ export default async function TransactionsPage({
 
   return (
     <div className="w-full max-w-2xl">
-        <h1 className="text-lg font-bold text-zinc-900">
-          Riwayat Transaksi — {business.name}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold text-zinc-900">
+            Riwayat Transaksi — {business.name}
+          </h1>
+          <Link
+            href={`/business/${businessId}/transactions/new`}
+            className="shrink-0 rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+          >
+            + Tambah Transaksi Manual
+          </Link>
+        </div>
         <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>
 
         <div className="mt-6 space-y-2">
