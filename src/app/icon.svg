@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="CreateImpact">
+  <path d="M139,155.7 A68,68 0 1,1 139,44.3" fill="none" stroke="#171717" stroke-width="32" stroke-linecap="round" />
+  <path d="M112,145 L165,78" fill="none" stroke="#00944a" stroke-width="20" stroke-linecap="round" />
+  <polygon points="178.6,60.8 177.5,87.9 152.5,68.1" fill="#00944a" />
+  <line x1="158" y1="108" x2="158" y2="168" stroke="#00944a" stroke-width="20" stroke-linecap="round" />
+</svg>
