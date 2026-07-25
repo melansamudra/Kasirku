@@ -38,6 +38,7 @@ import {
   CalendarCheck,
   Banknote,
   Settings,
+  ShieldCheck,
   Activity,
   Bell,
   ShoppingCart,
@@ -46,7 +47,12 @@ import {
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
 
-type NavItem = { href: string; label: string; icon: LucideIcon };
+// `key` is a stable identifier independent of href/label — it's what gets
+// stored in business_staff.permissions, so renaming a label or moving a
+// route later never silently revokes/changes someone's granted access.
+// `ownerOnly` items (Pengaturan, Kelola Admin) never show for staff and are
+// never part of the permission checklist, regardless of what's granted.
+type NavItem = { key: string; href: string; label: string; icon: LucideIcon; ownerOnly?: boolean };
 type NavGroup = { title: string; items: NavItem[] };
 type BusinessType = "fnb" | "retail" | "tiket";
 
@@ -68,27 +74,30 @@ function buildNavGroups(
     {
       title: "Utama",
       items: [
-        { href: base, label: "Dashboard", icon: LayoutDashboard },
+        { key: "dashboard", href: base, label: "Dashboard", icon: LayoutDashboard },
         ...(isTiket
           ? [
-              { href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
-              { href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
-              { href: `${base}/members`, label: "Anggota", icon: UserCircle },
+              { key: "check-in", href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
+              { key: "ticket-reports", href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
+              { key: "members", href: `${base}/members`, label: "Anggota", icon: UserCircle },
             ]
           : [
-              { href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
-              { href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
+              { key: "reports", href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
+              { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
             ]),
-        { href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
-        ...(isTiket ? [] : [{ href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet }]),
+        { key: "shifts", href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
+        ...(isTiket
+          ? []
+          : [{ key: "kas-harian", href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet }]),
         ...(isTiket
           ? []
           : [
-              { href: `${base}/products`, label: "Kelola Produk", icon: Package },
+              { key: "products", href: `${base}/products`, label: "Kelola Produk", icon: Package },
               ...(isFnb
                 ? [
-                    { href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+                    { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
                     {
+                      key: "tables",
                       href: `${base}/tables`,
                       label: "Meja & Self-Order",
                       icon: UtensilsCrossed,
@@ -99,10 +108,13 @@ function buildNavGroups(
         ...(isFinanceOnly
           ? []
           : [
-              ...(isTiket ? [] : [{ href: `${base}/customers`, label: "Pelanggan", icon: Users }]),
-              { href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
+              ...(isTiket
+                ? []
+                : [{ key: "customers", href: `${base}/customers`, label: "Pelanggan", icon: Users }]),
+              { key: "cashiers", href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
             ]),
-        { href: `${base}/settings`, label: "Pengaturan", icon: Settings },
+        { key: "settings", href: `${base}/settings`, label: "Pengaturan", icon: Settings, ownerOnly: true },
+        { key: "admins", href: `${base}/admins`, label: "Kelola Admin", icon: ShieldCheck, ownerOnly: true },
       ],
     },
     // Everything a typical UMKM owner doesn't need day-to-day: full
@@ -115,57 +127,80 @@ function buildNavGroups(
         ...(isTiket
           ? []
           : [
-              { href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
-              { href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
-              { href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
+              { key: "reports-laba-rugi", href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
+              { key: "reports-cogs", href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
+              { key: "hpp-calculator", href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
               ...(isFnb
-                ? [{ href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag }]
+                ? [{ key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag }]
                 : []),
             ]),
-        { href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
+        { key: "accounting-daftar-akun", href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
         {
+          key: "accounting-laba-rugi",
           href: `${base}/accounting/laba-rugi`,
           label: "Laba Rugi (Akrual)",
           icon: TrendingUp,
         },
-        { href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
-        { href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
-        { href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
-        { href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
-        { href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
+        { key: "accounting-jurnal", href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
+        { key: "accounting-neraca", href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
+        { key: "accounting-arus-kas", href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
+        { key: "accounting-anggaran", href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
+        { key: "accounting-modal", href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
         {
+          key: "accounting-transfer-kas",
           href: `${base}/accounting/transfer-kas`,
           label: "Transfer Kas/Bank",
           icon: ArrowLeftRight,
         },
         {
+          key: "accounting-rekonsiliasi",
           href: `${base}/accounting/rekonsiliasi`,
           label: "Rekonsiliasi Rekening",
           icon: Landmark,
         },
-        { href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
-        { href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
+        { key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
+        { key: "accounting-tutup-buku", href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
         ...(isFinanceOnly || isTiket
           ? []
           : [
-              { href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
-              { href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
-              { href: `${base}/suppliers`, label: "Supplier", icon: Store },
-              { href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
+              { key: "receivables", href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
+              { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+              { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
+              { key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
             ]),
-        { href: `${base}/employees`, label: "Karyawan", icon: UserCog },
-        { href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
-        { href: `${base}/payroll`, label: "Payroll", icon: Banknote },
+        { key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog },
+        { key: "attendance", href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
+        { key: "payroll", href: `${base}/payroll`, label: "Payroll", icon: Banknote },
       ],
     },
     {
       title: "Lainnya",
       items: [
-        { href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
-        { href: `${base}/activity`, label: "Aktivitas", icon: Activity },
+        { key: "notifikasi", href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
+        { key: "activity", href: `${base}/activity`, label: "Aktivitas", icon: Activity },
       ],
     },
   ];
+}
+
+// Dashboard itself is always reachable even for a staff member with an empty
+// checklist — a completely inaccessible landing page would make no sense.
+function isItemAllowed(item: NavItem, isOwner: boolean, permissions: string[]): boolean {
+  if (isOwner) return true;
+  if (item.ownerOnly) return false;
+  if (item.key === "dashboard") return true;
+  return permissions.includes(item.key);
+}
+
+function filterGroupsForPermissions(
+  groups: NavGroup[],
+  isOwner: boolean,
+  permissions: string[],
+): NavGroup[] {
+  if (isOwner) return groups;
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => isItemAllowed(i, isOwner, permissions)) }))
+    .filter((g) => g.items.length > 0);
 }
 
 const BUSINESS_TYPE_SUBTITLE: Record<BusinessType, string> = {
@@ -174,11 +209,11 @@ const BUSINESS_TYPE_SUBTITLE: Record<BusinessType, string> = {
   tiket: "Tempat Wisata / Tiket",
 };
 
-function useActiveHref(groups: NavGroup[], pathname: string): string | null {
-  const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
-  const matches = allHrefs.filter((h) => pathname === h || pathname.startsWith(`${h}/`));
+function findActiveItem(groups: NavGroup[], pathname: string): NavItem | null {
+  const allItems = groups.flatMap((g) => g.items);
+  const matches = allItems.filter((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
   if (matches.length === 0) return null;
-  return matches.sort((a, b) => b.length - a.length)[0];
+  return matches.sort((a, b) => b.href.length - a.href.length)[0];
 }
 
 function activeGroupTitleOf(groups: NavGroup[], activeHref: string | null): string | null {
@@ -190,21 +225,21 @@ function SidebarContent({
   businessId,
   businessName,
   businessType,
+  groups,
+  activeHref,
   isFinanceOnly,
-  pathname,
   onNavigate,
   showLogout = true,
 }: {
   businessId: string;
   businessName: string;
   businessType: BusinessType;
+  groups: NavGroup[];
+  activeHref: string | null;
   isFinanceOnly: boolean;
-  pathname: string;
   onNavigate?: () => void;
   showLogout?: boolean;
 }) {
-  const groups = buildNavGroups(businessId, businessType, isFinanceOnly);
-  const activeHref = useActiveHref(groups, pathname);
   const activeGroupTitle = activeGroupTitleOf(groups, activeHref);
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupTitle);
 
@@ -332,6 +367,21 @@ function Topbar({ businessName, userEmail }: { businessName: string; userEmail: 
   );
 }
 
+function AccessDeniedPanel() {
+  return (
+    <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-xl bg-white p-8 text-center shadow-sm">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-2xl">
+        🔒
+      </div>
+      <h1 className="text-lg font-bold text-zinc-900">Akses Ditolak</h1>
+      <p className="mt-1 max-w-sm text-sm text-zinc-500">
+        Kamu tidak punya izin untuk membuka halaman ini. Hubungi pemilik toko kalau merasa ini
+        seharusnya bisa diakses.
+      </p>
+    </div>
+  );
+}
+
 export default function DashboardShell({
   businessId,
   businessName,
@@ -340,6 +390,8 @@ export default function DashboardShell({
   billingPastDuePeriodEnd,
   trialPeriodEnd,
   isFinanceOnly = false,
+  isOwner = true,
+  permissions = [],
   children,
 }: {
   businessId: string;
@@ -349,10 +401,21 @@ export default function DashboardShell({
   billingPastDuePeriodEnd?: string | null;
   trialPeriodEnd?: string | null;
   isFinanceOnly?: boolean;
+  isOwner?: boolean;
+  permissions?: string[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly);
+  const visibleGroups = filterGroupsForPermissions(allGroups, isOwner, permissions);
+  // Active item is resolved against the FULL (unfiltered) list — a page a
+  // staff member isn't allowed to see should still be recognized so we can
+  // show "Akses Ditolak" instead of silently rendering nothing/wrong content.
+  const activeItem = findActiveItem(allGroups, pathname);
+  const activeHref = activeItem?.href ?? null;
+  const isAllowed = activeItem ? isItemAllowed(activeItem, isOwner, permissions) : isOwner;
 
   return (
     <div className="flex min-h-screen w-full bg-[#F4F6F9] print:bg-white">
@@ -363,8 +426,9 @@ export default function DashboardShell({
             businessId={businessId}
             businessName={businessName}
             businessType={businessType}
+            groups={visibleGroups}
+            activeHref={activeHref}
             isFinanceOnly={isFinanceOnly}
-            pathname={pathname}
             showLogout={false}
           />
         </div>
@@ -382,8 +446,9 @@ export default function DashboardShell({
               businessId={businessId}
               businessName={businessName}
               businessType={businessType}
+              groups={visibleGroups}
+              activeHref={activeHref}
               isFinanceOnly={isFinanceOnly}
-              pathname={pathname}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </div>
@@ -404,7 +469,7 @@ export default function DashboardShell({
           <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
         </div>
 
-        {trialPeriodEnd && (
+        {isOwner && trialPeriodEnd && (
           <div className="flex items-center justify-between gap-3 bg-brand-50 px-4 py-2.5 text-xs font-medium text-brand-800 print:hidden md:px-8">
             <span>
               Uji coba gratis berakhir{" "}
@@ -426,7 +491,7 @@ export default function DashboardShell({
           </div>
         )}
 
-        {billingPastDuePeriodEnd && (
+        {isOwner && billingPastDuePeriodEnd && (
           <div className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800 print:hidden md:px-8">
             <span>
               Langganan jatuh tempo sejak{" "}
@@ -447,7 +512,9 @@ export default function DashboardShell({
         )}
 
         <main className="w-full px-4 py-8 md:px-8 md:py-10 print:p-0">
-          <div className="mx-auto w-full max-w-6xl print:max-w-none">{children}</div>
+          <div className="mx-auto w-full max-w-6xl print:max-w-none">
+            {isAllowed ? children : <AccessDeniedPanel />}
+          </div>
         </main>
       </div>
     </div>

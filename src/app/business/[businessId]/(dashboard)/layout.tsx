@@ -15,13 +15,34 @@ export default async function BusinessDashboardLayout({
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }, access] = await Promise.all([
-    supabase.from("businesses").select("id, name, business_type").eq("id", businessId).single(),
+    supabase
+      .from("businesses")
+      .select("id, name, business_type, owner_id")
+      .eq("id", businessId)
+      .single(),
     supabase.auth.getUser(),
     getSubscriptionAccess(supabase, businessId),
   ]);
 
   if (!business) {
     notFound();
+  }
+
+  const isOwner = business.owner_id === userData.user?.id;
+  let permissions: string[] = [];
+
+  if (!isOwner) {
+    const { data: staff } = await supabase
+      .from("business_staff")
+      .select("permissions, active")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user!.id)
+      .maybeSingle();
+
+    if (!staff || !staff.active) {
+      notFound();
+    }
+    permissions = staff.permissions;
   }
 
   if (access.locked) {
@@ -37,6 +58,8 @@ export default async function BusinessDashboardLayout({
       billingPastDuePeriodEnd={access.status === "past_due" ? access.periodEnd : null}
       trialPeriodEnd={access.status === "trialing" ? access.periodEnd : null}
       isFinanceOnly={isFinancePlan(access.planCode)}
+      isOwner={isOwner}
+      permissions={permissions}
     >
       {children}
     </DashboardShell>
