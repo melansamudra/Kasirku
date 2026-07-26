@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ownerVoidTransaction } from "./actions";
+import { ownerVoidTransaction, staffVoidTransaction } from "./actions";
 
 const VOID_REASONS = [
   "Salah input produk",
@@ -16,14 +16,17 @@ export default function VoidTransactionForm({
   businessId,
   transactionId,
   invoiceNumber,
+  isOwner,
 }: {
   businessId: string;
   transactionId: string;
   invoiceNumber: string;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState(VOID_REASONS[0]);
+  const [managerPin, setManagerPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,7 +44,14 @@ export default function VoidTransactionForm({
   async function handleConfirm() {
     setError(null);
     setSubmitting(true);
-    const result = await ownerVoidTransaction(businessId, transactionId, invoiceNumber, reason);
+    // Owner's own authenticated session is proof enough (owner_void_transaction).
+    // Everyone else (business_staff) must additionally prove they're an active
+    // manager-role cashier via PIN — owns_business() alone can't tell staff
+    // apart from the real owner, so without this a staff member with just
+    // "transactions" view permission could void exactly like the owner.
+    const result = isOwner
+      ? await ownerVoidTransaction(businessId, transactionId, invoiceNumber, reason)
+      : await staffVoidTransaction(businessId, transactionId, invoiceNumber, managerPin, reason);
     setSubmitting(false);
 
     if (!result.success) {
@@ -78,13 +88,31 @@ export default function VoidTransactionForm({
           </select>
         </div>
 
+        {!isOwner && (
+          <div>
+            <label htmlFor="voidManagerPin" className="mb-1 block text-xs font-medium text-zinc-600">
+              PIN Manajer
+            </label>
+            <input
+              id="voidManagerPin"
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={managerPin}
+              onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ""))}
+              placeholder="••••"
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm tracking-widest focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+        )}
+
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
         )}
 
         <button
           onClick={handleConfirm}
-          disabled={submitting}
+          disabled={submitting || (!isOwner && managerPin.length < 4)}
           className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Memproses…" : "Void Sekarang"}

@@ -22,6 +22,12 @@ export default async function TransactionDetailPage({
   const { businessId, transactionId } = await params;
   const supabase = await createClient();
 
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("owner_id").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
+  const isOwner = business?.owner_id === userData.user?.id;
+
   const { data: transaction } = await supabase
     .from("transactions")
     .select(
@@ -166,6 +172,7 @@ export default async function TransactionDetailPage({
             businessId={businessId}
             transactionId={transaction.id}
             invoiceNumber={transaction.invoice_number}
+            isOwner={isOwner}
           />
         )}
     </div>
