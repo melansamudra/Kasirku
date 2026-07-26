@@ -133,6 +133,7 @@ export default function PosScreen({
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [billsOpen, setBillsOpen] = useState(false);
+  const [posMenuOpen, setPosMenuOpen] = useState(false);
   const [billBusyId, setBillBusyId] = useState<string | null>(null);
   const [activeBill, setActiveBill] = useState<{ id: string; label: string } | null>(null);
   const [saveBonOpen, setSaveBonOpen] = useState(false);
@@ -907,6 +908,12 @@ export default function PosScreen({
               )}
             </button>
           )}
+          <button
+            onClick={() => setPosMenuOpen(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            ☰ <span className="hidden sm:inline">Menu</span>
+          </button>
           <OfflineStatus isOnline={isOnline} pending={pending} onSyncNow={() => void syncNow()} onDiscard={discard} />
           <div className="text-right">
             <p className="text-xs font-semibold text-zinc-700">{cashierName}</p>
@@ -1453,6 +1460,58 @@ export default function PosScreen({
       </div>
 
       {/* Open bills */}
+      {posMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setPosMenuOpen(false)}
+          />
+          <div className="relative flex w-full max-w-sm flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h2 className="text-sm font-bold text-zinc-900">☰ Menu</h2>
+              <button
+                onClick={() => setPosMenuOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-1.5 p-4">
+              <a
+                href={`/business/${businessId}/transactions`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setPosMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                🧾 Riwayat Transaksi
+              </a>
+              <a
+                href={`/business/${businessId}/reports`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setPosMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                📊 Laporan
+              </a>
+              <a
+                href={`/business/${businessId}/shifts`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setPosMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                🕒 Riwayat Shift
+              </a>
+              <p className="px-1 pt-1 text-[11px] text-zinc-400">
+                Dibuka di tab baru — keranjang belanja kamu tidak hilang.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {billsOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <div
