@@ -274,12 +274,10 @@ export default function PosScreen({
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
       if (existing) {
-        if (existing.qty >= product.stock) return prev;
         return prev.map((i) =>
           i.productId === product.id ? { ...i, qty: i.qty + 1 } : i,
         );
       }
-      if (product.stock <= 0) return prev;
       return [
         ...prev,
         {
@@ -304,11 +302,7 @@ export default function PosScreen({
   function changeQty(productId: string, delta: number) {
     setCart((prev) =>
       prev
-        .map((i) =>
-          i.productId === productId
-            ? { ...i, qty: Math.min(i.maxStock, Math.max(0, i.qty + delta)) }
-            : i,
-        )
+        .map((i) => (i.productId === productId ? { ...i, qty: Math.max(0, i.qty + delta) } : i))
         .filter((i) => i.qty > 0),
     );
   }
@@ -946,14 +940,11 @@ export default function PosScreen({
                   (sum, v) => sum + (cart.find((i) => i.productId === v.id)?.qty ?? 0),
                   0,
                 );
-                const totalStock = g.variants.reduce((sum, v) => sum + v.stock, 0);
-                const soldOut = isVariantGroup ? totalStock <= 0 : single.stock <= 0;
                 return (
                   <button
                     key={g.name}
                     onClick={() => handleProductClick(g)}
-                    disabled={soldOut || (!isVariantGroup && inCart >= single.stock)}
-                    className="relative rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-brand-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="relative rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-brand-300"
                   >
                     {inCart > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
@@ -965,11 +956,7 @@ export default function PosScreen({
                     </div>
                     <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
                     <p className="text-xs text-zinc-500">
-                      {isVariantGroup
-                        ? `${g.variants.length} varian`
-                        : soldOut
-                          ? "Stok habis"
-                          : `Stok ${single.stock}`}
+                      {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-zinc-900">
                       {isVariantGroup
@@ -999,33 +986,26 @@ export default function PosScreen({
               </button>
             </div>
             <div className="space-y-2">
-              {variantPickerGroup.variants.map((v) => {
-                const inCart = cart.find((i) => i.productId === v.id)?.qty ?? 0;
-                const soldOut = v.stock <= 0;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => {
-                      addToCart(v);
-                      setVariantPickerGroup(null);
-                    }}
-                    disabled={soldOut || inCart >= v.stock}
-                    className="flex w-full items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-brand-300 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span>
-                      <span className="block text-sm font-medium text-zinc-900">
-                        {v.variant_label || "Varian"}
-                      </span>
-                      <span className="text-xs text-zinc-500">
-                        {soldOut ? "Stok habis" : `Stok ${v.stock}`}
-                      </span>
+              {variantPickerGroup.variants.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    addToCart(v);
+                    setVariantPickerGroup(null);
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-brand-300"
+                >
+                  <span>
+                    <span className="block text-sm font-medium text-zinc-900">
+                      {v.variant_label || "Varian"}
                     </span>
-                    <span className="text-sm font-semibold text-zinc-900">
-                      {formatRupiah(v.price)}
-                    </span>
-                  </button>
-                );
-              })}
+                    <span className="text-xs text-zinc-500">Stok {v.stock}</span>
+                  </span>
+                  <span className="text-sm font-semibold text-zinc-900">
+                    {formatRupiah(v.price)}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -1082,8 +1062,7 @@ export default function PosScreen({
                         <span className="w-4 text-center text-xs tabular-nums">{item.qty}</span>
                         <button
                           onClick={() => changeQty(item.productId, 1)}
-                          disabled={item.qty >= item.maxStock}
-                          className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200 disabled:opacity-40"
+                          className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
                         >
                           +
                         </button>
