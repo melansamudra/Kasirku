@@ -26,6 +26,9 @@ export async function addProduct(
   if (!name) {
     return { error: "Nama produk wajib diisi." };
   }
+  if (!category) {
+    return { error: "Kategori wajib dipilih." };
+  }
 
   const price = Number(priceRaw);
   if (!priceRaw || Number.isNaN(price) || price < 0) {
@@ -105,6 +108,9 @@ export async function editProduct(
 
   if (!name) {
     return { error: "Nama produk wajib diisi." };
+  }
+  if (!category) {
+    return { error: "Kategori wajib dipilih." };
   }
 
   const price = Number(priceRaw);
@@ -377,4 +383,48 @@ export async function importProducts(
   );
   revalidatePath(`/business/${businessId}/products`);
   return { error: null, result: { created, updated, skipped, errors: errors.slice(0, 20) } };
+}
+
+export type CategoryActionState = { error: string | null };
+
+// Lightweight, embedded in Kelola Produk itself (not a standalone nav item)
+// — just enough structure so the product form can offer a dropdown instead
+// of free text, cutting typos/near-duplicate category names that used to
+// silently break kitchen-printer category routing (kitchen_printers.categories
+// matches by exact string). products.category itself stays a plain text
+// column — this table only constrains/populates what names are valid.
+export async function addProductCategory(
+  businessId: string,
+  _prevState: CategoryActionState,
+  formData: FormData,
+): Promise<CategoryActionState> {
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) {
+    return { error: "Nama kategori wajib diisi." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("product_categories")
+    .insert({ business_id: businessId, name });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Kategori ini sudah ada." };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/products`);
+  return { error: null };
+}
+
+export async function deleteProductCategory(businessId: string, categoryId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("product_categories")
+    .delete()
+    .eq("id", categoryId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/products`);
 }

@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addProduct, adjustProductStock, editProduct, importProducts } from "./actions";
+import {
+  addProduct,
+  addProductCategory,
+  adjustProductStock,
+  editProduct,
+  importProducts,
+} from "./actions";
 import AddProductForm from "./add-product-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
+import CategoryManager from "./category-manager";
 import DeleteProductButton from "./delete-product-button";
 import EditProductForm from "./edit-product-form";
 import ImportProductsForm from "./import-products-form";
@@ -53,7 +60,16 @@ export default async function ProductsPage({
     .order("created_at", { ascending: false })
     .limit(10);
 
+  const { data: categoryRows } = await supabase
+    .from("product_categories")
+    .select("id, name")
+    .eq("business_id", businessId)
+    .order("name", { ascending: true });
+  const categories = categoryRows ?? [];
+  const categoryNames = categories.map((c) => c.name);
+
   const boundAddProduct = addProduct.bind(null, businessId);
+  const boundAddProductCategory = addProductCategory.bind(null, businessId);
   const boundImportProducts = importProducts.bind(null, businessId);
 
   return (
@@ -69,6 +85,14 @@ export default async function ProductsPage({
           >
             ⬇️ Ekspor CSV
           </a>
+        </div>
+
+        <div className="mt-6">
+          <CategoryManager
+            businessId={businessId}
+            categories={categories}
+            action={boundAddProductCategory}
+          />
         </div>
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
@@ -91,6 +115,7 @@ export default async function ProductsPage({
                   businessId={businessId}
                   p={g.rows[0]}
                   showName
+                  categories={categoryNames}
                 />
               ) : (
                 <div
@@ -110,7 +135,13 @@ export default async function ProductsPage({
                   </div>
                   <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
                     {g.rows.map((p) => (
-                      <ProductRow key={p.id} businessId={businessId} p={p} showName={false} />
+                      <ProductRow
+                        key={p.id}
+                        businessId={businessId}
+                        p={p}
+                        showName={false}
+                        categories={categoryNames}
+                      />
                     ))}
                   </div>
                 </div>
@@ -125,7 +156,7 @@ export default async function ProductsPage({
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Produk</h2>
-          <AddProductForm action={boundAddProduct} />
+          <AddProductForm action={boundAddProduct} categories={categoryNames} />
         </div>
 
         {adjustments && adjustments.length > 0 && (
@@ -179,10 +210,12 @@ function ProductRow({
   businessId,
   p,
   showName,
+  categories,
 }: {
   businessId: string;
   p: ProductRowData;
   showName: boolean;
+  categories: string[];
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
@@ -230,6 +263,7 @@ function ProductRow({
         barcode={p.barcode}
         sku={p.sku}
         variantLabel={p.variant_label}
+        categories={categories}
         action={editProduct.bind(null, businessId, p.id)}
       />
       <AdjustStockForm

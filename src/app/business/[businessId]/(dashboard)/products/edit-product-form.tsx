@@ -14,6 +14,7 @@ export default function EditProductForm({
   barcode,
   sku,
   variantLabel,
+  categories,
   action,
 }: {
   name: string;
@@ -25,6 +26,7 @@ export default function EditProductForm({
   barcode: string | null;
   sku: string | null;
   variantLabel: string | null;
+  categories: string[];
   action: (state: EditProductState, formData: FormData) => Promise<EditProductState>;
 }) {
   const router = useRouter();
@@ -124,12 +126,26 @@ export default function EditProductForm({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Kategori</label>
-          <input
-            type="text"
+          <select
+            required
             value={values.category}
             onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
+          >
+            <option value="" disabled>
+              — Pilih Kategori —
+            </option>
+            {/* Produk lama bisa punya kategori yang sudah dihapus/belum ada di
+                daftar — tetap tampilkan supaya tidak diam-diam berubah. */}
+            {values.category && !categories.includes(values.category) && (
+              <option value={values.category}>{values.category} (tidak terdaftar)</option>
+            )}
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Ikon (emoji)</label>

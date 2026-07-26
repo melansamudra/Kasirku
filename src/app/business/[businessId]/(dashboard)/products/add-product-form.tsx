@@ -7,8 +7,10 @@ const initialState: AddProductState = { error: null };
 
 export default function AddProductForm({
   action,
+  categories,
 }: {
   action: (state: AddProductState, formData: FormData) => Promise<AddProductState>;
+  categories: string[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -84,13 +86,27 @@ export default function AddProductForm({
           <label htmlFor="category" className="mb-1 block text-xs font-medium text-zinc-600">
             Kategori
           </label>
-          <input
+          <select
             id="category"
             name="category"
-            type="text"
+            required
+            defaultValue=""
             className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            placeholder="mis. Minuman"
-          />
+          >
+            <option value="" disabled>
+              — Pilih Kategori —
+            </option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {categories.length === 0 && (
+            <p className="mt-1 text-[11px] text-amber-600">
+              Belum ada kategori — tambahkan dulu di bagian Kategori di atas.
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="emoji" className="mb-1 block text-xs font-medium text-zinc-600">
