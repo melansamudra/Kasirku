@@ -21,6 +21,7 @@ import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
 import { withTimeout } from "@/lib/with-timeout";
 import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
+import { Capacitor } from "@capacitor/core";
 
 type Product = {
   id: string;
@@ -135,6 +136,10 @@ export default function PosScreen({
   const [customerSearch, setCustomerSearch] = useState("");
   const [billsOpen, setBillsOpen] = useState(false);
   const [posMenuOpen, setPosMenuOpen] = useState(false);
+  // Laporan lives in the full backoffice sidebar, which the native app never
+  // exposes (see dashboard-shell.tsx) — hide the link here too so it's not a
+  // dead end that lands on "Akses Ditolak".
+  const isNative = Capacitor.isNativePlatform();
   const [billBusyId, setBillBusyId] = useState<string | null>(null);
   const [activeBill, setActiveBill] = useState<{ id: string; label: string } | null>(null);
   const [saveBonOpen, setSaveBonOpen] = useState(false);
@@ -1490,15 +1495,17 @@ export default function PosScreen({
               >
                 🧾 Riwayat Transaksi
               </a>
-              <a
-                href={`/business/${businessId}/reports`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setPosMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                📊 Laporan
-              </a>
+              {!isNative && (
+                <a
+                  href={`/business/${businessId}/reports`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setPosMenuOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  📊 Laporan
+                </a>
+              )}
               <a
                 href={`/business/${businessId}/shifts`}
                 target="_blank"

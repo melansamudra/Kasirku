@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
 import {
   LayoutDashboard,
   BarChart3,
@@ -408,14 +409,24 @@ export default function DashboardShell({
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // The Android app (android-app/) is a cashier tool, not a backoffice one —
+  // mirrors Moka's own "Cashier: App Only" vs "Administrator: App & Back-
+  // office" split. Whoever is logged in (owner or staff), the native app
+  // only ever gets Aktivitas (transactions) + Riwayat Shift here; everything
+  // else in this sidebar stays desktop-browser-only. Printer settings are
+  // handled separately by pos/printers, not this sidebar's "settings" item.
+  const isNative = Capacitor.isNativePlatform();
+  const navIsOwner = isNative ? false : isOwner;
+  const navPermissions = isNative ? ["transactions", "shifts"] : permissions;
+
   const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly);
-  const visibleGroups = filterGroupsForPermissions(allGroups, isOwner, permissions);
+  const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can
   // show "Akses Ditolak" instead of silently rendering nothing/wrong content.
   const activeItem = findActiveItem(allGroups, pathname);
   const activeHref = activeItem?.href ?? null;
-  const isAllowed = activeItem ? isItemAllowed(activeItem, isOwner, permissions) : isOwner;
+  const isAllowed = activeItem ? isItemAllowed(activeItem, navIsOwner, navPermissions) : navIsOwner;
 
   return (
     <div className="flex min-h-screen w-full bg-[#F4F6F9] print:bg-white">
