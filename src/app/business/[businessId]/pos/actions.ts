@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
 import { logActivity } from "@/lib/activity-log";
-import { dispatchKitchenPrint } from "@/lib/kitchen-print";
+import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
 
 type VerifyCashierPinRow = {
   id: string;
@@ -60,7 +60,7 @@ export type CartItemInput = {
 };
 
 export type CheckoutResult =
-  | { success: true; invoiceNumber: string; transactionId: string }
+  | { success: true; invoiceNumber: string; transactionId: string; printJobs: KitchenPrintJobPayload[] }
   | { success: false; error: string };
 
 type CheckoutRpcRow = { transaction_id: string; invoice_number: string; already_existed: boolean };
@@ -112,6 +112,7 @@ export async function checkout(
   }
 
   const result = data as CheckoutRpcRow;
+  let printJobs: KitchenPrintJobPayload[] = [];
 
   // Retry offline yang ternyata sudah pernah sukses sebelumnya — jangan catat
   // aktivitas/cetak dapur dua kali untuk penjualan yang sama.
@@ -126,7 +127,7 @@ export async function checkout(
       `${itemCount} item · ${paymentMethod}`,
     );
 
-    await printKitchenTicketsForItems(
+    printJobs = await buildKitchenPrintJobsForItems(
       supabase,
       businessId,
       "Kasir",
@@ -135,16 +136,21 @@ export async function checkout(
     );
   }
 
-  return { success: true, invoiceNumber: result.invoice_number, transactionId: result.transaction_id };
+  return {
+    success: true,
+    invoiceNumber: result.invoice_number,
+    transactionId: result.transaction_id,
+    printJobs,
+  };
 }
 
-async function printKitchenTicketsForItems(
+async function buildKitchenPrintJobsForItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
   source: string,
   label: string,
   items: { productId: string; qty: number; note?: string | null }[],
-) {
+): Promise<KitchenPrintJobPayload[]> {
   const productIds = Array.from(new Set(items.map((i) => i.productId)));
   const { data: products } = await supabase
     .from("products")
@@ -152,7 +158,7 @@ async function printKitchenTicketsForItems(
     .in("id", productIds);
   const productMap = new Map((products ?? []).map((p) => [p.id, p]));
 
-  const failures = await dispatchKitchenPrint(supabase, businessId, {
+  return buildKitchenPrintJobs(supabase, businessId, {
     source,
     label,
     items: items.map((i) => ({
@@ -162,18 +168,22 @@ async function printKitchenTicketsForItems(
       note: i.note,
     })),
   }).catch(() => []);
+}
 
-  const failed = failures.filter((f) => !f.ok);
-  if (failed.length > 0) {
-    await logActivity(
-      supabase,
-      businessId,
-      "sistem",
-      "warning",
-      `Gagal cetak ke dapur: ${failed.map((f) => f.printer).join(", ")}`,
-      failed.map((f) => f.error).join(" · "),
-    );
-  }
+export async function logKitchenPrintFailures(
+  businessId: string,
+  failures: { printer: string; error: string }[],
+) {
+  if (failures.length === 0) return;
+  const supabase = await createClient();
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "warning",
+    `Gagal cetak ke dapur: ${failures.map((f) => f.printer).join(", ")}`,
+    failures.map((f) => f.error).join(" · "),
+  );
 }
 
 export type OpenShiftResult = { success: true } | { success: false; error: string };
@@ -361,7 +371,7 @@ export async function updateSelfOrderStatus(
   businessId: string,
   orderId: string,
   status: "diproses" | "selesai",
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; printJobs?: KitchenPrintJobPayload[] }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("self_orders")
@@ -385,6 +395,8 @@ export async function updateSelfOrderStatus(
     `Pesanan ${tableName} → ${status}`,
   );
 
+  let printJobs: KitchenPrintJobPayload[] = [];
+
   if (status === "diproses") {
     const { data: orderItems } = await supabase
       .from("self_order_items")
@@ -392,7 +404,7 @@ export async function updateSelfOrderStatus(
       .eq("self_order_id", orderId);
 
     if (orderItems && orderItems.length > 0) {
-      const failures = await dispatchKitchenPrint(supabase, businessId, {
+      printJobs = await buildKitchenPrintJobs(supabase, businessId, {
         source: tableName,
         label: "Pesanan Self-Order",
         items: orderItems.map((i) => ({
@@ -403,22 +415,10 @@ export async function updateSelfOrderStatus(
           note: i.note,
         })),
       }).catch(() => []);
-
-      const failed = failures.filter((f) => !f.ok);
-      if (failed.length > 0) {
-        await logActivity(
-          supabase,
-          businessId,
-          "sistem",
-          "warning",
-          `Gagal cetak ke dapur: ${failed.map((f) => f.printer).join(", ")}`,
-          failed.map((f) => f.error).join(" · "),
-        );
-      }
     }
   }
 
   revalidatePath(`/business/${businessId}/pos`);
   revalidatePath(`/business/${businessId}/tables`);
-  return { success: true };
+  return { success: true, printJobs };
 }

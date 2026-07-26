@@ -1,45 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { dispatchKitchenPrint } from "./kitchen-print";
-
-type Write = { host: string; buffer: Buffer };
-let writes: Write[] = [];
-let unreachableHosts = new Set<string>();
-
-// vi.mock factories can't reference imports from outer scope (e.g. node's
-// EventEmitter), so this fakes just the bit of the emitter API kitchen-print
-// actually uses: a single `once("error", ...)` subscription.
-vi.mock("node:net", () => {
-  class FakeSocket {
-    private host = "";
-    private errorHandler: ((err: Error) => void) | null = null;
-
-    once(event: string, cb: (err: Error) => void) {
-      if (event === "error") this.errorHandler = cb;
-      return this;
-    }
-
-    connect(_port: number, host: string, cb: () => void) {
-      this.host = host;
-      if (unreachableHosts.has(host)) {
-        queueMicrotask(() => this.errorHandler?.(new Error(`connect ECONNREFUSED ${host}`)));
-      } else {
-        queueMicrotask(cb);
-      }
-      return this;
-    }
-
-    write(data: Buffer, cb: (err?: Error) => void) {
-      writes.push({ host: this.host, buffer: Buffer.from(data) });
-      queueMicrotask(() => cb());
-      return true;
-    }
-
-    destroy() {}
-  }
-
-  return { default: { Socket: FakeSocket }, Socket: FakeSocket };
-});
+import { buildKitchenPrintJobs } from "./kitchen-print";
 
 type PrinterRow = {
   id: string;
@@ -49,7 +10,10 @@ type PrinterRow = {
   address: string | null;
 };
 
-function stubSupabase(printers: PrinterRow[]): SupabaseClient {
+let printers: PrinterRow[] = [];
+
+function stubSupabase(rows: PrinterRow[]): SupabaseClient {
+  printers = rows;
   return {
     from: () => ({
       select: () => ({
@@ -59,18 +23,25 @@ function stubSupabase(printers: PrinterRow[]): SupabaseClient {
   } as unknown as SupabaseClient;
 }
 
+function ticketText(bytesBase64: string): string {
+  return Buffer.from(bytesBase64, "base64").toString("latin1");
+}
+
 beforeEach(() => {
-  writes = [];
-  unreachableHosts = new Set();
+  printers = [];
 });
 
-describe("dispatchKitchenPrint", () => {
+// buildKitchenPrintJobs only builds ticket bytes + resolves which printer(s)
+// should receive them — it deliberately never opens a socket (that's the
+// print agent's job, running on the cashier's PC, not Vercel). These tests
+// cover the matching/building logic only.
+describe("buildKitchenPrintJobs", () => {
   it("sends only matching-category items to a printer with a category filter", async () => {
     const supabase = stubSupabase([
       { id: "1", name: "Bar", categories: ["Minuman"], connection_type: "lan", address: "bar-host:9100" },
     ]);
 
-    const results = await dispatchKitchenPrint(supabase, "biz-1", {
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
       source: "Kasir",
       label: "INV-1",
       items: [
@@ -79,9 +50,10 @@ describe("dispatchKitchenPrint", () => {
       ],
     });
 
-    expect(results).toEqual([{ printer: "Bar", ok: true }]);
-    expect(writes).toHaveLength(1);
-    const ticket = writes[0].buffer.toString("latin1");
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].printerName).toBe("Bar");
+    expect(jobs[0].address).toBe("bar-host:9100");
+    const ticket = ticketText(jobs[0].bytesBase64);
     expect(ticket).toContain("Kopi Susu");
     expect(ticket).not.toContain("Roti Bakar");
   });
@@ -91,7 +63,7 @@ describe("dispatchKitchenPrint", () => {
       { id: "1", name: "Dapur", categories: [], connection_type: "lan", address: "dapur-host:9100" },
     ]);
 
-    await dispatchKitchenPrint(supabase, "biz-1", {
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
       source: "Kasir",
       label: "INV-1",
       items: [
@@ -100,7 +72,7 @@ describe("dispatchKitchenPrint", () => {
       ],
     });
 
-    const ticket = writes[0].buffer.toString("latin1");
+    const ticket = ticketText(jobs[0].bytesBase64);
     expect(ticket).toContain("Kopi Susu");
     expect(ticket).toContain("Roti Bakar");
   });
@@ -110,14 +82,13 @@ describe("dispatchKitchenPrint", () => {
       { id: "1", name: "Bar", categories: ["Minuman"], connection_type: "lan", address: "bar-host:9100" },
     ]);
 
-    const results = await dispatchKitchenPrint(supabase, "biz-1", {
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
       source: "Kasir",
       label: "INV-1",
       items: [{ name: "Roti Bakar", category: "Makanan", qty: 1 }],
     });
 
-    expect(results).toEqual([]);
-    expect(writes).toHaveLength(0);
+    expect(jobs).toEqual([]);
   });
 
   it("ignores bluetooth printers (LAN dispatch only)", async () => {
@@ -125,49 +96,41 @@ describe("dispatchKitchenPrint", () => {
       { id: "1", name: "Handheld", categories: [], connection_type: "bluetooth", address: "some-device" },
     ]);
 
-    const results = await dispatchKitchenPrint(supabase, "biz-1", {
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
       source: "Kasir",
       label: "INV-1",
       items: [{ name: "Kopi Susu", category: "Minuman", qty: 1 }],
     });
 
-    expect(results).toEqual([]);
-    expect(writes).toHaveLength(0);
+    expect(jobs).toEqual([]);
   });
 
-  it("reports one printer as failed without blocking a working printer", async () => {
-    unreachableHosts.add("offline-host");
+  it("builds a job per matching printer when there are several", async () => {
     const supabase = stubSupabase([
       { id: "1", name: "Dapur", categories: [], connection_type: "lan", address: "dapur-host:9100" },
-      { id: "2", name: "Bar", categories: [], connection_type: "lan", address: "offline-host:9100" },
+      { id: "2", name: "Bar", categories: ["Minuman"], connection_type: "lan", address: "bar-host:9100" },
     ]);
 
-    const results = await dispatchKitchenPrint(supabase, "biz-1", {
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
       source: "Kasir",
       label: "INV-1",
       items: [{ name: "Kopi Susu", category: "Minuman", qty: 1 }],
     });
 
-    const byName = Object.fromEntries(results.map((r) => [r.printer, r]));
-    expect(byName.Dapur.ok).toBe(true);
-    expect(byName.Bar.ok).toBe(false);
-    expect(byName.Bar.error).toContain("ECONNREFUSED");
-    expect(writes).toHaveLength(1);
-    expect(writes[0].host).toBe("dapur-host");
+    expect(jobs.map((j) => j.printerName).sort()).toEqual(["Bar", "Dapur"]);
   });
 
-  it("returns an empty result set without touching the network when there are no items", async () => {
+  it("returns an empty job list without querying printers when there are no items", async () => {
     const supabase = stubSupabase([
       { id: "1", name: "Dapur", categories: [], connection_type: "lan", address: "dapur-host:9100" },
     ]);
 
-    const results = await dispatchKitchenPrint(supabase, "biz-1", {
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
       source: "Kasir",
       label: "INV-1",
       items: [],
     });
 
-    expect(results).toEqual([]);
-    expect(writes).toHaveLength(0);
+    expect(jobs).toEqual([]);
   });
 });

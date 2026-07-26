@@ -20,6 +20,7 @@ import { itemDiscAmount, calculateCheckoutTotals } from "@/lib/checkout-totals";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
 import { withTimeout } from "@/lib/with-timeout";
+import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
 
 type Product = {
   id: string;
@@ -404,8 +405,9 @@ export default function PosScreen({
 
   async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
     setOrderBusyId(orderId);
-    await updateSelfOrderStatus(businessId, orderId, status);
+    const result = await updateSelfOrderStatus(businessId, orderId, status);
     setOrderBusyId(null);
+    if (result.printJobs) void dispatchPrintJobs(businessId, result.printJobs);
     router.refresh();
   }
 
@@ -537,6 +539,8 @@ export default function PosScreen({
       setError(result.error);
       return;
     }
+
+    void dispatchPrintJobs(businessId, result.printJobs);
 
     // Bon yang dimuat sudah dibayar — bereskan dari daftar. Dilewati kalau
     // koneksi sedang bermasalah (deleteOpenBill juga butuh network); bon

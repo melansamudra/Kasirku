@@ -53,3 +53,6 @@ next-env.d.ts
 /private-assets
 desktop-app/node_modules
 desktop-app/dist
+
+# print-agent — standalone Node app, not part of the Next.js build
+print-agent/node_modules
