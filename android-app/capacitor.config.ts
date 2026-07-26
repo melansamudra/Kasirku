@@ -9,7 +9,11 @@ const config: CapacitorConfig = {
   appName: 'Kasirku',
   webDir: 'www',
   server: {
-    url: 'https://createimpact.id',
+    // Straight to login, not the public marketing homepage — this app is
+    // for cashiers who already have an account, not for browsing the site.
+    // Once logged in, normal in-app navigation reaches everything else
+    // (Settings, Reports, etc.) exactly like the web version.
+    url: 'https://createimpact.id/login',
     allowNavigation: ['createimpact.id', '*.createimpact.id'],
   },
 };
