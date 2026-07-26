@@ -186,9 +186,18 @@ function buildNavGroups(
 
 // Dashboard itself is always reachable even for a staff member with an empty
 // checklist — a completely inaccessible landing page would make no sense.
-function isItemAllowed(item: NavItem, isOwner: boolean, permissions: string[]): boolean {
+// bypassOwnerOnly exists only for the Android app's native-mode override
+// below — real business_staff permission checks never pass it, so ownerOnly
+// keeps its original strict meaning ("never grantable via the checklist")
+// for actual staff accounts.
+function isItemAllowed(
+  item: NavItem,
+  isOwner: boolean,
+  permissions: string[],
+  bypassOwnerOnly: string[] = [],
+): boolean {
   if (isOwner) return true;
-  if (item.ownerOnly) return false;
+  if (item.ownerOnly && !bypassOwnerOnly.includes(item.key)) return false;
   if (item.key === "dashboard") return true;
   return permissions.includes(item.key);
 }
@@ -197,10 +206,14 @@ function filterGroupsForPermissions(
   groups: NavGroup[],
   isOwner: boolean,
   permissions: string[],
+  bypassOwnerOnly: string[] = [],
 ): NavGroup[] {
   if (isOwner) return groups;
   return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => isItemAllowed(i, isOwner, permissions)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => isItemAllowed(i, isOwner, permissions, bypassOwnerOnly)),
+    }))
     .filter((g) => g.items.length > 0);
 }
 
@@ -412,21 +425,27 @@ export default function DashboardShell({
   // The Android app (android-app/) is a cashier tool, not a backoffice one —
   // mirrors Moka's own "Cashier: App Only" vs "Administrator: App & Back-
   // office" split. Whoever is logged in (owner or staff), the native app
-  // only ever gets Aktivitas (transactions) + Riwayat Shift here; everything
-  // else in this sidebar stays desktop-browser-only. Printer settings are
-  // handled separately by pos/printers, not this sidebar's "settings" item.
+  // only ever gets Aktivitas (transactions) + Riwayat Shift + Pengaturan
+  // here; everything else in this sidebar stays desktop-browser-only.
+  // Pengaturan is included specifically because Tambah Printer lives there
+  // (pos/printers is view+test only, adding/editing a printer still needs
+  // the full Settings form) — bypassOwnerOnly is what lets a normally
+  // owner-only item through despite navIsOwner being forced false.
   const isNative = Capacitor.isNativePlatform();
   const navIsOwner = isNative ? false : isOwner;
-  const navPermissions = isNative ? ["transactions", "shifts"] : permissions;
+  const navPermissions = isNative ? ["transactions", "shifts", "settings"] : permissions;
+  const navBypassOwnerOnly = isNative ? ["settings"] : [];
 
   const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly);
-  const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions);
+  const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can
   // show "Akses Ditolak" instead of silently rendering nothing/wrong content.
   const activeItem = findActiveItem(allGroups, pathname);
   const activeHref = activeItem?.href ?? null;
-  const isAllowed = activeItem ? isItemAllowed(activeItem, navIsOwner, navPermissions) : navIsOwner;
+  const isAllowed = activeItem
+    ? isItemAllowed(activeItem, navIsOwner, navPermissions, navBypassOwnerOnly)
+    : navIsOwner;
 
   return (
     <div className="flex min-h-screen w-full bg-[#F4F6F9] print:bg-white">
