@@ -189,16 +189,30 @@ export default function PosScreen({
   const [cashMoveError, setCashMoveError] = useState<string | null>(null);
   const [cashMoveSubmitting, setCashMoveSubmitting] = useState(false);
 
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Sorted once per product list change, not per keystroke — cheap enough
+  // that memoizing separately from filteredProducts keeps the tab row from
+  // re-deriving every time someone types in the search box.
+  const categoryTabs = useMemo(() => {
+    return Array.from(
+      new Set(effectiveProducts.map((p) => p.category).filter((c): c is string => !!c)),
+    ).sort((a, b) => a.localeCompare(b, "id"));
+  }, [effectiveProducts]);
+
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return effectiveProducts;
-    return effectiveProducts.filter(
+    const byCategory = selectedCategory
+      ? effectiveProducts.filter((p) => p.category === selectedCategory)
+      : effectiveProducts;
+    if (!q) return byCategory;
+    return byCategory.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.barcode?.toLowerCase() === q ||
         p.sku?.toLowerCase() === q,
     );
-  }, [search, effectiveProducts]);
+  }, [search, selectedCategory, effectiveProducts]);
 
   // Variants are just extra product rows sharing the same name — group them
   // here purely for display, no schema relationship involved.
@@ -923,6 +937,34 @@ export default function PosScreen({
             <p className="text-[10px] text-zinc-400">{businessName}</p>
           </div>
         </div>
+
+        {categoryTabs.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto border-b border-zinc-200 bg-white px-4 py-2.5">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                selectedCategory === null
+                  ? "bg-brand-600 text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+              }`}
+            >
+              Semua
+            </button>
+            {categoryTabs.map((c) => (
+              <button
+                key={c}
+                onClick={() => setSelectedCategory(c)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectedCategory === c
+                    ? "bg-brand-600 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-4">
           {filteredProducts.length === 0 ? (
