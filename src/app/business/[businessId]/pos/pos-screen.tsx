@@ -1508,6 +1508,15 @@ export default function PosScreen({
               >
                 🕒 Riwayat Shift
               </a>
+              <a
+                href={`/business/${businessId}/pos/printers`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setPosMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                🖨️ Printer Dapur &amp; Bar
+              </a>
               <p className="px-1 pt-1 text-[11px] text-zinc-400">
                 Dibuka di tab baru — keranjang belanja kamu tidak hilang.
               </p>

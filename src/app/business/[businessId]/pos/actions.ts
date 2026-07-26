@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
 import { logActivity } from "@/lib/activity-log";
 import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
+import { buildKitchenTicket } from "@/lib/escpos";
 
 type VerifyCashierPinRow = {
   id: string;
@@ -184,6 +185,50 @@ export async function logKitchenPrintFailures(
     `Gagal cetak ke dapur: ${failures.map((f) => f.printer).join(", ")}`,
     failures.map((f) => f.error).join(" · "),
   );
+}
+
+export type BuildTestPrintJobResult =
+  | { success: true; job: KitchenPrintJobPayload }
+  | { success: false; error: string };
+
+// One ticket, sent straight at a single chosen printer — no category
+// routing, unlike buildKitchenPrintJobs (that one fans a real order out to
+// every matching station). Used by the POS "Tes Cetak" screen.
+export async function buildTestPrintJob(
+  businessId: string,
+  printerId: string,
+): Promise<BuildTestPrintJobResult> {
+  const supabase = await createClient();
+  const { data: printer } = await supabase
+    .from("kitchen_printers")
+    .select("name, connection_type, address")
+    .eq("id", printerId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!printer) {
+    return { success: false, error: "Printer tidak ditemukan." };
+  }
+  if (!printer.address) {
+    return { success: false, error: "Printer ini belum diatur alamat/perangkatnya." };
+  }
+
+  const buffer = buildKitchenTicket({
+    station: printer.name,
+    source: "Tes Cetak",
+    label: new Date().toLocaleString("id-ID"),
+    items: [{ name: "Ini tes cetak dari Kasirku", qty: 1 }],
+  });
+
+  return {
+    success: true,
+    job: {
+      printerName: printer.name,
+      address: printer.address,
+      connectionType: printer.connection_type as "lan" | "bluetooth",
+      bytesBase64: buffer.toString("base64"),
+    },
+  };
 }
 
 export type OpenShiftResult = { success: true } | { success: false; error: string };

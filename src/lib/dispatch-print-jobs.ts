@@ -31,11 +31,19 @@ async function dispatchOne(job: KitchenPrintJobPayload): Promise<PrintAgentResul
   return printViaAgent(job.address, job.bytesBase64);
 }
 
-// Fire-and-forget from the caller's point of view — a failed kitchen print
-// must never block or fail the sale/order that triggered it (same principle
-// the old server-side dispatchKitchenPrint followed).
-export async function dispatchPrintJobs(businessId: string, jobs: KitchenPrintJobPayload[]) {
-  if (jobs.length === 0) return;
+export type DispatchedPrintResult = { job: KitchenPrintJobPayload; result: PrintAgentResult };
+
+// Fire-and-forget from the checkout/order-status callers' point of view — a
+// failed kitchen print must never block or fail the sale/order that
+// triggered it (same principle the old server-side dispatchKitchenPrint
+// followed), so they just `void` this call. The return value exists for
+// callers that DO want to know per-job success/failure inline (e.g. a
+// "Tes Cetak" button) — existing fire-and-forget callers are unaffected.
+export async function dispatchPrintJobs(
+  businessId: string,
+  jobs: KitchenPrintJobPayload[],
+): Promise<DispatchedPrintResult[]> {
+  if (jobs.length === 0) return [];
 
   const results = await Promise.all(
     jobs.map(async (job) => ({ job, result: await dispatchOne(job) })),
@@ -51,4 +59,6 @@ export async function dispatchPrintJobs(businessId: string, jobs: KitchenPrintJo
       })),
     ).catch(() => {});
   }
+
+  return results;
 }
