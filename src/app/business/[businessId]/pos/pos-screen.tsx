@@ -1333,27 +1333,29 @@ export default function PosScreen({
 
           {!paying ? (
             <>
-              <button
-                onClick={() => setPaying(true)}
-                disabled={cart.length === 0}
-                className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Bayar
-              </button>
               {!saveBonOpen ? (
-                <button
-                  onClick={() => {
-                    setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
-                    setBonError(null);
-                    setSaveBonOpen(true);
-                  }}
-                  disabled={cart.length === 0}
-                  className="mt-2 w-full rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  🧾 Simpan Bon
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
+                      setBonError(null);
+                      setSaveBonOpen(true);
+                    }}
+                    disabled={cart.length === 0}
+                    className="rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    🧾 Simpan Bon
+                  </button>
+                  <button
+                    onClick={() => setPaying(true)}
+                    disabled={cart.length === 0}
+                    className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Bayar
+                  </button>
+                </div>
               ) : (
-                <div className="mt-2 space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
+                <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
                   <label
                     htmlFor="bonLabel"
                     className="block text-xs font-medium text-zinc-600"
@@ -1389,19 +1391,6 @@ export default function PosScreen({
                   </div>
                 </div>
               )}
-              <button
-                onClick={() => setCashMoveOpen(true)}
-                className="mt-2 w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
-              >
-                💵 Kas Masuk/Keluar
-              </button>
-              <button
-                onClick={() => setClosingShift(true)}
-                className="mt-2 w-full rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
-              >
-                Tutup Shift
-              </button>
-              <SwitchCashierButton />
             </>
           ) : (
             <div className="space-y-3">
@@ -1527,6 +1516,31 @@ export default function PosScreen({
               <p className="px-1 pt-1 text-[11px] text-zinc-400">
                 Dibuka di tab baru — keranjang belanja kamu tidak hilang.
               </p>
+
+              <div className="border-t border-zinc-100 pt-1.5" />
+
+              <button
+                onClick={() => {
+                  setPosMenuOpen(false);
+                  setCashMoveOpen(true);
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                💵 Kas Masuk/Keluar
+              </button>
+              <button
+                onClick={() => {
+                  setPosMenuOpen(false);
+                  setClosingShift(true);
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl border border-red-200 px-3.5 py-3 text-left text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
+              >
+                🔒 Tutup Shift
+              </button>
+              <SwitchCashierButton
+                className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                onBeforeSwitch={() => setPosMenuOpen(false)}
+              />
             </div>
           </div>
         </div>
