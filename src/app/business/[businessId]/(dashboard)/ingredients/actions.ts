@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { parseCsv } from "@/lib/csv";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 
 export type AddIngredientState = { error: string | null };
@@ -235,4 +236,132 @@ export async function deleteIngredient(businessId: string, ingredientId: string)
     );
   }
   revalidatePath(`/business/${businessId}/ingredients`);
+}
+
+export type ImportIngredientsState = {
+  error: string | null;
+  result: { created: number; updated: number; skipped: number; errors: string[] } | null;
+};
+
+// Matches export/route.ts's column order exactly, so a downloaded-then-
+// re-uploaded file round-trips without edits. Ingredients have no
+// SKU/barcode like products do, so existing rows are matched by name.
+const IMPORT_COLUMNS = ["name", "unit", "unitCost", "stock", "minStock"] as const;
+
+export async function importIngredients(
+  businessId: string,
+  _prevState: ImportIngredientsState,
+  formData: FormData,
+): Promise<ImportIngredientsState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "Pilih file CSV dulu.", result: null };
+  }
+
+  const text = await file.text();
+  const rows = parseCsv(text).filter((r) => r.some((c) => c.trim() !== ""));
+  if (rows.length < 2) {
+    return { error: "File CSV kosong atau cuma berisi header.", result: null };
+  }
+
+  const dataRows = rows.slice(1);
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("ingredients")
+    .select("id, name, unit_cost")
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
+
+  const byName = new Map((existing ?? []).map((i) => [i.name.trim().toLowerCase(), i]));
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    const line = i + 2; // +1 for header, +1 for 1-indexing
+    const get = (col: (typeof IMPORT_COLUMNS)[number]) =>
+      row[IMPORT_COLUMNS.indexOf(col)]?.trim() || "";
+
+    const name = get("name");
+    if (!name) {
+      skipped++;
+      errors.push(`Baris ${line}: nama bahan kosong`);
+      continue;
+    }
+    const unit = get("unit");
+    if (!unit) {
+      skipped++;
+      errors.push(`Baris ${line}: satuan kosong`);
+      continue;
+    }
+    const unitCost = Number(get("unitCost"));
+    if (get("unitCost") === "" || Number.isNaN(unitCost) || unitCost < 0) {
+      skipped++;
+      errors.push(`Baris ${line}: harga per satuan tidak valid`);
+      continue;
+    }
+    const stock = Number(get("stock")) || 0;
+    const minStock = Number(get("minStock")) || 0;
+
+    const match = byName.get(name.toLowerCase());
+
+    if (match) {
+      const { error } = await supabase
+        .from("ingredients")
+        .update({ name, unit, unit_cost: unitCost, stock, min_stock: minStock })
+        .eq("id", match.id)
+        .eq("business_id", businessId);
+
+      if (error) {
+        skipped++;
+        errors.push(`Baris ${line}: ${error.message}`);
+        continue;
+      }
+
+      if (Number(match.unit_cost) !== unitCost) {
+        await supabase.from("ingredient_price_history").insert({
+          business_id: businessId,
+          ingredient_id: match.id,
+          unit_cost: unitCost,
+          source: "impor",
+        });
+        await recalculateProductCostsForIngredient(supabase, match.id);
+      }
+      updated++;
+    } else {
+      const { data: inserted, error } = await supabase
+        .from("ingredients")
+        .insert({ business_id: businessId, name, unit, unit_cost: unitCost, stock, min_stock: minStock })
+        .select("id")
+        .single();
+
+      if (error || !inserted) {
+        skipped++;
+        errors.push(`Baris ${line}: ${error?.message ?? "gagal menambahkan"}`);
+        continue;
+      }
+
+      await supabase.from("ingredient_price_history").insert({
+        business_id: businessId,
+        ingredient_id: inserted.id,
+        unit_cost: unitCost,
+        source: "impor",
+      });
+      created++;
+    }
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    skipped > 0 ? "warning" : "sukses",
+    `Impor CSV bahan baku: ${created} baru, ${updated} diperbarui, ${skipped} dilewati`,
+  );
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null, result: { created, updated, skipped, errors: errors.slice(0, 20) } };
 }

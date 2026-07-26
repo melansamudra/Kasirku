@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addIngredient, adjustIngredientStock, editIngredient } from "./actions";
+import { addIngredient, adjustIngredientStock, editIngredient, importIngredients } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
 import EditIngredientForm from "./edit-ingredient-form";
+import ImportIngredientsForm from "./import-ingredients-form";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -44,13 +45,35 @@ export default async function IngredientsPage({
     .limit(10);
 
   const boundAddIngredient = addIngredient.bind(null, businessId);
+  const boundImportIngredients = importIngredients.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
-        <h1 className="text-lg font-bold text-zinc-900">Bahan Baku — {business.name}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Daftar bahan baku, dipakai untuk hitung HPP resep produk.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-zinc-900">Bahan Baku — {business.name}</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Daftar bahan baku, dipakai untuk hitung HPP resep produk.
+            </p>
+          </div>
+          <a
+            href={`/business/${businessId}/ingredients/export`}
+            className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            ⬇️ Ekspor CSV
+          </a>
+        </div>
+
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Impor dari CSV</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Format kolom sama dengan hasil Ekspor CSV — pakai itu sebagai template. Bahan dengan
+            nama yang sudah ada akan diperbarui, sisanya ditambahkan sebagai bahan baru.
+          </p>
+          <div className="mt-4">
+            <ImportIngredientsForm action={boundImportIngredients} />
+          </div>
+        </div>
 
         <div className="mt-6 space-y-2">
           {ingredients && ingredients.length > 0 ? (

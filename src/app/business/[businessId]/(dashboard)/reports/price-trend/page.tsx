@@ -14,6 +14,7 @@ const SOURCE_LABELS: Record<string, string> = {
   awal: "Awal",
   pembelian: "Pembelian",
   manual: "Edit manual",
+  impor: "Impor",
 };
 
 function formatRupiah(value: number) {
