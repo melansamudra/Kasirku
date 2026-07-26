@@ -83,13 +83,20 @@ export default async function SettingsPage({
   const boundAddPaymentMethod = addPaymentMethod.bind(null, businessId);
   const boundUpdateBusinessType = updateBusinessType.bind(null, businessId);
 
-  let printers: { id: string; name: string; categories: string[]; connection_type: string; address: string | null }[] = [];
+  let printers: {
+    id: string;
+    name: string;
+    categories: string[];
+    connection_type: string;
+    address: string | null;
+    device_label: string | null;
+  }[] = [];
   let productCategories: string[] = [];
 
   if (isFnb) {
     const { data: printerRows } = await supabase
       .from("kitchen_printers")
-      .select("id, name, categories, connection_type, address")
+      .select("id, name, categories, connection_type, address, device_label")
       .eq("business_id", businessId)
       .order("name", { ascending: true });
     printers = printerRows ?? [];
@@ -199,7 +206,9 @@ export default async function SettingsPage({
                     </div>
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {p.connection_type === "lan" ? "🌐 LAN/Wi-Fi" : "📶 Bluetooth"}
-                      {p.address ? ` · ${p.address}` : ""}
+                      {p.address
+                        ? ` · ${p.connection_type === "bluetooth" ? (p.device_label ?? p.address) : p.address}`
+                        : ""}
                     </p>
                     {p.categories.length > 0 && (
                       <p className="mt-1 text-[11px] text-zinc-400">

@@ -9,10 +9,18 @@ export type KitchenPrintJob = {
 
 // Ticket-building stays server-side (uses Buffer, reads kitchen_printers via
 // the caller's Supabase client) — only the actual byte-sending moves to the
-// browser via the print agent, since Vercel can never reach a printer's
-// private LAN IP but the cashier's browser (physically on the shop's
-// network) can. See print-agent/ and src/lib/print-agent-client.ts.
-export type KitchenPrintJobPayload = { printerName: string; address: string; bytesBase64: string };
+// client, since Vercel can never reach a printer's private LAN IP or a
+// Bluetooth device, but the cashier's browser/app (physically on the shop's
+// network, or physically holding the tablet) can. connectionType tells the
+// client which transport to use: print-agent/native-LAN for "lan", the
+// native Bluetooth plugin for "bluetooth" (browsers without the plugin can't
+// do anything with a bluetooth job — see dispatch-print-jobs.ts).
+export type KitchenPrintJobPayload = {
+  printerName: string;
+  address: string;
+  connectionType: "lan" | "bluetooth";
+  bytesBase64: string;
+};
 
 export async function buildKitchenPrintJobs(
   supabase: SupabaseClient,
@@ -26,11 +34,15 @@ export async function buildKitchenPrintJobs(
     .select("id, name, categories, connection_type, address")
     .eq("business_id", businessId);
 
-  const lanPrinters = (printers ?? []).filter(
-    (p) => p.connection_type === "lan" && !!p.address,
-  ) as { id: string; name: string; categories: string[]; connection_type: "lan"; address: string }[];
+  const addressedPrinters = (printers ?? []).filter((p) => !!p.address) as {
+    id: string;
+    name: string;
+    categories: string[];
+    connection_type: "lan" | "bluetooth";
+    address: string;
+  }[];
 
-  const attempts = lanPrinters
+  const attempts = addressedPrinters
     .map((printer) => {
       const items =
         printer.categories.length > 0
@@ -50,6 +62,7 @@ export async function buildKitchenPrintJobs(
     return {
       printerName: printer.name,
       address: printer.address,
+      connectionType: printer.connection_type,
       bytesBase64: buffer.toString("base64"),
     };
   });

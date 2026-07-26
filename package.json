@@ -9,9 +9,12 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "print-agent": "npm --prefix print-agent run start"
+    "print-agent": "npm --prefix print-agent run start",
+    "android-build-debug": "npm --prefix android-app run build:debug",
+    "android-build-release": "npm --prefix android-app run build:release"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.2",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
     "exceljs": "^4.4.0",

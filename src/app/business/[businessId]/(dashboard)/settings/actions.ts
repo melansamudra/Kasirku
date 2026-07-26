@@ -54,6 +54,7 @@ export async function addKitchenPrinter(
   const name = (formData.get("name") as string)?.trim();
   const connectionType = formData.get("connectionType") as string;
   const address = (formData.get("address") as string)?.trim();
+  const deviceLabel = (formData.get("deviceLabel") as string)?.trim();
   const categories = formData.getAll("categories").map((c) => String(c));
 
   if (!name) {
@@ -69,6 +70,7 @@ export async function addKitchenPrinter(
     name,
     connection_type: connectionType,
     address: address || null,
+    device_label: deviceLabel || null,
     categories,
   });
 
@@ -82,7 +84,9 @@ export async function addKitchenPrinter(
     "pengaturan",
     "sukses",
     `Printer dapur baru: ${name}`,
-    connectionType === "lan" ? `LAN${address ? ` · ${address}` : ""}` : "Bluetooth",
+    connectionType === "lan"
+      ? `LAN${address ? ` · ${address}` : ""}`
+      : `Bluetooth${deviceLabel ? ` · ${deviceLabel}` : ""}`,
   );
   revalidatePath(`/business/${businessId}/settings`);
   return { error: null };

@@ -1,0 +1,6 @@
+node_modules
+
+# Points at a local `next start` build (localhost/10.0.2.2) — never shipped,
+# swap in temporarily for local testing, keep capacitor.config.ts (prod) as
+# the tracked file.
+capacitor.config.dev.ts

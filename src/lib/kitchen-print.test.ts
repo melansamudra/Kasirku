@@ -91,9 +91,25 @@ describe("buildKitchenPrintJobs", () => {
     expect(jobs).toEqual([]);
   });
 
-  it("ignores bluetooth printers (LAN dispatch only)", async () => {
+  it("builds a job for a bluetooth printer too, tagged with its connectionType", async () => {
     const supabase = stubSupabase([
-      { id: "1", name: "Handheld", categories: [], connection_type: "bluetooth", address: "some-device" },
+      { id: "1", name: "Handheld", categories: [], connection_type: "bluetooth", address: "AA:BB:CC:DD:EE:FF" },
+    ]);
+
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
+      source: "Kasir",
+      label: "INV-1",
+      items: [{ name: "Kopi Susu", category: "Minuman", qty: 1 }],
+    });
+
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].connectionType).toBe("bluetooth");
+    expect(jobs[0].address).toBe("AA:BB:CC:DD:EE:FF");
+  });
+
+  it("skips a printer with no address configured yet, regardless of connectionType", async () => {
+    const supabase = stubSupabase([
+      { id: "1", name: "Belum diatur", categories: [], connection_type: "bluetooth", address: null },
     ]);
 
     const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
@@ -103,6 +119,20 @@ describe("buildKitchenPrintJobs", () => {
     });
 
     expect(jobs).toEqual([]);
+  });
+
+  it("tags LAN jobs with connectionType 'lan'", async () => {
+    const supabase = stubSupabase([
+      { id: "1", name: "Dapur", categories: [], connection_type: "lan", address: "dapur-host:9100" },
+    ]);
+
+    const jobs = await buildKitchenPrintJobs(supabase, "biz-1", {
+      source: "Kasir",
+      label: "INV-1",
+      items: [{ name: "Kopi Susu", category: "Minuman", qty: 1 }],
+    });
+
+    expect(jobs[0].connectionType).toBe("lan");
   });
 
   it("builds a job per matching printer when there are several", async () => {
