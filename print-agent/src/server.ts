@@ -96,6 +96,16 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, { ok: false, error: 'not_found' })
 })
 
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`Kasirku Print Agent sudah berjalan (port ${PORT} sedang dipakai). Tidak perlu membuka lagi.`)
+    setTimeout(() => process.exit(0), 3000)
+    return
+  }
+  throw err
+})
+
 server.listen(PORT, HOST, () => {
-  console.log(`kasirku-print-agent listening on http://${HOST}:${PORT}`)
+  console.log('Kasirku Print Agent aktif.')
+  console.log(`Dengarkan di http://${HOST}:${PORT} — jangan tutup jendela ini selagi mencetak.`)
 })

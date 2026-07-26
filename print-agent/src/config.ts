@@ -1,4 +1,7 @@
-const DEFAULT_ORIGINS = ['http://localhost:3000']
+// Kasirku production, plus localhost for local dev against `npm run dev`.
+// Packaged as a standalone .exe for cashier PCs, so these need to work with
+// zero configuration — most cashiers will never set PRINT_AGENT_ALLOWED_ORIGINS.
+const DEFAULT_ORIGINS = ['https://createimpact.id', 'http://localhost:3000']
 
 export const ALLOWED_ORIGINS = (process.env.PRINT_AGENT_ALLOWED_ORIGINS ?? DEFAULT_ORIGINS.join(','))
   .split(',')

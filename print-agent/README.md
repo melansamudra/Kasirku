@@ -15,24 +15,66 @@ the same LAN as the printer.
 Previously, print dispatch ran as a Next.js Server Action on Vercel — which can never reach a
 shop's private LAN IP from the cloud. That's why LAN kitchen printing has never actually worked.
 
-## Running
+---
+
+## Instalasi di komputer kasir (untuk pemilik toko/kasir, bukan developer)
+
+Tidak perlu install Node.js atau paham command line — cukup file `.exe` siap pakai.
+
+1. Minta file `kasirku-print-agent.exe` beserta `install.ps1` (satu folder) dari developer.
+2. Klik kanan `install.ps1` -> **Run with PowerShell**.
+   - Kalau muncul peringatan biru "Windows protected your PC": klik **More info** -> **Run
+     anyway**. Ini normal untuk aplikasi internal yang belum didaftarkan ke Microsoft, bukan
+     virus.
+3. Selesai — agent langsung aktif, dan otomatis nyala lagi tiap komputer ini dinyalakan/login.
+   Tidak perlu diinstal ulang, tidak perlu dibuka manual setiap hari.
+4. Lanjutkan konfigurasi printer LAN seperti biasa di pengaturan Kasirku.
+
+Untuk menghapus: klik kanan `uninstall.ps1` -> **Run with PowerShell**.
+
+**Satu agent per komputer kasir.** Kalau ada 2 komputer kasir yang keduanya mencetak ke printer
+dapur, install di kedua-duanya.
+
+---
+
+## Developer — running from source
 
 ```bash
 npm install
 npm start
 ```
 
-Leave this running on the cashier PC for as long as the POS is in use. Add it to Windows startup
-(Task Scheduler, or a Startup folder shortcut) so it comes back after a reboot.
+```bash
+npm run dev   # auto-restart on file change
+```
+
+## Developer — building the standalone .exe
+
+```bash
+npm install
+npm run build:exe
+```
+
+Produces `dist/kasirku-print-agent.exe` (~90MB, self-contained — no Node.js needed on the target
+machine) via Node's built-in Single Executable Application (SEA) feature — bundled with esbuild,
+then injected into a copy of the local `node.exe` with `postject`. Must be built *on Windows* — SEA
+reuses whichever Node binary builds it, so it only targets that same OS/arch.
+
+(We tried `pkg` first — it needs to download a prebuilt Node binary per target, and none was
+available for this Node version, so it fell back to compiling Node from source, which needs a full
+native build toolchain we don't have. SEA avoids that by reusing the Node already on this machine.)
+
+To hand off a new build to a shop: copy `dist/kasirku-print-agent.exe`, `install.ps1`, and
+`uninstall.ps1` together into one folder (e.g. zip it) and send that.
 
 ## Configuration
 
-Environment variables (optional):
+Environment variables (optional — the packaged `.exe` needs none of this, defaults already cover
+production):
 
 - `PRINT_AGENT_PORT` — HTTP port to listen on (default `9123`).
 - `PRINT_AGENT_ALLOWED_ORIGINS` — comma-separated list of origins allowed to call this agent
-  (default `http://localhost:3000`). **Must** be set to the real production POS URL on cashier
-  PCs, e.g. `PRINT_AGENT_ALLOWED_ORIGINS=https://createimpact.id`.
+  (default `https://createimpact.id,http://localhost:3000`).
 
 ## API
 
@@ -40,9 +82,3 @@ Environment variables (optional):
 - `POST /print` with `{ ip, port, bytes }` (`bytes` is base64-encoded ESC/POS data) →
   `{ ok: true }` on success, or `{ ok: false, error }` with HTTP 502 if the printer couldn't be
   reached.
-
-## Packaging (later)
-
-For now this runs via `tsx` from source. To hand cashiers a double-clickable `.exe` instead of
-asking them to run npm commands, package with `pkg` or Node's Single Executable Applications
-(SEA) feature — not done yet, out of scope for the initial build.
