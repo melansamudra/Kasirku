@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { importTransactions } from "./actions";
-import { TransactionButtons, TransactionImportCard } from "./transaction-actions";
+import { TransactionActions } from "./transaction-actions";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -55,10 +55,8 @@ export default async function TransactionsPage({
             </h1>
             <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>
           </div>
-          <TransactionButtons businessId={businessId} />
+          <TransactionActions businessId={businessId} importAction={boundImportTransactions} />
         </div>
-
-        <TransactionImportCard importAction={boundImportTransactions} />
 
         <div className="mt-6 space-y-2">
           {transactions && transactions.length > 0 ? (

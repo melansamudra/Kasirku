@@ -27,6 +27,18 @@ function todayDateString() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
 
+function nowTimeString() {
+  return new Date().toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function nowDateTimeString() {
+  return `${todayDateString()}T${nowTimeString()}`;
+}
+
 export default function ManualTransactionForm({
   businessId,
   products,
@@ -45,6 +57,7 @@ export default function ManualTransactionForm({
   );
 
   const [date, setDate] = useState(todayDateString());
+  const [time, setTime] = useState(nowTimeString());
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState(BUILTIN_PAYMENT_METHODS[0]);
@@ -89,12 +102,12 @@ export default function ManualTransactionForm({
       setError("Tambahkan minimal satu produk.");
       return;
     }
-    if (!date) {
-      setError("Tanggal wajib diisi.");
+    if (!date || !time) {
+      setError("Tanggal dan jam wajib diisi.");
       return;
     }
-    if (date > todayDateString()) {
-      setError("Tanggal tidak boleh di masa depan.");
+    if (`${date}T${time}` > nowDateTimeString()) {
+      setError("Tanggal/jam tidak boleh di masa depan.");
       return;
     }
 
@@ -102,7 +115,7 @@ export default function ManualTransactionForm({
     try {
       const result = await createManualTransaction(
         businessId,
-        new Date(`${date}T12:00:00`).toISOString(),
+        new Date(`${date}T${time}:00`).toISOString(),
         cart.map((l) => ({ productId: l.productId, qty: l.qty })),
         paymentMethod,
         paymentMethod === "Tunai" && received ? Number(received) : null,
@@ -125,17 +138,33 @@ export default function ManualTransactionForm({
   return (
     <div className="space-y-4">
       <div className="rounded-xl bg-white shadow-sm p-4">
-        <label htmlFor="txn-date" className="mb-1 block text-xs font-medium text-zinc-600">
-          Tanggal Transaksi
-        </label>
-        <input
-          id="txn-date"
-          type="date"
-          value={date}
-          max={todayDateString()}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full max-w-[200px] rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label htmlFor="txn-date" className="mb-1 block text-xs font-medium text-zinc-600">
+              Tanggal Transaksi
+            </label>
+            <input
+              id="txn-date"
+              type="date"
+              value={date}
+              max={todayDateString()}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          <div className="w-28">
+            <label htmlFor="txn-time" className="mb-1 block text-xs font-medium text-zinc-600">
+              Jam
+            </label>
+            <input
+              id="txn-time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="rounded-xl bg-white shadow-sm p-4">
