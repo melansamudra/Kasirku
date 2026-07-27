@@ -8,6 +8,7 @@ import {
   checkout,
   closeShift,
   deleteOpenBill,
+  getSelfOrders,
   saveOpenBill,
   updateSelfOrderStatus,
   type CheckoutResult,
@@ -98,7 +99,7 @@ export default function PosScreen({
   openBills,
   customers,
   isFnb,
-  selfOrders,
+  selfOrders: initialSelfOrders,
   customPaymentMethods,
 }: {
   businessId: string;
@@ -147,16 +148,28 @@ export default function PosScreen({
   const [bonError, setBonError] = useState<string | null>(null);
   const [bonSaving, setBonSaving] = useState(false);
 
+  // State lokal, disinkronkan dari prop server tiap kali props berubah (mis.
+  // router.refresh() di tempat lain) — supaya polling ringan di bawah bisa
+  // menimpanya sendiri tanpa saling menunggu.
+  const [selfOrders, setSelfOrders] = useState(initialSelfOrders);
+  useEffect(() => {
+    setSelfOrders(initialSelfOrders);
+  }, [initialSelfOrders]);
+
   const newOrderCount = selfOrders.filter((o) => o.status === "baru").length;
 
   // Order self-order masuk dari perangkat pelanggan; poll supaya badge kasir
-  // ikut terbarui tanpa reload manual. router.refresh() mempertahankan state
-  // client (keranjang tidak hilang).
+  // ikut terbarui tanpa reload manual. Dulu ini panggil router.refresh() tiap
+  // 15 detik — me-refresh SELURUH halaman (produk, open bill, customer, dst
+  // ikut di-fetch ulang), salah satu penyebab utama app terasa lemot. Sekarang
+  // cuma ambil self_orders sendirian lewat getSelfOrders().
   useEffect(() => {
     if (!isFnb) return;
-    const interval = setInterval(() => router.refresh(), 15000);
+    const interval = setInterval(() => {
+      void getSelfOrders(businessId).then(setSelfOrders).catch(() => {});
+    }, 15000);
     return () => clearInterval(interval);
-  }, [isFnb, router]);
+  }, [isFnb, businessId]);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(BUILTIN_PAYMENT_METHODS[0]);
   const [received, setReceived] = useState("");

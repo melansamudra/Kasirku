@@ -140,12 +140,16 @@ export default async function PosPage({
 
   const isFnb = business.business_type === "fnb";
 
-  // Same idea as the ticket branch above — these 4 queries are independent.
+  // Same idea as the ticket branch above — these queries are independent, so
+  // self_orders (FnB only) rides in the same Promise.all batch instead of a
+  // separate round trip after it — that used to be a real extra waterfall
+  // on every POS page load for F&B businesses.
   const [
     { data: products },
     { data: openBillRows },
     { data: customers },
     { data: customPaymentMethodRows },
+    { data: selfOrderRows },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -169,20 +173,19 @@ export default async function PosPage({
       .select("name")
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
+    isFnb
+      ? supabase
+          .from("self_orders")
+          .select(
+            "id, status, created_at, tables(name), self_order_items(product_id, name, qty, price, note)",
+          )
+          .eq("business_id", businessId)
+          .neq("status", "selesai")
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: null }),
   ]);
 
-  let selfOrders: SelfOrderRow[] = [];
-  if (isFnb) {
-    const { data: orderRows } = await supabase
-      .from("self_orders")
-      .select(
-        "id, status, created_at, tables(name), self_order_items(product_id, name, qty, price, note)",
-      )
-      .eq("business_id", businessId)
-      .neq("status", "selesai")
-      .order("created_at", { ascending: true });
-    selfOrders = (orderRows ?? []) as unknown as SelfOrderRow[];
-  }
+  const selfOrders = (selfOrderRows ?? []) as unknown as SelfOrderRow[];
 
   return (
     <PosScreen

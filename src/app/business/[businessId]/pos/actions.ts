@@ -458,6 +458,53 @@ export async function deleteOpenBill(businessId: string, billId: string) {
   revalidatePath(`/business/${businessId}/pos`);
 }
 
+export type SelfOrderPayload = {
+  id: string;
+  status: "baru" | "diproses";
+  createdAt: string;
+  tableName: string;
+  items: { productId: string | null; name: string; qty: number; price: number; note: string | null }[];
+};
+
+// Dipakai oleh polling badge order masuk di pos-screen.tsx — dulu polling
+// itu panggil router.refresh() tiap 15 detik, yang re-render SELURUH
+// halaman POS (produk, open bill, customer, dst ikut di-fetch ulang).
+// Action ini cuma ambil self_orders sendirian, jauh lebih ringan.
+export async function getSelfOrders(businessId: string): Promise<SelfOrderPayload[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("self_orders")
+    .select(
+      "id, status, created_at, tables(name), self_order_items(product_id, name, qty, price, note)",
+    )
+    .eq("business_id", businessId)
+    .neq("status", "selesai")
+    .order("created_at", { ascending: true });
+
+  return (
+    data as unknown as {
+      id: string;
+      status: "baru" | "diproses";
+      created_at: string;
+      tables: { name: string } | null;
+      self_order_items: { product_id: string | null; name: string; qty: number; price: number; note: string | null }[];
+    }[]
+    ?? []
+  ).map((o) => ({
+    id: o.id,
+    status: o.status,
+    createdAt: o.created_at,
+    tableName: o.tables?.name ?? "Meja terhapus",
+    items: o.self_order_items.map((i) => ({
+      productId: i.product_id,
+      name: i.name,
+      qty: i.qty,
+      price: i.price,
+      note: i.note,
+    })),
+  }));
+}
+
 export async function updateSelfOrderStatus(
   businessId: string,
   orderId: string,
