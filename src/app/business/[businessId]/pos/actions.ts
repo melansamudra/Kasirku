@@ -127,28 +127,30 @@ export async function checkout(
   // aktivitas/cetak dapur dua kali untuk penjualan yang sama.
   if (!result.already_existed) {
     const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
-    await logActivity(
-      supabase,
-      businessId,
-      "transaksi",
-      "sukses",
-      `Transaksi ${result.invoice_number}`,
-      `${itemCount} item · ${paymentMethod}`,
-    );
 
-    printJobs = await buildKitchenPrintJobsForItems(
-      supabase,
-      businessId,
-      "Kasir",
-      result.invoice_number,
-      items.map((i) => ({ productId: i.productId, qty: i.qty })),
-    );
-
-    receiptPrintJobs = await buildReceiptPrintJobsForTransaction(
-      supabase,
-      businessId,
-      result.transaction_id,
-    );
+    // Tiga hal ini tidak saling bergantung — dulu dijalankan berurutan
+    // (await satu-satu), menambah beberapa detik nyata ke waktu konfirmasi
+    // pembayaran di jaringan mobile. Sekarang jalan bersamaan.
+    const [, printJobsResult, receiptJobsResult] = await Promise.all([
+      logActivity(
+        supabase,
+        businessId,
+        "transaksi",
+        "sukses",
+        `Transaksi ${result.invoice_number}`,
+        `${itemCount} item · ${paymentMethod}`,
+      ),
+      buildKitchenPrintJobsForItems(
+        supabase,
+        businessId,
+        "Kasir",
+        result.invoice_number,
+        items.map((i) => ({ productId: i.productId, qty: i.qty })),
+      ),
+      buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id),
+    ]);
+    printJobs = printJobsResult;
+    receiptPrintJobs = receiptJobsResult;
   }
 
   return {
@@ -170,16 +172,20 @@ async function buildReceiptPrintJobsForTransaction(
   businessId: string,
   transactionId: string,
 ): Promise<KitchenPrintJobPayload[]> {
-  const { data: printers } = await supabase
-    .from("kitchen_printers")
-    .select("name, connection_type, address")
-    .eq("business_id", businessId)
-    .eq("prints_receipt", true)
-    .not("address", "is", null);
+  // Query printer dan bangun buffer struk tidak saling bergantung — buffer
+  // tidak butuh daftar printer sama sekali. Jalankan bersamaan, baru buang
+  // hasil buffer kalau ternyata tidak ada printer prints_receipt.
+  const [{ data: printers }, bufferResult] = await Promise.all([
+    supabase
+      .from("kitchen_printers")
+      .select("name, connection_type, address")
+      .eq("business_id", businessId)
+      .eq("prints_receipt", true)
+      .not("address", "is", null),
+    buildReceiptBuffer(supabase, businessId, transactionId),
+  ]);
 
   if (!printers || printers.length === 0) return [];
-
-  const bufferResult = await buildReceiptBuffer(supabase, businessId, transactionId);
   if (!bufferResult.success) return [];
 
   const bytesBase64 = bufferResult.buffer.toString("base64");
