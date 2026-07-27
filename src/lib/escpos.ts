@@ -54,3 +54,110 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
 
   return Buffer.concat(chunks);
 }
+
+// 32 columns matches Font A on the 58mm thermal printers this app targets
+// (RPP02N and similar) — used to right-align prices/totals in plain text
+// since ESC/POS has no flex layout.
+const RECEIPT_WIDTH = 32;
+
+function padLine(left: string, right: string, width = RECEIPT_WIDTH): string {
+  const space = Math.max(width - left.length - right.length, 1);
+  return left + " ".repeat(space) + right;
+}
+
+function truncate(s: string, width = RECEIPT_WIDTH): string {
+  return s.length > width ? s.slice(0, width) : s;
+}
+
+export type ReceiptItem = {
+  name: string;
+  qty: number;
+  price: number;
+};
+
+export type ReceiptPayment = {
+  method: string;
+  amount: number;
+  received: number | null;
+  change: number | null;
+};
+
+export type ReceiptTicketInput = {
+  businessName: string;
+  invoiceNumber: string;
+  date: string;
+  cashierName: string;
+  voided: boolean;
+  items: ReceiptItem[];
+  subtotal: number;
+  itemDiscount: number;
+  orderDiscount: number;
+  service: number;
+  tax: number;
+  total: number;
+  payments: ReceiptPayment[];
+};
+
+function formatRp(value: number): string {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
+
+// Full priced customer receipt (struk kasir) — distinct from
+// buildKitchenTicket, which deliberately omits prices for the kitchen/bar
+// copy. Sent through the same native LAN/Bluetooth plugin as kitchen
+// tickets, since Android's OS-level print framework generally can't drive
+// cheap ESC/POS thermal printers (see dispatch-print-jobs.ts).
+export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
+  const chunks: Buffer[] = [];
+  const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
+  const text = (s: string) => chunks.push(Buffer.from(`${s}\n`, "latin1"));
+  const divider = () => text("-".repeat(RECEIPT_WIDTH));
+
+  push([ESC, 0x40]); // initialize
+
+  push([ESC, 0x61, 0x01]); // center align
+  text(input.businessName.toUpperCase());
+  if (input.voided) {
+    push([ESC, 0x45, 0x01]);
+    text("*** DIBATALKAN ***");
+    push([ESC, 0x45, 0x00]);
+  }
+  push([ESC, 0x61, 0x00]); // left align
+
+  divider();
+  text(padLine("No.", input.invoiceNumber));
+  text(padLine("Tanggal", input.date));
+  text(padLine("Kasir", input.cashierName));
+
+  divider();
+  for (const item of input.items) {
+    text(truncate(item.name));
+    text(padLine(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
+  }
+
+  divider();
+  text(padLine("Subtotal", formatRp(input.subtotal)));
+  if (input.itemDiscount > 0) text(padLine("Diskon item", `-${formatRp(input.itemDiscount)}`));
+  if (input.orderDiscount > 0) text(padLine("Diskon order", `-${formatRp(input.orderDiscount)}`));
+  if (input.service > 0) text(padLine("Layanan", formatRp(input.service)));
+  if (input.tax > 0) text(padLine("PPN", formatRp(input.tax)));
+  push([ESC, 0x45, 0x01]);
+  text(padLine("TOTAL", formatRp(input.total)));
+  push([ESC, 0x45, 0x00]);
+
+  divider();
+  for (const p of input.payments) {
+    text(padLine(p.method, formatRp(p.amount)));
+    if (p.received !== null) text(padLine("Diterima", formatRp(p.received)));
+    if (p.change !== null && p.change > 0) text(padLine("Kembalian", formatRp(p.change)));
+  }
+
+  push([ESC, 0x61, 0x01]); // center align
+  text("");
+  text("Terima kasih!");
+  text("");
+  text("");
+  push([GS, 0x56, 0x42, 0x00]); // partial cut with feed
+
+  return Buffer.concat(chunks);
+}

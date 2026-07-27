@@ -24,7 +24,7 @@ export default async function ReceiptPage({
   // Keempat query tidak saling bergantung (semua cuma butuh businessId/
   // transactionId dari params) — dijalankan paralel, bukan berurutan,
   // supaya struk render lebih cepat begitu dibuka dari POS.
-  const [{ data: business }, { data: transaction }, { data: items }, { data: payments }] =
+  const [{ data: business }, { data: transaction }, { data: items }, { data: payments }, { data: printers }] =
     await Promise.all([
       supabase.from("businesses").select("name").eq("id", businessId).single(),
       supabase
@@ -44,6 +44,11 @@ export default async function ReceiptPage({
         .from("transaction_payments")
         .select("id, method, amount, received, change")
         .eq("transaction_id", transactionId),
+      supabase
+        .from("kitchen_printers")
+        .select("id, name")
+        .eq("business_id", businessId)
+        .order("name", { ascending: true }),
     ]);
 
   if (!business || !transaction) {
@@ -53,7 +58,11 @@ export default async function ReceiptPage({
   return (
     <div className="w-full max-w-xs font-mono text-xs text-zinc-900 print:max-w-none">
         <div className="print:hidden">
-          <PrintButton businessId={businessId} transactionId={transactionId} />
+          <PrintButton
+            businessId={businessId}
+            transactionId={transactionId}
+            printers={printers ?? []}
+          />
         </div>
 
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5 print:mt-0 print:rounded-none print:border-0 print:p-0">
