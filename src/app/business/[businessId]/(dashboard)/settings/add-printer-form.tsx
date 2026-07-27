@@ -197,6 +197,14 @@ export default function AddPrinterForm({
         </div>
       )}
 
+      <label className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-xs text-zinc-700 has-checked:border-brand-500 has-checked:bg-brand-50">
+        <input type="checkbox" name="printsReceipt" className="h-3.5 w-3.5" />
+        <span>
+          Cetak <b>struk pelanggan</b> (dengan harga &amp; total) otomatis ke sini setiap transaksi
+          — bukan tiket dapur/bar
+        </span>
+      </label>
+
       {categories.length > 0 && (
         <div>
           <p className="mb-1.5 text-xs font-medium text-zinc-600">

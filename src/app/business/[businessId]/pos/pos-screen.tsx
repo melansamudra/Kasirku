@@ -20,7 +20,7 @@ import { itemDiscAmount, calculateCheckoutTotals } from "@/lib/checkout-totals";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
 import { withTimeout } from "@/lib/with-timeout";
-import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
+import { dispatchPrintJobs, dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
 import { Capacitor } from "@capacitor/core";
 
 type Product = {
@@ -553,7 +553,7 @@ export default function PosScreen({
       return;
     }
 
-    void dispatchPrintJobs(businessId, result.printJobs);
+    void dispatchReceiptThenKitchenJobs(businessId, result.receiptPrintJobs, result.printJobs);
 
     // Bon yang dimuat sudah dibayar — bereskan dari daftar. Dilewati kalau
     // koneksi sedang bermasalah (deleteOpenBill juga butuh network); bon

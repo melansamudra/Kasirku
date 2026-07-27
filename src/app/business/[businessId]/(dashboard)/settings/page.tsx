@@ -6,6 +6,7 @@ import AddPrinterForm from "./add-printer-form";
 import BusinessTypeForm from "./business-type-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DeletePrinterButton from "./delete-printer-button";
+import PrinterReceiptToggle from "./printer-receipt-toggle";
 import TaxServiceForm from "./tax-service-form";
 import TicketCategoriesSection from "./ticket-categories-section";
 import TicketHolidaysSection from "./ticket-holidays-section";
@@ -90,13 +91,14 @@ export default async function SettingsPage({
     connection_type: string;
     address: string | null;
     device_label: string | null;
+    prints_receipt: boolean;
   }[] = [];
   let productCategories: string[] = [];
 
   if (isFnb) {
     const { data: printerRows } = await supabase
       .from("kitchen_printers")
-      .select("id, name, categories, connection_type, address, device_label")
+      .select("id, name, categories, connection_type, address, device_label, prints_receipt")
       .eq("business_id", businessId)
       .order("name", { ascending: true });
     printers = printerRows ?? [];
@@ -215,6 +217,11 @@ export default async function SettingsPage({
                         Kategori: {p.categories.join(", ")}
                       </p>
                     )}
+                    <PrinterReceiptToggle
+                      businessId={businessId}
+                      printerId={p.id}
+                      printsReceipt={p.prints_receipt}
+                    />
                   </div>
                 ))
               ) : (

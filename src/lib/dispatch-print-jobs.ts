@@ -62,3 +62,17 @@ export async function dispatchPrintJobs(
 
   return results;
 }
+
+// Receipt jobs go out first and are awaited before the kitchen jobs start —
+// two reasons: the cashier's receipt printer is often the same physical
+// device as a kitchen station (Bluetooth sockets don't handle concurrent
+// jobs well), and the customer copy is the priority print, not the kitchen
+// ticket.
+export async function dispatchReceiptThenKitchenJobs(
+  businessId: string,
+  receiptJobs: KitchenPrintJobPayload[],
+  kitchenJobs: KitchenPrintJobPayload[],
+) {
+  await dispatchPrintJobs(businessId, receiptJobs);
+  await dispatchPrintJobs(businessId, kitchenJobs);
+}

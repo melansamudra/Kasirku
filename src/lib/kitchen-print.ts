@@ -31,10 +31,16 @@ export async function buildKitchenPrintJobs(
 
   const { data: printers } = await supabase
     .from("kitchen_printers")
-    .select("id, name, categories, connection_type, address")
+    .select("id, name, categories, connection_type, address, prints_receipt")
     .eq("business_id", businessId);
 
-  const addressedPrinters = (printers ?? []).filter((p) => !!p.address) as {
+  // A printer marked prints_receipt is the cashier's receipt printer, not a
+  // kitchen/bar station — it gets the priced customer receipt automatically
+  // instead (see checkout()), so it's excluded here even if its categories
+  // would otherwise match every item.
+  const addressedPrinters = (printers ?? []).filter(
+    (p) => !!p.address && !p.prints_receipt,
+  ) as {
     id: string;
     name: string;
     categories: string[];

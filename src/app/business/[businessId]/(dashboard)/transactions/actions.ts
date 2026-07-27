@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseCsv } from "@/lib/csv";
 import { logActivity } from "@/lib/activity-log";
-import { buildReceiptTicket } from "@/lib/escpos";
+import { buildReceiptBuffer } from "@/lib/receipt-print";
 import type { KitchenPrintJobPayload } from "@/lib/kitchen-print";
 
 export type BuildReceiptPrintJobResult =
@@ -16,7 +16,8 @@ export type BuildReceiptPrintJobResult =
 // window.print() button, since Android's OS-level print framework generally
 // can't drive cheap ESC/POS thermal printers like the ones used for kitchen
 // tickets. Reuses whatever printers are configured under Printer Dapur &
-// Bar; there's no separate "cashier printer" list.
+// Bar; there's no separate "cashier printer" list. Also used by checkout()
+// to auto-print to any printer flagged prints_receipt — see kitchen-print.ts.
 export async function buildReceiptPrintJob(
   businessId: string,
   transactionId: string,
@@ -24,33 +25,15 @@ export async function buildReceiptPrintJob(
 ): Promise<BuildReceiptPrintJobResult> {
   const supabase = await createClient();
 
-  const [{ data: printer }, { data: business }, { data: transaction }, { data: items }, { data: payments }] =
-    await Promise.all([
-      supabase
-        .from("kitchen_printers")
-        .select("name, connection_type, address")
-        .eq("id", printerId)
-        .eq("business_id", businessId)
-        .maybeSingle(),
-      supabase.from("businesses").select("name").eq("id", businessId).single(),
-      supabase
-        .from("transactions")
-        .select(
-          "invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)",
-        )
-        .eq("id", transactionId)
-        .eq("business_id", businessId)
-        .single(),
-      supabase
-        .from("transaction_items")
-        .select("id, name, price, qty")
-        .eq("transaction_id", transactionId)
-        .order("id", { ascending: true }),
-      supabase
-        .from("transaction_payments")
-        .select("method, amount, received, change")
-        .eq("transaction_id", transactionId),
-    ]);
+  const [{ data: printer }, bufferResult] = await Promise.all([
+    supabase
+      .from("kitchen_printers")
+      .select("name, connection_type, address")
+      .eq("id", printerId)
+      .eq("business_id", businessId)
+      .maybeSingle(),
+    buildReceiptBuffer(supabase, businessId, transactionId),
+  ]);
 
   if (!printer) {
     return { success: false, error: "Printer tidak ditemukan." };
@@ -58,31 +41,9 @@ export async function buildReceiptPrintJob(
   if (!printer.address) {
     return { success: false, error: "Printer ini belum diatur alamat/perangkatnya." };
   }
-  if (!business || !transaction) {
-    return { success: false, error: "Transaksi tidak ditemukan." };
+  if (!bufferResult.success) {
+    return { success: false, error: bufferResult.error };
   }
-
-  const buffer = buildReceiptTicket({
-    businessName: business.name,
-    invoiceNumber: transaction.invoice_number,
-    date: new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
-    cashierName:
-      (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
-    voided: transaction.voided,
-    items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price) })),
-    subtotal: Number(transaction.subtotal_raw),
-    itemDiscount: Number(transaction.total_item_disc),
-    orderDiscount: Number(transaction.order_disc_amt),
-    service: Number(transaction.service),
-    tax: Number(transaction.tax),
-    total: Number(transaction.total),
-    payments: (payments ?? []).map((p) => ({
-      method: p.method,
-      amount: Number(p.amount),
-      received: p.received === null ? null : Number(p.received),
-      change: p.change === null ? null : Number(p.change),
-    })),
-  });
 
   return {
     success: true,
@@ -90,7 +51,7 @@ export async function buildReceiptPrintJob(
       printerName: printer.name,
       address: printer.address,
       connectionType: printer.connection_type as "lan" | "bluetooth",
-      bytesBase64: buffer.toString("base64"),
+      bytesBase64: bufferResult.buffer.toString("base64"),
     },
   };
 }

@@ -6,6 +6,7 @@ import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
 import { logActivity } from "@/lib/activity-log";
 import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
 import { buildKitchenTicket } from "@/lib/escpos";
+import { buildReceiptBuffer } from "@/lib/receipt-print";
 
 type VerifyCashierPinRow = {
   id: string;
@@ -61,7 +62,13 @@ export type CartItemInput = {
 };
 
 export type CheckoutResult =
-  | { success: true; invoiceNumber: string; transactionId: string; printJobs: KitchenPrintJobPayload[] }
+  | {
+      success: true;
+      invoiceNumber: string;
+      transactionId: string;
+      printJobs: KitchenPrintJobPayload[];
+      receiptPrintJobs: KitchenPrintJobPayload[];
+    }
   | { success: false; error: string };
 
 type CheckoutRpcRow = { transaction_id: string; invoice_number: string; already_existed: boolean };
@@ -114,6 +121,7 @@ export async function checkout(
 
   const result = data as CheckoutRpcRow;
   let printJobs: KitchenPrintJobPayload[] = [];
+  let receiptPrintJobs: KitchenPrintJobPayload[] = [];
 
   // Retry offline yang ternyata sudah pernah sukses sebelumnya — jangan catat
   // aktivitas/cetak dapur dua kali untuk penjualan yang sama.
@@ -135,6 +143,12 @@ export async function checkout(
       result.invoice_number,
       items.map((i) => ({ productId: i.productId, qty: i.qty })),
     );
+
+    receiptPrintJobs = await buildReceiptPrintJobsForTransaction(
+      supabase,
+      businessId,
+      result.transaction_id,
+    );
   }
 
   return {
@@ -142,7 +156,39 @@ export async function checkout(
     invoiceNumber: result.invoice_number,
     transactionId: result.transaction_id,
     printJobs,
+    receiptPrintJobs,
   };
+}
+
+// Printer(s) flagged prints_receipt get the priced customer receipt
+// automatically at checkout — no manual "Cetak Struk" click needed. Kept
+// separate from printJobs (kitchen tickets) so callers can dispatch the
+// receipt first: same physical printer sometimes handles both roles, and
+// Bluetooth sockets don't like concurrent jobs to the same device.
+async function buildReceiptPrintJobsForTransaction(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  businessId: string,
+  transactionId: string,
+): Promise<KitchenPrintJobPayload[]> {
+  const { data: printers } = await supabase
+    .from("kitchen_printers")
+    .select("name, connection_type, address")
+    .eq("business_id", businessId)
+    .eq("prints_receipt", true)
+    .not("address", "is", null);
+
+  if (!printers || printers.length === 0) return [];
+
+  const bufferResult = await buildReceiptBuffer(supabase, businessId, transactionId);
+  if (!bufferResult.success) return [];
+
+  const bytesBase64 = bufferResult.buffer.toString("base64");
+  return printers.map((p) => ({
+    printerName: p.name,
+    address: p.address as string,
+    connectionType: p.connection_type as "lan" | "bluetooth",
+    bytesBase64,
+  }));
 }
 
 async function buildKitchenPrintJobsForItems(

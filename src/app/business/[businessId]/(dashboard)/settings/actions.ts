@@ -56,6 +56,7 @@ export async function addKitchenPrinter(
   const address = (formData.get("address") as string)?.trim();
   const deviceLabel = (formData.get("deviceLabel") as string)?.trim();
   const categories = formData.getAll("categories").map((c) => String(c));
+  const printsReceipt = formData.get("printsReceipt") === "on";
 
   if (!name) {
     return { error: "Nama stasiun printer wajib diisi." };
@@ -72,6 +73,7 @@ export async function addKitchenPrinter(
     address: address || null,
     device_label: deviceLabel || null,
     categories,
+    prints_receipt: printsReceipt,
   });
 
   if (error) {
@@ -95,6 +97,32 @@ export async function addKitchenPrinter(
 export async function deleteKitchenPrinter(businessId: string, printerId: string) {
   const supabase = await createClient();
   await supabase.from("kitchen_printers").delete().eq("id", printerId).eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/settings`);
+}
+
+export async function setKitchenPrinterPrintsReceipt(
+  businessId: string,
+  printerId: string,
+  printsReceipt: boolean,
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("kitchen_printers")
+    .update({ prints_receipt: printsReceipt })
+    .eq("id", printerId)
+    .eq("business_id", businessId);
+
+  if (!error) {
+    await logActivity(
+      supabase,
+      businessId,
+      "pengaturan",
+      "info",
+      printsReceipt
+        ? "Printer diatur mencetak struk pelanggan otomatis"
+        : "Printer tidak lagi mencetak struk pelanggan otomatis",
+    );
+  }
   revalidatePath(`/business/${businessId}/settings`);
 }
 

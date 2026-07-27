@@ -12,7 +12,7 @@ import {
   markSyncing,
   type PendingSale,
 } from "@/lib/offline-queue";
-import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
+import { dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
 import type { KitchenPrintJobPayload } from "@/lib/kitchen-print";
 
 const SYNC_INTERVAL_MS = 20000;
@@ -80,8 +80,11 @@ export function useOfflineSync(businessId: string) {
             // Only the "retail" checkout() path returns printJobs —
             // checkoutTicket() doesn't do kitchen printing at all.
             if (sale.kind === "retail") {
-              const printJobs = (result as unknown as { printJobs: KitchenPrintJobPayload[] }).printJobs;
-              void dispatchPrintJobs(sale.businessId, printJobs);
+              const { printJobs, receiptPrintJobs } = result as unknown as {
+                printJobs: KitchenPrintJobPayload[];
+                receiptPrintJobs: KitchenPrintJobPayload[];
+              };
+              void dispatchReceiptThenKitchenJobs(sale.businessId, receiptPrintJobs, printJobs);
             }
           } else {
             await markError(sale, result.error);
