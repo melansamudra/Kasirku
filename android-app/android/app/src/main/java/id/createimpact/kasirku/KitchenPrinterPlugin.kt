@@ -155,7 +155,12 @@ class KitchenPrinterPlugin : Plugin() {
                     if (!adapter.isEnabled) error("bluetooth_disabled")
                     val device = adapter.getRemoteDevice(address)
                     val bytes = Base64.decode(bytesBase64, Base64.DEFAULT)
-                    adapter.cancelDiscovery()
+
+                    // No cancelDiscovery() here on purpose — it requires
+                    // BLUETOOTH_SCAN on Android 12+, and this plugin never
+                    // calls startDiscovery() in the first place (that's what
+                    // lets it skip the location permission entirely), so
+                    // there's never an active discovery to cancel.
 
                     // Some printer Bluetooth stacks reject the secure RFCOMM
                     // socket and only work insecure — try secure first, fall
