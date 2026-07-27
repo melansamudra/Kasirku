@@ -34,21 +34,34 @@ export default function PrinterTestScreen({
   async function handleTestPrint(printer: Printer) {
     setTestState((s) => ({ ...s, [printer.id]: { status: "sending" } }));
 
-    const built = await buildTestPrintJob(businessId, printer.id);
-    if (!built.success) {
-      setTestState((s) => ({ ...s, [printer.id]: { status: "error", message: built.error } }));
-      return;
-    }
+    try {
+      const built = await buildTestPrintJob(businessId, printer.id);
+      if (!built.success) {
+        setTestState((s) => ({ ...s, [printer.id]: { status: "error", message: built.error } }));
+        return;
+      }
 
-    const [result] = await dispatchPrintJobs(businessId, [built.job]);
-    if (result?.result.ok) {
-      setTestState((s) => ({ ...s, [printer.id]: { status: "ok" } }));
-    } else {
+      const [result] = await dispatchPrintJobs(businessId, [built.job]);
+      if (result?.result.ok) {
+        setTestState((s) => ({ ...s, [printer.id]: { status: "ok" } }));
+      } else {
+        setTestState((s) => ({
+          ...s,
+          [printer.id]: {
+            status: "error",
+            message: result && !result.result.ok ? result.result.error : "Gagal mengirim.",
+          },
+        }));
+      }
+    } catch (err) {
+      // Tanpa ini, error apa pun sebelum sempat memanggil printer (mis. Server
+      // Action gagal terhubung) membuat tombol macet diam di "Mengirim…" tanpa
+      // pesan sama sekali — sulit didiagnosis dari jarak jauh.
       setTestState((s) => ({
         ...s,
         [printer.id]: {
           status: "error",
-          message: result && !result.result.ok ? result.result.error : "Gagal mengirim.",
+          message: err instanceof Error ? err.message : String(err),
         },
       }));
     }
