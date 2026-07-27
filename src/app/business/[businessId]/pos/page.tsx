@@ -140,53 +140,14 @@ export default async function PosPage({
 
   const isFnb = business.business_type === "fnb";
 
-  // Same idea as the ticket branch above — these queries are independent, so
-  // self_orders (FnB only) rides in the same Promise.all batch instead of a
-  // separate round trip after it — that used to be a real extra waterfall
-  // on every POS page load for F&B businesses.
-  const [
-    { data: products },
-    { data: openBillRows },
-    { data: customers },
-    { data: customPaymentMethodRows },
-    { data: selfOrderRows },
-  ] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
-    supabase
-      .from("open_bills")
-      .select("id, label, items, updated_at")
-      .eq("business_id", businessId)
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from("customers")
-      .select("id, name, phone")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
-    supabase
-      .from("custom_payment_methods")
-      .select("name")
-      .eq("business_id", businessId)
-      .order("name", { ascending: true }),
-    isFnb
-      ? supabase
-          .from("self_orders")
-          .select(
-            "id, status, created_at, tables(name), self_order_items(product_id, name, qty, price, note)",
-          )
-          .eq("business_id", businessId)
-          .neq("status", "selesai")
-          .order("created_at", { ascending: true })
-      : Promise.resolve({ data: null }),
-  ]);
-
-  const selfOrders = (selfOrderRows ?? []) as unknown as SelfOrderRow[];
-
+  // Katalog (produk/open bill/customer/metode bayar) dan self_orders sengaja
+  // TIDAK di-fetch di sini lagi — dulu ini adalah blocker utama: Server
+  // Component ini harus selesai await semua query sebelum Next.js kirim HTML
+  // apa pun, jadi client tidak bisa render apa-apa (bahkan dari cache) sampai
+  // roundtrip itu kelar. Sekarang PosScreen (client) yang ambil sendiri lewat
+  // getPosCatalog()/getSelfOrders(), didahului render instan dari cache
+  // IndexedDB — lihat pos-cache.ts. page.tsx cuma menyisakan query murah
+  // (gating PIN/shift) yang memang harus selesai duluan.
   return (
     <PosScreen
       businessId={businessId}
@@ -194,54 +155,9 @@ export default async function PosPage({
       cashierId={session.cashierId}
       cashierName={session.name}
       shiftId={activeShift.id}
-      products={products ?? []}
       taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
       serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
-      openBills={(openBillRows ?? []) as unknown as OpenBillRow[]}
-      customers={customers ?? []}
       isFnb={isFnb}
-      customPaymentMethods={(customPaymentMethodRows ?? []).map((m) => m.name)}
-      selfOrders={selfOrders.map((o) => ({
-        id: o.id,
-        status: o.status,
-        createdAt: o.created_at,
-        tableName: o.tables?.name ?? "Meja terhapus",
-        items: o.self_order_items.map((i) => ({
-          productId: i.product_id,
-          name: i.name,
-          qty: i.qty,
-          price: i.price,
-          note: i.note,
-        })),
-      }))}
     />
   );
 }
-
-type OpenBillRow = {
-  id: string;
-  label: string;
-  updated_at: string;
-  items: {
-    product_id: string;
-    name: string;
-    price: number;
-    qty: number;
-    disc: number;
-    disc_type: "pct" | "amt";
-  }[];
-};
-
-type SelfOrderRow = {
-  id: string;
-  status: "baru" | "diproses";
-  created_at: string;
-  tables: { name: string } | null;
-  self_order_items: {
-    product_id: string | null;
-    name: string;
-    qty: number;
-    price: number;
-    note: string | null;
-  }[];
-};

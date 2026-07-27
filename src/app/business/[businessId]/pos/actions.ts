@@ -458,6 +458,84 @@ export async function deleteOpenBill(businessId: string, billId: string) {
   revalidatePath(`/business/${businessId}/pos`);
 }
 
+export type PosProduct = {
+  id: string;
+  name: string;
+  category: string | null;
+  price: number;
+  cost: number;
+  stock: number;
+  emoji: string | null;
+  barcode: string | null;
+  sku: string | null;
+  variant_label: string | null;
+};
+
+export type PosOpenBill = {
+  id: string;
+  label: string;
+  updated_at: string;
+  items: {
+    product_id: string;
+    name: string;
+    price: number;
+    qty: number;
+    disc: number;
+    disc_type: DiscountType;
+  }[];
+};
+
+export type PosCustomer = { id: string; name: string; phone: string | null };
+
+export type PosCatalog = {
+  products: PosProduct[];
+  openBills: PosOpenBill[];
+  customers: PosCustomer[];
+  customPaymentMethods: string[];
+};
+
+// Sumber tunggal data katalog POS (produk/open bill/customer/metode bayar
+// custom) — dipakai baik untuk render server pertama kali (pos/page.tsx)
+// maupun refresh di background dari client (pos-screen.tsx, lihat
+// pos-cache.ts). Sengaja tidak termasuk self_orders — itu sudah punya jalur
+// polling sendiri (getSelfOrders di bawah).
+export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
+  const supabase = await createClient();
+
+  const [{ data: products }, { data: openBillRows }, { data: customers }, { data: customPaymentMethodRows }] =
+    await Promise.all([
+      supabase
+        .from("products")
+        .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("open_bills")
+        .select("id, label, items, updated_at")
+        .eq("business_id", businessId)
+        .order("updated_at", { ascending: false }),
+      supabase
+        .from("customers")
+        .select("id, name, phone")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("custom_payment_methods")
+        .select("name")
+        .eq("business_id", businessId)
+        .order("name", { ascending: true }),
+    ]);
+
+  return {
+    products: (products ?? []) as PosProduct[],
+    openBills: (openBillRows ?? []) as unknown as PosOpenBill[],
+    customers: customers ?? [],
+    customPaymentMethods: (customPaymentMethodRows ?? []).map((m) => m.name),
+  };
+}
+
 export type SelfOrderPayload = {
   id: string;
   status: "baru" | "diproses";

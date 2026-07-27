@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,12 +8,14 @@ import {
   checkout,
   closeShift,
   deleteOpenBill,
+  getPosCatalog,
   getSelfOrders,
   saveOpenBill,
   updateSelfOrderStatus,
   type CheckoutResult,
   type CloseShiftSummary,
   type DiscountType,
+  type PosCatalog,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 import OfflineStatus from "./offline-status";
@@ -22,7 +24,10 @@ import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
 import { withTimeout } from "@/lib/with-timeout";
 import { dispatchPrintJobs, dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
+import { getCachedPosCatalog, setCachedPosCatalog } from "@/lib/pos-cache";
 import { Capacitor } from "@capacitor/core";
+
+const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [] };
 
 type Product = {
   id: string;
@@ -93,30 +98,52 @@ export default function PosScreen({
   cashierId,
   cashierName,
   shiftId,
-  products,
   taxRate,
   serviceRate,
-  openBills,
-  customers,
   isFnb,
-  selfOrders: initialSelfOrders,
-  customPaymentMethods,
 }: {
   businessId: string;
   businessName: string;
   cashierId: string;
   cashierName: string;
   shiftId: string;
-  products: Product[];
   taxRate: number;
   serviceRate: number;
-  openBills: OpenBill[];
-  customers: Customer[];
   isFnb: boolean;
-  selfOrders: SelfOrder[];
-  customPaymentMethods: string[];
 }) {
   const router = useRouter();
+
+  // Katalog (produk/open bill/customer/metode bayar) tidak lagi datang dari
+  // props server — render instan dari cache IndexedDB dulu (pembukaan
+  // berikutnya, ~puluhan ms), lalu segarkan dari server di background lewat
+  // getPosCatalog(). catalogLoaded cuma false di pembukaan pertama kali
+  // sebelum ada cache sama sekali (satu kali biaya, bukan tiap navigasi).
+  const [catalog, setCatalog] = useState<PosCatalog>(EMPTY_CATALOG);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const { products, openBills, customers, customPaymentMethods } = catalog;
+
+  const refreshCatalog = useCallback(async () => {
+    const fresh = await getPosCatalog(businessId).catch(() => null);
+    if (!fresh) return;
+    setCatalog(fresh);
+    setCatalogLoaded(true);
+    void setCachedPosCatalog(businessId, fresh);
+  }, [businessId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getCachedPosCatalog(businessId).then((cached) => {
+      if (cancelled || !cached) return;
+      setCatalog(cached);
+      setCatalogLoaded(true);
+    });
+    void refreshCatalog();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
+
   const paymentMethods = useMemo(
     () => [...BUILTIN_PAYMENT_METHODS, ...customPaymentMethods],
     [customPaymentMethods],
@@ -148,13 +175,9 @@ export default function PosScreen({
   const [bonError, setBonError] = useState<string | null>(null);
   const [bonSaving, setBonSaving] = useState(false);
 
-  // State lokal, disinkronkan dari prop server tiap kali props berubah (mis.
-  // router.refresh() di tempat lain) — supaya polling ringan di bawah bisa
-  // menimpanya sendiri tanpa saling menunggu.
-  const [selfOrders, setSelfOrders] = useState(initialSelfOrders);
-  useEffect(() => {
-    setSelfOrders(initialSelfOrders);
-  }, [initialSelfOrders]);
+  // Tidak lagi datang dari props server (page.tsx tidak fetch ini lagi) —
+  // diambil sendiri di sini, sama seperti catalog di atas.
+  const [selfOrders, setSelfOrders] = useState<SelfOrder[]>([]);
 
   const newOrderCount = selfOrders.filter((o) => o.status === "baru").length;
 
@@ -162,9 +185,11 @@ export default function PosScreen({
   // ikut terbarui tanpa reload manual. Dulu ini panggil router.refresh() tiap
   // 15 detik — me-refresh SELURUH halaman (produk, open bill, customer, dst
   // ikut di-fetch ulang), salah satu penyebab utama app terasa lemot. Sekarang
-  // cuma ambil self_orders sendirian lewat getSelfOrders().
+  // cuma ambil self_orders sendirian lewat getSelfOrders(), dipanggil sekali
+  // segera saat mount (bukan cuma nunggu interval pertama 15 detik).
   useEffect(() => {
     if (!isFnb) return;
+    void getSelfOrders(businessId).then(setSelfOrders).catch(() => {});
     const interval = setInterval(() => {
       void getSelfOrders(businessId).then(setSelfOrders).catch(() => {});
     }, 15000);
@@ -368,7 +393,7 @@ export default function PosScreen({
     setActiveBill(null);
     setSaveBonOpen(false);
     setBonLabel("");
-    router.refresh();
+    void refreshCatalog();
   }
 
   function handleLoadBill(bill: OpenBill) {
@@ -426,7 +451,7 @@ export default function PosScreen({
     await deleteOpenBill(businessId, bill.id);
     setBillBusyId(null);
     if (activeBill?.id === bill.id) setActiveBill(null);
-    router.refresh();
+    void refreshCatalog();
   }
 
   async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
@@ -434,7 +459,7 @@ export default function PosScreen({
     const result = await updateSelfOrderStatus(businessId, orderId, status);
     setOrderBusyId(null);
     if (result.printJobs) void dispatchPrintJobs(businessId, result.printJobs);
-    router.refresh();
+    void getSelfOrders(businessId).then(setSelfOrders).catch(() => {});
   }
 
   async function handleAddOrderToCart(order: SelfOrder) {
@@ -676,7 +701,7 @@ export default function PosScreen({
               setSuccessInvoice(null);
               setSuccessTransactionId(null);
               setSuccessOffline(false);
-              router.refresh();
+              void refreshCatalog();
             }}
             className="mt-3 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
           >
@@ -980,7 +1005,9 @@ export default function PosScreen({
         )}
 
         <div className="flex-1 overflow-y-auto p-4">
-          {filteredProducts.length === 0 ? (
+          {!catalogLoaded ? (
+            <p className="mt-10 text-center text-sm text-zinc-400">Memuat produk…</p>
+          ) : filteredProducts.length === 0 ? (
             <p className="mt-10 text-center text-sm text-zinc-400">
               {effectiveProducts.length === 0
                 ? "Belum ada produk. Tambahkan dulu di halaman Kelola Produk."
