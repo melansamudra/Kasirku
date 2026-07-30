@@ -1,25 +1,33 @@
 // Service worker manual (bukan plugin build-time) — Serwist/next-pwa belum
 // jelas kompatibel dengan Turbopack yang dipakai proyek ini (lihat catatan
 // resmi di node_modules/next/dist/docs/01-app/02-guides/progressive-web-apps.md).
-// Cakupan sengaja dibatasi ketat: hanya halaman POS + aset statis yang dapat
-// fallback offline. Halaman lain (Neraca, Laporan, dst.) sengaja TIDAK
-// disentuh sama sekali di sini — menampilkan data keuangan basi seolah live
-// itu berbahaya, beda kelas risiko dengan kasir yang memang didesain toleran
-// terhadap data stok/harga yang agak basi.
-const CACHE_NAME = "kasirku-pos-v1";
+//
+// Fase 3 (2026-07-30): cakupan diperluas dari POS-saja ke SELURUH halaman
+// bisnis (Riwayat, Pengaturan, Laporan/Keuangan termasuk) — user secara
+// eksplisit minta ini, sadar & menerima trade-off-nya: offline bisa
+// menampilkan data yang sudah tidak terbaru. Mitigasinya BUKAN di sini,
+// tapi banner app-wide di src/app/offline-banner.tsx yang selalu tampil
+// selagi navigator.onLine === false, supaya tidak ada halaman yang terlihat
+// live padahal sebenarnya snapshot lama. Halaman publik/marketing & auth
+// sengaja tetap di luar cakupan — tidak berguna offline, tidak perlu
+// di-cache.
+const CACHE_NAME = "kasirku-app-v1";
 
 const STATIC_PREFIXES = ["/_next/static/"];
-const EXTRA_ALLOWED_PATHS = ["/favicon.ico", "/manifest.webmanifest"];
-const POS_PATH_RE = /^\/business\/[^/]+\/pos(\/check-in)?\/?$/;
+const EXTRA_ALLOWED_PATHS = ["/favicon.ico", "/manifest.webmanifest", "/offline"];
+const APP_PATH_RE = /^\/dashboard\/?$|^\/business\/[^/]+(\/.*)?$/;
 
 function isAllowedPath(pathname) {
   if (STATIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
   if (EXTRA_ALLOWED_PATHS.includes(pathname)) return true;
-  return POS_PATH_RE.test(pathname);
+  return APP_PATH_RE.test(pathname);
 }
 
-self.addEventListener("install", () => {
+self.addEventListener("install", (event) => {
   self.skipWaiting();
+  // Cache /offline dari awal, sebelum siapa pun pernah online-visit itu —
+  // jadi fallback-nya sendiri tidak bisa "belum ke-cache" saat dibutuhkan.
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.add("/offline")));
 });
 
 self.addEventListener("activate", (event) => {
@@ -50,6 +58,17 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || Response.error())),
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          // Belum pernah dibuka sama sekali (tidak ada cache) DAN sekarang
+          // offline — daripada layar error mentah bawaan WebView, tampilkan
+          // halaman /offline yang jelas masih bagian dari app.
+          if (request.mode === "navigate") {
+            return caches.match("/offline").then((offline) => offline || Response.error());
+          }
+          return Response.error();
+        }),
+      ),
   );
 });
