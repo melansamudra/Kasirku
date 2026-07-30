@@ -162,13 +162,20 @@ class KitchenPrinterPlugin : Plugin() {
                     // lets it skip the location permission entirely), so
                     // there's never an active discovery to cancel.
 
-                    // Some printer Bluetooth stacks reject the secure RFCOMM
-                    // socket and only work insecure — try secure first, fall
-                    // back automatically rather than making the cashier guess.
+                    // Cheap ESC/POS thermal printers (confirmed: RPP02N) almost
+                    // never support Bluetooth's secure/authenticated RFCOMM —
+                    // they just don't implement real pairing security. Try
+                    // insecure FIRST: when the secure attempt is tried first and
+                    // fails, Android's BluetoothSocket.connect() can take up to
+                    // ~12 seconds to give up before falling back, which was
+                    // showing up as "checkout takes 15 seconds to print" even
+                    // though the printer itself connects almost instantly once
+                    // asked the right way. Still falls back to secure for any
+                    // printer that genuinely needs it.
                     val socket: BluetoothSocket = try {
-                        device.createRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
-                    } catch (secureFailure: IOException) {
                         device.createInsecureRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
+                    } catch (insecureFailure: IOException) {
+                        device.createRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
                     }
 
                     socket.use {
