@@ -23,20 +23,35 @@ export default function LoginPage() {
     // baca dari local storage/cookie, tidak perlu roundtrip ke server —
     // jadi ini tetap jalan walau offline total, asal sesi sebelumnya masih
     // tersimpan di device.
+    //
+    // window.location.href, BUKAN router.replace() dari next/navigation —
+    // router.replace() itu "soft navigation" yang minta payload RSC lewat
+    // fetch() ke server; kalau lagi offline dan payload itu belum tentu
+    // persis ada di cache Service Worker (beda dari cache HTML biasa),
+    // fetch-nya bisa gagal dan errornya naik sampai ke error.tsx ("Ada yang
+    // salah"). window.location.href memicu navigasi dokumen penuh, yang
+    // DIPASTIKAN lewat fetch handler Service Worker (public/sw.js) yang
+    // sudah punya fallback ke cache — jauh lebih tahan banting saat offline.
     let cancelled = false;
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      if (data.session) {
-        router.replace("/dashboard");
-        return;
-      }
-      setCheckingSession(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data.session) {
+          window.location.href = "/dashboard";
+          return;
+        }
+        setCheckingSession(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCheckingSession(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
