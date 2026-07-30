@@ -17,7 +17,16 @@
 // pernah bisa dibuka sama sekali saat offline meski kasir/halaman lain
 // sudah tersimpan. login/page.tsx sendiri yang urus redirect otomatis
 // begitu terdeteksi sesi lokal masih ada (lihat komentar di file itu).
-const CACHE_NAME = "kasirku-app-v1";
+// PENTING: /offline dan /login di-cache HANYA lewat install event di bawah
+// (bukan network-first biasa — user tidak pernah "mengunjungi" /offline
+// secara online, jadi baris fetch handler tidak pernah sempat
+// menyegarkannya). Itu artinya isinya beku sampai install event ini
+// jalan lagi — yang HANYA terjadi kalau browser mendeteksi byte sw.js ini
+// beda dari yang ter-install. Jadi: tiap kali /offline atau /login
+// berubah isinya, WAJIB naikkan versi CACHE_NAME di sini juga, walau tidak
+// ada baris lain di file ini yang berubah — kalau tidak, HP kasir akan
+// terus menyajikan versi lama tanpa update sampai bertahun-tahun.
+const CACHE_NAME = "kasirku-app-v2";
 
 const STATIC_PREFIXES = ["/_next/static/"];
 const EXTRA_ALLOWED_PATHS = ["/favicon.ico", "/manifest.webmanifest", "/offline", "/login"];
