@@ -19,8 +19,10 @@ import {
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 import OfflineStatus from "./offline-status";
+import PrintQueueStatus from "./print-queue-status";
 import { itemDiscAmount, calculateCheckoutTotals } from "@/lib/checkout-totals";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { usePrintRetry } from "@/hooks/use-print-retry";
 import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
 import { withTimeout } from "@/lib/with-timeout";
 import { dispatchPrintJobs, dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
@@ -205,6 +207,11 @@ export default function PosScreen({
   const [successOffline, setSuccessOffline] = useState(false);
 
   const { isOnline, pending, syncNow, discard } = useOfflineSync(businessId);
+  const {
+    pending: pendingPrints,
+    retryNow: retryPrintsNow,
+    discard: discardPrint,
+  } = usePrintRetry(businessId);
   const effectiveProducts = useMemo(() => {
     const deltas = pendingStockDeltas(pending);
     if (Object.keys(deltas).length === 0) return products;
@@ -970,6 +977,11 @@ export default function PosScreen({
             ☰ <span className="hidden sm:inline">Menu</span>
           </button>
           <OfflineStatus isOnline={isOnline} pending={pending} onSyncNow={() => void syncNow()} onDiscard={discard} />
+          <PrintQueueStatus
+            pending={pendingPrints}
+            onRetryNow={() => void retryPrintsNow()}
+            onDiscard={discardPrint}
+          />
           <div className="text-right">
             <p className="text-xs font-semibold text-zinc-700">{cashierName}</p>
             <p className="text-[10px] text-zinc-400">{businessName}</p>

@@ -239,6 +239,20 @@ export async function logKitchenPrintFailures(
   );
 }
 
+// Dipanggil sekali saat sebuah job yang sempat gagal akhirnya berhasil
+// dicetak lewat antrian retry (retryPendingPrintJobs) — supaya kasir tahu
+// tiket yang tadi hilang sudah tercetak, bukan diam-diam ditelan sistem.
+export async function logPrintQueueRecovered(businessId: string, printerName: string) {
+  const supabase = await createClient();
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    `Struk tertunda berhasil dicetak: ${printerName}`,
+  );
+}
+
 export type BuildTestPrintJobResult =
   | { success: true; job: KitchenPrintJobPayload }
   | { success: false; error: string };

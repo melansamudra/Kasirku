@@ -4,7 +4,13 @@ import { Capacitor } from "@capacitor/core";
 import { printViaAgent, type PrintAgentResult } from "./print-agent-client";
 import KitchenPrinter from "./kitchen-printer-plugin";
 import type { KitchenPrintJobPayload } from "./kitchen-print";
-import { logKitchenPrintFailures } from "@/app/business/[businessId]/pos/actions";
+import { logKitchenPrintFailures, logPrintQueueRecovered } from "@/app/business/[businessId]/pos/actions";
+import {
+  enqueuePrintJob,
+  listPendingPrints,
+  markPrintAttempt,
+  markPrintSynced,
+} from "@/lib/print-queue";
 
 // Android app (android-app/) supplies KitchenPrinter natively — the browser
 // on the cashier's own tablet is on the shop's LAN (or physically holding
@@ -58,9 +64,32 @@ export async function dispatchPrintJobs(
         error: result.ok ? "" : result.error,
       })),
     ).catch(() => {});
+
+    // Printer mati sesaat itu wajar (kertas habis, belum dinyalain) — jangan
+    // biarkan tiket/struk itu hilang begitu saja. Simpan ke antrian lokal,
+    // usePrintRetry (pos-screen.tsx) yang akan coba lagi berkala sampai
+    // berhasil atau mentok MAX_ATTEMPTS.
+    await Promise.all(failed.map(({ job }) => enqueuePrintJob(businessId, job))).catch(() => {});
   }
 
   return results;
+}
+
+// Dipanggil berkala oleh usePrintRetry — TIDAK memanggil
+// logKitchenPrintFailures di setiap percobaan (itu akan membanjiri activity
+// log tiap ~20 detik); hanya mencatat sekali saat sebuah job akhirnya
+// berhasil setelah sempat gagal.
+export async function retryPendingPrintJobs(businessId: string): Promise<void> {
+  const pending = await listPendingPrints(businessId);
+  for (const p of pending.filter((p) => p.status === "pending")) {
+    const result = await dispatchOne(p.job);
+    if (result.ok) {
+      await markPrintSynced(p.id);
+      await logPrintQueueRecovered(businessId, p.job.printerName).catch(() => {});
+    } else {
+      await markPrintAttempt(p, result.error);
+    }
+  }
 }
 
 // Receipt jobs go out first and are awaited before the kitchen jobs start —

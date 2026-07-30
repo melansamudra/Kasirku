@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseCsv } from "@/lib/csv";
 import { logActivity } from "@/lib/activity-log";
 import { buildReceiptBuffer } from "@/lib/receipt-print";
-import type { KitchenPrintJobPayload } from "@/lib/kitchen-print";
+import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
 
 export type BuildReceiptPrintJobResult =
   | { success: true; job: KitchenPrintJobPayload }
@@ -54,6 +54,48 @@ export async function buildReceiptPrintJob(
       bytesBase64: bufferResult.buffer.toString("base64"),
     },
   };
+}
+
+export type BuildKitchenReprintResult =
+  | { success: true; jobs: KitchenPrintJobPayload[] }
+  | { success: false; error: string };
+
+// Cetak ulang tiket dapur/bar untuk transaksi yang sudah lewat — mis.
+// printer mati saat checkout & tidak sempat masuk antrian retry
+// (print-queue.ts), atau tiketnya hilang/rusak. category sudah tersimpan
+// per baris di transaction_items sejak checkout, jadi tidak perlu join ulang
+// ke products — langsung pakai buildKitchenPrintJobs seperti checkout().
+export async function buildKitchenReprintJobs(
+  businessId: string,
+  transactionId: string,
+): Promise<BuildKitchenReprintResult> {
+  const supabase = await createClient();
+
+  const [{ data: transaction }, { data: items }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("invoice_number")
+      .eq("id", transactionId)
+      .eq("business_id", businessId)
+      .single(),
+    supabase
+      .from("transaction_items")
+      .select("name, category, qty")
+      .eq("transaction_id", transactionId)
+      .order("id", { ascending: true }),
+  ]);
+
+  if (!transaction) {
+    return { success: false, error: "Transaksi tidak ditemukan." };
+  }
+
+  const jobs = await buildKitchenPrintJobs(supabase, businessId, {
+    source: "Cetak Ulang",
+    label: transaction.invoice_number,
+    items: (items ?? []).map((i) => ({ name: i.name, category: i.category, qty: Number(i.qty) })),
+  });
+
+  return { success: true, jobs };
 }
 
 export type ImportTransactionsState = {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import VoidTransactionForm from "./void-transaction-form";
+import ReprintKitchenButton from "./reprint-kitchen-button";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -153,6 +154,10 @@ export default async function TransactionDetailPage({
             </div>
           ))}
         </div>
+
+        {!transaction.voided && (
+          <ReprintKitchenButton businessId={businessId} transactionId={transaction.id} />
+        )}
 
         {transaction.voided ? (
           <div className="mt-4 rounded-2xl border-2 border-red-200 bg-red-50 p-4 text-center">
