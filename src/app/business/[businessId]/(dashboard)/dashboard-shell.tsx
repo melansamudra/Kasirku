@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
@@ -235,6 +235,26 @@ function activeGroupTitleOf(groups: NavGroup[], activeHref: string | null): stri
   return groups.find((g) => g.items.some((i) => i.href === activeHref))?.title ?? groups[0]?.title ?? null;
 }
 
+// Feedback instan begitu link nav ditekan — tanpa ini, halaman SEBELUMNYA
+// tetap nempel di layar sampai halaman baru selesai fetch data (bisa
+// beberapa detik di jaringan mobile), kelihatan seperti "salah pindah
+// halaman". Sengaja pakai useLinkStatus (murni client-side, tidak ada file
+// baru di app/) alih-alih loading.tsx — file itu terbukti bikin SEMUA rute
+// 404 di versi Next.js proyek ini (dicoba 2x, di root grup & per-halaman).
+// Harus jadi child terpisah dari <Link>, useLinkStatus tidak bisa dipanggil
+// di komponen yang sama dengan <Link>-nya.
+function NavPendingHint() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden="true"
+      className={`ml-auto h-3 w-3 shrink-0 rounded-full border-2 border-zinc-200 border-t-brand-600 transition-opacity ${
+        pending ? "animate-spin opacity-100" : "opacity-0"
+      }`}
+    />
+  );
+}
+
 function SidebarContent({
   businessId,
   businessName,
@@ -331,6 +351,7 @@ function SidebarContent({
                           aria-hidden="true"
                         />
                         {item.label}
+                        <NavPendingHint />
                       </Link>
                     );
                   })}
