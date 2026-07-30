@@ -1587,6 +1587,15 @@ export default function PosScreen({
                 </a>
               )}
               <a
+                href={`/business/${businessId}/pos/reports`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setPosMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                🖨️ Cetak Settlement/Menu
+              </a>
+              <a
                 href={`/business/${businessId}/shifts`}
                 target="_blank"
                 rel="noreferrer"
