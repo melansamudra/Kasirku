@@ -8,13 +8,19 @@
 // menampilkan data yang sudah tidak terbaru. Mitigasinya BUKAN di sini,
 // tapi banner app-wide di src/app/offline-banner.tsx yang selalu tampil
 // selagi navigator.onLine === false, supaya tidak ada halaman yang terlihat
-// live padahal sebenarnya snapshot lama. Halaman publik/marketing & auth
-// sengaja tetap di luar cakupan — tidak berguna offline, tidak perlu
-// di-cache.
+// live padahal sebenarnya snapshot lama. Halaman publik/marketing sengaja
+// tetap di luar cakupan — tidak berguna offline, tidak perlu di-cache.
+//
+// /login DIKECUALIKAN dari "halaman publik" itu: android-app/capacitor.config.ts
+// selalu buka app Android persis di /login setiap cold-launch (bukan
+// halaman kasir terakhir) — kalau /login tidak ke-cache, app tidak akan
+// pernah bisa dibuka sama sekali saat offline meski kasir/halaman lain
+// sudah tersimpan. login/page.tsx sendiri yang urus redirect otomatis
+// begitu terdeteksi sesi lokal masih ada (lihat komentar di file itu).
 const CACHE_NAME = "kasirku-app-v1";
 
 const STATIC_PREFIXES = ["/_next/static/"];
-const EXTRA_ALLOWED_PATHS = ["/favicon.ico", "/manifest.webmanifest", "/offline"];
+const EXTRA_ALLOWED_PATHS = ["/favicon.ico", "/manifest.webmanifest", "/offline", "/login"];
 const APP_PATH_RE = /^\/dashboard\/?$|^\/business\/[^/]+(\/.*)?$/;
 
 function isAllowedPath(pathname) {
@@ -25,9 +31,11 @@ function isAllowedPath(pathname) {
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  // Cache /offline dari awal, sebelum siapa pun pernah online-visit itu —
-  // jadi fallback-nya sendiri tidak bisa "belum ke-cache" saat dibutuhkan.
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.add("/offline")));
+  // Cache /offline dan /login dari awal — /offline supaya fallback-nya
+  // sendiri tidak bisa "belum ke-cache" saat dibutuhkan, /login supaya
+  // gerbang masuk app Android (lihat komentar di atas) ada isinya bahkan
+  // sebelum sempat online sekali pun setelah SW baru terpasang.
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(["/offline", "/login"])));
 });
 
 self.addEventListener("activate", (event) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +12,31 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    // App Android selalu buka persis di /login tiap kali dibuka dari icon
+    // (lihat android-app/capacitor.config.ts) — bukan cuma pertama kali,
+    // TIAP cold-launch, bahkan kalau kasir sudah login sebelumnya. Tanpa
+    // ini, kasir yang sudah login pun harus login ulang tiap buka app, dan
+    // kalau lagi offline itu mustahil (form submit butuh network). getSession()
+    // baca dari local storage/cookie, tidak perlu roundtrip ke server —
+    // jadi ini tetap jalan walau offline total, asal sesi sebelumnya masih
+    // tersimpan di device.
+    let cancelled = false;
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      if (data.session) {
+        router.replace("/dashboard");
+        return;
+      }
+      setCheckingSession(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -30,6 +55,19 @@ export default function LoginPage() {
 
     router.push("/dashboard");
     router.refresh();
+  }
+
+  if (checkingSession) {
+    // Sebentar saja (baca local storage, bukan network) — tapi tanpa guard
+    // ini form login sempat kekedip sekilas sebelum redirect ke /dashboard
+    // buat yang sebenarnya sudah login.
+    return (
+      <AuthShell>
+        <div className="flex justify-center py-10">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-brand-600" />
+        </div>
+      </AuthShell>
+    );
   }
 
   return (
