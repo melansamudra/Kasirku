@@ -27,7 +27,7 @@ type TicketCategory = {
   groupPrice: number | null;
 };
 
-const BUILTIN_PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
+const BUILTIN_PAYMENT_METHODS = ["Tunai", "EDC", "QRIS"];
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;

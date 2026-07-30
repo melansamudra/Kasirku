@@ -161,3 +161,111 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
 
   return Buffer.concat(chunks);
 }
+
+export type SettlementByMethod = { method: string; amount: number };
+
+export type SettlementTicketInput = {
+  businessName: string;
+  periodLabel: string;
+  byMethod: SettlementByMethod[];
+  totalSales: number;
+  txCount: number;
+  voidCount: number;
+};
+
+// Ringkasan penjualan per metode bayar (Tunai/QRIS/EDC/dst) — dicetak dari
+// Halaman Laporan atau langsung setelah tutup shift. Beda dari
+// buildReceiptTicket: ini rekap banyak transaksi dalam satu rentang
+// tanggal, bukan satu struk.
+export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
+  const chunks: Buffer[] = [];
+  const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
+  const text = (s: string) => chunks.push(Buffer.from(`${s}\n`, "latin1"));
+  const divider = () => text("-".repeat(RECEIPT_WIDTH));
+
+  push([ESC, 0x40]); // initialize
+
+  push([ESC, 0x61, 0x01]); // center align
+  text(input.businessName.toUpperCase());
+  text("LAPORAN SETTLEMENT");
+  push([ESC, 0x61, 0x00]); // left align
+
+  divider();
+  text(padLine("Periode", input.periodLabel));
+  text(padLine("Dicetak", new Date().toLocaleString("id-ID")));
+
+  divider();
+  if (input.byMethod.length === 0) {
+    text("Tidak ada transaksi.");
+  } else {
+    for (const m of input.byMethod) {
+      text(padLine(m.method, formatRp(m.amount)));
+    }
+  }
+  push([ESC, 0x45, 0x01]);
+  text(padLine("TOTAL", formatRp(input.totalSales)));
+  push([ESC, 0x45, 0x00]);
+
+  divider();
+  text(padLine("Jumlah Transaksi", String(input.txCount)));
+  if (input.voidCount > 0) text(padLine("Dibatalkan", String(input.voidCount)));
+
+  text("");
+  text("");
+  push([GS, 0x56, 0x42, 0x00]); // partial cut with feed
+
+  return Buffer.concat(chunks);
+}
+
+export type MenuSalesItem = { name: string; qty: number; amount: number };
+
+export type MenuSalesTicketInput = {
+  businessName: string;
+  periodLabel: string;
+  items: MenuSalesItem[];
+  totalQty: number;
+  totalAmount: number;
+};
+
+// Rekap menu terjual (nama/qty/omzet) untuk rentang tanggal — urutan sudah
+// diasumsikan sesuai keinginan pemanggil (mis. by omzet desc, sama seperti
+// "Menu Terlaris" di Halaman Laporan).
+export function buildMenuSalesTicket(input: MenuSalesTicketInput): Buffer {
+  const chunks: Buffer[] = [];
+  const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
+  const text = (s: string) => chunks.push(Buffer.from(`${s}\n`, "latin1"));
+  const divider = () => text("-".repeat(RECEIPT_WIDTH));
+
+  push([ESC, 0x40]); // initialize
+
+  push([ESC, 0x61, 0x01]); // center align
+  text(input.businessName.toUpperCase());
+  text("LAPORAN PENJUALAN MENU");
+  push([ESC, 0x61, 0x00]); // left align
+
+  divider();
+  text(padLine("Periode", input.periodLabel));
+  text(padLine("Dicetak", new Date().toLocaleString("id-ID")));
+
+  divider();
+  if (input.items.length === 0) {
+    text("Tidak ada transaksi.");
+  } else {
+    for (const item of input.items) {
+      text(truncate(item.name));
+      text(padLine(`  ${formatQty(item.qty)}x`, formatRp(item.amount)));
+    }
+  }
+
+  divider();
+  text(padLine("Total Qty", formatQty(input.totalQty)));
+  push([ESC, 0x45, 0x01]);
+  text(padLine("TOTAL", formatRp(input.totalAmount)));
+  push([ESC, 0x45, 0x00]);
+
+  text("");
+  text("");
+  push([GS, 0x56, 0x42, 0x00]); // partial cut with feed
+
+  return Buffer.concat(chunks);
+}

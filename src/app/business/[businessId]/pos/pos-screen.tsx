@@ -27,6 +27,8 @@ import { enqueueSale, pendingStockDeltas } from "@/lib/offline-queue";
 import { withTimeout } from "@/lib/with-timeout";
 import { dispatchPrintJobs, dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
 import { getCachedPosCatalog, setCachedPosCatalog } from "@/lib/pos-cache";
+import ReportPrintButtons from "../report-print-buttons";
+import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 
 const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [] };
@@ -88,7 +90,7 @@ type Customer = {
   phone: string | null;
 };
 
-const BUILTIN_PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
+const BUILTIN_PAYMENT_METHODS = ["Tunai", "EDC", "QRIS"];
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -205,6 +207,11 @@ export default function PosScreen({
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
   const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
   const [successOffline, setSuccessOffline] = useState(false);
+
+  // Dihitung langsung tiap render (fungsi murni, murah) — bukan useMemo
+  // dengan deps kosong, supaya kalau layar ini dibiarkan terbuka lewat
+  // tengah malam WIB, batas "hari ini" ikut geser juga.
+  const todayRange = getPeriodRange("today");
 
   const { isOnline, pending, syncNow, discard } = useOfflineSync(businessId);
   const {
@@ -763,9 +770,20 @@ export default function PosScreen({
               </span>
             </div>
           </div>
+          <div className="mt-4 border-t border-zinc-100 pt-4">
+            <p className="mb-2 text-xs font-medium text-zinc-500">
+              Cetak laporan hari ini (semua shift, bukan cuma yang baru ditutup):
+            </p>
+            <ReportPrintButtons
+              businessId={businessId}
+              fromIso={todayRange.fromIso}
+              toIsoExclusive={todayRange.toIsoExclusive}
+              periodLabel="Hari Ini"
+            />
+          </div>
           <button
             onClick={() => router.refresh()}
-            className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
           >
             Selesai
           </button>

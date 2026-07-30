@@ -10,6 +10,7 @@ import {
   parsePeriod,
 } from "./period";
 import PeriodTabs from "./period-tabs";
+import ReportPrintButtons from "../../report-print-buttons";
 
 const DONUT_PALETTE = ["#0f766e", "#34d399", "#fcd34d", "#a78bfa", "#fb923c", "#60a5fa", "#f87171"];
 const CATEGORY_PALETTE = ["#0f766e", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"];
@@ -478,6 +479,17 @@ export default async function ReportsPage({
           ) : (
             <p className="py-10 text-center text-sm text-zinc-300">Belum ada data penjualan</p>
           )}
+        </div>
+
+        {/* Cetak */}
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
+          <h2 className="mb-3 text-sm font-bold text-zinc-900">🖨️ Cetak Laporan</h2>
+          <ReportPrintButtons
+            businessId={businessId}
+            fromIso={fromIso}
+            toIsoExclusive={toIsoExclusive}
+            periodLabel={PERIOD_DESCRIPTIONS[period]}
+          />
         </div>
 
         {/* Ekspor */}
