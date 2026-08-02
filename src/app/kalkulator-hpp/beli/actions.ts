@@ -4,10 +4,6 @@ import { headers } from "next/headers";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getDesktopProduct } from "@/lib/billing/desktop-products";
 
-const MIDTRANS_BASE_URL = process.env.MIDTRANS_IS_PRODUCTION === "true"
-  ? "https://app.midtrans.com/snap/v1/transactions"
-  : "https://app.sandbox.midtrans.com/snap/v1/transactions";
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type CreateDesktopOrderResult = { error: string | null; redirectUrl: string | null };
@@ -44,36 +40,33 @@ export async function createDesktopOrder(
     return { error: `Gagal mencatat pesanan: ${insertError.message}`, redirectUrl: null };
   }
 
-  const serverKey = process.env.MIDTRANS_SERVER_KEY;
-  if (!serverKey) {
+  const secretKey = process.env.XENDIT_SECRET_KEY;
+  if (!secretKey) {
     return { error: "Konfigurasi payment gateway belum lengkap.", redirectUrl: null };
   }
 
-  const auth = Buffer.from(`${serverKey}:`).toString("base64");
+  const auth = Buffer.from(`${secretKey}:`).toString("base64");
 
-  // finish callback cosmetic only (not authoritative — webhook is), best
-  // effort origin sama seperti billing/actions.ts.
   const headerList = await headers();
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
   const protocol = headerList.get("x-forwarded-proto") ?? "https";
   const origin = host ? `${protocol}://${host}` : "";
 
-  const response = await fetch(MIDTRANS_BASE_URL, {
+  const response = await fetch("https://api.xendit.co/v2/invoices", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
       Authorization: `Basic ${auth}`,
     },
     body: JSON.stringify({
-      transaction_details: { order_id: orderId, gross_amount: product.price },
-      item_details: [
-        { id: product.code, name: product.name, price: product.price, quantity: 1 },
-      ],
-      customer_details: { email: trimmedEmail },
-      callbacks: {
-        finish: `${origin}/kalkulator-hpp/beli/selesai?order_id=${orderId}`,
-      },
+      external_id: orderId,
+      amount: product.price,
+      payer_email: trimmedEmail,
+      description: `${product.name} — KasirKu`,
+      success_redirect_url: `${origin}/kalkulator-hpp/beli/selesai?order_id=${orderId}`,
+      failure_redirect_url: `${origin}/kalkulator-hpp/beli`,
+      currency: "IDR",
+      items: [{ name: product.name, quantity: 1, price: product.price }],
     }),
   });
 
@@ -82,10 +75,10 @@ export async function createDesktopOrder(
     return { error: `Gagal membuat transaksi pembayaran: ${body}`, redirectUrl: null };
   }
 
-  const json = (await response.json()) as { redirect_url?: string };
-  if (!json.redirect_url) {
+  const json = (await response.json()) as { invoice_url?: string };
+  if (!json.invoice_url) {
     return { error: "Payment gateway tidak mengembalikan link pembayaran.", redirectUrl: null };
   }
 
-  return { error: null, redirectUrl: json.redirect_url };
+  return { error: null, redirectUrl: json.invoice_url };
 }

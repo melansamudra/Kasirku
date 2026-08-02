@@ -4,10 +4,6 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getPlan } from "@/lib/billing/plans";
 
-const MIDTRANS_BASE_URL = process.env.MIDTRANS_IS_PRODUCTION === "true"
-  ? "https://app.midtrans.com/snap/v1/transactions"
-  : "https://app.sandbox.midtrans.com/snap/v1/transactions";
-
 export type CreatePaymentResult = { error: string | null; redirectUrl: string | null };
 
 export async function createPayment(
@@ -50,42 +46,33 @@ export async function createPayment(
     return { error: `Gagal mencatat pembayaran: ${insertError.message}`, redirectUrl: null };
   }
 
-  const serverKey = process.env.MIDTRANS_SERVER_KEY;
-  if (!serverKey) {
+  const secretKey = process.env.XENDIT_SECRET_KEY;
+  if (!secretKey) {
     return { error: "Konfigurasi payment gateway belum lengkap.", redirectUrl: null };
   }
 
-  const auth = Buffer.from(`${serverKey}:`).toString("base64");
+  const auth = Buffer.from(`${secretKey}:`).toString("base64");
 
-  // finish callback is cosmetic only (not authoritative — the webhook is),
-  // so a best-effort origin from request headers is fine here.
   const headerList = await headers();
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
   const protocol = headerList.get("x-forwarded-proto") ?? "https";
   const origin = host ? `${protocol}://${host}` : "";
 
-  const response = await fetch(MIDTRANS_BASE_URL, {
+  const response = await fetch("https://api.xendit.co/v2/invoices", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
       Authorization: `Basic ${auth}`,
     },
     body: JSON.stringify({
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: plan.price,
-      },
-      item_details: [
-        { id: plan.code, name: plan.name, price: plan.price, quantity: 1 },
-      ],
-      customer_details: {
-        email: userData.user.email,
-        first_name: business.name,
-      },
-      callbacks: {
-        finish: `${origin}/business/${businessId}/billing?status=selesai`,
-      },
+      external_id: orderId,
+      amount: plan.price,
+      payer_email: userData.user.email,
+      description: `KasirKu — ${plan.name}`,
+      success_redirect_url: `${origin}/business/${businessId}/billing?status=selesai`,
+      failure_redirect_url: `${origin}/business/${businessId}/billing`,
+      currency: "IDR",
+      items: [{ name: plan.name, quantity: 1, price: plan.price }],
     }),
   });
 
@@ -94,10 +81,10 @@ export async function createPayment(
     return { error: `Gagal membuat transaksi pembayaran: ${body}`, redirectUrl: null };
   }
 
-  const json = (await response.json()) as { redirect_url?: string };
-  if (!json.redirect_url) {
+  const json = (await response.json()) as { invoice_url?: string };
+  if (!json.invoice_url) {
     return { error: "Payment gateway tidak mengembalikan link pembayaran.", redirectUrl: null };
   }
 
-  return { error: null, redirectUrl: json.redirect_url };
+  return { error: null, redirectUrl: json.invoice_url };
 }
