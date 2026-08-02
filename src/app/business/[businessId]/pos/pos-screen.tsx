@@ -1650,82 +1650,83 @@ export default function PosScreen({
                 ✕
               </button>
             </div>
-            <div className="space-y-1.5 p-4">
-              <a
-                href={`/business/${businessId}/transactions`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setPosMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                🧾 Riwayat Transaksi
-              </a>
-              {!isNative && (
+            <div className="p-4">
+              {/* Aksi shift — dipakai selama ngasir */}
+              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                Shift
+              </p>
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => {
+                    setPosMenuOpen(false);
+                    setCashMoveOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  💵 Kas Masuk/Keluar
+                </button>
+                <button
+                  onClick={() => {
+                    setPosMenuOpen(false);
+                    setClosingShift(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-red-200 px-3.5 py-3 text-left text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
+                >
+                  🔒 Tutup Shift
+                </button>
+                <SwitchCashierButton
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  onBeforeSwitch={() => setPosMenuOpen(false)}
+                />
+              </div>
+
+              {/* Lihat & Cetak — buka di tab baru */}
+              <p className="mb-1.5 mt-4 px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                Lihat &amp; Cetak
+              </p>
+              <div className="space-y-1.5">
                 <a
-                  href={`/business/${businessId}/reports`}
+                  href={`/business/${businessId}/transactions`}
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setPosMenuOpen(false)}
                   className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                 >
-                  📊 Laporan
+                  🧾 Riwayat Transaksi
                 </a>
-              )}
-              <a
-                href={`/business/${businessId}/pos/reports`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setPosMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                🖨️ Cetak Settlement/Menu
-              </a>
-              <a
-                href={`/business/${businessId}/shifts`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setPosMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                🕒 Riwayat Shift
-              </a>
-              <a
-                href={`/business/${businessId}/pos/printers`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setPosMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                🖨️ Printer Dapur &amp; Bar
-              </a>
-              <p className="px-1 pt-1 text-[11px] text-zinc-400">
-                Dibuka di tab baru — keranjang belanja kamu tidak hilang.
-              </p>
-
-              <div className="border-t border-zinc-100 pt-1.5" />
-
-              <button
-                onClick={() => {
-                  setPosMenuOpen(false);
-                  setCashMoveOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                💵 Kas Masuk/Keluar
-              </button>
-              <button
-                onClick={() => {
-                  setPosMenuOpen(false);
-                  setClosingShift(true);
-                }}
-                className="flex w-full items-center gap-2.5 rounded-xl border border-red-200 px-3.5 py-3 text-left text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
-              >
-                🔒 Tutup Shift
-              </button>
-              <SwitchCashierButton
-                className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-                onBeforeSwitch={() => setPosMenuOpen(false)}
-              />
+                <a
+                  href={`/business/${businessId}/pos/reports`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setPosMenuOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  🖨️ Cetak Settlement/Menu
+                </a>
+                {!isNative && (
+                  <a
+                    href={`/business/${businessId}/reports`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => setPosMenuOpen(false)}
+                    className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  >
+                    📊 Laporan
+                  </a>
+                )}
+                <a
+                  href={`/business/${businessId}/settings`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setPosMenuOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  ⚙️ Pengaturan
+                </a>
+                <p className="px-1 pt-0.5 text-[11px] text-zinc-400">
+                  Dibuka di tab baru — keranjang belanja tidak hilang.
+                </p>
+              </div>
             </div>
           </div>
         </div>
