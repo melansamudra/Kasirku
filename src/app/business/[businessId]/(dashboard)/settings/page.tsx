@@ -6,6 +6,7 @@ import AddPrinterForm from "./add-printer-form";
 import BusinessTypeForm from "./business-type-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DeletePrinterButton from "./delete-printer-button";
+import DiscountRulesSection from "./discount-rules-section";
 import PrinterReceiptToggle from "./printer-receipt-toggle";
 import TaxServiceForm from "./tax-service-form";
 import TicketCategoriesSection from "./ticket-categories-section";
@@ -74,6 +75,33 @@ export default async function SettingsPage({
     .select("id, name")
     .eq("business_id", businessId)
     .order("name", { ascending: true });
+
+  const [{ data: discountRuleRows }, { data: productRows }] = await Promise.all([
+    supabase
+      .from("discount_rules")
+      .select("id, type, product_id, name, value, value_type, active, valid_from, valid_until, products(name)")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("products")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+  ]);
+
+  const discountRules = (discountRuleRows ?? []) as unknown as {
+    id: string;
+    type: "per_product" | "promo";
+    product_id: string | null;
+    name: string | null;
+    value: number;
+    value_type: "pct" | "amt";
+    active: boolean;
+    valid_from: string | null;
+    valid_until: string | null;
+    products?: { name: string } | null;
+  }[];
 
   const [{ data: txRows }, { data: ticketTxRows }] = await Promise.all([
     supabase.from("transactions").select("id").eq("business_id", businessId).limit(1),
@@ -158,6 +186,13 @@ export default async function SettingsPage({
             />
           </div>
         </div>
+
+        {/* Diskon & Promo */}
+        <DiscountRulesSection
+          businessId={businessId}
+          rules={discountRules}
+          products={productRows ?? []}
+        />
 
         {/* Metode Pembayaran Custom */}
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

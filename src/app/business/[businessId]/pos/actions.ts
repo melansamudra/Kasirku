@@ -54,11 +54,24 @@ export async function switchCashier() {
 
 export type DiscountType = "pct" | "amt";
 
+export type DiscountRule = {
+  id: string;
+  type: "per_product" | "promo";
+  product_id: string | null;
+  name: string | null;
+  value: number;
+  value_type: DiscountType;
+  active: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
+};
+
 export type CartItemInput = {
   productId: string;
   qty: number;
   disc: number;
   discType: DiscountType;
+  note?: string | null;
 };
 
 export type CheckoutResult =
@@ -104,6 +117,7 @@ export async function checkout(
         qty: i.qty,
         disc: i.disc,
         disc_type: i.discType,
+        note: i.note ?? null,
       })),
       p_payment_method: paymentMethod,
       p_received: received,
@@ -145,7 +159,7 @@ export async function checkout(
         businessId,
         "Kasir",
         result.invoice_number,
-        items.map((i) => ({ productId: i.productId, qty: i.qty })),
+        items.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note })),
       ),
       buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id),
     ]);
@@ -512,6 +526,7 @@ export type PosCatalog = {
   openBills: PosOpenBill[];
   customers: PosCustomer[];
   customPaymentMethods: string[];
+  discountRules: DiscountRule[];
 };
 
 // Sumber tunggal data katalog POS (produk/open bill/customer/metode bayar
@@ -522,7 +537,7 @@ export type PosCatalog = {
 export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
   const supabase = await createClient();
 
-  const [{ data: products }, { data: openBillRows }, { data: customers }, { data: customPaymentMethodRows }] =
+  const [{ data: products }, { data: openBillRows }, { data: customers }, { data: customPaymentMethodRows }, { data: discountRuleRows }] =
     await Promise.all([
       supabase
         .from("products")
@@ -546,6 +561,10 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
         .select("name")
         .eq("business_id", businessId)
         .order("name", { ascending: true }),
+      supabase
+        .from("discount_rules")
+        .select("id, type, product_id, name, value, value_type, active, valid_from, valid_until")
+        .eq("business_id", businessId),
     ]);
 
   return {
@@ -553,6 +572,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     openBills: (openBillRows ?? []) as unknown as PosOpenBill[],
     customers: customers ?? [],
     customPaymentMethods: (customPaymentMethodRows ?? []).map((m) => m.name),
+    discountRules: (discountRuleRows ?? []) as DiscountRule[],
   };
 }
 

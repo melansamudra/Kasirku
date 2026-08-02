@@ -13,7 +13,7 @@ export type PendingRetailSale = {
   errorMessage?: string;
   payload: {
     cashierId: string;
-    items: { productId: string; qty: number; disc: number; discType: DiscountType }[];
+    items: { productId: string; qty: number; disc: number; discType: DiscountType; note?: string | null }[];
     paymentMethod: string;
     received: number | null;
     orderDisc: number;

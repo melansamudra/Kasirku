@@ -363,6 +363,84 @@ export async function updateBusinessType(
   return { error: null, saved: true };
 }
 
+export type DiscountRuleState = { error: string | null };
+
+export async function addProductDiscountRule(
+  businessId: string,
+  _prevState: DiscountRuleState,
+  formData: FormData,
+): Promise<DiscountRuleState> {
+  const productId = (formData.get("productId") as string)?.trim();
+  const valueRaw = Number(formData.get("value"));
+  const valueType = formData.get("valueType") as string;
+
+  if (!productId) return { error: "Pilih menu dulu." };
+  if (!["pct", "amt"].includes(valueType)) return { error: "Pilih tipe diskon." };
+  if (Number.isNaN(valueRaw) || valueRaw < 0) return { error: "Nilai diskon tidak valid." };
+  if (valueType === "pct" && valueRaw > 100) return { error: "Diskon persen maksimal 100%." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("discount_rules").insert({
+    business_id: businessId,
+    type: "per_product",
+    product_id: productId,
+    value: valueRaw,
+    value_type: valueType,
+    active: true,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null };
+}
+
+export async function addPromoDiscountRule(
+  businessId: string,
+  _prevState: DiscountRuleState,
+  formData: FormData,
+): Promise<DiscountRuleState> {
+  const name = (formData.get("name") as string)?.trim();
+  const valueRaw = Number(formData.get("value"));
+  const valueType = formData.get("valueType") as string;
+  const validFrom = (formData.get("validFrom") as string)?.trim() || null;
+  const validUntil = (formData.get("validUntil") as string)?.trim() || null;
+
+  if (!name) return { error: "Nama promo wajib diisi." };
+  if (!["pct", "amt"].includes(valueType)) return { error: "Pilih tipe diskon." };
+  if (Number.isNaN(valueRaw) || valueRaw < 0) return { error: "Nilai diskon tidak valid." };
+  if (valueType === "pct" && valueRaw > 100) return { error: "Diskon persen maksimal 100%." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("discount_rules").insert({
+    business_id: businessId,
+    type: "promo",
+    name,
+    value: valueRaw,
+    value_type: valueType,
+    active: true,
+    valid_from: validFrom || null,
+    valid_until: validUntil || null,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null };
+}
+
+export async function deleteDiscountRule(businessId: string, ruleId: string) {
+  const supabase = await createClient();
+  await supabase.from("discount_rules").delete().eq("id", ruleId).eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/settings`);
+}
+
+export async function toggleDiscountRuleActive(businessId: string, ruleId: string, active: boolean) {
+  const supabase = await createClient();
+  await supabase.from("discount_rules").update({ active }).eq("id", ruleId).eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/settings`);
+}
+
 export type TaxServiceState = { error: string | null; saved: boolean };
 
 export async function updateTaxService(

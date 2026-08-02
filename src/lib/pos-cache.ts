@@ -15,6 +15,7 @@ export async function getCachedPosCatalog(businessId: string): Promise<PosCatalo
     openBills: cached.openBills,
     customers: cached.customers,
     customPaymentMethods: cached.customPaymentMethods,
+    discountRules: cached.discountRules ?? [],
   };
 }
 

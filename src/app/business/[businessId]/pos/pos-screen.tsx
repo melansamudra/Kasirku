@@ -14,6 +14,7 @@ import {
   updateSelfOrderStatus,
   type CheckoutResult,
   type CloseShiftSummary,
+  type DiscountRule,
   type DiscountType,
   type PosCatalog,
 } from "./actions";
@@ -31,7 +32,7 @@ import ReportPrintButtons from "../report-print-buttons";
 import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 
-const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [] };
+const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [] };
 
 type Product = {
   id: string;
@@ -54,6 +55,7 @@ type CartItem = {
   maxStock: number;
   disc: number;
   discType: DiscountType;
+  note: string | null;
 };
 
 type SelfOrder = {
@@ -124,7 +126,7 @@ export default function PosScreen({
   // sebelum ada cache sama sekali (satu kali biaya, bukan tiap navigasi).
   const [catalog, setCatalog] = useState<PosCatalog>(EMPTY_CATALOG);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
-  const { products, openBills, customers, customPaymentMethods } = catalog;
+  const { products, openBills, customers, customPaymentMethods, discountRules } = catalog;
 
   const refreshCatalog = useCallback(async () => {
     const fresh = await getPosCatalog(businessId).catch(() => null);
@@ -159,10 +161,9 @@ export default function PosScreen({
   const [inboxOpen, setInboxOpen] = useState(false);
   const [inboxNotice, setInboxNotice] = useState<string | null>(null);
   const [orderBusyId, setOrderBusyId] = useState<string | null>(null);
-  const [editingDiscId, setEditingDiscId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [orderDisc, setOrderDisc] = useState(0);
   const [orderDiscType, setOrderDiscType] = useState<DiscountType>("pct");
-  const [orderDiscOpen, setOrderDiscOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -226,6 +227,32 @@ export default function PosScreen({
       deltas[p.id] ? { ...p, stock: Math.max(0, p.stock - deltas[p.id]) } : p,
     );
   }, [products, pending]);
+
+  // Promo global yang sedang berlaku — berlaku hanya jika active=true dan
+  // hari ini ada dalam rentang valid_from/valid_until (jika diisi).
+  const activePromo = useMemo<DiscountRule | null>(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (
+      discountRules.find(
+        (r) =>
+          r.type === "promo" &&
+          r.active &&
+          (!r.valid_from || r.valid_from <= today) &&
+          (!r.valid_until || r.valid_until >= today),
+      ) ?? null
+    );
+  }, [discountRules]);
+
+  // Sinkronkan orderDisc/orderDiscType dengan promo aktif.
+  useEffect(() => {
+    if (activePromo) {
+      setOrderDisc(activePromo.value);
+      setOrderDiscType(activePromo.value_type);
+    } else {
+      setOrderDisc(0);
+      setOrderDiscType("pct");
+    }
+  }, [activePromo]);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -344,6 +371,9 @@ export default function PosScreen({
           i.productId === product.id ? { ...i, qty: i.qty + 1 } : i,
         );
       }
+      const rule = discountRules.find(
+        (r) => r.type === "per_product" && r.product_id === product.id && r.active,
+      );
       return [
         ...prev,
         {
@@ -352,16 +382,17 @@ export default function PosScreen({
           price: product.price,
           qty: 1,
           maxStock: product.stock,
-          disc: 0,
-          discType: "pct" as DiscountType,
+          disc: rule ? rule.value : 0,
+          discType: rule ? rule.value_type : ("pct" as DiscountType),
+          note: null,
         },
       ];
     });
   }
 
-  function setItemDisc(productId: string, disc: number, discType: DiscountType) {
+  function setItemNote(productId: string, note: string | null) {
     setCart((prev) =>
-      prev.map((i) => (i.productId === productId ? { ...i, disc, discType } : i)),
+      prev.map((i) => (i.productId === productId ? { ...i, note: note || null } : i)),
     );
   }
 
@@ -445,6 +476,7 @@ export default function PosScreen({
           maxStock: product.stock,
           disc: item.disc,
           discType: item.disc_type,
+          note: null,
         });
       }
     }
@@ -498,14 +530,18 @@ export default function PosScreen({
       if (existing) {
         existing.qty += addQty;
       } else {
+        const rule = discountRules.find(
+          (r) => r.type === "per_product" && r.product_id === product.id && r.active,
+        );
         next.push({
           productId: product.id,
           name: product.name,
           price: product.price,
           qty: addQty,
           maxStock: product.stock,
-          disc: 0,
-          discType: "pct",
+          disc: rule ? rule.value : 0,
+          discType: rule ? rule.value_type : ("pct" as DiscountType),
+          note: item.note,
         });
       }
     }
@@ -536,6 +572,7 @@ export default function PosScreen({
       qty: i.qty,
       disc: i.disc,
       discType: i.discType,
+      note: i.note,
     }));
     const receivedForCheckout = paymentMethod === "Tunai" ? receivedAmount : total;
     const clientRef = crypto.randomUUID();
@@ -588,10 +625,7 @@ export default function PosScreen({
       setCartOrderIds([]);
       setPaying(false);
       setReceived("");
-      setOrderDisc(0);
-      setOrderDiscType("pct");
-      setOrderDiscOpen(false);
-      setEditingDiscId(null);
+      setEditingNoteId(null);
       setSelectedCustomer(null);
       setCustomerPickerOpen(false);
       setCustomerSearch("");
@@ -622,10 +656,7 @@ export default function PosScreen({
     setCartOrderIds([]);
     setPaying(false);
     setReceived("");
-    setOrderDisc(0);
-    setOrderDiscType("pct");
-    setOrderDiscOpen(false);
-    setEditingDiscId(null);
+    setEditingNoteId(null);
     setSelectedCustomer(null);
     setCustomerPickerOpen(false);
     setCustomerSearch("");
@@ -1151,7 +1182,7 @@ export default function PosScreen({
             <div className="space-y-2">
               {cart.map((item) => {
                 const discAmt = itemDiscAmount(item);
-                const editing = editingDiscId === item.productId;
+                const noteOpen = editingNoteId === item.productId;
                 return (
                   <div key={item.productId} className="rounded-xl border border-zinc-100 p-2.5">
                     <div className="flex items-start justify-between gap-2">
@@ -1194,60 +1225,36 @@ export default function PosScreen({
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => setEditingDiscId(editing ? null : item.productId)}
-                      className={`mt-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                        item.disc > 0
-                          ? "border-brand-200 bg-brand-50 text-brand-700"
-                          : "border-zinc-200 text-zinc-400 hover:border-brand-300 hover:text-brand-700"
-                      }`}
-                    >
-                      {item.disc > 0
-                        ? `Diskon ${item.discType === "pct" ? `${item.disc}%` : formatRupiah(item.disc)}`
-                        : "% Diskon"}
-                    </button>
-                    {editing && (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      {discAmt > 0 && (
+                        <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                          Diskon {item.discType === "pct" ? `${item.disc}%` : formatRupiah(item.disc)}
+                        </span>
+                      )}
+                      {isFnb && (
+                        <button
+                          onClick={() => setEditingNoteId(noteOpen ? null : item.productId)}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                            item.note
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-zinc-200 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600"
+                          }`}
+                        >
+                          {item.note ? `📝 ${item.note.length > 18 ? item.note.slice(0, 18) + "…" : item.note}` : "📝 Catatan"}
+                        </button>
+                      )}
+                    </div>
+                    {noteOpen && (
                       <div className="mt-2 flex items-center gap-1.5 border-t border-zinc-100 pt-2">
-                        <div className="flex overflow-hidden rounded-lg border border-zinc-200">
-                          <button
-                            onClick={() => setItemDisc(item.productId, item.disc, "pct")}
-                            className={`px-2 py-1 text-[10px] font-bold ${
-                              item.discType === "pct"
-                                ? "bg-brand-600 text-white"
-                                : "text-zinc-500"
-                            }`}
-                          >
-                            %
-                          </button>
-                          <button
-                            onClick={() => setItemDisc(item.productId, item.disc, "amt")}
-                            className={`px-2 py-1 text-[10px] font-bold ${
-                              item.discType === "amt"
-                                ? "bg-brand-600 text-white"
-                                : "text-zinc-500"
-                            }`}
-                          >
-                            Rp
-                          </button>
-                        </div>
                         <input
-                          type="number"
-                          min="0"
-                          max={item.discType === "pct" ? 100 : item.price}
-                          value={item.disc || ""}
-                          onChange={(e) => {
-                            const raw = Number(e.target.value) || 0;
-                            const clamped =
-                              item.discType === "pct"
-                                ? Math.min(100, Math.max(0, raw))
-                                : Math.min(item.price, Math.max(0, raw));
-                            setItemDisc(item.productId, clamped, item.discType);
-                          }}
-                          placeholder="0"
-                          className="w-full flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
+                          type="text"
+                          value={item.note ?? ""}
+                          onChange={(e) => setItemNote(item.productId, e.target.value)}
+                          placeholder="mis. pedas level 3, tanpa es"
+                          className="flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
                         />
                         <button
-                          onClick={() => setEditingDiscId(null)}
+                          onClick={() => setEditingNoteId(null)}
                           className="shrink-0 rounded-lg bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 hover:bg-zinc-200"
                         >
                           OK
@@ -1341,67 +1348,14 @@ export default function PosScreen({
                 <span className="tabular-nums">− {formatRupiah(totalItemDisc)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between text-xs">
-              <button
-                onClick={() => setOrderDiscOpen((v) => !v)}
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  orderDisc > 0
-                    ? "border-brand-200 bg-brand-50 text-brand-700"
-                    : "border-zinc-200 text-zinc-400 hover:border-brand-300 hover:text-brand-700"
-                }`}
-              >
-                {orderDisc > 0
-                  ? `Diskon order ${orderDiscType === "pct" ? `${orderDisc}%` : formatRupiah(orderDisc)}`
-                  : "% Diskon Order"}
-              </button>
-              {orderDiscAmt > 0 && (
+            {activePromo && orderDiscAmt > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                  🎉 {activePromo.name}
+                </span>
                 <span className="tabular-nums text-brand-700">
                   − {formatRupiah(orderDiscAmt)}
                 </span>
-              )}
-            </div>
-            {orderDiscOpen && (
-              <div className="flex items-center gap-1.5 py-1">
-                <div className="flex overflow-hidden rounded-lg border border-zinc-200">
-                  <button
-                    onClick={() => setOrderDiscType("pct")}
-                    className={`px-2 py-1 text-[10px] font-bold ${
-                      orderDiscType === "pct" ? "bg-brand-600 text-white" : "text-zinc-500"
-                    }`}
-                  >
-                    %
-                  </button>
-                  <button
-                    onClick={() => setOrderDiscType("amt")}
-                    className={`px-2 py-1 text-[10px] font-bold ${
-                      orderDiscType === "amt" ? "bg-brand-600 text-white" : "text-zinc-500"
-                    }`}
-                  >
-                    Rp
-                  </button>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  max={orderDiscType === "pct" ? 100 : afterItemDisc}
-                  value={orderDisc || ""}
-                  onChange={(e) => {
-                    const raw = Number(e.target.value) || 0;
-                    setOrderDisc(
-                      orderDiscType === "pct"
-                        ? Math.min(100, Math.max(0, raw))
-                        : Math.max(0, raw),
-                    );
-                  }}
-                  placeholder="0"
-                  className="w-full flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
-                />
-                <button
-                  onClick={() => setOrderDiscOpen(false)}
-                  className="shrink-0 rounded-lg bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 hover:bg-zinc-200"
-                >
-                  OK
-                </button>
               </div>
             )}
             {serviceAmt > 0 && (
