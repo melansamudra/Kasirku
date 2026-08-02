@@ -15,16 +15,16 @@ function DashboardSlide() {
   return (
     <>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-zinc-50 p-3">
+        <div className="rounded-xl bg-brand-50 border border-brand-100 p-3">
           <p className="text-[10px] font-semibold uppercase text-zinc-400">Penjualan</p>
           <p className="text-lg font-bold text-zinc-900">Rp2.450.000</p>
         </div>
-        <div className="rounded-xl bg-zinc-50 p-3">
+        <div className="rounded-xl bg-brand-50 border border-brand-100 p-3">
           <p className="text-[10px] font-semibold uppercase text-zinc-400">Transaksi</p>
           <p className="text-lg font-bold text-zinc-900">48</p>
         </div>
       </div>
-      <div className="mt-3 flex h-20 items-end gap-1.5 rounded-xl bg-zinc-50 p-3">
+      <div className="mt-3 flex h-20 items-end gap-1.5 rounded-xl bg-brand-50 border border-brand-100 p-3">
         {CHART_BARS.map((h, i) => (
           <div
             key={i}
@@ -42,12 +42,12 @@ function KasirSlide() {
     <>
       <div className="mt-5 grid grid-cols-3 gap-2">
         {["Kopi Susu", "Roti Bakar", "Es Teh", "Nasi Goreng", "Ayam Bakar", "Jus Jeruk"].map((name) => (
-          <div key={name} className="rounded-lg bg-zinc-50 p-2 text-center">
+          <div key={name} className="rounded-lg bg-brand-50 p-2 text-center">
             <p className="truncate text-[10px] font-semibold text-zinc-600">{name}</p>
           </div>
         ))}
       </div>
-      <div className="mt-3 space-y-1.5 rounded-xl bg-zinc-50 p-3">
+      <div className="mt-3 space-y-1.5 rounded-xl bg-brand-50 border border-brand-100 p-3">
         {CART_ITEMS.map((item) => (
           <div key={item.name} className="flex items-center justify-between text-xs">
             <span className="text-zinc-500">
@@ -68,7 +68,7 @@ function KasirSlide() {
 function LaporanSlide() {
   return (
     <>
-      <div className="mt-5 space-y-2.5 rounded-xl bg-zinc-50 p-3">
+      <div className="mt-5 space-y-2.5 rounded-xl bg-brand-50 border border-brand-100 p-3">
         <div className="flex items-center justify-between text-xs">
           <span className="text-zinc-500">Pendapatan</span>
           <span className="font-semibold text-zinc-900">Rp8.240.000</span>
@@ -82,7 +82,7 @@ function LaporanSlide() {
           <span className="text-brand-700">Rp5.120.000</span>
         </div>
       </div>
-      <div className="mt-3 flex h-20 items-center gap-2 rounded-xl bg-zinc-50 p-3">
+      <div className="mt-3 flex h-20 items-center gap-2 rounded-xl bg-brand-50 p-3">
         <div className="h-14 w-14 shrink-0 rounded-full border-[6px] border-brand-500" style={{ borderRightColor: "#fde68a", borderTopColor: "#fde68a" }} />
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase text-zinc-400">Margin</p>

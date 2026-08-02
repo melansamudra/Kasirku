@@ -8,6 +8,7 @@ import FloatingWhatsApp from "@/components/floating-whatsapp";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import HeroPreview from "./hero-preview";
+import AppScreens from "./app-screens";
 
 export const metadata: Metadata = {
   title: "KasirKu — Aplikasi Kasir untuk F&B, Retail & Tempat Wisata",
@@ -20,22 +21,16 @@ const BUSINESS_TYPES = [
     emoji: "🍽️",
     title: "F&B",
     desc: "Restoran, kafe, warung — kasir cepat, resep & stok bahan otomatis, self-order QR di meja.",
-    icon: "bg-amber-50 text-amber-600",
-    chip: "bg-amber-50 text-amber-700",
   },
   {
     emoji: "🛒",
     title: "Retail",
     desc: "Toko kelontong, fashion, elektronik — kelola stok, pelanggan, dan laporan penjualan.",
-    icon: "bg-sky-50 text-sky-600",
-    chip: "bg-sky-50 text-sky-700",
   },
   {
     emoji: "🎟️",
-    title: "Tempat Wisata / Tiket",
+    title: "Tempat Wisata",
     desc: "Kolam renang, wahana, event — tiket bernomor, member, harga hari libur, check-in gate.",
-    icon: "bg-violet-50 text-violet-600",
-    chip: "bg-violet-50 text-violet-700",
   },
 ];
 
@@ -80,23 +75,32 @@ const FEATURES = [
     title: "Aman & Multi-Toko",
     desc: "Setiap toko terisolasi datanya, kelola beberapa cabang dari satu akun.",
   },
+  {
+    icon: "📉",
+    title: "Kontrol Biaya",
+    desc: "Pantau budget vs aktual tiap kategori biaya — tahu mana yang boros.",
+  },
+  {
+    icon: "🏦",
+    title: "Finance & Akuntansi",
+    desc: "Laba rugi, arus kas, dan neraca otomatis — tanpa perlu akuntan manual.",
+  },
+  {
+    icon: "🧮",
+    title: "Kalkulator HPP",
+    desc: "Hitung harga pokok per produk, margin tiap menu, dan rekomendasi harga jual.",
+  },
 ];
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
 
+const playfairStyle = { fontFamily: "var(--font-playfair), Georgia, serif" };
+
 export default async function KasirkuPage() {
   const fullPlans = PLANS.filter((p) => p.family === "full");
   const supabase = await createClient();
-  // getSession() (not getUser()) deliberately here — this only decides
-  // whether to bounce an already-logged-in visitor off the marketing page
-  // to /dashboard, a UX nicety with no real access-control stakes (the
-  // dashboard itself is properly gated elsewhere with a validated getUser()
-  // call). getSession() reads the cookie locally with no round-trip to
-  // Supabase's Auth API, unlike getUser() — middleware.ts already does that
-  // round-trip once per request to refresh the session, so calling getUser()
-  // again here was a second redundant network hop on every homepage load.
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -121,27 +125,31 @@ export default async function KasirkuPage() {
       </Link>
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-zinc-50 px-4 py-20">
+      <section className="relative overflow-hidden bg-white px-4 py-20">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-brand-200/50 blur-3xl"
+          className="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-brand-100/60 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-brand-300/30 blur-3xl"
+          className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-brand-200/40 blur-3xl"
         />
 
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
           <div>
-            <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" aria-hidden />
               Untuk F&amp;B, Retail &amp; Tempat Wisata
             </span>
-            <h1 className="mt-4 text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl">
+            <h1
+              className="mt-4 text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl"
+              style={playfairStyle}
+            >
               Satu aplikasi kasir untuk seluruh operasional tokomu
             </h1>
             <p className="mt-4 max-w-lg text-base text-zinc-600">
-              Dari transaksi harian, stok bahan baku, sampai laporan laba rugi — kelola
-              semuanya dalam satu tempat, tanpa ribet catat manual.
+              Dari transaksi harian, stok bahan baku, sampai laporan laba rugi — kelola semuanya
+              dalam satu tempat, tanpa ribet catat manual.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -171,10 +179,10 @@ export default async function KasirkuPage() {
       </section>
 
       {/* Jenis usaha */}
-      <section className="px-4 py-20">
+      <section className="bg-brand-50/50 px-4 py-16">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl" style={playfairStyle}>
               Dibuat untuk jenis usahamu
             </h2>
             <p className="mt-3 text-sm text-zinc-500">
@@ -186,14 +194,12 @@ export default async function KasirkuPage() {
             {BUSINESS_TYPES.map((b) => (
               <div
                 key={b.title}
-                className="rounded-xl bg-white shadow-sm p-6 transition-shadow hover:shadow-md"
+                className="rounded-xl border border-brand-100 bg-white p-6 shadow-sm transition-shadow hover:border-brand-200 hover:shadow-md"
               >
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${b.icon}`}
-                >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-2xl">
                   {b.emoji}
                 </div>
-                <p className={`mt-4 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${b.chip}`}>
+                <p className="mt-4 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
                   {b.title}
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">{b.desc}</p>
@@ -203,23 +209,32 @@ export default async function KasirkuPage() {
         </div>
       </section>
 
-      {/* Fitur */}
-      <section id="fitur" className="bg-zinc-50 px-4 py-20">
+      {/* Fitur — horizontal scroll */}
+      <section id="fitur" className="px-4 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl" style={playfairStyle}>
               Semua yang kamu butuhkan, dalam satu aplikasi
             </h2>
             <p className="mt-3 text-sm text-zinc-500">
-              Tidak perlu pakai banyak aplikasi terpisah untuk kasir, stok, dan laporan.
+              Tidak perlu pakai banyak aplikasi terpisah untuk kasir, stok, laporan, dan keuangan.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            className="mt-10 flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6"
+            style={{
+              scrollSnapType: "x mandatory",
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#57ce9c #e6f9f0",
+            }}
+          >
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="rounded-xl bg-white shadow-sm p-5"
+                className="w-52 flex-none rounded-xl border-t-[3px] border-brand-500 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                style={{ scrollSnapAlign: "start" }}
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-lg">
                   {f.icon}
@@ -228,15 +243,41 @@ export default async function KasirkuPage() {
                 <p className="mt-1 text-xs leading-relaxed text-zinc-500">{f.desc}</p>
               </div>
             ))}
+            <div className="w-4 flex-none" aria-hidden />
+          </div>
+        </div>
+      </section>
+
+      {/* App Preview */}
+      <section className="bg-zinc-50 px-4 py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-xl text-center">
+            <span className="text-xs font-semibold uppercase tracking-widest text-brand-600">
+              Tampilan Aplikasi
+            </span>
+            <h2
+              className="mt-3 text-2xl font-bold text-zinc-900 sm:text-3xl"
+              style={playfairStyle}
+            >
+              Semua tersedia dalam satu dashboard
+            </h2>
+            <p className="mt-3 text-sm text-zinc-500">
+              Kasir, laporan, keuangan, dan HPP — satu tempat, satu login.
+            </p>
+          </div>
+          <div className="mt-10">
+            <AppScreens />
           </div>
         </div>
       </section>
 
       {/* Harga */}
-      <section id="harga" className="bg-zinc-50 px-4 py-20">
+      <section id="harga" className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Harga Transparan, Tanpa Biaya Tersembunyi</h2>
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl" style={playfairStyle}>
+              Harga Transparan, Tanpa Biaya Tersembunyi
+            </h2>
             <p className="mt-3 text-sm text-zinc-500">
               Kasir, stok, laporan, dan akuntansi lengkap — pilih sesuai cara kamu mau bayar.
             </p>
@@ -250,7 +291,7 @@ export default async function KasirkuPage() {
                   key={plan.code}
                   className={`relative rounded-2xl border p-6 text-left ${
                     isYearly
-                      ? "border-brand-600 bg-white shadow-lg shadow-brand-600/10"
+                      ? "border-brand-500 bg-white shadow-lg shadow-brand-600/10"
                       : "border-zinc-200 bg-white"
                   }`}
                 >
@@ -262,7 +303,9 @@ export default async function KasirkuPage() {
                   <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
                   <p className="mt-1 text-3xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
                   <p className="text-xs text-zinc-400">
-                    {plan.kind === "lifetime" ? "Sekali bayar, seterusnya" : `Setiap ${plan.periodDays} hari`}
+                    {plan.kind === "lifetime"
+                      ? "Sekali bayar, seterusnya"
+                      : `Setiap ${plan.periodDays} hari`}
                   </p>
                   <Link
                     href="/signup"
@@ -299,18 +342,11 @@ export default async function KasirkuPage() {
       </section>
 
       {/* CTA */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-600 px-4 py-20 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.12]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
-          }}
-        />
-        <div className="relative mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold">Siap kelola tokomu lebih rapi?</h2>
+      <section className="bg-brand-600 px-4 py-20 text-white">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold" style={playfairStyle}>
+            Siap kelola tokomu lebih rapi?
+          </h2>
           <p className="mt-3 text-brand-50/80">
             Daftar gratis dan mulai pakai dalam hitungan menit — tanpa instalasi.
           </p>
@@ -318,7 +354,7 @@ export default async function KasirkuPage() {
             href="/signup"
             className="mt-8 inline-block rounded-xl bg-white px-6 py-3 text-sm font-semibold text-brand-700 shadow-lg transition-colors hover:bg-brand-50"
           >
-            Daftar Sekarang →
+            Mulai Gratis Sekarang →
           </Link>
         </div>
       </section>
