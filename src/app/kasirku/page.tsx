@@ -469,19 +469,20 @@ export default async function KasirkuPage() {
           </p>
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <a
-              href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent("Halo, saya ingin download APK KasirKu untuk Android. Bisa dikirim linknya?")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+              href="/kasirku.apk"
+              download="KasirKu.apk"
+              className="flex items-center gap-3 rounded-2xl bg-white px-7 py-3.5 text-sm font-bold text-zinc-900 shadow-lg transition-colors hover:bg-zinc-100"
             >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 shrink-0" aria-hidden="true">
-                <path d="M17.523 15.341c-.294-.147-1.737-.856-2.006-.954-.268-.098-.463-.147-.659.147-.195.294-.757.954-.928 1.15-.171.196-.342.22-.636.073-.294-.147-1.24-.457-2.363-1.457-.873-.778-1.462-1.74-1.634-2.034-.171-.294-.018-.453.129-.6.132-.131.294-.342.44-.513.147-.171.196-.294.294-.49.098-.196.049-.367-.025-.514-.073-.147-.659-1.589-.903-2.176-.238-.572-.48-.494-.659-.503l-.561-.01c-.195 0-.513.073-.781.367-.269.294-1.025 1.001-1.025 2.441s1.05 2.831 1.196 3.027c.147.196 2.065 3.152 5.003 4.419.7.302 1.246.483 1.671.619.702.224 1.341.192 1.846.116.563-.084 1.737-.71 1.982-1.396.244-.685.244-1.272.171-1.396-.073-.122-.269-.196-.562-.343zm-5.37 7.344h-.004c-1.75 0-3.456-.47-4.95-1.355l-.355-.211-3.677.965.982-3.585-.231-.368a9.864 9.864 0 0 1-1.51-5.26c.002-5.45 4.436-9.884 9.889-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0 0 12.153 0C5.495 0 .058 5.438.055 12.098c0 2.133.556 4.218 1.615 6.052L0 24l5.999-1.573a12.12 12.12 0 0 0 5.79 1.474h.005c6.656 0 12.094-5.438 12.097-12.099a12.02 12.02 0 0 0-3.553-8.558z"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0 text-brand-600" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              Minta Link Download via WhatsApp
+              Download APK Android
             </a>
           </div>
           <p className="mt-5 text-xs text-zinc-500">
-            APK tersedia setelah mendaftar & berlangganan. Kompatibel dengan Android 8.0+.
+            Gratis selama uji coba · Kompatibel Android 8.0+ · Izinkan install dari sumber tidak dikenal di pengaturan HP
           </p>
         </div>
       </section>
