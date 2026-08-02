@@ -9,6 +9,7 @@ import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import HeroPreview from "./hero-preview";
 import AppScreens from "./app-screens";
+import FinancialSection from "./financial-section";
 
 export const metadata: Metadata = {
   title: "KasirKu — Aplikasi Kasir untuk F&B, Retail & Tempat Wisata",
@@ -125,7 +126,7 @@ export default async function KasirkuPage() {
       </Link>
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-white px-4 py-20">
+      <section className="relative overflow-hidden bg-white px-4 py-24">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-brand-100/60 blur-3xl"
@@ -135,46 +136,62 @@ export default async function KasirkuPage() {
           className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-brand-200/40 blur-3xl"
         />
 
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" aria-hidden />
-              Untuk F&amp;B, Retail &amp; Tempat Wisata
+        <div className="relative mx-auto max-w-6xl">
+          {/* Eyebrow with decorative lines */}
+          <div className="flex items-center justify-center gap-4">
+            <div className="h-px w-12 bg-brand-300 sm:w-20" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">
+              Sistem Kasir Modern untuk F&amp;B
             </span>
-            <h1
-              className="mt-4 text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl"
-              style={playfairStyle}
-            >
-              Satu aplikasi kasir untuk seluruh operasional tokomu
-            </h1>
-            <p className="mt-4 max-w-lg text-base text-zinc-600">
-              Dari transaksi harian, stok bahan baku, sampai laporan laba rugi — kelola semuanya
-              dalam satu tempat, tanpa ribet catat manual.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/signup"
-                className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
-              >
-                Mulai Gratis →
-              </Link>
-              <Link
-                href="#fitur"
-                className="rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                Lihat Fitur
-              </Link>
-            </div>
-            <p className="mt-4 text-xs text-zinc-400">
-              Mulai dari{" "}
-              <Link href="#harga" className="font-semibold text-brand-700 hover:underline">
-                Rp88.000/bulan
-              </Link>{" "}
-              — tanpa kartu kredit untuk mendaftar.
-            </p>
+            <div className="h-px w-12 bg-brand-300 sm:w-20" />
           </div>
 
-          <HeroPreview />
+          {/* Headline */}
+          <h1
+            className="mx-auto mt-5 max-w-3xl text-center text-4xl font-bold leading-tight text-zinc-900 sm:text-5xl lg:text-6xl"
+            style={playfairStyle}
+          >
+            Tumbuh bersama{" "}
+            <em className="text-brand-600" style={{ fontStyle: "italic" }}>
+              bisnis F&amp;B
+            </em>{" "}
+            Anda.
+          </h1>
+
+          <p className="mx-auto mt-6 max-w-xl text-center text-base leading-relaxed text-zinc-500">
+            Dari warung kopi hingga restoran — KasirKu menjaga setiap transaksi, setiap struk,
+            setiap rupiah. Bekerja offline penuh, laporan real-time.
+          </p>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/signup"
+              className="rounded-xl bg-brand-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25"
+            >
+              Coba 14 Hari Gratis
+            </Link>
+            <Link
+              href="#fitur"
+              className="rounded-xl border border-zinc-200 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              Pelajari Lebih Lanjut
+            </Link>
+          </div>
+
+          <p className="mt-4 text-center text-xs text-zinc-400">
+            Mulai dari{" "}
+            <Link href="#harga" className="font-semibold text-brand-700 hover:underline">
+              Rp88.000/bulan
+            </Link>{" "}
+            — tanpa kartu kredit untuk mendaftar.
+          </p>
+
+          {/* Hero preview */}
+          <div className="mt-16 flex justify-center">
+            <div className="w-full max-w-sm">
+              <HeroPreview />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -270,6 +287,9 @@ export default async function KasirkuPage() {
           </div>
         </div>
       </section>
+
+      {/* Modul Keuangan */}
+      <FinancialSection />
 
       {/* Harga */}
       <section id="harga" className="px-4 py-20">
