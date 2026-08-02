@@ -17,6 +17,7 @@ import {
   type DiscountRule,
   type DiscountType,
   type PosCatalog,
+  type TenderInput,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 import OfflineStatus from "./offline-status";
@@ -57,6 +58,13 @@ type CartItem = {
   disc: number;
   discType: DiscountType;
   note: string | null;
+};
+
+type Tender = {
+  id: string;
+  method: string;
+  amount: number;
+  received: string;
 };
 
 type SelfOrder = {
@@ -202,8 +210,8 @@ export default function PosScreen({
     return () => clearInterval(interval);
   }, [isFnb, businessId]);
   const [paying, setPaying] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(BUILTIN_PAYMENT_METHODS[0]);
-  const [received, setReceived] = useState("");
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [splitCount, setSplitCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
@@ -361,8 +369,13 @@ export default function PosScreen({
       serviceRate,
       taxRate,
     });
-  const receivedAmount = Number(received) || 0;
-  const change = paymentMethod === "Tunai" ? receivedAmount - total : 0;
+  const tenderedTotal = tenders.reduce((s, t) => s + t.amount, 0);
+  const remaining = total - tenderedTotal;
+  const totalChange = tenders.reduce((s, t) => {
+    if (t.method !== "Tunai") return s;
+    const rcv = Number(t.received) || 0;
+    return s + Math.max(0, rcv - t.amount);
+  }, 0);
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -558,12 +571,54 @@ export default function PosScreen({
     await handleOrderStatus(order.id, "diproses");
   }
 
+  function handleOpenPayment() {
+    setTenders([{ id: crypto.randomUUID(), method: BUILTIN_PAYMENT_METHODS[0], amount: total, received: "" }]);
+    setSplitCount("");
+    setPaying(true);
+  }
+
+  function updateTender(id: string, patch: Partial<Omit<Tender, "id">>) {
+    setTenders((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }
+
+  function removeTender(id: string) {
+    setTenders((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  function handleAddTender() {
+    const rem = Math.max(0, remaining);
+    setTenders((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), method: BUILTIN_PAYMENT_METHODS[0], amount: rem, received: "" },
+    ]);
+  }
+
+  function handleSplit() {
+    const n = parseInt(splitCount, 10);
+    if (!n || n < 2 || n > 20) return;
+    const perPerson = Math.ceil(total / n);
+    setTenders(
+      Array.from({ length: n }, (_, i) => ({
+        id: crypto.randomUUID(),
+        method: BUILTIN_PAYMENT_METHODS[0],
+        amount: i < n - 1 ? perPerson : total - perPerson * (n - 1),
+        received: "",
+      })),
+    );
+  }
+
   async function handleConfirmPayment() {
     setError(null);
 
-    if (paymentMethod === "Tunai" && receivedAmount < total) {
-      setError("Uang diterima kurang dari total belanja.");
+    if (remaining > 0) {
+      setError("Pembayaran kurang dari total belanja.");
       return;
+    }
+    for (const t of tenders) {
+      if (t.method === "Tunai" && t.amount > 0 && (Number(t.received) || 0) < t.amount) {
+        setError("Uang diterima untuk pembayaran tunai kurang.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -575,7 +630,11 @@ export default function PosScreen({
       discType: i.discType,
       note: i.note,
     }));
-    const receivedForCheckout = paymentMethod === "Tunai" ? receivedAmount : total;
+    const paymentsPayload: TenderInput[] = tenders.map((t) => ({
+      method: t.method,
+      amount: t.amount,
+      received: t.method === "Tunai" ? (Number(t.received) || t.amount) : t.amount,
+    }));
     const clientRef = crypto.randomUUID();
 
     let result: CheckoutResult;
@@ -585,8 +644,7 @@ export default function PosScreen({
           businessId,
           cashierId,
           itemsPayload,
-          paymentMethod,
-          receivedForCheckout,
+          paymentsPayload,
           orderDisc,
           orderDiscType,
           selectedCustomer?.id ?? null,
@@ -609,8 +667,7 @@ export default function PosScreen({
         payload: {
           cashierId,
           items: itemsPayload,
-          paymentMethod,
-          received: receivedForCheckout,
+          payments: paymentsPayload,
           orderDisc,
           orderDiscType,
           customerId: selectedCustomer?.id ?? null,
@@ -626,7 +683,8 @@ export default function PosScreen({
       setCartOrderIds([]);
       setActiveBill(null);
       setPaying(false);
-      setReceived("");
+      setTenders([]);
+      setSplitCount("");
       setEditingNoteId(null);
       setSelectedCustomer(null);
       setCustomerPickerOpen(false);
@@ -657,7 +715,8 @@ export default function PosScreen({
     setCart([]);
     setCartOrderIds([]);
     setPaying(false);
-    setReceived("");
+    setTenders([]);
+    setSplitCount("");
     setEditingNoteId(null);
     setSelectedCustomer(null);
     setCustomerPickerOpen(false);
@@ -1394,7 +1453,7 @@ export default function PosScreen({
                     🧾 Simpan Bon
                   </button>
                   <button
-                    onClick={() => setPaying(true)}
+                    onClick={handleOpenPayment}
                     disabled={cart.length === 0}
                     className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -1441,43 +1500,111 @@ export default function PosScreen({
             </>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                {paymentMethods.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setPaymentMethod(m)}
-                    className={`rounded-xl border py-2 text-xs font-medium transition-colors ${
-                      paymentMethod === m
-                        ? "border-brand-600 bg-brand-50 text-brand-700"
-                        : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
-                    }`}
-                  >
-                    {m}
-                  </button>
+              {/* Split bill helper */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 shrink-0">Split:</span>
+                <input
+                  type="number"
+                  min="2"
+                  max="20"
+                  value={splitCount}
+                  onChange={(e) => setSplitCount(e.target.value)}
+                  placeholder="2 org"
+                  className="w-16 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-center focus:border-brand-600 focus:outline-none"
+                />
+                <button
+                  onClick={handleSplit}
+                  disabled={!splitCount || parseInt(splitCount) < 2}
+                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40"
+                >
+                  Bagi
+                </button>
+                {splitCount && parseInt(splitCount) >= 2 && (
+                  <span className="text-[11px] text-zinc-400">
+                    {formatRupiah(Math.ceil(total / parseInt(splitCount)))}/org
+                  </span>
+                )}
+              </div>
+
+              {/* Tender rows */}
+              <div className="space-y-2">
+                {tenders.map((t) => (
+                  <div key={t.id} className="rounded-xl border border-zinc-200 p-2.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={t.method}
+                        onChange={(e) => updateTender(t.id, { method: e.target.value })}
+                        className="rounded-lg border border-zinc-200 px-2 py-1.5 text-xs shrink-0 focus:border-brand-600 focus:outline-none bg-white"
+                      >
+                        {paymentMethods.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        value={t.amount || ""}
+                        onChange={(e) => updateTender(t.id, { amount: Number(e.target.value) || 0 })}
+                        className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-right focus:border-brand-600 focus:outline-none"
+                        placeholder="0"
+                      />
+                      {tenders.length > 1 && (
+                        <button
+                          onClick={() => removeTender(t.id)}
+                          className="shrink-0 text-zinc-300 hover:text-red-400 text-base leading-none px-0.5"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    {t.method === "Tunai" && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-zinc-500 shrink-0">Terima:</span>
+                        <input
+                          type="number"
+                          min={t.amount}
+                          value={t.received}
+                          onChange={(e) => updateTender(t.id, { received: e.target.value })}
+                          className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1 text-xs text-right focus:border-brand-600 focus:outline-none"
+                          placeholder={String(t.amount || total)}
+                        />
+                        {Number(t.received) >= t.amount && t.received !== "" && (
+                          <span className="text-[11px] text-zinc-500 shrink-0">
+                            ↩ <b>{formatRupiah(Number(t.received) - t.amount)}</b>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
-              {paymentMethod === "Tunai" && (
-                <div>
-                  <label htmlFor="received" className="mb-1 block text-xs font-medium text-zinc-600">
-                    Uang Diterima
-                  </label>
-                  <input
-                    id="received"
-                    type="number"
-                    min="0"
-                    value={received}
-                    onChange={(e) => setReceived(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                    placeholder={String(total)}
-                  />
-                  {receivedAmount >= total && received !== "" && (
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Kembalian: <span className="font-bold text-zinc-900">{formatRupiah(change)}</span>
-                    </p>
-                  )}
-                </div>
+              {/* Tambah cara bayar */}
+              {remaining > 0 && (
+                <button
+                  onClick={handleAddTender}
+                  className="w-full rounded-xl border border-dashed border-zinc-300 py-2 text-xs text-zinc-500 hover:border-brand-400 hover:text-brand-600"
+                >
+                  + Tambah Cara Bayar
+                </button>
               )}
+
+              {/* Ringkasan pembayaran */}
+              <div className="rounded-xl bg-zinc-50 px-3 py-2 text-xs space-y-0.5">
+                {remaining > 0 ? (
+                  <div className="flex justify-between text-amber-700 font-medium">
+                    <span>Sisa belum dibayar</span>
+                    <span>{formatRupiah(remaining)}</span>
+                  </div>
+                ) : totalChange > 0 ? (
+                  <div className="flex justify-between text-zinc-700">
+                    <span>Total kembalian</span>
+                    <span className="font-bold text-zinc-900">{formatRupiah(totalChange)}</span>
+                  </div>
+                ) : (
+                  <p className="text-center text-zinc-500">Pembayaran pas ✓</p>
+                )}
+              </div>
 
               {error && (
                 <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
@@ -1485,7 +1612,7 @@ export default function PosScreen({
 
               <button
                 onClick={handleConfirmPayment}
-                disabled={submitting}
+                disabled={submitting || remaining > 0}
                 className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Memproses…" : "Konfirmasi Pembayaran"}
@@ -1493,6 +1620,8 @@ export default function PosScreen({
               <button
                 onClick={() => {
                   setPaying(false);
+                  setTenders([]);
+                  setSplitCount("");
                   setError(null);
                 }}
                 className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"

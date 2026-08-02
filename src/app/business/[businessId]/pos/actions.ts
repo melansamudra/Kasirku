@@ -74,6 +74,12 @@ export type CartItemInput = {
   note?: string | null;
 };
 
+export type TenderInput = {
+  method: string;
+  amount: number;
+  received: number;
+};
+
 export type CheckoutResult =
   | {
       success: true;
@@ -90,8 +96,7 @@ export async function checkout(
   businessId: string,
   cashierId: string,
   items: CartItemInput[],
-  paymentMethod: string,
-  received: number | null,
+  payments: TenderInput[],
   orderDisc: number,
   orderDiscType: DiscountType,
   customerId: string | null = null,
@@ -119,8 +124,7 @@ export async function checkout(
         disc_type: i.discType,
         note: i.note ?? null,
       })),
-      p_payment_method: paymentMethod,
-      p_received: received,
+      p_payments: payments,
       p_order_disc: orderDisc,
       p_order_disc_type: orderDiscType,
       p_customer_id: customerId,
@@ -152,7 +156,7 @@ export async function checkout(
         "transaksi",
         "sukses",
         `Transaksi ${result.invoice_number}`,
-        `${itemCount} item · ${paymentMethod}`,
+        `${itemCount} item · ${payments.map((p) => p.method).join(", ")}`,
       ),
       buildKitchenPrintJobsForItems(
         supabase,

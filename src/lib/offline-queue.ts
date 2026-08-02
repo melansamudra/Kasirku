@@ -1,5 +1,5 @@
 import { idbDelete, idbGetAllByBusiness, idbPut } from "@/lib/offline-db";
-import type { DiscountType } from "@/app/business/[businessId]/pos/actions";
+import type { DiscountType, TenderInput } from "@/app/business/[businessId]/pos/actions";
 import type { TicketCartItemInput } from "@/app/business/[businessId]/pos/ticket-actions";
 
 export type PendingSaleStatus = "pending" | "syncing" | "error";
@@ -14,8 +14,7 @@ export type PendingRetailSale = {
   payload: {
     cashierId: string;
     items: { productId: string; qty: number; disc: number; discType: DiscountType; note?: string | null }[];
-    paymentMethod: string;
-    received: number | null;
+    payments: TenderInput[];
     orderDisc: number;
     orderDiscType: DiscountType;
     customerId: string | null;
