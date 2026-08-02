@@ -54,15 +54,28 @@ type NavItem = { key: string; href: string; label: string; icon: LucideIcon; own
 type NavGroup = { title: string; items: NavItem[] };
 type BusinessType = "fnb" | "retail" | "tiket";
 
+// Nav keys visible in the Starter plan (POS + COGS + basic reports only).
+const STARTER_ALLOWED_KEYS = new Set([
+  "dashboard", "reports", "transactions", "shifts", "kas-harian",
+  "products", "ingredients", "tables", "cashiers",
+  "settings", "admins",
+  // Cost Control (COGS)
+  "reports-cogs", "hpp-calculator", "reports-price-trend",
+  "purchases", "suppliers",
+  // Lainnya
+  "notifikasi", "activity",
+]);
+
 function buildNavGroups(
   businessId: string,
   businessType: BusinessType,
   isFinanceOnly: boolean,
+  isStarter: boolean,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
 
-  return [
+  const allGroups: NavGroup[] = [
     {
       title: "Utama",
       items: [
@@ -83,10 +96,14 @@ function buildNavGroups(
               },
             ]
           : []),
-        ...(isFinanceOnly
+        ...(isFinanceOnly || isStarter
           ? []
           : [
               { key: "customers", href: `${base}/customers`, label: "Pelanggan", icon: Users },
+            ]),
+        ...(isFinanceOnly
+          ? []
+          : [
               { key: "cashiers", href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
             ]),
         { key: "settings", href: `${base}/settings`, label: "Pengaturan", icon: Settings, ownerOnly: true },
@@ -94,51 +111,46 @@ function buildNavGroups(
       ],
     },
     {
-      title: "Fitur Lanjutan",
+      title: isStarter ? "Kontrol Biaya (COGS)" : "Fitur Lanjutan",
       items: [
-        { key: "reports-laba-rugi", href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
+        ...(!isStarter ? [{ key: "reports-laba-rugi", href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp }] : []),
         { key: "reports-cogs", href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
         { key: "hpp-calculator", href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
         ...(isFnb
-          ? [{ key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag }]
+          ? [{ key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga Bahan", icon: Tag }]
           : []),
-        { key: "accounting-daftar-akun", href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
-        {
-          key: "accounting-laba-rugi",
-          href: `${base}/accounting/laba-rugi`,
-          label: "Laba Rugi (Akrual)",
-          icon: TrendingUp,
-        },
-        { key: "accounting-jurnal", href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
-        { key: "accounting-neraca", href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
-        { key: "accounting-arus-kas", href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
-        { key: "accounting-anggaran", href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
-        { key: "accounting-modal", href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
-        {
-          key: "accounting-transfer-kas",
-          href: `${base}/accounting/transfer-kas`,
-          label: "Transfer Kas/Bank",
-          icon: ArrowLeftRight,
-        },
-        {
-          key: "accounting-rekonsiliasi",
-          href: `${base}/accounting/rekonsiliasi`,
-          label: "Rekonsiliasi Rekening",
-          icon: Landmark,
-        },
-        { key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
-        { key: "accounting-tutup-buku", href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
-        ...(isFinanceOnly
+        ...(!isStarter
+          ? [
+              { key: "accounting-daftar-akun", href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
+              { key: "accounting-laba-rugi", href: `${base}/accounting/laba-rugi`, label: "Laba Rugi (Akrual)", icon: TrendingUp },
+              { key: "accounting-jurnal", href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
+              { key: "accounting-neraca", href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
+              { key: "accounting-arus-kas", href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
+              { key: "accounting-anggaran", href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
+              { key: "accounting-modal", href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
+              { key: "accounting-transfer-kas", href: `${base}/accounting/transfer-kas`, label: "Transfer Kas/Bank", icon: ArrowLeftRight },
+              { key: "accounting-rekonsiliasi", href: `${base}/accounting/rekonsiliasi`, label: "Rekonsiliasi Rekening", icon: Landmark },
+              { key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
+              { key: "accounting-tutup-buku", href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
+            ]
+          : []),
+        ...(isFinanceOnly || isStarter
           ? []
           : [
               { key: "receivables", href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
-              { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
-              { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
-              { key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
             ]),
-        { key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog },
-        { key: "attendance", href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
-        { key: "payroll", href: `${base}/payroll`, label: "Payroll", icon: Banknote },
+        { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+        { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
+        ...(!isStarter && !isFinanceOnly
+          ? [{ key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor }]
+          : []),
+        ...(!isStarter
+          ? [
+              { key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog },
+              { key: "attendance", href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
+              { key: "payroll", href: `${base}/payroll`, label: "Payroll", icon: Banknote },
+            ]
+          : []),
       ],
     },
     {
@@ -149,6 +161,15 @@ function buildNavGroups(
       ],
     },
   ];
+
+  // Extra safety net: filter out any item not in the starter allowlist.
+  if (isStarter) {
+    return allGroups
+      .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
+      .filter((g) => g.items.length > 0);
+  }
+
+  return allGroups;
 }
 
 // Dashboard itself is always reachable even for a staff member with an empty
@@ -392,6 +413,7 @@ export default function DashboardShell({
   billingPastDuePeriodEnd,
   trialPeriodEnd,
   isFinanceOnly = false,
+  isStarter = false,
   isOwner = true,
   permissions = [],
   children,
@@ -403,6 +425,7 @@ export default function DashboardShell({
   billingPastDuePeriodEnd?: string | null;
   trialPeriodEnd?: string | null;
   isFinanceOnly?: boolean;
+  isStarter?: boolean;
   isOwner?: boolean;
   permissions?: string[];
   children: React.ReactNode;
@@ -424,7 +447,7 @@ export default function DashboardShell({
   const navPermissions = isNative ? ["transactions", "shifts", "settings"] : permissions;
   const navBypassOwnerOnly = isNative ? ["settings"] : [];
 
-  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly);
+  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter);
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can

@@ -99,6 +99,20 @@ export default async function BillingPage({
 
       <div className="mt-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Starter — Kasir + COGS + Laporan Penjualan
+        </p>
+        <p className="mt-1 text-xs text-zinc-400">
+          Paket hemat khusus usaha yang hanya butuh kasir, pantau bahan baku, dan laporan penjualan dasar.
+        </p>
+        <PlanGrid
+          plans={PLANS.filter((p) => p.family === "starter")}
+          businessId={businessId}
+          business={business}
+        />
+      </div>
+
+      <div className="mt-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
           Finance Only — Sudah Punya Kasir Sendiri? Cukup Akuntansi &amp; SDM Saja
         </p>
         <PlanGrid

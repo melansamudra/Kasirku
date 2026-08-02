@@ -101,6 +101,7 @@ const playfairStyle = { fontFamily: "var(--font-playfair), Georgia, serif" };
 
 export default async function KasirkuPage() {
   const fullPlans = PLANS.filter((p) => p.family === "full");
+  const starterPlans = PLANS.filter((p) => p.family === "starter");
   const supabase = await createClient();
   const {
     data: { session },
@@ -299,11 +300,87 @@ export default async function KasirkuPage() {
               Harga Transparan, Tanpa Biaya Tersembunyi
             </h2>
             <p className="mt-3 text-sm text-zinc-500">
-              Kasir, stok, laporan, dan akuntansi lengkap — pilih sesuai cara kamu mau bayar.
+              Mulai dari yang kamu butuhkan sekarang — upgrade kapan saja.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+          {/* Paket Starter */}
+          <div className="mt-12">
+            <div className="mb-4 flex items-center gap-3">
+              <p className="text-sm font-bold text-zinc-900">Paket Starter</p>
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">Low Budget</span>
+            </div>
+            <p className="mb-5 text-xs text-zinc-500">
+              Kasir + pantau bahan baku (COGS) + laporan penjualan. Cukup untuk mulai berjualan rapi.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:max-w-2xl">
+              {starterPlans.map((plan) => {
+                const isYearly = plan.code === "starter_yearly";
+                return (
+                  <div
+                    key={plan.code}
+                    className={`relative rounded-2xl border p-5 text-left ${
+                      isYearly
+                        ? "border-amber-400 bg-white shadow-md shadow-amber-400/10"
+                        : "border-zinc-200 bg-white"
+                    }`}
+                  >
+                    {isYearly && (
+                      <span className="absolute -top-3 left-5 rounded-full bg-amber-500 px-3 py-1 text-[10px] font-semibold text-white">
+                        Hemat ~24%
+                      </span>
+                    )}
+                    <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
+                    <p className="mt-1 text-2xl font-bold text-amber-600">{formatRupiah(plan.price)}</p>
+                    <p className="text-xs text-zinc-400">
+                      {isYearly ? "Setiap 365 hari" : "Setiap 30 hari"}
+                    </p>
+                    <ul className="mt-3 space-y-1 text-xs text-zinc-600">
+                      <li>✓ POS & kasir</li>
+                      <li>✓ Bahan baku & resep (COGS)</li>
+                      <li>✓ Laporan penjualan</li>
+                      <li>✓ Kalkulator HPP</li>
+                      <li className="text-zinc-400">✗ Akuntansi & SDM</li>
+                    </ul>
+                    <Link
+                      href="/signup"
+                      className={`mt-4 block rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${
+                        isYearly
+                          ? "bg-amber-500 text-white hover:bg-amber-600"
+                          : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                      }`}
+                    >
+                      Pilih Paket Ini →
+                    </Link>
+                    <a
+                      href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
+                        `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 block rounded-xl py-2 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
+                    >
+                      💬 Tanya via WhatsApp
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="my-12 flex items-center gap-4">
+            <div className="h-px flex-1 bg-zinc-100" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">atau pilih paket lengkap</p>
+            <div className="h-px flex-1 bg-zinc-100" />
+          </div>
+
+          {/* Paket Lengkap */}
+          <div className="mb-4">
+            <p className="text-sm font-bold text-zinc-900">Paket Lengkap</p>
+            <p className="mt-1 text-xs text-zinc-500">POS + Akuntansi + SDM — semua dalam satu aplikasi.</p>
+          </div>
+          <div className="mt-5 grid gap-5 sm:grid-cols-3">
             {fullPlans.map((plan) => {
               const isYearly = plan.code === "yearly";
               return (
