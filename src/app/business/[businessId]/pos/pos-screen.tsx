@@ -10,13 +10,16 @@ import {
   deleteOpenBill,
   getPosCatalog,
   getSelfOrders,
+  getShiftTransactions,
   saveOpenBill,
   updateSelfOrderStatus,
+  voidPosTransaction,
   type CheckoutResult,
   type CloseShiftSummary,
   type DiscountRule,
   type DiscountType,
   type PosCatalog,
+  type ShiftTransaction,
   type TenderInput,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
@@ -279,6 +282,16 @@ export default function PosScreen({
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidTxs, setVoidTxs] = useState<ShiftTransaction[]>([]);
+  const [voidLoading, setVoidLoading] = useState(false);
+  const [voidSelectedTx, setVoidSelectedTx] = useState<ShiftTransaction | null>(null);
+  const [voidPin, setVoidPin] = useState("");
+  const [voidReason, setVoidReason] = useState("");
+  const [voidSubmitting, setVoidSubmitting] = useState(false);
+  const [voidError, setVoidError] = useState<string | null>(null);
+  const [voidSuccess, setVoidSuccess] = useState<string | null>(null);
+
   // Sorted once per product list change, not per keystroke — cheap enough
   // that memoizing separately from filteredProducts keeps the tab row from
   // re-deriving every time someone types in the search box.
@@ -420,6 +433,34 @@ export default function PosScreen({
 
   function removeFromCart(productId: string) {
     setCart((prev) => prev.filter((i) => i.productId !== productId));
+  }
+
+  async function handleOpenVoid() {
+    setPosMenuOpen(false);
+    setVoidOpen(true);
+    setVoidSelectedTx(null);
+    setVoidPin("");
+    setVoidReason("");
+    setVoidError(null);
+    setVoidSuccess(null);
+    setVoidLoading(true);
+    const txs = await getShiftTransactions(businessId, shiftId);
+    setVoidTxs(txs);
+    setVoidLoading(false);
+  }
+
+  async function handleVoidConfirm() {
+    if (!voidSelectedTx || voidSubmitting) return;
+    setVoidSubmitting(true);
+    setVoidError(null);
+    const result = await voidPosTransaction(businessId, voidSelectedTx.id, voidPin, voidReason);
+    setVoidSubmitting(false);
+    if (!result.success) {
+      setVoidError(result.error);
+      return;
+    }
+    setVoidSuccess(`${voidSelectedTx.invoice_number} berhasil dibatalkan.`);
+    void refreshCatalog();
   }
 
   async function handleSaveBon() {
@@ -1666,6 +1707,13 @@ export default function PosScreen({
                   💵 Kas Masuk/Keluar
                 </button>
                 <button
+                  type="button"
+                  onClick={() => void handleOpenVoid()}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  ↩️ Void Transaksi
+                </button>
+                <button
                   onClick={() => {
                     setPosMenuOpen(false);
                     setClosingShift(true);
@@ -1953,6 +2001,160 @@ export default function PosScreen({
                     </div>
                   );
                 })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Void Transaksi */}
+      {voidOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => { if (!voidSubmitting) setVoidOpen(false); }}
+          />
+          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h2 className="text-sm font-bold text-zinc-900">↩️ Void Transaksi</h2>
+              <button
+                type="button"
+                onClick={() => setVoidOpen(false)}
+                disabled={voidSubmitting}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200 disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {voidSuccess ? (
+                <div className="p-6 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">
+                    ✅
+                  </div>
+                  <p className="text-sm font-semibold text-zinc-900">{voidSuccess}</p>
+                  <p className="mt-1 text-xs text-zinc-400">Stok produk sudah dikembalikan.</p>
+                  <button
+                    type="button"
+                    onClick={() => setVoidOpen(false)}
+                    className="mt-4 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+                  >
+                    Selesai
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4">
+                    <p className="mb-3 text-xs text-zinc-500">
+                      Pilih transaksi dari shift ini. Membutuhkan PIN manajer. Stok akan dikembalikan otomatis.
+                    </p>
+                    {voidLoading ? (
+                      <p className="py-8 text-center text-sm text-zinc-400">Memuat transaksi…</p>
+                    ) : voidTxs.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-zinc-400">
+                        Belum ada transaksi di shift ini.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {voidTxs.map((tx) => {
+                          const isSelected = voidSelectedTx?.id === tx.id;
+                          const itemLabel =
+                            tx.items
+                              .slice(0, 2)
+                              .map((i) => `${i.name} ×${i.qty}`)
+                              .join(", ") +
+                            (tx.items.length > 2 ? `, +${tx.items.length - 2} lagi` : "");
+                          return (
+                            <button
+                              key={tx.id}
+                              type="button"
+                              onClick={() => setVoidSelectedTx(isSelected ? null : tx)}
+                              className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                                isSelected
+                                  ? "border-red-300 bg-red-50"
+                                  : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className={`text-sm font-bold ${isSelected ? "text-red-700" : "text-zinc-900"}`}
+                                >
+                                  {tx.invoice_number}
+                                </span>
+                                <span
+                                  className={`text-sm font-semibold ${isSelected ? "text-red-600" : "text-zinc-700"}`}
+                                >
+                                  {formatRupiah(tx.total)}
+                                </span>
+                              </div>
+                              <div className="mt-0.5 flex items-center justify-between">
+                                <span className="text-xs text-zinc-400">
+                                  {new Date(tx.created_at).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                                <span className="ml-2 truncate text-right text-xs text-zinc-500">
+                                  {itemLabel}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {voidSelectedTx && (
+                    <div className="space-y-3 border-t border-zinc-100 p-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-zinc-600">
+                          PIN Manajer <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          placeholder="Masukkan PIN manajer"
+                          value={voidPin}
+                          onChange={(e) =>
+                            setVoidPin(e.target.value.replace(/\D/g, "").slice(0, 6))
+                          }
+                          disabled={voidSubmitting}
+                          className="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-zinc-600">
+                          Alasan (opsional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="mis. salah input, pelanggan cancel…"
+                          value={voidReason}
+                          onChange={(e) => setVoidReason(e.target.value)}
+                          disabled={voidSubmitting}
+                          className="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </div>
+                      {voidError && (
+                        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+                          {voidError}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleVoidConfirm()}
+                        disabled={!voidPin || voidSubmitting}
+                        className="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {voidSubmitting
+                          ? "Memproses…"
+                          : `Void ${voidSelectedTx.invoice_number}`}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

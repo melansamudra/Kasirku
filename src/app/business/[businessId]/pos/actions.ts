@@ -682,3 +682,82 @@ export async function updateSelfOrderStatus(
   revalidatePath(`/business/${businessId}/tables`);
   return { success: true, printJobs };
 }
+
+export type ShiftTransaction = {
+  id: string;
+  invoice_number: string;
+  created_at: string;
+  total: number;
+  items: { name: string; qty: number }[];
+};
+
+export type VoidPosResult =
+  | { success: true; voidedByName: string }
+  | { success: false; error: string };
+
+export async function getShiftTransactions(
+  businessId: string,
+  shiftId: string,
+): Promise<ShiftTransaction[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("transactions")
+    .select("id, invoice_number, created_at, total, transaction_items(name, qty)")
+    .eq("business_id", businessId)
+    .eq("shift_id", shiftId)
+    .eq("voided", false)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  return (data ?? []).map((t) => ({
+    id: t.id as string,
+    invoice_number: t.invoice_number as string,
+    created_at: t.created_at as string,
+    total: t.total as number,
+    items: (t.transaction_items as { name: string; qty: number }[]) ?? [],
+  }));
+}
+
+export async function voidPosTransaction(
+  businessId: string,
+  transactionId: string,
+  managerPin: string,
+  reason: string,
+): Promise<VoidPosResult> {
+  if (!managerPin.trim()) {
+    return { success: false, error: "PIN manajer wajib diisi." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("void_transaction", {
+    p_business_id: businessId,
+    p_transaction_id: transactionId,
+    p_manager_pin: managerPin,
+    p_reason: reason.trim() || null,
+  });
+
+  if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("pin") || msg.includes("otorisasi")) {
+      return { success: false, error: "PIN manajer salah atau tidak memiliki otorisasi." };
+    }
+    if (msg.includes("sudah dibatalkan")) {
+      return { success: false, error: "Transaksi ini sudah dibatalkan sebelumnya." };
+    }
+    return { success: false, error: "Gagal membatalkan transaksi." };
+  }
+
+  const rows = data as { voided_by_name: string }[] | null;
+  const voidedByName = rows?.[0]?.voided_by_name ?? "Manajer";
+
+  await logActivity(
+    supabase,
+    businessId,
+    "transaksi",
+    "warning",
+    "Transaksi dibatalkan (void)",
+    `Dibatalkan oleh ${voidedByName}${reason.trim() ? ` · ${reason.trim()}` : ""}`,
+  );
+
+  return { success: true, voidedByName };
+}
