@@ -5,6 +5,8 @@ export type KitchenPrintJob = {
   source: string;
   label: string;
   items: (KitchenTicketItem & { category: string | null })[];
+  cashierName?: string;
+  orderType?: string;
 };
 
 // Ticket-building stays server-side (uses Buffer, reads kitchen_printers via
@@ -64,6 +66,8 @@ export async function buildKitchenPrintJobs(
       source: job.source,
       label: job.label,
       items,
+      cashierName: job.cashierName,
+      orderType: job.orderType,
     });
     return {
       printerName: printer.name,

@@ -57,6 +57,8 @@ export default async function ReceiptPage({
 
   const rs = (business as unknown as { receipt_settings?: Record<string, unknown> }).receipt_settings ?? {};
   const cfg = {
+    showLogo: (rs.show_logo ?? false) as boolean,
+    logoUrl: (rs.logo_url as string | undefined) ?? "",
     showAddress: (rs.show_address ?? false) as boolean,
     showPhone: (rs.show_phone ?? false) as boolean,
     showInvoice: (rs.show_invoice ?? true) as boolean,
@@ -84,6 +86,10 @@ export default async function ReceiptPage({
 
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5 print:mt-0 print:rounded-none print:border-0 print:p-0">
           <div className="text-center">
+            {cfg.showLogo && cfg.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={cfg.logoUrl} alt="Logo" className="mx-auto mb-2 h-14 w-auto object-contain" />
+            )}
             <p className="text-sm font-bold uppercase">{biz.name}</p>
             {cfg.showAddress && biz.address && (
               <p className="text-[11px] text-zinc-500">{biz.address}</p>

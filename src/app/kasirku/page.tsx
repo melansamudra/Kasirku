@@ -181,7 +181,7 @@ export default async function KasirkuPage() {
           <p className="mt-4 text-center text-xs text-zinc-400">
             Mulai dari{" "}
             <Link href="#harga" className="font-semibold text-brand-700 hover:underline">
-              Rp88.000/bulan
+              Rp299.000/bulan
             </Link>{" "}
             — tanpa kartu kredit untuk mendaftar.
           </p>
@@ -317,36 +317,55 @@ export default async function KasirkuPage() {
                 >
                   {isYearly && (
                     <span className="absolute -top-3 left-6 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-semibold text-white">
-                      Paling Hemat — 44%
+                      Paling Hemat — ~31%
                     </span>
                   )}
                   <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
-                  <p className="mt-1 text-3xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
+                  {plan.kind === "lifetime" ? (
+                    <p className="mt-1 text-xl font-bold text-brand-700">Harga Spesial</p>
+                  ) : (
+                    <p className="mt-1 text-3xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
+                  )}
                   <p className="text-xs text-zinc-400">
                     {plan.kind === "lifetime"
-                      ? "Sekali bayar, seterusnya"
+                      ? "Sekali bayar, seterusnya — hubungi kami"
                       : `Setiap ${plan.periodDays} hari`}
                   </p>
-                  <Link
-                    href="/signup"
-                    className={`mt-5 block rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${
-                      isYearly
-                        ? "bg-brand-600 text-white hover:bg-brand-700"
-                        : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                    }`}
-                  >
-                    Pilih Paket Ini →
-                  </Link>
-                  <a
-                    href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
-                      `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 block rounded-xl py-2.5 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
-                  >
-                    💬 Tanya dulu via WhatsApp
-                  </a>
+                  {plan.kind === "lifetime" ? (
+                    <a
+                      href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
+                        `Halo, saya ingin tahu harga paket Sekali Bayar (Lifetime) KasirKu. Bisa dibantu?`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-5 block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+                    >
+                      💬 Hubungi Kami
+                    </a>
+                  ) : (
+                    <>
+                      <Link
+                        href="/signup"
+                        className={`mt-5 block rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${
+                          isYearly
+                            ? "bg-brand-600 text-white hover:bg-brand-700"
+                            : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                        }`}
+                      >
+                        Pilih Paket Ini →
+                      </Link>
+                      <a
+                        href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
+                          `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 block rounded-xl py-2.5 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
+                      >
+                        💬 Tanya dulu via WhatsApp
+                      </a>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -357,6 +376,35 @@ export default async function KasirkuPage() {
               harga Finance Only
             </Link>
             .
+          </p>
+        </div>
+      </section>
+
+      {/* Download APK */}
+      <section id="download" className="bg-zinc-900 px-4 py-16 text-white">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Tersedia untuk Android</p>
+          <h2 className="mt-3 text-2xl font-bold sm:text-3xl" style={playfairStyle}>
+            Kasir di Genggamanmu
+          </h2>
+          <p className="mt-3 text-sm text-zinc-400">
+            Unduh aplikasi KasirKu langsung ke smartphone Android — tidak perlu buka browser lagi.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <a
+              href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent("Halo, saya ingin download APK KasirKu untuk Android. Bisa dikirim linknya?")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 shrink-0" aria-hidden="true">
+                <path d="M17.523 15.341c-.294-.147-1.737-.856-2.006-.954-.268-.098-.463-.147-.659.147-.195.294-.757.954-.928 1.15-.171.196-.342.22-.636.073-.294-.147-1.24-.457-2.363-1.457-.873-.778-1.462-1.74-1.634-2.034-.171-.294-.018-.453.129-.6.132-.131.294-.342.44-.513.147-.171.196-.294.294-.49.098-.196.049-.367-.025-.514-.073-.147-.659-1.589-.903-2.176-.238-.572-.48-.494-.659-.503l-.561-.01c-.195 0-.513.073-.781.367-.269.294-1.025 1.001-1.025 2.441s1.05 2.831 1.196 3.027c.147.196 2.065 3.152 5.003 4.419.7.302 1.246.483 1.671.619.702.224 1.341.192 1.846.116.563-.084 1.737-.71 1.982-1.396.244-.685.244-1.272.171-1.396-.073-.122-.269-.196-.562-.343zm-5.37 7.344h-.004c-1.75 0-3.456-.47-4.95-1.355l-.355-.211-3.677.965.982-3.585-.231-.368a9.864 9.864 0 0 1-1.51-5.26c.002-5.45 4.436-9.884 9.889-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0 0 12.153 0C5.495 0 .058 5.438.055 12.098c0 2.133.556 4.218 1.615 6.052L0 24l5.999-1.573a12.12 12.12 0 0 0 5.79 1.474h.005c6.656 0 12.094-5.438 12.097-12.099a12.02 12.02 0 0 0-3.553-8.558z"/>
+              </svg>
+              Minta Link Download via WhatsApp
+            </a>
+          </div>
+          <p className="mt-5 text-xs text-zinc-500">
+            APK tersedia setelah mendaftar & berlangganan. Kompatibel dengan Android 8.0+.
           </p>
         </div>
       </section>

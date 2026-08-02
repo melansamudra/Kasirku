@@ -16,10 +16,17 @@ export type KitchenTicketInput = {
   source: string;
   label: string;
   items: KitchenTicketItem[];
+  cashierName?: string;
+  orderType?: string;
 };
 
 function formatQty(qty: number): string {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2);
+}
+
+function padRight(label: string, value: string, width = 32): string {
+  const colon = `${label}: `;
+  return colon + value.slice(0, Math.max(width - colon.length, 1));
 }
 
 export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
@@ -29,22 +36,36 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
 
   push([ESC, 0x40]); // initialize
 
-  push([ESC, 0x61, 0x01]); // center align
-  push([GS, 0x21, 0x11]); // double width + height
-  text(input.station.toUpperCase());
-  push([GS, 0x21, 0x00]); // back to normal size
-
+  // Header: tanggal/jam, sumber pesanan, tipe order, kasir, nomor info
   push([ESC, 0x61, 0x00]); // left align
-  text(`${input.source} - ${input.label}`);
-  text(new Date().toLocaleString("id-ID"));
-  text("--------------------------------");
+  text(new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }));
+  text(padRight("No./Sumber", input.source));
+  if (input.orderType) {
+    push([ESC, 0x45, 0x01]); // bold
+    text(input.orderType.toUpperCase());
+    push([ESC, 0x45, 0x00]);
+  }
+  if (input.cashierName) {
+    text(padRight("Server", input.cashierName));
+  }
+  text(padRight("Info", input.label));
 
+  // Station separator — nama stasiun dapur/bar di tengah
+  text("================================");
+  push([ESC, 0x61, 0x01]); // center
+  push([ESC, 0x45, 0x01]); // bold
+  text(input.station.toUpperCase());
+  push([ESC, 0x45, 0x00]);
+  push([ESC, 0x61, 0x00]); // left
+  text("================================");
+
+  // Item list
   for (const item of input.items) {
     push([ESC, 0x45, 0x01]); // bold on
-    text(`${formatQty(item.qty)}x ${item.name}`);
+    text(`${formatQty(item.qty)} ${item.name}`);
     push([ESC, 0x45, 0x00]); // bold off
     if (item.note) {
-      text(`   Catatan: ${item.note}`);
+      text(`   * ${item.note}`);
     }
   }
 
@@ -77,6 +98,8 @@ export type ReceiptItem = {
 };
 
 export type ReceiptSettings = {
+  show_logo?: boolean;
+  logo_url?: string;
   show_address?: boolean;
   show_phone?: boolean;
   show_invoice?: boolean;

@@ -164,6 +164,8 @@ export async function checkout(
         "Kasir",
         result.invoice_number,
         items.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note })),
+        undefined,
+        cashierId,
       ),
       buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id),
     ]);
@@ -221,13 +223,19 @@ async function buildKitchenPrintJobsForItems(
   source: string,
   label: string,
   items: { productId: string; qty: number; note?: string | null }[],
+  orderType?: string,
+  cashierId?: string,
 ): Promise<KitchenPrintJobPayload[]> {
   const productIds = Array.from(new Set(items.map((i) => i.productId)));
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name, category")
-    .in("id", productIds);
+
+  const [{ data: products }, cashierRow] = await Promise.all([
+    supabase.from("products").select("id, name, category").in("id", productIds),
+    cashierId
+      ? supabase.from("cashiers").select("name").eq("id", cashierId).single()
+      : Promise.resolve({ data: null }),
+  ]);
   const productMap = new Map((products ?? []).map((p) => [p.id, p]));
+  const cashierName = (cashierRow.data as { name?: string } | null)?.name;
 
   return buildKitchenPrintJobs(supabase, businessId, {
     source,
@@ -238,6 +246,8 @@ async function buildKitchenPrintJobsForItems(
       qty: i.qty,
       note: i.note,
     })),
+    cashierName,
+    orderType,
   }).catch(() => []);
 }
 
@@ -667,6 +677,7 @@ export async function updateSelfOrderStatus(
       printJobs = await buildKitchenPrintJobs(supabase, businessId, {
         source: tableName,
         label: "Pesanan Self-Order",
+        orderType: "DINE IN",
         items: orderItems.map((i) => ({
           name: i.name,
           category: (i as unknown as { products: { category: string | null } | null }).products
