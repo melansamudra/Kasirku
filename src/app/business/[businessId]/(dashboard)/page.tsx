@@ -69,7 +69,7 @@ export default async function BusinessDashboardPage({
   }
 
   const { data: transactions } = await supabase
-    .from(business.business_type === "tiket" ? "ticket_transactions" : "transactions")
+    .from("transactions")
     .select("date, total")
     .eq("business_id", businessId)
     .eq("voided", false)

@@ -4,7 +4,6 @@ import { getCashierSession } from "@/lib/cashier-session";
 import PinScreen from "./pin-screen";
 import OpenShiftScreen from "./open-shift-screen";
 import PosScreen from "./pos-screen";
-import TicketPosScreen from "./ticket-pos-screen";
 
 export default async function PosPage({
   params,
@@ -62,78 +61,6 @@ export default async function PosPage({
         businessName={business.name}
         cashierId={session.cashierId}
         cashierName={session.name}
-      />
-    );
-  }
-
-  if (business.business_type === "tiket") {
-    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-    const dayOfWeek = new Date(`${todayStr}T00:00:00`).getDay();
-
-    // None of these 4 queries depend on each other's results — run together.
-    const [
-      { data: categoryRows },
-      { data: customPaymentMethodRowsForTiket },
-      { data: memberRows },
-      { data: holidayRow },
-    ] = await Promise.all([
-      supabase
-        .from("ticket_categories")
-        .select(
-          "id, name, price_weekday, price_holiday, member_price, group_min_qty, group_price",
-        )
-        .eq("business_id", businessId)
-        .eq("active", true)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("custom_payment_methods")
-        .select("name")
-        .eq("business_id", businessId)
-        .order("name", { ascending: true }),
-      supabase
-        .from("members")
-        .select("id, name, phone, member_code, valid_from, valid_until")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("ticket_holidays")
-        .select("id")
-        .eq("business_id", businessId)
-        .eq("holiday_date", todayStr)
-        .maybeSingle(),
-    ]);
-    const isHoliday = dayOfWeek === 0 || dayOfWeek === 6 || !!holidayRow;
-
-    return (
-      <TicketPosScreen
-        businessId={businessId}
-        businessName={business.name}
-        cashierId={session.cashierId}
-        cashierName={session.name}
-        shiftId={activeShift.id}
-        categories={(categoryRows ?? []).map((c) => ({
-          id: c.id,
-          name: c.name,
-          priceWeekday: Number(c.price_weekday),
-          priceHoliday: Number(c.price_holiday),
-          memberPrice: Number(c.member_price),
-          groupMinQty: Number(c.group_min_qty),
-          groupPrice: c.group_price == null ? null : Number(c.group_price),
-        }))}
-        members={(memberRows ?? []).map((m) => ({
-          id: m.id,
-          name: m.name,
-          phone: m.phone,
-          memberCode: m.member_code,
-          validFrom: m.valid_from,
-          validUntil: m.valid_until,
-        }))}
-        taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
-        serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
-        isHoliday={isHoliday}
-        customPaymentMethods={(customPaymentMethodRowsForTiket ?? []).map((m) => m.name)}
       />
     );
   }

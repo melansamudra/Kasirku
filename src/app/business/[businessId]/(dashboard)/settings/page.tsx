@@ -9,9 +9,6 @@ import DeletePrinterButton from "./delete-printer-button";
 import DiscountRulesSection from "./discount-rules-section";
 import PrinterReceiptToggle from "./printer-receipt-toggle";
 import TaxServiceForm from "./tax-service-form";
-import TicketCategoriesSection from "./ticket-categories-section";
-import TicketHolidaysSection from "./ticket-holidays-section";
-
 export default async function SettingsPage({
   params,
 }: {
@@ -31,44 +28,6 @@ export default async function SettingsPage({
   }
 
   const isFnb = business.business_type === "fnb";
-  const isTiket = business.business_type === "tiket";
-
-  let ticketCategories: {
-    id: string;
-    name: string;
-    price_weekday: number;
-    price_holiday: number;
-    member_price: number;
-    group_min_qty: number;
-    group_price: number | null;
-  }[] = [];
-  let ticketHolidays: { id: string; holiday_date: string; label: string | null }[] = [];
-
-  if (isTiket) {
-    const { data: categoryRows } = await supabase
-      .from("ticket_categories")
-      .select(
-        "id, name, price_weekday, price_holiday, member_price, group_min_qty, group_price",
-      )
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true });
-    ticketCategories = (categoryRows ?? []).map((c) => ({
-      ...c,
-      price_weekday: Number(c.price_weekday),
-      price_holiday: Number(c.price_holiday),
-      member_price: Number(c.member_price),
-      group_min_qty: Number(c.group_min_qty),
-      group_price: c.group_price == null ? null : Number(c.group_price),
-    }));
-
-    const { data: holidayRows } = await supabase
-      .from("ticket_holidays")
-      .select("id, holiday_date, label")
-      .eq("business_id", businessId)
-      .order("holiday_date", { ascending: true });
-    ticketHolidays = holidayRows ?? [];
-  }
 
   const { data: paymentMethods } = await supabase
     .from("custom_payment_methods")
@@ -152,8 +111,7 @@ export default async function SettingsPage({
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Jenis Usaha</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Menentukan menu &amp; alur kasir yang muncul (F&amp;B, Retail, atau Tempat
-            Wisata/Tiket).
+            Menentukan menu &amp; alur kasir yang muncul.
           </p>
           <div className="mt-4">
             {hasTransactions ? (
@@ -272,13 +230,6 @@ export default async function SettingsPage({
           </div>
         )}
 
-        {/* Kategori & Harga Tiket + Kalender Libur (tiket only) */}
-        {isTiket && (
-          <>
-            <TicketCategoriesSection businessId={businessId} categories={ticketCategories} />
-            <TicketHolidaysSection businessId={businessId} holidays={ticketHolidays} />
-          </>
-        )}
     </div>
   );
 }

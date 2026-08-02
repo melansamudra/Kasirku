@@ -22,9 +22,6 @@ import {
   ArrowLeftRight,
   Landmark,
   Lock,
-  QrCode,
-  Ticket,
-  UserCircle,
   Package,
   Beaker,
   Tag,
@@ -63,78 +60,48 @@ function buildNavGroups(
   isFinanceOnly: boolean,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
-  const isTiket = businessType === "tiket";
   const base = `/business/${businessId}`;
 
-  // "Utama" mirrors Moka's flat, short sidebar (~13 items) — the things a
-  // typical UMKM owner actually touches day to day. Everything heavier
-  // (full double-entry accounting, payroll/attendance, AR/AP, fixed assets)
-  // lives in "Fitur Lanjutan" instead, collapsed by default, so it doesn't
-  // drown out daily operations the way one flat 30-item list used to.
   return [
     {
       title: "Utama",
       items: [
         { key: "dashboard", href: base, label: "Dashboard", icon: LayoutDashboard },
-        ...(isTiket
-          ? [
-              { key: "check-in", href: `${base}/pos/check-in`, label: "Check-in Tiket", icon: QrCode },
-              { key: "ticket-reports", href: `${base}/ticket-reports`, label: "Laporan Tiket", icon: Ticket },
-              { key: "members", href: `${base}/members`, label: "Anggota", icon: UserCircle },
-            ]
-          : [
-              { key: "reports", href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
-              { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
-            ]),
+        { key: "reports", href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
+        { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
         { key: "shifts", href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
-        ...(isTiket
-          ? []
-          : [{ key: "kas-harian", href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet }]),
-        ...(isTiket
-          ? []
-          : [
-              { key: "products", href: `${base}/products`, label: "Kelola Produk", icon: Package },
-              ...(isFnb
-                ? [
-                    { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
-                    {
-                      key: "tables",
-                      href: `${base}/tables`,
-                      label: "Meja & Self-Order",
-                      icon: UtensilsCrossed,
-                    },
-                  ]
-                : []),
-            ]),
+        { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet },
+        { key: "products", href: `${base}/products`, label: "Kelola Produk", icon: Package },
+        ...(isFnb
+          ? [
+              { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+              {
+                key: "tables",
+                href: `${base}/tables`,
+                label: "Meja & Self-Order",
+                icon: UtensilsCrossed,
+              },
+            ]
+          : []),
         ...(isFinanceOnly
           ? []
           : [
-              ...(isTiket
-                ? []
-                : [{ key: "customers", href: `${base}/customers`, label: "Pelanggan", icon: Users }]),
+              { key: "customers", href: `${base}/customers`, label: "Pelanggan", icon: Users },
               { key: "cashiers", href: `${base}/cashiers`, label: "Kelola Kasir", icon: UserCheck },
             ]),
         { key: "settings", href: `${base}/settings`, label: "Pengaturan", icon: Settings, ownerOnly: true },
         { key: "admins", href: `${base}/admins`, label: "Kelola Admin", icon: ShieldCheck, ownerOnly: true },
       ],
     },
-    // Everything a typical UMKM owner doesn't need day-to-day: full
-    // double-entry bookkeeping (accurate for tiket too, since ticket sales
-    // post to the journal — see 20260712150000_ticket_journal_posting.sql),
-    // extra analytics, AR/AP, fixed assets, and payroll/HR.
     {
       title: "Fitur Lanjutan",
       items: [
-        ...(isTiket
-          ? []
-          : [
-              { key: "reports-laba-rugi", href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
-              { key: "reports-cogs", href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
-              { key: "hpp-calculator", href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
-              ...(isFnb
-                ? [{ key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag }]
-                : []),
-            ]),
+        { key: "reports-laba-rugi", href: `${base}/reports/laba-rugi`, label: "Laba Rugi", icon: TrendingUp },
+        { key: "reports-cogs", href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
+        { key: "hpp-calculator", href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
+        ...(isFnb
+          ? [{ key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga", icon: Tag }]
+          : []),
         { key: "accounting-daftar-akun", href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
         {
           key: "accounting-laba-rugi",
@@ -161,7 +128,7 @@ function buildNavGroups(
         },
         { key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
         { key: "accounting-tutup-buku", href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
-        ...(isFinanceOnly || isTiket
+        ...(isFinanceOnly
           ? []
           : [
               { key: "receivables", href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
@@ -217,7 +184,7 @@ function filterGroupsForPermissions(
     .filter((g) => g.items.length > 0);
 }
 
-const BUSINESS_TYPE_SUBTITLE: Record<BusinessType, string> = {
+const BUSINESS_TYPE_SUBTITLE: Record<string, string> = {
   fnb: "Restoran / Kafe / F&B",
   retail: "Retail / Toko",
   tiket: "Tempat Wisata / Tiket",

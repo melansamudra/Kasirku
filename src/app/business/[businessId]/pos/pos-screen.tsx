@@ -31,6 +31,7 @@ import { getCachedPosCatalog, setCachedPosCatalog } from "@/lib/pos-cache";
 import ReportPrintButtons from "../report-print-buttons";
 import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
+import { todayWibDateString } from "@/lib/wib";
 
 const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [] };
 
@@ -231,7 +232,7 @@ export default function PosScreen({
   // Promo global yang sedang berlaku — berlaku hanya jika active=true dan
   // hari ini ada dalam rentang valid_from/valid_until (jika diisi).
   const activePromo = useMemo<DiscountRule | null>(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayWibDateString();
     return (
       discountRules.find(
         (r) =>
@@ -623,6 +624,7 @@ export default function PosScreen({
       setSuccessTransactionId(null);
       setCart([]);
       setCartOrderIds([]);
+      setActiveBill(null);
       setPaying(false);
       setReceived("");
       setEditingNoteId(null);

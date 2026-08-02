@@ -313,8 +313,6 @@ export type BusinessTypeState = { error: string | null; saved: boolean };
 
 const BUSINESS_TYPE_LABELS: Record<string, string> = {
   fnb: "F&B",
-  retail: "Retail",
-  tiket: "Tempat Wisata / Tiket",
 };
 
 export async function updateBusinessType(
@@ -324,7 +322,7 @@ export async function updateBusinessType(
 ): Promise<BusinessTypeState> {
   const businessType = formData.get("businessType") as string;
 
-  if (!["fnb", "retail", "tiket"].includes(businessType)) {
+  if (!["fnb"].includes(businessType)) {
     return { error: "Pilih jenis usaha dulu.", saved: false };
   }
 

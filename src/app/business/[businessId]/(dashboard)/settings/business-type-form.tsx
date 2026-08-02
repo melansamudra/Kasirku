@@ -7,8 +7,6 @@ const initialState: BusinessTypeState = { error: null, saved: false };
 
 const OPTIONS: { value: string; label: string }[] = [
   { value: "fnb", label: "🍽️ F&B" },
-  { value: "retail", label: "🛒 Retail" },
-  { value: "tiket", label: "🎟️ Tempat Wisata / Tiket" },
 ];
 
 export default function BusinessTypeForm({
