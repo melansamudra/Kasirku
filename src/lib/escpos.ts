@@ -79,6 +79,8 @@ export type ReceiptItem = {
 export type ReceiptSettings = {
   show_address?: boolean;
   show_phone?: boolean;
+  show_invoice?: boolean;
+  show_datetime?: boolean;
   show_cashier?: boolean;
   show_item_note?: boolean;
   show_unit_price?: boolean;
@@ -129,6 +131,8 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   const cfg = {
     showAddress: s.show_address ?? false,
     showPhone: s.show_phone ?? false,
+    showInvoice: s.show_invoice ?? true,
+    showDatetime: s.show_datetime ?? true,
     showCashier: s.show_cashier ?? true,
     showItemNote: s.show_item_note ?? false,
     showUnitPrice: s.show_unit_price ?? true,
@@ -158,8 +162,8 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   push([ESC, 0x61, 0x00]); // left align
 
   divider();
-  text(padLine("No.", input.invoiceNumber));
-  text(padLine("Tanggal", input.date));
+  if (cfg.showInvoice) text(padLine("No.", input.invoiceNumber));
+  if (cfg.showDatetime) text(padLine("Tanggal", input.date));
   if (cfg.showCashier) text(padLine("Kasir", input.cashierName));
 
   divider();

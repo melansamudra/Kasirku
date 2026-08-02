@@ -7,6 +7,8 @@ import { saveReceiptSettings } from "./actions";
 const DEFAULTS: Required<ReceiptSettings> = {
   show_address: false,
   show_phone: false,
+  show_invoice: true,
+  show_datetime: true,
   show_cashier: true,
   show_item_note: false,
   show_unit_price: true,
@@ -24,6 +26,8 @@ const TOGGLES: {
 }[] = [
   { key: "show_address", label: "Alamat toko" },
   { key: "show_phone", label: "Nomor telepon toko" },
+  { key: "show_invoice", label: "Nomor invoice" },
+  { key: "show_datetime", label: "Tanggal & jam" },
   { key: "show_cashier", label: "Nama kasir" },
   {
     key: "show_item_note",
@@ -87,14 +91,18 @@ function ReceiptPreview({
       </div>
 
       <div className="mt-1 border-t border-dashed border-zinc-300 pt-1 space-y-0.5">
-        <div className="flex justify-between gap-1">
-          <span>No.</span>
-          <span>#INV-001</span>
-        </div>
-        <div className="flex justify-between gap-1">
-          <span>Tgl</span>
-          <span>02/08 12:00</span>
-        </div>
+        {s.show_invoice && (
+          <div className="flex justify-between gap-1">
+            <span>No.</span>
+            <span>#INV-001</span>
+          </div>
+        )}
+        {s.show_datetime && (
+          <div className="flex justify-between gap-1">
+            <span>Tgl</span>
+            <span>02/08 12:00</span>
+          </div>
+        )}
         {s.show_cashier && (
           <div className="flex justify-between gap-1">
             <span>Kasir</span>

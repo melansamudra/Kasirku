@@ -59,6 +59,8 @@ export default async function ReceiptPage({
   const cfg = {
     showAddress: (rs.show_address ?? false) as boolean,
     showPhone: (rs.show_phone ?? false) as boolean,
+    showInvoice: (rs.show_invoice ?? true) as boolean,
+    showDatetime: (rs.show_datetime ?? true) as boolean,
     showCashier: (rs.show_cashier ?? true) as boolean,
     showItemNote: (rs.show_item_note ?? false) as boolean,
     showUnitPrice: (rs.show_unit_price ?? true) as boolean,
@@ -95,14 +97,18 @@ export default async function ReceiptPage({
           </div>
 
           <div className="mt-3 border-t border-dashed border-zinc-300 pt-2">
-            <div className="flex justify-between">
-              <span>No.</span>
-              <span>{transaction.invoice_number}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tanggal</span>
-              <span>{formatDateTime(transaction.date)}</span>
-            </div>
+            {cfg.showInvoice && (
+              <div className="flex justify-between">
+                <span>No.</span>
+                <span>{transaction.invoice_number}</span>
+              </div>
+            )}
+            {cfg.showDatetime && (
+              <div className="flex justify-between">
+                <span>Tanggal</span>
+                <span>{formatDateTime(transaction.date)}</span>
+              </div>
+            )}
             {cfg.showCashier && (
               <div className="flex justify-between">
                 <span>Kasir</span>
