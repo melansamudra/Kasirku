@@ -16,7 +16,7 @@ export async function buildReceiptBuffer(
 ): Promise<BuildReceiptBufferResult> {
   const [{ data: business }, { data: transaction }, { data: items }, { data: payments }] =
     await Promise.all([
-      supabase.from("businesses").select("name").eq("id", businessId).single(),
+      supabase.from("businesses").select("name, address, phone, receipt_settings").eq("id", businessId).single(),
       supabase
         .from("transactions")
         .select(
@@ -27,7 +27,7 @@ export async function buildReceiptBuffer(
         .single(),
       supabase
         .from("transaction_items")
-        .select("id, name, price, qty")
+        .select("id, name, price, qty, note")
         .eq("transaction_id", transactionId)
         .order("id", { ascending: true }),
       supabase
@@ -42,11 +42,13 @@ export async function buildReceiptBuffer(
 
   const buffer = buildReceiptTicket({
     businessName: business.name,
+    businessAddress: (business as unknown as { address?: string | null }).address,
+    businessPhone: (business as unknown as { phone?: string | null }).phone,
     invoiceNumber: transaction.invoice_number,
     date: new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
     cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
     voided: transaction.voided,
-    items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price) })),
+    items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price), note: (i as unknown as { note?: string | null }).note })),
     subtotal: Number(transaction.subtotal_raw),
     itemDiscount: Number(transaction.total_item_disc),
     orderDiscount: Number(transaction.order_disc_amt),
@@ -59,6 +61,7 @@ export async function buildReceiptBuffer(
       received: p.received === null ? null : Number(p.received),
       change: p.change === null ? null : Number(p.change),
     })),
+    settings: (business as unknown as { receipt_settings?: object }).receipt_settings as import("./escpos").ReceiptSettings | undefined,
   });
 
   return { success: true, buffer };

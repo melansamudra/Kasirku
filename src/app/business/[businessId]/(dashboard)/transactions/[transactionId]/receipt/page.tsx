@@ -26,7 +26,7 @@ export default async function ReceiptPage({
   // supaya struk render lebih cepat begitu dibuka dari POS.
   const [{ data: business }, { data: transaction }, { data: items }, { data: payments }, { data: printers }] =
     await Promise.all([
-      supabase.from("businesses").select("name").eq("id", businessId).single(),
+      supabase.from("businesses").select("name, address, phone, receipt_settings").eq("id", businessId).single(),
       supabase
         .from("transactions")
         .select(
@@ -37,7 +37,7 @@ export default async function ReceiptPage({
         .single(),
       supabase
         .from("transaction_items")
-        .select("id, name, price, qty")
+        .select("id, name, price, qty, note")
         .eq("transaction_id", transactionId)
         .order("id", { ascending: true }),
       supabase
@@ -55,6 +55,21 @@ export default async function ReceiptPage({
     notFound();
   }
 
+  const rs = (business as unknown as { receipt_settings?: Record<string, unknown> }).receipt_settings ?? {};
+  const cfg = {
+    showAddress: (rs.show_address ?? false) as boolean,
+    showPhone: (rs.show_phone ?? false) as boolean,
+    showCashier: (rs.show_cashier ?? true) as boolean,
+    showItemNote: (rs.show_item_note ?? false) as boolean,
+    showUnitPrice: (rs.show_unit_price ?? true) as boolean,
+    showItemDisc: (rs.show_item_disc ?? true) as boolean,
+    showService: (rs.show_service ?? true) as boolean,
+    showTax: (rs.show_tax ?? true) as boolean,
+    showPaymentDetail: (rs.show_payment_detail ?? true) as boolean,
+    footerText: (rs.footer_text as string | undefined) ?? "Terima kasih!",
+  };
+  const biz = business as unknown as { name: string; address?: string | null; phone?: string | null };
+
   return (
     <div className="w-full max-w-xs font-mono text-xs text-zinc-900 print:max-w-none">
         <div className="print:hidden">
@@ -67,7 +82,13 @@ export default async function ReceiptPage({
 
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5 print:mt-0 print:rounded-none print:border-0 print:p-0">
           <div className="text-center">
-            <p className="text-sm font-bold uppercase">{business.name}</p>
+            <p className="text-sm font-bold uppercase">{biz.name}</p>
+            {cfg.showAddress && biz.address && (
+              <p className="text-[11px] text-zinc-500">{biz.address}</p>
+            )}
+            {cfg.showPhone && biz.phone && (
+              <p className="text-[11px] text-zinc-500">Tel: {biz.phone}</p>
+            )}
             {transaction.voided && (
               <p className="mt-1 font-bold text-red-600">*** DIBATALKAN ***</p>
             )}
@@ -82,27 +103,35 @@ export default async function ReceiptPage({
               <span>Tanggal</span>
               <span>{formatDateTime(transaction.date)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Kasir</span>
-              <span>
-                {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
-              </span>
-            </div>
+            {cfg.showCashier && (
+              <div className="flex justify-between">
+                <span>Kasir</span>
+                <span>
+                  {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mt-2 space-y-1 border-t border-dashed border-zinc-300 pt-2">
             {items?.map((item) => (
-              <div key={item.id} className="flex justify-between gap-2">
-                <span className="flex-1 truncate">
-                  {item.name}
-                  <span className="text-zinc-500">
-                    {" "}
-                    {item.qty}x{Number(item.price).toLocaleString("id-ID")}
+              <div key={item.id}>
+                <div className="flex justify-between gap-2">
+                  <span className="flex-1 truncate">{item.name}</span>
+                  <span className="shrink-0">
+                    {formatRupiah(Number(item.price) * Number(item.qty))}
                   </span>
-                </span>
-                <span className="shrink-0">
-                  {formatRupiah(Number(item.price) * Number(item.qty))}
-                </span>
+                </div>
+                {cfg.showUnitPrice && (
+                  <div className="text-zinc-400">
+                    {item.qty}×{Number(item.price).toLocaleString("id-ID")}
+                  </div>
+                )}
+                {cfg.showItemNote && (item as unknown as { note?: string | null }).note && (
+                  <div className="text-zinc-400 italic">
+                    * {(item as unknown as { note?: string | null }).note}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -112,7 +141,7 @@ export default async function ReceiptPage({
               <span>Subtotal</span>
               <span>{formatRupiah(Number(transaction.subtotal_raw))}</span>
             </div>
-            {Number(transaction.total_item_disc) > 0 && (
+            {cfg.showItemDisc && Number(transaction.total_item_disc) > 0 && (
               <div className="flex justify-between">
                 <span>Diskon item</span>
                 <span>-{formatRupiah(Number(transaction.total_item_disc))}</span>
@@ -124,13 +153,13 @@ export default async function ReceiptPage({
                 <span>-{formatRupiah(Number(transaction.order_disc_amt))}</span>
               </div>
             )}
-            {Number(transaction.service) > 0 && (
+            {cfg.showService && Number(transaction.service) > 0 && (
               <div className="flex justify-between">
                 <span>Layanan</span>
                 <span>{formatRupiah(Number(transaction.service))}</span>
               </div>
             )}
-            {Number(transaction.tax) > 0 && (
+            {cfg.showTax && Number(transaction.tax) > 0 && (
               <div className="flex justify-between">
                 <span>PPN</span>
                 <span>{formatRupiah(Number(transaction.tax))}</span>
@@ -142,31 +171,33 @@ export default async function ReceiptPage({
             </div>
           </div>
 
-          <div className="mt-2 space-y-1 border-t border-dashed border-zinc-300 pt-2">
-            {payments?.map((p) => (
-              <div key={p.id}>
-                <div className="flex justify-between">
-                  <span>{p.method}</span>
-                  <span>{formatRupiah(Number(p.amount))}</span>
+          {cfg.showPaymentDetail && (
+            <div className="mt-2 space-y-1 border-t border-dashed border-zinc-300 pt-2">
+              {payments?.map((p) => (
+                <div key={p.id}>
+                  <div className="flex justify-between">
+                    <span>{p.method}</span>
+                    <span>{formatRupiah(Number(p.amount))}</span>
+                  </div>
+                  {p.received !== null && (
+                    <div className="flex justify-between">
+                      <span>Diterima</span>
+                      <span>{formatRupiah(Number(p.received))}</span>
+                    </div>
+                  )}
+                  {p.change !== null && Number(p.change) > 0 && (
+                    <div className="flex justify-between">
+                      <span>Kembalian</span>
+                      <span>{formatRupiah(Number(p.change))}</span>
+                    </div>
+                  )}
                 </div>
-                {p.received !== null && (
-                  <div className="flex justify-between">
-                    <span>Diterima</span>
-                    <span>{formatRupiah(Number(p.received))}</span>
-                  </div>
-                )}
-                {p.change !== null && Number(p.change) > 0 && (
-                  <div className="flex justify-between">
-                    <span>Kembalian</span>
-                    <span>{formatRupiah(Number(p.change))}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <p className="mt-4 border-t border-dashed border-zinc-300 pt-2 text-center">
-            Terima kasih!
+            {cfg.footerText || "Terima kasih!"}
           </p>
         </div>
     </div>

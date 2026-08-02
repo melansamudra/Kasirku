@@ -484,3 +484,16 @@ export async function updateTaxService(
   revalidatePath(`/business/${businessId}/settings`);
   return { error: null, saved: true };
 }
+
+export async function saveReceiptSettings(
+  businessId: string,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  const supabase = await createClient();
+  await supabase
+    .from("businesses")
+    .update({ receipt_settings: settings })
+    .eq("id", businessId);
+  revalidatePath(`/business/${businessId}/settings`);
+}
+

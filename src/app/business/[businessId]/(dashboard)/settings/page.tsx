@@ -8,6 +8,7 @@ import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DeletePrinterButton from "./delete-printer-button";
 import DiscountRulesSection from "./discount-rules-section";
 import PrinterReceiptToggle from "./printer-receipt-toggle";
+import ReceiptSettingsSection from "./receipt-settings-section";
 import TaxServiceForm from "./tax-service-form";
 export default async function SettingsPage({
   params,
@@ -19,7 +20,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, tax_enabled, tax_rate, service_enabled, service_rate")
+    .select("id, name, business_type, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate")
     .eq("id", businessId)
     .single();
 
@@ -144,6 +145,15 @@ export default async function SettingsPage({
             />
           </div>
         </div>
+
+        {/* Tampilan Struk */}
+        <ReceiptSettingsSection
+          businessId={businessId}
+          businessName={business.name}
+          address={(business as unknown as { address?: string | null }).address ?? null}
+          phone={(business as unknown as { phone?: string | null }).phone ?? null}
+          initialSettings={((business as unknown as { receipt_settings?: object }).receipt_settings ?? {}) as import("@/lib/escpos").ReceiptSettings}
+        />
 
         {/* Diskon & Promo */}
         <DiscountRulesSection

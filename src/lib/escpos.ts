@@ -73,6 +73,20 @@ export type ReceiptItem = {
   name: string;
   qty: number;
   price: number;
+  note?: string | null;
+};
+
+export type ReceiptSettings = {
+  show_address?: boolean;
+  show_phone?: boolean;
+  show_cashier?: boolean;
+  show_item_note?: boolean;
+  show_unit_price?: boolean;
+  show_item_disc?: boolean;
+  show_service?: boolean;
+  show_tax?: boolean;
+  show_payment_detail?: boolean;
+  footer_text?: string;
 };
 
 export type ReceiptPayment = {
@@ -84,6 +98,8 @@ export type ReceiptPayment = {
 
 export type ReceiptTicketInput = {
   businessName: string;
+  businessAddress?: string | null;
+  businessPhone?: string | null;
   invoiceNumber: string;
   date: string;
   cashierName: string;
@@ -96,6 +112,7 @@ export type ReceiptTicketInput = {
   tax: number;
   total: number;
   payments: ReceiptPayment[];
+  settings?: ReceiptSettings;
 };
 
 function formatRp(value: number): string {
@@ -108,15 +125,31 @@ function formatRp(value: number): string {
 // tickets, since Android's OS-level print framework generally can't drive
 // cheap ESC/POS thermal printers (see dispatch-print-jobs.ts).
 export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
+  const s = input.settings ?? {};
+  const cfg = {
+    showAddress: s.show_address ?? false,
+    showPhone: s.show_phone ?? false,
+    showCashier: s.show_cashier ?? true,
+    showItemNote: s.show_item_note ?? false,
+    showUnitPrice: s.show_unit_price ?? true,
+    showItemDisc: s.show_item_disc ?? true,
+    showService: s.show_service ?? true,
+    showTax: s.show_tax ?? true,
+    showPaymentDetail: s.show_payment_detail ?? true,
+    footerText: s.footer_text ?? "Terima kasih!",
+  };
+
   const chunks: Buffer[] = [];
   const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
-  const text = (s: string) => chunks.push(Buffer.from(`${s}\n`, "latin1"));
+  const text = (str: string) => chunks.push(Buffer.from(`${str}\n`, "latin1"));
   const divider = () => text("-".repeat(RECEIPT_WIDTH));
 
   push([ESC, 0x40]); // initialize
 
   push([ESC, 0x61, 0x01]); // center align
   text(input.businessName.toUpperCase());
+  if (cfg.showAddress && input.businessAddress) text(truncate(input.businessAddress));
+  if (cfg.showPhone && input.businessPhone) text(`Tel: ${input.businessPhone}`);
   if (input.voided) {
     push([ESC, 0x45, 0x01]);
     text("*** DIBATALKAN ***");
@@ -127,34 +160,41 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   divider();
   text(padLine("No.", input.invoiceNumber));
   text(padLine("Tanggal", input.date));
-  text(padLine("Kasir", input.cashierName));
+  if (cfg.showCashier) text(padLine("Kasir", input.cashierName));
 
   divider();
   for (const item of input.items) {
-    text(truncate(item.name));
-    text(padLine(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
+    if (cfg.showUnitPrice) {
+      text(truncate(item.name));
+      text(padLine(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
+    } else {
+      text(padLine(truncate(item.name, RECEIPT_WIDTH - formatRp(item.price * item.qty).length - 1), formatRp(item.price * item.qty)));
+    }
+    if (cfg.showItemNote && item.note) text(`  * ${truncate(item.note, RECEIPT_WIDTH - 4)}`);
   }
 
   divider();
   text(padLine("Subtotal", formatRp(input.subtotal)));
-  if (input.itemDiscount > 0) text(padLine("Diskon item", `-${formatRp(input.itemDiscount)}`));
+  if (cfg.showItemDisc && input.itemDiscount > 0) text(padLine("Diskon item", `-${formatRp(input.itemDiscount)}`));
   if (input.orderDiscount > 0) text(padLine("Diskon order", `-${formatRp(input.orderDiscount)}`));
-  if (input.service > 0) text(padLine("Layanan", formatRp(input.service)));
-  if (input.tax > 0) text(padLine("PPN", formatRp(input.tax)));
+  if (cfg.showService && input.service > 0) text(padLine("Layanan", formatRp(input.service)));
+  if (cfg.showTax && input.tax > 0) text(padLine("PPN", formatRp(input.tax)));
   push([ESC, 0x45, 0x01]);
   text(padLine("TOTAL", formatRp(input.total)));
   push([ESC, 0x45, 0x00]);
 
-  divider();
-  for (const p of input.payments) {
-    text(padLine(p.method, formatRp(p.amount)));
-    if (p.received !== null) text(padLine("Diterima", formatRp(p.received)));
-    if (p.change !== null && p.change > 0) text(padLine("Kembalian", formatRp(p.change)));
+  if (cfg.showPaymentDetail) {
+    divider();
+    for (const p of input.payments) {
+      text(padLine(p.method, formatRp(p.amount)));
+      if (p.received !== null) text(padLine("Diterima", formatRp(p.received)));
+      if (p.change !== null && p.change > 0) text(padLine("Kembalian", formatRp(p.change)));
+    }
   }
 
   push([ESC, 0x61, 0x01]); // center align
   text("");
-  text("Terima kasih!");
+  text(cfg.footerText || "Terima kasih!");
   text("");
   text("");
   push([GS, 0x56, 0x42, 0x00]); // partial cut with feed
