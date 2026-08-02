@@ -183,7 +183,11 @@ function isItemAllowed(
   isOwner: boolean,
   permissions: string[],
   bypassOwnerOnly: string[] = [],
+  isStarter = false,
 ): boolean {
+  // Starter plan: enforce allowlist regardless of owner status — even the
+  // owner cannot access accounting/HR routes on a Starter subscription.
+  if (isStarter && !STARTER_ALLOWED_KEYS.has(item.key)) return false;
   if (isOwner) return true;
   if (item.ownerOnly && !bypassOwnerOnly.includes(item.key)) return false;
   if (item.key === "dashboard") return true;
@@ -195,12 +199,13 @@ function filterGroupsForPermissions(
   isOwner: boolean,
   permissions: string[],
   bypassOwnerOnly: string[] = [],
+  isStarter = false,
 ): NavGroup[] {
-  if (isOwner) return groups;
+  if (isOwner && !isStarter) return groups;
   return groups
     .map((g) => ({
       ...g,
-      items: g.items.filter((i) => isItemAllowed(i, isOwner, permissions, bypassOwnerOnly)),
+      items: g.items.filter((i) => isItemAllowed(i, isOwner, permissions, bypassOwnerOnly, isStarter)),
     }))
     .filter((g) => g.items.length > 0);
 }
@@ -405,6 +410,27 @@ function AccessDeniedPanel() {
   );
 }
 
+function UpgradeRequiredPanel({ businessId }: { businessId: string }) {
+  return (
+    <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-xl bg-white p-8 text-center shadow-sm">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-brand-50 text-3xl">
+        🚀
+      </div>
+      <h1 className="text-lg font-bold text-zinc-900">Fitur Paket Full</h1>
+      <p className="mt-2 max-w-sm text-sm text-zinc-500">
+        Halaman ini tidak tersedia di Paket Starter. Upgrade ke Paket Full untuk mengakses
+        akuntansi lengkap, SDM, payroll, dan semua fitur lanjutan.
+      </p>
+      <Link
+        href={`/business/${businessId}/billing`}
+        className="mt-5 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+      >
+        Lihat Paket Full →
+      </Link>
+    </div>
+  );
+}
+
 export default function DashboardShell({
   businessId,
   businessName,
@@ -448,14 +474,14 @@ export default function DashboardShell({
   const navBypassOwnerOnly = isNative ? ["settings"] : [];
 
   const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter);
-  const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly);
+  const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can
   // show "Akses Ditolak" instead of silently rendering nothing/wrong content.
   const activeItem = findActiveItem(allGroups, pathname);
   const activeHref = activeItem?.href ?? null;
   const isAllowed = activeItem
-    ? isItemAllowed(activeItem, navIsOwner, navPermissions, navBypassOwnerOnly)
+    ? isItemAllowed(activeItem, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter)
     : navIsOwner;
 
   return (
@@ -554,7 +580,7 @@ export default function DashboardShell({
 
         <main className="w-full px-4 py-8 md:px-8 md:py-10 print:p-0">
           <div className="mx-auto w-full max-w-6xl print:max-w-none">
-            {isAllowed ? children : <AccessDeniedPanel />}
+            {isAllowed ? children : isStarter ? <UpgradeRequiredPanel businessId={businessId} /> : <AccessDeniedPanel />}
           </div>
         </main>
       </div>
