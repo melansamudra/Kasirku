@@ -81,7 +81,7 @@ export default async function TransactionsPage({
                 <p className="mt-1 text-xs text-zinc-500">
                   {formatDateTime(t.date)} ·{" "}
                   {(t.cashiers as unknown as { name: string } | null)?.name ?? "—"} ·{" "}
-                  {t.transaction_payments?.[0]?.method ?? "—"}
+                  {(t.transaction_payments as { method: string }[] | null)?.map((p) => p.method).join(" + ") || "—"}
                 </p>
               </Link>
             ))
