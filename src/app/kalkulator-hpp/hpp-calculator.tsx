@@ -146,6 +146,29 @@ export function HppCalculator() {
           </p>
         </div>
 
+        {/* Desktop app — tampil di tengah supaya kelihatan */}
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-zinc-900">Cuma Butuh Kalkulator HPP-nya Saja?</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                Versi aplikasi desktop Windows — sekali beli, data tersimpan di komputer, tanpa perlu daftar kasir.
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-lg font-bold text-brand-700">Rp69.000</p>
+              <p className="text-[10px] text-zinc-400">Sekali bayar</p>
+            </div>
+          </div>
+          <Link
+            href="/kalkulator-hpp/beli"
+            onClick={() => trackEvent("hpp_calculator_desktop_cta_click")}
+            className="mt-4 block rounded-xl border border-brand-200 py-2.5 text-center text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
+          >
+            💻 Lihat Aplikasi Desktop
+          </Link>
+        </div>
+
         <div className="rounded-2xl bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-600 p-6 text-white shadow-lg">
           <p className="text-sm font-bold">Capek Hitung Ulang Tiap Harga Bahan Naik?</p>
           <p className="mt-1.5 text-xs leading-relaxed text-brand-50/90">
@@ -158,24 +181,6 @@ export function HppCalculator() {
             className="mt-4 inline-block rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow-md transition-colors hover:bg-brand-50"
           >
             Coba KasirKu Gratis →
-          </Link>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-bold text-zinc-900">Cuma Butuh Kalkulator HPP-nya Saja?</p>
-          <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
-            Ada versi aplikasi desktop — sekali beli, data tersimpan di komputermu sendiri, tanpa
-            perlu daftar toko/kasir.
-          </p>
-          <div className="mt-3">
-            <DesktopAppPreview />
-          </div>
-          <Link
-            href="/kalkulator-hpp/beli"
-            onClick={() => trackEvent("hpp_calculator_desktop_cta_click")}
-            className="mt-4 inline-block rounded-xl border border-brand-200 px-5 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
-          >
-            💻 Lihat Aplikasi Desktop
           </Link>
         </div>
       </div>
