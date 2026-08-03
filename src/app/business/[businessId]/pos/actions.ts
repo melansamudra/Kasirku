@@ -107,6 +107,10 @@ export async function checkout(
   // sukses (respons sebelumnya tidak sempat sampai ke browser), supaya tidak
   // membuat transaksi duplikat. Lihat src/hooks/use-offline-sync.ts.
   clientRef: string | null = null,
+  // Dikirim dari client berdasarkan catalog yang sudah di-cache — kalau false,
+  // skip seluruh blok build-print-jobs supaya tidak ada query DB percuma.
+  hasPrinters: boolean = true,
+  hasReceiptPrinters: boolean = true,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -149,6 +153,9 @@ export async function checkout(
     // Tiga hal ini tidak saling bergantung — dulu dijalankan berurutan
     // (await satu-satu), menambah beberapa detik nyata ke waktu konfirmasi
     // pembayaran di jaringan mobile. Sekarang jalan bersamaan.
+    // hasPrinters/hasReceiptPrinters dikirim dari client berdasarkan catalog
+    // cache — kalau false, skip query DB printer supaya checkout lebih cepat
+    // bagi bisnis yang belum punya printer dapur/struk.
     const [, printJobsResult, receiptJobsResult] = await Promise.all([
       logActivity(
         supabase,
@@ -158,16 +165,20 @@ export async function checkout(
         `Transaksi ${result.invoice_number}`,
         `${itemCount} item · ${payments.map((p) => p.method).join(", ")}`,
       ),
-      buildKitchenPrintJobsForItems(
-        supabase,
-        businessId,
-        "Kasir",
-        result.invoice_number,
-        items.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note })),
-        undefined,
-        cashierId,
-      ),
-      buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id),
+      hasPrinters
+        ? buildKitchenPrintJobsForItems(
+            supabase,
+            businessId,
+            "Kasir",
+            result.invoice_number,
+            items.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note })),
+            undefined,
+            cashierId,
+          )
+        : Promise.resolve([]),
+      hasReceiptPrinters
+        ? buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id)
+        : Promise.resolve([]),
     ]);
     printJobs = printJobsResult;
     receiptPrintJobs = receiptJobsResult;
@@ -541,6 +552,10 @@ export type PosCatalog = {
   customers: PosCustomer[];
   customPaymentMethods: string[];
   discountRules: DiscountRule[];
+  // Flag ini dikirim kembali ke client (pos-screen.tsx) supaya checkout()
+  // bisa skip seluruh blok build-print-jobs jika bisnis belum punya printer.
+  hasKitchenPrinters: boolean;
+  hasReceiptPrinters: boolean;
 };
 
 // Sumber tunggal data katalog POS (produk/open bill/customer/metode bayar
@@ -551,42 +566,56 @@ export type PosCatalog = {
 export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
   const supabase = await createClient();
 
-  const [{ data: products }, { data: openBillRows }, { data: customers }, { data: customPaymentMethodRows }, { data: discountRuleRows }] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("open_bills")
-        .select("id, label, items, updated_at")
-        .eq("business_id", businessId)
-        .order("updated_at", { ascending: false }),
-      supabase
-        .from("customers")
-        .select("id, name, phone")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("custom_payment_methods")
-        .select("name")
-        .eq("business_id", businessId)
-        .order("name", { ascending: true }),
-      supabase
-        .from("discount_rules")
-        .select("id, type, product_id, name, value, value_type, active, valid_from, valid_until")
-        .eq("business_id", businessId),
-    ]);
+  const [
+    { data: products },
+    { data: openBillRows },
+    { data: customers },
+    { data: customPaymentMethodRows },
+    { data: discountRuleRows },
+    { data: printerRows },
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("open_bills")
+      .select("id, label, items, updated_at")
+      .eq("business_id", businessId)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("customers")
+      .select("id, name, phone")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("custom_payment_methods")
+      .select("name")
+      .eq("business_id", businessId)
+      .order("name", { ascending: true }),
+    supabase
+      .from("discount_rules")
+      .select("id, type, product_id, name, value, value_type, active, valid_from, valid_until")
+      .eq("business_id", businessId),
+    supabase
+      .from("kitchen_printers")
+      .select("prints_receipt")
+      .eq("business_id", businessId)
+      .not("address", "is", null),
+  ]);
 
+  const printers = printerRows ?? [];
   return {
     products: (products ?? []) as PosProduct[],
     openBills: (openBillRows ?? []) as unknown as PosOpenBill[],
     customers: customers ?? [],
     customPaymentMethods: (customPaymentMethodRows ?? []).map((m) => m.name),
     discountRules: (discountRuleRows ?? []) as DiscountRule[],
+    hasKitchenPrinters: printers.some((p) => !p.prints_receipt),
+    hasReceiptPrinters: printers.some((p) => p.prints_receipt),
   };
 }
 

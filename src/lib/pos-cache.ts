@@ -16,6 +16,10 @@ export async function getCachedPosCatalog(businessId: string): Promise<PosCatalo
     customers: cached.customers,
     customPaymentMethods: cached.customPaymentMethods,
     discountRules: cached.discountRules ?? [],
+    // Bisa undefined di cache lama — default false (aman: checkout tetap
+    // skip queries printer sampai refreshCatalog pertama selesai).
+    hasKitchenPrinters: cached.hasKitchenPrinters ?? false,
+    hasReceiptPrinters: cached.hasReceiptPrinters ?? false,
   };
 }
 

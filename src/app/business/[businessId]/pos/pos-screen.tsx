@@ -37,7 +37,7 @@ import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 import { todayWibDateString } from "@/lib/wib";
 
-const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [] };
+const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false };
 
 type Product = {
   id: string;
@@ -138,7 +138,7 @@ export default function PosScreen({
   // sebelum ada cache sama sekali (satu kali biaya, bukan tiap navigasi).
   const [catalog, setCatalog] = useState<PosCatalog>(EMPTY_CATALOG);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
-  const { products, openBills, customers, customPaymentMethods, discountRules } = catalog;
+  const { products, openBills, customers, customPaymentMethods, discountRules, hasKitchenPrinters, hasReceiptPrinters } = catalog;
 
   const refreshCatalog = useCallback(async () => {
     const fresh = await getPosCatalog(businessId).catch(() => null);
@@ -691,6 +691,8 @@ export default function PosScreen({
           selectedCustomer?.id ?? null,
           cartOrderIds,
           clientRef,
+          hasKitchenPrinters,
+          hasReceiptPrinters,
         ),
         10000,
       );
@@ -742,11 +744,11 @@ export default function PosScreen({
 
     void dispatchReceiptThenKitchenJobs(businessId, result.receiptPrintJobs, result.printJobs);
 
-    // Bon yang dimuat sudah dibayar — bereskan dari daftar. Dilewati kalau
-    // koneksi sedang bermasalah (deleteOpenBill juga butuh network); bon
-    // akan tetap ada di daftar sampai dihapus manual.
+    // Bon yang dimuat sudah dibayar — bereskan dari daftar. Fire-and-forget
+    // supaya tidak menahan layar sukses; bon hilang saat refreshCatalog
+    // berikutnya kalau delete gagal karena jaringan.
     if (activeBill && isOnline) {
-      await deleteOpenBill(businessId, activeBill.id);
+      void deleteOpenBill(businessId, activeBill.id);
       setActiveBill(null);
     }
 
