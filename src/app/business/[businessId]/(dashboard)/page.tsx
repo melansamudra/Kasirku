@@ -46,10 +46,16 @@ export default async function BusinessDashboardPage({
   const monthStart = `${today.slice(0, 7)}-01`;
   const daysSoFar = Number(today.slice(8, 10));
 
-  // business, expenses & openShift tidak saling bergantung — paralel.
-  // transactions menunggu giliran berikutnya karena nama tabelnya
-  // ditentukan oleh business.business_type.
-  const [{ data: business }, { data: expenses }, { data: openShift }] = await Promise.all([
+  // business, expenses, openShift, dan setup-checklist counts tidak saling
+  // bergantung — semuanya paralel supaya checklist tidak menambah latency.
+  const [
+    { data: business },
+    { data: expenses },
+    { data: openShift },
+    { count: productCount },
+    { count: cashierCount },
+    { count: txCount30d },
+  ] = await Promise.all([
     supabase.from("businesses").select("id, name, business_type").eq("id", businessId).single(),
     supabase
       .from("expenses")
@@ -62,6 +68,21 @@ export default async function BusinessDashboardPage({
       .eq("business_id", businessId)
       .is("closed_at", null)
       .maybeSingle(),
+    supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .is("deleted_at", null),
+    supabase
+      .from("cashiers")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .eq("active", true),
+    supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .eq("voided", false),
   ]);
 
   if (!business) {
@@ -77,6 +98,36 @@ export default async function BusinessDashboardPage({
 
   const revenue = (transactions ?? []).reduce((s, t) => s + Number(t.total), 0);
   const txCount = (transactions ?? []).length;
+
+  // Checklist setup — tampil selama ada langkah yang belum selesai.
+  const setupSteps = [
+    {
+      key: "product",
+      done: (productCount ?? 0) > 0,
+      label: "Tambah produk pertama",
+      desc: "Daftarkan menu atau barang yang dijual",
+      href: `/business/${businessId}/products`,
+      cta: "Tambah Produk →",
+    },
+    {
+      key: "cashier",
+      done: (cashierCount ?? 0) > 0,
+      label: "Tambah kasir & atur PIN",
+      desc: "Minimal 1 kasir untuk bisa buka shift",
+      href: `/business/${businessId}/cashiers`,
+      cta: "Tambah Kasir →",
+    },
+    {
+      key: "transaction",
+      done: (txCount30d ?? 0) > 0,
+      label: "Buat transaksi pertama",
+      desc: "Coba kasir — buka shift lalu jual 1 item",
+      href: `/business/${businessId}/pos`,
+      cta: "Buka Kasir →",
+    },
+  ];
+  const setupDone = setupSteps.every((s) => s.done);
+  const setupFinished = setupSteps.filter((s) => s.done).length;
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + Number(e.amount), 0);
   const cogs = (expenses ?? [])
     .filter((e) => PURCHASE_CATEGORIES.has(e.category))
@@ -130,6 +181,64 @@ export default async function BusinessDashboardPage({
           </span>
         )}
       </div>
+
+      {/* Setup checklist — hanya tampil sampai semua langkah selesai */}
+      {!setupDone && (
+        <div className="mt-6 rounded-2xl border border-brand-200 bg-brand-50 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-brand-900">🚀 Mulai Setup Toko</p>
+              <p className="mt-0.5 text-xs text-brand-700">
+                {setupFinished} dari {setupSteps.length} langkah selesai
+              </p>
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-brand-700 shadow-sm">
+              {setupFinished}/{setupSteps.length}
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {setupSteps.map((step) => (
+              <div
+                key={step.key}
+                className={`flex items-center gap-3 rounded-xl p-3 ${
+                  step.done ? "bg-white/60" : "bg-white"
+                }`}
+              >
+                <div
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    step.done
+                      ? "bg-brand-600 text-white"
+                      : "border-2 border-zinc-300 text-zinc-300"
+                  }`}
+                >
+                  {step.done ? "✓" : ""}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`text-xs font-semibold ${
+                      step.done ? "text-zinc-400 line-through" : "text-zinc-800"
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+                  {!step.done && (
+                    <p className="text-[11px] text-zinc-400">{step.desc}</p>
+                  )}
+                </div>
+                {!step.done && (
+                  <Link
+                    href={step.href}
+                    className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-700"
+                  >
+                    {step.cta}
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
