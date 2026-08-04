@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState } from "react";
 import type { AddProductState } from "./actions";
 
 const initialState: AddProductState = { error: null };
@@ -8,21 +8,90 @@ const initialState: AddProductState = { error: null };
 export default function AddProductForm({
   action,
   categories,
+  businessId,
 }: {
   action: (state: AddProductState, formData: FormData) => Promise<AddProductState>;
   categories: string[];
+  businessId: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pending && !state.error) {
       formRef.current?.reset();
+      setImagePreview(null);
+      setImageUrl("");
+      setUploadError(null);
     }
   }, [pending, state.error]);
 
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Ukuran foto maksimal 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setUploadError(null);
+    setImagePreview(URL.createObjectURL(file));
+    setUploading(true);
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("businessId", businessId);
+
+    const res = await fetch("/api/upload-product-image", { method: "POST", body: fd });
+    const json = await res.json();
+    setUploading(false);
+
+    if (!res.ok) {
+      setUploadError(json.error ?? "Gagal upload foto.");
+      setImagePreview(null);
+      e.target.value = "";
+      return;
+    }
+    setImageUrl(json.url);
+  }
+
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
+      <input type="hidden" name="imageUrl" value={imageUrl} />
+
+      {/* Image upload */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Foto Produk (opsional, maks 2 MB)
+        </label>
+        <div className="flex items-center gap-3">
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 flex items-center justify-center text-2xl">
+            {imagePreview ? (
+              <img src={imagePreview} alt="preview" className="h-full w-full object-cover" />
+            ) : (
+              "📷"
+            )}
+          </div>
+          <div className="flex-1">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageChange}
+              disabled={uploading}
+              className="w-full text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
+            />
+            {uploading && <p className="mt-1 text-[11px] text-zinc-400">Mengupload…</p>}
+            {uploadError && <p className="mt-1 text-[11px] text-red-500">{uploadError}</p>}
+          </div>
+        </div>
+      </div>
+
       <div>
         <label htmlFor="name" className="mb-1 block text-xs font-medium text-zinc-600">
           Nama Produk
@@ -192,7 +261,7 @@ export default function AddProductForm({
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || uploading}
         className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Menyimpan…" : "Tambah Produk"}

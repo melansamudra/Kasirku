@@ -35,7 +35,7 @@ export default async function ProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode, sku, variant_label")
+    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode, sku, variant_label, image_url")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -163,7 +163,7 @@ export default async function ProductsPage({
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Produk</h2>
-          <AddProductForm action={boundAddProduct} categories={categoryNames} />
+          <AddProductForm action={boundAddProduct} categories={categoryNames} businessId={businessId} />
         </div>
 
         {adjustments && adjustments.length > 0 && (
@@ -211,6 +211,7 @@ type ProductRowData = {
   barcode: string | null;
   sku: string | null;
   variant_label: string | null;
+  image_url: string | null;
 };
 
 function ProductRow({
@@ -227,8 +228,12 @@ function ProductRow({
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
       {showName && (
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg">
-          {p.emoji || "📦"}
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg overflow-hidden">
+          {p.image_url ? (
+            <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+          ) : (
+            p.emoji || "📦"
+          )}
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -270,7 +275,9 @@ function ProductRow({
         barcode={p.barcode}
         sku={p.sku}
         variantLabel={p.variant_label}
+        imageUrl={p.image_url}
         categories={categories}
+        businessId={businessId}
         action={editProduct.bind(null, businessId, p.id)}
       />
       <AdjustStockForm

@@ -51,6 +51,8 @@ export async function addProduct(
     return { error: "Stok minimum harus angka dan tidak boleh negatif." };
   }
 
+  const imageUrl = (formData.get("imageUrl") as string)?.trim() || null;
+
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     business_id: businessId,
@@ -64,6 +66,7 @@ export async function addProduct(
     barcode: barcode || null,
     sku: sku || null,
     variant_label: variantLabel || null,
+    image_url: imageUrl,
   });
 
   if (error) {
@@ -129,6 +132,8 @@ export async function editProduct(
     return { error: "Stok minimum harus angka dan tidak boleh negatif." };
   }
 
+  const imageUrl = (formData.get("imageUrl") as string)?.trim() || null;
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
@@ -142,6 +147,7 @@ export async function editProduct(
       barcode: barcode || null,
       sku: sku || null,
       variant_label: variantLabel || null,
+      image_url: imageUrl,
     })
     .eq("id", productId)
     .eq("business_id", businessId);

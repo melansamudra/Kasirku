@@ -14,7 +14,9 @@ export default function EditProductForm({
   barcode,
   sku,
   variantLabel,
+  imageUrl: initialImageUrl,
   categories,
+  businessId,
   action,
 }: {
   name: string;
@@ -26,7 +28,9 @@ export default function EditProductForm({
   barcode: string | null;
   sku: string | null;
   variantLabel: string | null;
+  imageUrl: string | null;
   categories: string[];
+  businessId: string;
   action: (state: EditProductState, formData: FormData) => Promise<EditProductState>;
 }) {
   const router = useRouter();
@@ -42,6 +46,10 @@ export default function EditProductForm({
     sku: sku ?? "",
     variantLabel: variantLabel ?? "",
   });
+  const [imageUrl, setImageUrl] = useState(initialImageUrl ?? "");
+  const [imagePreview, setImagePreview] = useState<string | null>(initialImageUrl ?? null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -54,6 +62,37 @@ export default function EditProductForm({
         Edit
       </button>
     );
+  }
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Ukuran foto maksimal 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setUploadError(null);
+    setImagePreview(URL.createObjectURL(file));
+    setUploading(true);
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("businessId", businessId);
+
+    const res = await fetch("/api/upload-product-image", { method: "POST", body: fd });
+    const json = await res.json();
+    setUploading(false);
+
+    if (!res.ok) {
+      setUploadError(json.error ?? "Gagal upload foto.");
+      setImagePreview(initialImageUrl ?? null);
+      e.target.value = "";
+      return;
+    }
+    setImageUrl(json.url);
   }
 
   async function handleSubmit() {
@@ -69,6 +108,7 @@ export default function EditProductForm({
     formData.set("barcode", values.barcode);
     formData.set("sku", values.sku);
     formData.set("variantLabel", values.variantLabel);
+    formData.set("imageUrl", imageUrl);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -83,6 +123,42 @@ export default function EditProductForm({
 
   return (
     <div className="mt-2 w-full space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      {/* Image upload */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Foto Produk (maks 2 MB)
+        </label>
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 flex items-center justify-center text-xl">
+            {imagePreview ? (
+              <img src={imagePreview} alt="preview" className="h-full w-full object-cover" />
+            ) : (
+              "📷"
+            )}
+          </div>
+          <div className="flex-1">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageChange}
+              disabled={uploading}
+              className="w-full text-xs text-zinc-600 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
+            />
+            {uploading && <p className="mt-0.5 text-[11px] text-zinc-400">Mengupload…</p>}
+            {uploadError && <p className="mt-0.5 text-[11px] text-red-500">{uploadError}</p>}
+            {imageUrl && !uploading && (
+              <button
+                type="button"
+                onClick={() => { setImageUrl(""); setImagePreview(null); }}
+                className="mt-0.5 text-[11px] text-red-400 hover:text-red-600"
+              >
+                Hapus foto
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Produk</label>
         <input
@@ -135,8 +211,6 @@ export default function EditProductForm({
             <option value="" disabled>
               — Pilih Kategori —
             </option>
-            {/* Produk lama bisa punya kategori yang sudah dihapus/belum ada di
-                daftar — tetap tampilkan supaya tidak diam-diam berubah. */}
             {values.category && !categories.includes(values.category) && (
               <option value={values.category}>{values.category} (tidak terdaftar)</option>
             )}
@@ -201,17 +275,14 @@ export default function EditProductForm({
       <div className="flex gap-2">
         <button
           onClick={handleSubmit}
-          disabled={pending}
+          disabled={pending || uploading}
           className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? "Menyimpan…" : "Simpan"}
         </button>
         <button
           type="button"
-          onClick={() => {
-            setOpen(false);
-            setError(null);
-          }}
+          onClick={() => { setOpen(false); setError(null); }}
           className="rounded-lg px-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700"
         >
           Batal
