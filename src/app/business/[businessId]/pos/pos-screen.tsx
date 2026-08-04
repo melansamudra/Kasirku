@@ -50,6 +50,7 @@ type Product = {
   barcode: string | null;
   sku: string | null;
   variant_label: string | null;
+  image_url: string | null;
 };
 
 type CartItem = {
@@ -1198,8 +1199,12 @@ export default function PosScreen({
                         {inCart}
                       </span>
                     )}
-                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-lg">
-                      {single.emoji || "📦"}
+                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-lg overflow-hidden">
+                      {single.image_url ? (
+                        <img src={single.image_url} alt={g.name} className="h-full w-full object-cover" />
+                      ) : (
+                        single.emoji || "📦"
+                      )}
                     </div>
                     <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
                     <p className="text-xs text-zinc-500">

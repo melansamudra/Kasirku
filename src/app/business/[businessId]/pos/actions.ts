@@ -576,7 +576,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
   ] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label")
+      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label, image_url")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
