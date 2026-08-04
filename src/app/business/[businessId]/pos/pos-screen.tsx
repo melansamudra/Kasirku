@@ -18,6 +18,7 @@ import {
   type CloseShiftSummary,
   type DiscountRule,
   type DiscountType,
+  type OpenBillItemInput,
   type PosCatalog,
   type ShiftTransaction,
   type TenderInput,
@@ -719,7 +720,7 @@ export default function PosScreen({
     const label = order.customerName
       ? `${order.tableName} - ${order.customerName}`
       : order.tableName;
-    const bonItems = order.items
+    const newItems: OpenBillItemInput[] = order.items
       .filter((item) => item.productId != null)
       .map((item) => ({
         product_id: item.productId as string,
@@ -729,15 +730,24 @@ export default function PosScreen({
         disc: 0,
         disc_type: "pct" as DiscountType,
       }));
-    if (bonItems.length > 0) {
-      await saveOpenBill(businessId, null, label, bonItems);
+    if (newItems.length > 0) {
+      // Cari bon yang sudah ada untuk meja ini (tambahan order dari meja yang sama)
+      const existingBon = openBills.find(
+        (b) => b.label === label || b.label === order.tableName || b.label.startsWith(order.tableName + " - "),
+      );
+      if (existingBon) {
+        const merged = existingBon.items.map((i) => ({ ...i }));
+        for (const ni of newItems) {
+          const found = merged.find((i) => i.product_id === ni.product_id);
+          if (found) { found.qty += ni.qty; } else { merged.push(ni); }
+        }
+        await saveOpenBill(businessId, existingBon.id, existingBon.label, merged);
+      } else {
+        await saveOpenBill(businessId, null, label, newItems);
+      }
     }
     setInboxOpen(false);
-    // Kalau masih "baru", proses dulu (cetak dapur) lalu selesai
-    if (order.status === "baru") {
-      await handleOrderStatus(order.id, "diproses");
-    }
-    // Tandai selesai → hilang dari inbox, tagihan ada di Bon
+    if (order.status === "baru") await handleOrderStatus(order.id, "diproses");
     await handleOrderStatus(order.id, "selesai");
     void refreshCatalog();
     setOrderBusyId(null);
@@ -774,9 +784,21 @@ export default function PosScreen({
         }
       }
     }
-    const bonItems = Array.from(bonItemMap.values());
-    if (bonItems.length > 0) {
-      await saveOpenBill(businessId, null, label, bonItems);
+    const newItems = Array.from(bonItemMap.values());
+    if (newItems.length > 0) {
+      const existingBon = openBills.find(
+        (b) => b.label === label || b.label === tableName || b.label.startsWith(tableName + " - "),
+      );
+      if (existingBon) {
+        const merged = existingBon.items.map((i) => ({ ...i }));
+        for (const ni of newItems) {
+          const found = merged.find((i) => i.product_id === ni.product_id);
+          if (found) { found.qty += ni.qty; } else { merged.push(ni); }
+        }
+        await saveOpenBill(businessId, existingBon.id, existingBon.label, merged);
+      } else {
+        await saveOpenBill(businessId, null, label, newItems);
+      }
     }
     setInboxOpen(false);
     for (const order of tableOrders) {
