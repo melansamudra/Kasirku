@@ -168,6 +168,7 @@ export default function PosScreen({
     [customPaymentMethods],
   );
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"kecil" | "sedang" | "besar" | "list">("sedang");
   const [scanFeedback, setScanFeedback] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOrderIds, setCartOrderIds] = useState<string[]>([]);
@@ -1124,6 +1125,18 @@ export default function PosScreen({
               )}
             </button>
           )}
+          <div className="flex shrink-0 items-center rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            {(["kecil", "sedang", "besar", "list"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                title={mode.charAt(0).toUpperCase() + mode.slice(1)}
+                className={`px-2 py-2 text-xs transition-colors ${viewMode === mode ? "bg-brand-600 text-white" : "text-zinc-500 hover:bg-zinc-50"}`}
+              >
+                {mode === "kecil" ? "⊞" : mode === "sedang" ? "⊟" : mode === "besar" ? "▦" : "☰"}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setPosMenuOpen(true)}
             className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
@@ -1180,7 +1193,12 @@ export default function PosScreen({
                 : "Produk tidak ditemukan."}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            <div className={
+                viewMode === "kecil" ? "grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6" :
+                viewMode === "sedang" ? "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" :
+                viewMode === "besar" ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" :
+                "flex flex-col gap-2"
+              }>
               {productGroups.map((g) => {
                 const isVariantGroup = g.variants.length > 1;
                 const single = g.variants[0];
@@ -1188,6 +1206,41 @@ export default function PosScreen({
                   (sum, v) => sum + (cart.find((i) => i.productId === v.id)?.qty ?? 0),
                   0,
                 );
+                const price = isVariantGroup
+                  ? `${formatRupiah(Math.min(...g.variants.map((v) => v.price)))}${new Set(g.variants.map((v) => v.price)).size > 1 ? "+" : ""}`
+                  : formatRupiah(single.price);
+                const thumb = single.image_url ? (
+                  <img src={single.image_url} alt={g.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className={viewMode === "kecil" ? "text-base" : "text-lg"}>{single.emoji || "📦"}</span>
+                );
+
+                if (viewMode === "list") {
+                  return (
+                    <button
+                      key={g.name}
+                      onClick={() => handleProductClick(g)}
+                      className="relative flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-brand-300"
+                    >
+                      {inCart > 0 && (
+                        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                          {inCart}
+                        </span>
+                      )}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg overflow-hidden">
+                        {thumb}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
+                        <p className="text-xs text-zinc-500">
+                          {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-sm font-semibold text-zinc-900">{price}</p>
+                    </button>
+                  );
+                }
+
                 return (
                   <button
                     key={g.name}
@@ -1199,24 +1252,16 @@ export default function PosScreen({
                         {inCart}
                       </span>
                     )}
-                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-lg overflow-hidden">
-                      {single.image_url ? (
-                        <img src={single.image_url} alt={g.name} className="h-full w-full object-cover" />
-                      ) : (
-                        single.emoji || "📦"
-                      )}
+                    <div className={`mb-2 flex items-center justify-center rounded-lg bg-zinc-100 overflow-hidden ${viewMode === "kecil" ? "h-8 w-8 text-base" : viewMode === "besar" ? "h-16 w-16 text-3xl" : "h-9 w-9 text-lg"}`}>
+                      {thumb}
                     </div>
-                    <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
-                    <p className="text-xs text-zinc-500">
-                      {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-zinc-900">
-                      {isVariantGroup
-                        ? `${formatRupiah(Math.min(...g.variants.map((v) => v.price)))}${
-                            new Set(g.variants.map((v) => v.price)).size > 1 ? "+" : ""
-                          }`
-                        : formatRupiah(single.price)}
-                    </p>
+                    <p className={`truncate font-medium text-zinc-900 ${viewMode === "kecil" ? "text-xs" : "text-sm"}`}>{g.name}</p>
+                    {viewMode !== "kecil" && (
+                      <p className="text-xs text-zinc-500">
+                        {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
+                      </p>
+                    )}
+                    <p className={`mt-1 font-semibold text-zinc-900 ${viewMode === "kecil" ? "text-xs" : "text-sm"}`}>{price}</p>
                   </button>
                 );
               })}
