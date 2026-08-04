@@ -99,7 +99,14 @@ export default async function ProductsPage({
           <h2 className="text-sm font-semibold text-zinc-900">Impor dari CSV</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Format kolom sama dengan hasil Ekspor CSV. Produk dengan Barcode/SKU yang sudah ada
-            akan diperbarui, sisanya ditambahkan sebagai produk baru.
+            akan diperbarui, sisanya ditambahkan sebagai produk baru.{" "}
+            <a
+              href="/template-produk.csv"
+              download
+              className="font-medium text-brand-600 hover:underline"
+            >
+              Download template CSV
+            </a>
           </p>
           <div className="mt-4">
             <ImportProductsForm action={boundImportProducts} />
