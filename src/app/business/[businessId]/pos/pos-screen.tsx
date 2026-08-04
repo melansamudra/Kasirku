@@ -715,9 +715,34 @@ export default function PosScreen({
   }
 
   async function handleAddAndSave(order: SelfOrder) {
-    await handleAddOrderToCart(order);
-    setBonLabel(order.customerName ? `${order.tableName} - ${order.customerName}` : order.tableName);
-    setSaveBonOpen(true);
+    setOrderBusyId(order.id);
+    const label = order.customerName
+      ? `${order.tableName} - ${order.customerName}`
+      : order.tableName;
+    const bonItems = order.items.flatMap((item) => {
+      const product = item.productId
+        ? effectiveProducts.find((p) => p.id === item.productId)
+        : undefined;
+      if (!product) return [];
+      const rule = discountRules.find(
+        (r) => r.type === "per_product" && r.product_id === product.id && r.active,
+      );
+      return [{
+        product_id: product.id,
+        name: product.name,
+        price: product.price,
+        qty: item.qty,
+        disc: rule ? rule.value : 0,
+        disc_type: rule ? rule.value_type : "pct",
+      }];
+    });
+    if (bonItems.length > 0) {
+      await saveOpenBill(businessId, null, label, bonItems);
+    }
+    setInboxOpen(false);
+    await handleOrderStatus(order.id, "diproses");
+    void refreshCatalog();
+    setOrderBusyId(null);
   }
 
   async function handleAddAllAndPay(tableName: string) {
@@ -726,9 +751,48 @@ export default function PosScreen({
   }
 
   async function handleAddAllAndSave(tableName: string) {
-    await handleAddAllOrdersForTable(tableName);
-    setBonLabel(tableName);
-    setSaveBonOpen(true);
+    const tableOrders = selfOrders.filter((o) => o.tableName === tableName);
+    const firstOrder = tableOrders[0];
+    const label = firstOrder?.customerName
+      ? `${tableName} - ${firstOrder.customerName}`
+      : tableName;
+    // Gabungkan semua item dari semua order meja ini
+    const bonItemMap = new Map<string, { product_id: string; name: string; price: number; qty: number; disc: number; disc_type: string }>();
+    for (const order of tableOrders) {
+      for (const item of order.items) {
+        const product = item.productId
+          ? effectiveProducts.find((p) => p.id === item.productId)
+          : undefined;
+        if (!product) continue;
+        const rule = discountRules.find(
+          (r) => r.type === "per_product" && r.product_id === product.id && r.active,
+        );
+        const existing = bonItemMap.get(product.id);
+        if (existing) {
+          existing.qty += item.qty;
+        } else {
+          bonItemMap.set(product.id, {
+            product_id: product.id,
+            name: product.name,
+            price: product.price,
+            qty: item.qty,
+            disc: rule ? rule.value : 0,
+            disc_type: rule ? rule.value_type : "pct",
+          });
+        }
+      }
+    }
+    const bonItems = Array.from(bonItemMap.values());
+    if (bonItems.length > 0) {
+      await saveOpenBill(businessId, null, label, bonItems);
+    }
+    setInboxOpen(false);
+    for (const order of tableOrders) {
+      if (order.status === "baru") {
+        await handleOrderStatus(order.id, "diproses");
+      }
+    }
+    void refreshCatalog();
   }
 
   function handleOpenPayment() {
