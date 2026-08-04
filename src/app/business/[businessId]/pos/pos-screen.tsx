@@ -609,6 +609,62 @@ export default function PosScreen({
     await handleOrderStatus(order.id, "diproses");
   }
 
+  async function handleAddAllOrdersForTable(tableName: string) {
+    const tableOrders = selfOrders.filter((o) => o.tableName === tableName);
+    const next = cart.map((c) => ({ ...c }));
+    const skipped: string[] = [];
+    const orderIds: string[] = [];
+
+    for (const order of tableOrders) {
+      for (const item of order.items) {
+        const product = item.productId
+          ? effectiveProducts.find((p) => p.id === item.productId)
+          : undefined;
+        if (!product) { skipped.push(item.name); continue; }
+        const existing = next.find((c) => c.productId === product.id);
+        const addQty = item.qty;
+        if (existing) {
+          existing.qty += addQty;
+        } else {
+          const rule = discountRules.find(
+            (r) => r.type === "per_product" && r.product_id === product.id && r.active,
+          );
+          next.push({
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            qty: addQty,
+            maxStock: Math.max(product.stock, addQty),
+            disc: rule ? rule.value : 0,
+            discType: rule ? rule.value_type : ("pct" as DiscountType),
+            note: item.note,
+          });
+        }
+      }
+      orderIds.push(order.id);
+    }
+
+    setCart(next);
+    setCartOrderIds((prev) => {
+      const next = [...prev];
+      for (const id of orderIds) if (!next.includes(id)) next.push(id);
+      return next;
+    });
+    setInboxNotice(
+      skipped.length > 0
+        ? `Tidak masuk keranjang: ${skipped.join(", ")}`
+        : null,
+    );
+    setInboxOpen(false);
+
+    // Tandai semua order meja ini sebagai diproses
+    for (const order of tableOrders) {
+      if (order.status === "baru") {
+        await handleOrderStatus(order.id, "diproses");
+      }
+    }
+  }
+
   function handleOpenPayment() {
     setTenders([{ id: crypto.randomUUID(), method: BUILTIN_PAYMENT_METHODS[0], amount: total, received: "" }]);
     setSplitCount("");
@@ -1955,109 +2011,111 @@ export default function PosScreen({
               </button>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="flex-1 space-y-4 overflow-y-auto p-4">
               {selfOrders.length === 0 ? (
                 <p className="py-12 text-center text-xs text-zinc-400">
                   Belum ada order dari meja.
                 </p>
-              ) : (
-                selfOrders.map((o) => {
-                  const total = o.items.reduce((sum, i) => sum + i.price * i.qty, 0);
-                  const busy = orderBusyId === o.id;
-                  const isNew = o.status === "baru";
+              ) : (() => {
+                // Group by table
+                const tableGroups: { tableName: string; orders: typeof selfOrders }[] = [];
+                for (const o of selfOrders) {
+                  const g = tableGroups.find((g) => g.tableName === o.tableName);
+                  if (g) g.orders.push(o);
+                  else tableGroups.push({ tableName: o.tableName, orders: [o] });
+                }
+                return tableGroups.map(({ tableName, orders: tableOrders }) => {
+                  const tableTotal = tableOrders.reduce(
+                    (sum, o) => sum + o.items.reduce((s, i) => s + i.price * i.qty, 0), 0,
+                  );
+                  const hasNew = tableOrders.some((o) => o.status === "baru");
+                  const busyTable = tableOrders.some((o) => orderBusyId === o.id);
                   return (
-                    <div
-                      key={o.id}
-                      className={`rounded-xl border-2 p-3.5 ${
-                        isNew ? "border-amber-300 bg-amber-50" : "border-sky-200 bg-sky-50"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
+                    <div key={tableName} className="rounded-xl border-2 border-zinc-200 overflow-hidden">
+                      {/* Header meja */}
+                      <div className={`flex items-center justify-between px-3.5 py-2.5 ${hasNew ? "bg-amber-50" : "bg-sky-50"}`}>
                         <div>
-                          <p className="text-sm font-bold text-zinc-800">🪑 {o.tableName}</p>
-                          <p className="text-[11px] text-zinc-400">
-                            Masuk{" "}
-                            {new Date(o.createdAt).toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                          <p className="text-sm font-bold text-zinc-900">🪑 {tableName}</p>
+                          <p className="text-[11px] text-zinc-500">
+                            {tableOrders.length} pesanan · Total {formatRupiah(tableTotal)}
                           </p>
                         </div>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            isNew ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"
-                          }`}
+                        <button
+                          onClick={() => handleAddAllOrdersForTable(tableName)}
+                          disabled={busyTable}
+                          className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
                         >
-                          {isNew ? "Baru" : "Diproses"}
-                        </span>
+                          🧾 Checkout Semua
+                        </button>
                       </div>
 
-                      <div className="mt-2 space-y-1">
-                        {o.items.map((item, idx) => (
-                          <div key={idx} className="text-xs text-zinc-700">
-                            <div className="flex justify-between">
-                              <span>
-                                <span className="font-bold">{item.qty}×</span> {item.name}
-                              </span>
-                              <span className="tabular-nums text-zinc-500">
-                                {formatRupiah(item.price * item.qty)}
-                              </span>
+                      {/* Daftar order per meja */}
+                      <div className="divide-y divide-zinc-100">
+                        {tableOrders.map((o) => {
+                          const orderTotal = o.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+                          const busy = orderBusyId === o.id;
+                          const isNew = o.status === "baru";
+                          return (
+                            <div key={o.id} className="px-3.5 py-2.5">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] text-zinc-400">
+                                  Masuk {new Date(o.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isNew ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"}`}>
+                                  {isNew ? "Baru" : "Diproses"}
+                                </span>
+                              </div>
+                              <div className="space-y-0.5">
+                                {o.items.map((item, idx) => (
+                                  <div key={idx} className="text-xs text-zinc-700">
+                                    <div className="flex justify-between">
+                                      <span><span className="font-bold">{item.qty}×</span> {item.name}</span>
+                                      <span className="tabular-nums text-zinc-500">{formatRupiah(item.price * item.qty)}</span>
+                                    </div>
+                                    {item.note && (
+                                      <p className="pl-4 text-[11px] font-medium text-amber-600">📝 {item.note}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 flex items-center justify-between">
+                                <p className="text-xs font-semibold text-zinc-700 tabular-nums">{formatRupiah(orderTotal)}</p>
+                                <div className="flex gap-1.5">
+                                  {isNew && (
+                                    <button
+                                      onClick={() => handleOrderStatus(o.id, "diproses")}
+                                      disabled={busy}
+                                      className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
+                                    >
+                                      Proses
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleAddOrderToCart(o)}
+                                    disabled={busy}
+                                    className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
+                                  >
+                                    + Ke Kasir
+                                  </button>
+                                  {!isNew && (
+                                    <button
+                                      onClick={() => handleOrderStatus(o.id, "selesai")}
+                                      disabled={busy}
+                                      className="rounded-lg bg-sky-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-sky-700 disabled:opacity-50"
+                                    >
+                                      ✓
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            {item.note && (
-                              <p className="pl-4 text-[11px] font-medium text-amber-600">
-                                📝 {item.note}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-2 flex items-center justify-between border-t border-zinc-200/60 pt-2">
-                        <p className="text-xs font-bold text-zinc-800 tabular-nums">
-                          Total {formatRupiah(total)}
-                        </p>
-                        <div className="flex gap-1.5">
-                          {isNew ? (
-                            <>
-                              <button
-                                onClick={() => handleOrderStatus(o.id, "diproses")}
-                                disabled={busy}
-                                className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50"
-                              >
-                                Proses
-                              </button>
-                              <button
-                                onClick={() => handleAddOrderToCart(o)}
-                                disabled={busy}
-                                className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-                              >
-                                + Ke Kasir
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleAddOrderToCart(o)}
-                                disabled={busy}
-                                className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50"
-                              >
-                                + Ke Kasir
-                              </button>
-                              <button
-                                onClick={() => handleOrderStatus(o.id, "selesai")}
-                                disabled={busy}
-                                className="rounded-lg bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
-                              >
-                                ✓ Selesai
-                              </button>
-                            </>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
-                })
-              )}
+                });
+              })()}
             </div>
           </div>
         </div>

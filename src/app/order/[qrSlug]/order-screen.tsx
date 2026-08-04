@@ -184,13 +184,25 @@ export default function OrderScreen({
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">✅</div>
           <h1 className="text-lg font-bold text-zinc-900">Pesanan terkirim!</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Pesanan untuk {tableName} sudah diterima. Silakan lakukan pembayaran di kasir.
+            Pesanan kamu sudah masuk ke kasir. Kasir akan segera memprosesnya.
           </p>
+          <div className="mt-4 rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3 text-left">
+            <p className="text-xs font-semibold text-zinc-700">Mau pesan lebih?</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Kamu bisa terus menambah pesanan. Semua akan digabung dan dibayar sekaligus di kasir.
+            </p>
+          </div>
           <button
             onClick={() => setSent(false)}
-            className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
           >
-            Pesan Lagi
+            + Tambah Pesanan
+          </button>
+          <button
+            onClick={() => setSent(false)}
+            className="mt-2 w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            Lihat Menu
           </button>
         </div>
       </div>
