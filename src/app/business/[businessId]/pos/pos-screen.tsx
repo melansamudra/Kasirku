@@ -709,6 +709,28 @@ export default function PosScreen({
     }
   }
 
+  async function handleAddAndPay(order: SelfOrder) {
+    await handleAddOrderToCart(order);
+    handleOpenPayment();
+  }
+
+  async function handleAddAndSave(order: SelfOrder) {
+    await handleAddOrderToCart(order);
+    setBonLabel(order.customerName ? `${order.tableName} - ${order.customerName}` : order.tableName);
+    setSaveBonOpen(true);
+  }
+
+  async function handleAddAllAndPay(tableName: string) {
+    await handleAddAllOrdersForTable(tableName);
+    handleOpenPayment();
+  }
+
+  async function handleAddAllAndSave(tableName: string) {
+    await handleAddAllOrdersForTable(tableName);
+    setBonLabel(tableName);
+    setSaveBonOpen(true);
+  }
+
   function handleOpenPayment() {
     setTenders([{ id: crypto.randomUUID(), method: BUILTIN_PAYMENT_METHODS[0], amount: total, received: "" }]);
     setSplitCount("");
@@ -2084,13 +2106,22 @@ export default function PosScreen({
                             {tableOrders.length} pesanan · Total {formatRupiah(tableTotal)}
                           </p>
                         </div>
-                        <button
-                          onClick={() => handleAddAllOrdersForTable(tableName)}
-                          disabled={busyTable}
-                          className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-                        >
-                          🧾 Checkout Semua
-                        </button>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleAddAllAndSave(tableName)}
+                            disabled={busyTable}
+                            className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-bold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                          >
+                            💾 Simpan
+                          </button>
+                          <button
+                            onClick={() => handleAddAllAndPay(tableName)}
+                            disabled={busyTable}
+                            className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+                          >
+                            💳 Bayar Semua
+                          </button>
+                        </div>
                       </div>
 
                       {/* Daftar order per meja */}
@@ -2134,30 +2165,40 @@ export default function PosScreen({
                               <div className="mt-2 flex items-center justify-between">
                                 <p className="text-xs font-semibold text-zinc-700 tabular-nums">{formatRupiah(orderTotal)}</p>
                                 <div className="flex gap-1.5">
-                                  {isNew && (
-                                    <button
-                                      onClick={() => handleOrderStatus(o.id, "diproses")}
-                                      disabled={busy}
-                                      className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
-                                    >
-                                      Proses
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleAddOrderToCart(o)}
-                                    disabled={busy}
-                                    className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
-                                  >
-                                    + Ke Kasir
-                                  </button>
-                                  {!isNew && (
-                                    <button
-                                      onClick={() => handleOrderStatus(o.id, "selesai")}
-                                      disabled={busy}
-                                      className="rounded-lg bg-sky-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-sky-700 disabled:opacity-50"
-                                    >
-                                      ✓
-                                    </button>
+                                  {isNew ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleOrderStatus(o.id, "diproses")}
+                                        disabled={busy}
+                                        className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
+                                      >
+                                        ✓ Proses
+                                      </button>
+                                      <button
+                                        onClick={() => handleAddAndPay(o)}
+                                        disabled={busy}
+                                        className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
+                                      >
+                                        💳 Bayar
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => handleAddAndSave(o)}
+                                        disabled={busy}
+                                        className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
+                                      >
+                                        💾 Simpan
+                                      </button>
+                                      <button
+                                        onClick={() => handleAddAndPay(o)}
+                                        disabled={busy}
+                                        className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-700 disabled:opacity-50"
+                                      >
+                                        💳 Bayar
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                               </div>
