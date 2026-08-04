@@ -554,10 +554,9 @@ export type PosCatalog = {
   customers: PosCustomer[];
   customPaymentMethods: string[];
   discountRules: DiscountRule[];
-  // Flag ini dikirim kembali ke client (pos-screen.tsx) supaya checkout()
-  // bisa skip seluruh blok build-print-jobs jika bisnis belum punya printer.
   hasKitchenPrinters: boolean;
   hasReceiptPrinters: boolean;
+  selfOrderEnabled: boolean;
 };
 
 // Sumber tunggal data katalog POS (produk/open bill/customer/metode bayar
@@ -575,6 +574,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     { data: customPaymentMethodRows },
     { data: discountRuleRows },
     { data: printerRows },
+    { data: businessRow },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -607,6 +607,11 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
       .select("prints_receipt")
       .eq("business_id", businessId)
       .not("address", "is", null),
+    supabase
+      .from("businesses")
+      .select("self_order_enabled")
+      .eq("id", businessId)
+      .single(),
   ]);
 
   const printers = printerRows ?? [];
@@ -618,6 +623,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     discountRules: (discountRuleRows ?? []) as DiscountRule[],
     hasKitchenPrinters: printers.some((p) => !p.prints_receipt),
     hasReceiptPrinters: printers.some((p) => p.prints_receipt),
+    selfOrderEnabled: (businessRow as { self_order_enabled: boolean } | null)?.self_order_enabled !== false,
   };
 }
 
@@ -811,6 +817,18 @@ export async function voidPosTransaction(
   );
 
   return { success: true, voidedByName };
+}
+
+export async function setSelfOrderEnabled(
+  businessId: string,
+  enabled: boolean,
+): Promise<void> {
+  const supabase = await createClient();
+  await supabase
+    .from("businesses")
+    .update({ self_order_enabled: enabled })
+    .eq("id", businessId);
+  revalidatePath(`/business/${businessId}/pos`);
 }
 
 export async function toggleSelfOrderVisibility(

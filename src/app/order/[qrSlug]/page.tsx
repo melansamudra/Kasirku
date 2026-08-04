@@ -25,9 +25,14 @@ export default async function SelfOrderPage({
   const { qrSlug } = await params;
   const supabase = await createClient();
 
-  const { data } = await supabase.rpc("get_self_order_menu", {
-    p_qr_slug: qrSlug,
-  });
+  const [{ data }, { data: tableRow }] = await Promise.all([
+    supabase.rpc("get_self_order_menu", { p_qr_slug: qrSlug }),
+    supabase
+      .from("tables")
+      .select("businesses(self_order_enabled, name)")
+      .eq("qr_slug", qrSlug)
+      .single(),
+  ]);
 
   if (!data) {
     return (
@@ -41,6 +46,26 @@ export default async function SelfOrderPage({
             Link atau QR code ini sudah tidak berlaku. Silakan hubungi staf untuk QR yang
             baru.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  const business = (tableRow as unknown as { businesses: { self_order_enabled: boolean; name: string } | null } | null)?.businesses;
+  const selfOrderEnabled = business?.self_order_enabled !== false;
+
+  if (!selfOrderEnabled) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-sm p-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-3xl">
+            🛑
+          </div>
+          <h1 className="text-lg font-bold text-zinc-900">Self-order sedang tidak tersedia</h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Silahkan order langsung ke kasir atau panggil staf kami untuk membantu pesanan Anda.
+          </p>
+          <p className="mt-4 text-xs text-zinc-400">{business?.name}</p>
         </div>
       </div>
     );

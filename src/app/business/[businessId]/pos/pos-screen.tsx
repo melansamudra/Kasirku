@@ -12,6 +12,7 @@ import {
   getSelfOrders,
   getShiftTransactions,
   saveOpenBill,
+  setSelfOrderEnabled,
   toggleSelfOrderVisibility,
   updateSelfOrderStatus,
   voidPosTransaction,
@@ -145,7 +146,10 @@ export default function PosScreen({
   // sebelum ada cache sama sekali (satu kali biaya, bukan tiap navigasi).
   const [catalog, setCatalog] = useState<PosCatalog>(EMPTY_CATALOG);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
-  const { products, openBills, customers, customPaymentMethods, discountRules, hasKitchenPrinters, hasReceiptPrinters } = catalog;
+  const { products, openBills, customers, customPaymentMethods, discountRules, hasKitchenPrinters, hasReceiptPrinters, selfOrderEnabled: catalogSelfOrderEnabled } = catalog;
+  const [selfOrderEnabled, setSelfOrderEnabledLocal] = useState(catalogSelfOrderEnabled);
+  // Sync ketika catalog refresh
+  useEffect(() => { setSelfOrderEnabledLocal(catalogSelfOrderEnabled); }, [catalogSelfOrderEnabled]);
 
   const refreshCatalog = useCallback(async () => {
     const fresh = await getPosCatalog(businessId).catch(() => null);
@@ -212,6 +216,11 @@ export default function PosScreen({
   async function handleSelfOrderToggle(productId: string, show: boolean) {
     setSelfOrderProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, show } : p)));
     await toggleSelfOrderVisibility(businessId, productId, show);
+  }
+
+  async function handleSelfOrderEnabled(enabled: boolean) {
+    setSelfOrderEnabledLocal(enabled);
+    await setSelfOrderEnabled(businessId, enabled);
   }
 
   // Tidak lagi datang dari props server (page.tsx tidak fetch ini lagi) —
@@ -2171,6 +2180,25 @@ export default function PosScreen({
             <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
               <h2 className="text-sm font-bold text-zinc-900">📋 Menu Self-Order</h2>
               <button onClick={() => setSelfOrderMenuOpen(false)} className="text-zinc-400 hover:text-zinc-700">✕</button>
+            </div>
+            {/* Master toggle */}
+            <div className="mx-4 mt-3 flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Self-order aktif</p>
+                <p className="text-xs text-zinc-500">
+                  {selfOrderEnabled ? "Pelanggan bisa scan QR & pesan" : "QR meja tidak bisa digunakan"}
+                </p>
+              </div>
+              <label className="relative shrink-0 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={selfOrderEnabled}
+                  onChange={(e) => void handleSelfOrderEnabled(e.target.checked)}
+                />
+                <div className="h-6 w-11 rounded-full bg-zinc-200 peer-checked:bg-brand-600 transition-colors" />
+                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+              </label>
             </div>
             <p className="px-5 pt-3 text-xs text-zinc-500">
               Centang produk yang boleh dipesan pelanggan lewat QR meja.
