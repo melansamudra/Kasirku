@@ -528,6 +528,7 @@ export type PosProduct = {
   barcode: string | null;
   sku: string | null;
   variant_label: string | null;
+  image_url: string | null;
 };
 
 export type PosOpenBill = {
