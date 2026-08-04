@@ -9,6 +9,9 @@ export type SubmitOrderResult =
 export async function submitSelfOrder(
   qrSlug: string,
   items: { productId: string; qty: number; note: string | null }[],
+  customerName: string,
+  customerPhone: string,
+  paymentMethod: "kasir" | "qr",
 ): Promise<SubmitOrderResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -22,6 +25,9 @@ export async function submitSelfOrder(
       qty: i.qty,
       note: i.note,
     })),
+    p_customer_name: customerName,
+    p_customer_phone: customerPhone,
+    p_payment_method: paymentMethod,
   });
 
   if (error) {

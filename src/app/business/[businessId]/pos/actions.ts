@@ -625,6 +625,9 @@ export type SelfOrderPayload = {
   status: "baru" | "diproses";
   createdAt: string;
   tableName: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  paymentMethod: string | null;
   items: { productId: string | null; name: string; qty: number; price: number; note: string | null }[];
 };
 
@@ -637,7 +640,7 @@ export async function getSelfOrders(businessId: string): Promise<SelfOrderPayloa
   const { data } = await supabase
     .from("self_orders")
     .select(
-      "id, status, created_at, tables(name), self_order_items(product_id, name, qty, price, note)",
+      "id, status, created_at, customer_name, customer_phone, payment_method, tables(name), self_order_items(product_id, name, qty, price, note)",
     )
     .eq("business_id", businessId)
     .neq("status", "selesai")
@@ -648,6 +651,9 @@ export async function getSelfOrders(businessId: string): Promise<SelfOrderPayloa
       id: string;
       status: "baru" | "diproses";
       created_at: string;
+      customer_name: string | null;
+      customer_phone: string | null;
+      payment_method: string | null;
       tables: { name: string } | null;
       self_order_items: { product_id: string | null; name: string; qty: number; price: number; note: string | null }[];
     }[]
@@ -657,6 +663,9 @@ export async function getSelfOrders(businessId: string): Promise<SelfOrderPayloa
     status: o.status,
     createdAt: o.created_at,
     tableName: o.tables?.name ?? "Meja terhapus",
+    customerName: o.customer_name ?? null,
+    customerPhone: o.customer_phone ?? null,
+    paymentMethod: o.payment_method ?? null,
     items: o.self_order_items.map((i) => ({
       productId: i.product_id,
       name: i.name,

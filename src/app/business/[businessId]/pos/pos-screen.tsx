@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -76,6 +76,9 @@ type SelfOrder = {
   status: "baru" | "diproses";
   createdAt: string;
   tableName: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  paymentMethod: string | null;
   items: {
     productId: string | null;
     name: string;
@@ -200,6 +203,33 @@ export default function PosScreen({
 
   const newOrderCount = selfOrders.filter((o) => o.status === "baru").length;
 
+  // Track ID order yang sudah diketahui agar bisa deteksi order benar-benar baru
+  const knownOrderIds = useRef<Set<string>>(new Set());
+  const isFirstLoad = useRef(true);
+
+  function playOrderNotification() {
+    try {
+      const ctx = new AudioContext();
+      // Dua nada chime: C6 → E6
+      const notes = [{ freq: 1046.5, t: 0 }, { freq: 1318.5, t: 0.18 }];
+      for (const { freq, t } of notes) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + t);
+        gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.5);
+        osc.start(ctx.currentTime + t);
+        osc.stop(ctx.currentTime + t + 0.5);
+      }
+    } catch {
+      // Browser tidak support AudioContext — abaikan
+    }
+  }
+
   // Order self-order masuk dari perangkat pelanggan; poll supaya badge kasir
   // ikut terbarui tanpa reload manual. Dulu ini panggil router.refresh() tiap
   // 15 detik — me-refresh SELURUH halaman (produk, open bill, customer, dst
@@ -214,6 +244,24 @@ export default function PosScreen({
     }, 15000);
     return () => clearInterval(interval);
   }, [isFnb, businessId]);
+
+  // Deteksi order baru dan bunyikan notifikasi
+  useEffect(() => {
+    if (!isFnb) return;
+    const newIds = selfOrders
+      .filter((o) => o.status === "baru")
+      .map((o) => o.id)
+      .filter((id) => !knownOrderIds.current.has(id));
+
+    // Update set ID yang diketahui
+    for (const o of selfOrders) knownOrderIds.current.add(o.id);
+
+    // Jangan bunyi saat pertama load — hanya untuk order yang benar-benar baru datang
+    if (!isFirstLoad.current && newIds.length > 0) {
+      playOrderNotification();
+    }
+    isFirstLoad.current = false;
+  }, [selfOrders, isFnb]);
   const [paying, setPaying] = useState(false);
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [splitCount, setSplitCount] = useState("");
@@ -516,21 +564,17 @@ export default function PosScreen({
         continue;
       }
       const existing = next.find((c) => c.productId === product.id);
-      const currentQty = existing ? existing.qty : 0;
-      const addQty = Math.min(item.qty, product.stock - currentQty);
-      if (addQty <= 0) {
-        skipped.push(item.name);
-        continue;
-      }
+      const addQty = item.qty;
       if (existing) {
         existing.qty += addQty;
+        existing.maxStock = Math.max(existing.maxStock, existing.qty);
       } else {
         next.push({
           productId: product.id,
           name: product.name,
           price: product.price,
           qty: addQty,
-          maxStock: product.stock,
+          maxStock: Math.max(product.stock, addQty),
           disc: item.disc,
           discType: item.disc_type,
           note: null,
@@ -2057,7 +2101,7 @@ export default function PosScreen({
                           const isNew = o.status === "baru";
                           return (
                             <div key={o.id} className="px-3.5 py-2.5">
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <span className="text-[11px] text-zinc-400">
                                   Masuk {new Date(o.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                                 </span>
@@ -2065,6 +2109,15 @@ export default function PosScreen({
                                   {isNew ? "Baru" : "Diproses"}
                                 </span>
                               </div>
+                              {o.customerName && (
+                                <div className="mb-1.5 flex items-center gap-2 text-[11px] text-zinc-500">
+                                  <span>👤 {o.customerName}</span>
+                                  {o.customerPhone && <span>· {o.customerPhone}</span>}
+                                  {o.paymentMethod === "kasir" && (
+                                    <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">💵 Kasir</span>
+                                  )}
+                                </div>
+                              )}
                               <div className="space-y-0.5">
                                 {o.items.map((item, idx) => (
                                   <div key={idx} className="text-xs text-zinc-700">

@@ -24,6 +24,8 @@ type SelfOrder = {
   id: string;
   status: string;
   created_at: string;
+  customer_name: string | null;
+  customer_phone: string | null;
   tables: { name: string } | null;
   self_order_items: { name: string; qty: number; price: number; note: string | null }[];
 };
@@ -55,7 +57,7 @@ export default async function TablesPage({
   const { data: orderRows } = await supabase
     .from("self_orders")
     .select(
-      "id, status, created_at, tables(name), self_order_items(name, qty, price, note)",
+      "id, status, created_at, customer_name, customer_phone, tables(name), self_order_items(name, qty, price, note)",
     )
     .eq("business_id", businessId)
     .neq("status", "selesai")
@@ -111,6 +113,9 @@ export default async function TablesPage({
                     </div>
                     <p className="mt-0.5 text-[11px] text-zinc-400">
                       Masuk {formatTime(o.created_at)}
+                      {o.customer_name && (
+                        <span className="ml-2">· 👤 {o.customer_name}{o.customer_phone && ` (${o.customer_phone})`}</span>
+                      )}
                     </p>
                     <div className="mt-2 space-y-1">
                       {o.self_order_items.map((item, idx) => (
