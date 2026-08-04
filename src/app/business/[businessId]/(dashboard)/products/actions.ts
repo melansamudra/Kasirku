@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { parseCsv } from "@/lib/csv";
+import ExcelJS from "exceljs";
 
 export type AddProductState = { error: string | null };
 
@@ -270,6 +271,31 @@ const IMPORT_COLUMNS = [
   "emoji",
 ] as const;
 
+async function parseFileToRows(file: File): Promise<string[][] | { error: string }> {
+  const isXlsx = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+
+  if (isXlsx) {
+    const buffer = await file.arrayBuffer();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) return { error: "File Excel tidak memiliki sheet." };
+
+    const rows: string[][] = [];
+    sheet.eachRow((row) => {
+      rows.push(
+        (row.values as (ExcelJS.CellValue | null)[])
+          .slice(1) // ExcelJS row.values is 1-indexed, index 0 is null
+          .map((v) => (v == null ? "" : String(v instanceof Object && "text" in v ? (v as { text: string }).text : v))),
+      );
+    });
+    return rows;
+  }
+
+  const text = await file.text();
+  return parseCsv(text);
+}
+
 export async function importProducts(
   businessId: string,
   _prevState: ImportProductsState,
@@ -277,13 +303,15 @@ export async function importProducts(
 ): Promise<ImportProductsState> {
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) {
-    return { error: "Pilih file CSV dulu.", result: null };
+    return { error: "Pilih file dulu.", result: null };
   }
 
-  const text = await file.text();
-  const rows = parseCsv(text).filter((r) => r.some((c) => c.trim() !== ""));
+  const parsed = await parseFileToRows(file);
+  if ("error" in parsed) return { error: parsed.error, result: null };
+
+  const rows = parsed.filter((r) => r.some((c) => c.trim() !== ""));
   if (rows.length < 2) {
-    return { error: "File CSV kosong atau cuma berisi header.", result: null };
+    return { error: "File kosong atau cuma berisi header.", result: null };
   }
 
   const dataRows = rows.slice(1);
@@ -379,7 +407,7 @@ export async function importProducts(
     businessId,
     "produk",
     skipped > 0 ? "warning" : "sukses",
-    `Impor CSV produk: ${created} baru, ${updated} diperbarui, ${skipped} dilewati`,
+    `Impor produk: ${created} baru, ${updated} diperbarui, ${skipped} dilewati`,
   );
   revalidatePath(`/business/${businessId}/products`);
   return { error: null, result: { created, updated, skipped, errors: errors.slice(0, 20) } };

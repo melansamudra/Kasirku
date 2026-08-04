@@ -96,16 +96,16 @@ export default async function ProductsPage({
         </div>
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">Impor dari CSV</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Impor dari Excel / CSV</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Format kolom sama dengan hasil Ekspor CSV. Produk dengan Barcode/SKU yang sudah ada
+            Format kolom sama dengan hasil Ekspor Excel. Produk dengan Barcode/SKU yang sudah ada
             akan diperbarui, sisanya ditambahkan sebagai produk baru.{" "}
             <a
-              href="/template-produk.csv"
+              href="/template-produk"
               download
               className="font-medium text-brand-600 hover:underline"
             >
-              Download template CSV
+              Download template Excel
             </a>
           </p>
           <div className="mt-4">
