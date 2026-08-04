@@ -60,15 +60,22 @@ export default async function IngredientsPage({
             href={`/business/${businessId}/ingredients/export`}
             className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
           >
-            ⬇️ Ekspor CSV
+            ⬇️ Ekspor Excel
           </a>
         </div>
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">Impor dari CSV</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Impor dari Excel / CSV</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Format kolom sama dengan hasil Ekspor CSV — pakai itu sebagai template. Bahan dengan
-            nama yang sudah ada akan diperbarui, sisanya ditambahkan sebagai bahan baru.
+            Format kolom sama dengan hasil Ekspor Excel. Bahan dengan nama yang sudah ada akan
+            diperbarui, sisanya ditambahkan sebagai bahan baru.{" "}
+            <a
+              href="/template-bahan-baku"
+              download
+              className="font-medium text-brand-600 hover:underline"
+            >
+              Download template Excel
+            </a>
           </p>
           <div className="mt-4">
             <ImportIngredientsForm action={boundImportIngredients} />
