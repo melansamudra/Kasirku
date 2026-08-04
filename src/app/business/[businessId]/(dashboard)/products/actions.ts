@@ -235,6 +235,16 @@ export async function adjustProductStock(
   return { error: null };
 }
 
+export async function toggleFeatured(businessId: string, productId: string, featured: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("products")
+    .update({ featured })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/products`);
+}
+
 export async function deleteProduct(businessId: string, productId: string) {
   const supabase = await createClient();
 

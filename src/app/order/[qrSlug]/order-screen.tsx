@@ -9,6 +9,8 @@ type Product = {
   category: string | null;
   price: number;
   emoji: string | null;
+  image_url: string | null;
+  featured: boolean;
   in_stock: boolean;
 };
 
@@ -24,15 +26,84 @@ function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
 }
 
+function ProductCard({
+  p,
+  inCart,
+  onChangeQty,
+  onSetNote,
+}: {
+  p: Product;
+  inCart: CartItem | undefined;
+  onChangeQty: (delta: number) => void;
+  onSetNote: (note: string) => void;
+}) {
+  return (
+    <div
+      className={`rounded-xl border bg-white p-3 ${
+        inCart ? "border-brand-300" : "border-zinc-200"
+      } ${p.in_stock ? "" : "opacity-50"}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xl overflow-hidden">
+          {p.image_url ? (
+            <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+          ) : (
+            p.emoji || "🍽️"
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
+          <p className="text-xs text-zinc-500">
+            {p.in_stock ? formatRupiah(p.price) : "Habis"}
+          </p>
+        </div>
+        {p.in_stock && (
+          <div className="flex shrink-0 items-center gap-2">
+            {inCart && (
+              <>
+                <button
+                  onClick={() => onChangeQty(-1)}
+                  className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-100 text-sm font-bold text-zinc-600 hover:bg-zinc-200"
+                >
+                  −
+                </button>
+                <span className="w-4 text-center text-sm tabular-nums">{inCart.qty}</span>
+              </>
+            )}
+            <button
+              onClick={() => onChangeQty(1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-sm font-bold text-white hover:bg-brand-700"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+      {inCart && (
+        <input
+          type="text"
+          value={inCart.note}
+          onChange={(e) => onSetNote(e.target.value)}
+          maxLength={200}
+          placeholder="Catatan (mis. tanpa es, pedas)…"
+          className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      )}
+    </div>
+  );
+}
+
 export default function OrderScreen({
   qrSlug,
   businessName,
   tableName,
+  banner,
   products,
 }: {
   qrSlug: string;
   businessName: string;
   tableName: string;
+  banner: string | null;
   products: Product[];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -40,9 +111,12 @@ export default function OrderScreen({
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
+  const featured = useMemo(() => products.filter((p) => p.featured), [products]);
   const categories = useMemo(() => {
     const set = new Set<string>();
-    for (const p of products) set.add(p.category || "Lainnya");
+    for (const p of products) {
+      if (!p.featured) set.add(p.category || "Lainnya");
+    }
     return Array.from(set);
   }, [products]);
 
@@ -122,82 +196,64 @@ export default function OrderScreen({
           Pilih menu, lalu kirim pesanan. Pembayaran dilakukan di kasir.
         </p>
 
+        {/* Banner / iklan */}
+        {banner && (
+          <div className="mt-4 rounded-xl bg-brand-50 border border-brand-200 px-4 py-3">
+            <p className="text-sm text-brand-800 whitespace-pre-line">{banner}</p>
+          </div>
+        )}
+
         {products.length === 0 ? (
           <p className="mt-8 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             Menu belum tersedia.
           </p>
         ) : (
-          categories.map((cat) => (
-            <div key={cat} className="mt-6">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                {cat}
-              </h2>
-              <div className="space-y-2">
-                {products
-                  .filter((p) => (p.category || "Lainnya") === cat)
-                  .map((p) => {
-                    const inCart = cart.find((i) => i.productId === p.id);
-                    return (
-                      <div
-                        key={p.id}
-                        className={`rounded-xl border bg-white p-3 ${
-                          inCart ? "border-brand-300" : "border-zinc-200"
-                        } ${p.in_stock ? "" : "opacity-50"}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xl">
-                            {p.emoji || "🍽️"}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
-                            <p className="text-xs text-zinc-500">
-                              {p.in_stock ? formatRupiah(p.price) : "Habis"}
-                            </p>
-                          </div>
-                          {p.in_stock && (
-                            <div className="flex shrink-0 items-center gap-2">
-                              {inCart && (
-                                <>
-                                  <button
-                                    onClick={() => changeQty(p, -1)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-100 text-sm font-bold text-zinc-600 hover:bg-zinc-200"
-                                  >
-                                    −
-                                  </button>
-                                  <span className="w-4 text-center text-sm tabular-nums">
-                                    {inCart.qty}
-                                  </span>
-                                </>
-                              )}
-                              <button
-                                onClick={() => changeQty(p, 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-sm font-bold text-white hover:bg-brand-700"
-                              >
-                                +
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        {inCart && (
-                          <input
-                            type="text"
-                            value={inCart.note}
-                            onChange={(e) => setNote(p.id, e.target.value)}
-                            maxLength={200}
-                            placeholder="Catatan (mis. tanpa es, pedas)…"
-                            className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
+          <>
+            {/* Menu Pilihan / Unggulan */}
+            {featured.length > 0 && (
+              <div className="mt-6">
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-500">
+                  ★ Menu Pilihan
+                </h2>
+                <div className="space-y-2">
+                  {featured.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      p={p}
+                      inCart={cart.find((i) => i.productId === p.id)}
+                      onChangeQty={(d) => changeQty(p, d)}
+                      onSetNote={(n) => setNote(p.id, n)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))
+            )}
+
+            {/* Kategori reguler */}
+            {categories.map((cat) => (
+              <div key={cat} className="mt-6">
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                  {cat}
+                </h2>
+                <div className="space-y-2">
+                  {products
+                    .filter((p) => !p.featured && (p.category || "Lainnya") === cat)
+                    .map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        p={p}
+                        inCart={cart.find((i) => i.productId === p.id)}
+                        onChangeQty={(d) => changeQty(p, d)}
+                        onSetNote={(n) => setNote(p.id, n)}
+                      />
+                    ))}
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
 
-      {/* Sticky submit bar */}
       {cart.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 border-t border-zinc-200 bg-white px-4 py-3">
           <div className="mx-auto w-full max-w-sm">

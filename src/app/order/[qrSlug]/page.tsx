@@ -4,12 +4,15 @@ import OrderScreen from "./order-screen";
 type Menu = {
   table_name: string;
   business_name: string;
+  self_order_banner: string | null;
   products: {
     id: string;
     name: string;
     category: string | null;
     price: number;
     emoji: string | null;
+    image_url: string | null;
+    featured: boolean;
     in_stock: boolean;
   }[];
 };
@@ -50,6 +53,7 @@ export default async function SelfOrderPage({
       qrSlug={qrSlug}
       businessName={menu.business_name}
       tableName={menu.table_name}
+      banner={menu.self_order_banner}
       products={menu.products}
     />
   );

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod, updateBusinessType, updateTaxService } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessType, updateTaxService } from "./actions";
+import SelfOrderBannerForm from "./self-order-banner-form";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
 import BusinessTypeForm from "./business-type-form";
@@ -20,7 +21,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate")
+    .select("id, name, business_type, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner")
     .eq("id", businessId)
     .single();
 
@@ -103,6 +104,7 @@ export default async function SettingsPage({
   }
 
   const boundAddKitchenPrinter = addKitchenPrinter.bind(null, businessId);
+  const boundSaveSelfOrderBanner = saveSelfOrderBanner.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
@@ -236,6 +238,22 @@ export default async function SettingsPage({
 
             <div className="mt-4 border-t border-zinc-100 pt-4">
               <AddPrinterForm action={boundAddKitchenPrinter} categories={productCategories} />
+            </div>
+          </div>
+        )}
+
+        {/* Banner Self-Order (FnB only) */}
+        {isFnb && (
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-zinc-900">Banner / Pengumuman di Halaman Order</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Ditampilkan sebagai kotak berwarna di atas menu pelanggan. Cocok untuk promo, info jam buka, atau pengumuman lainnya.
+            </p>
+            <div className="mt-4">
+              <SelfOrderBannerForm
+                currentBanner={(business as { self_order_banner?: string | null }).self_order_banner ?? null}
+                action={boundSaveSelfOrderBanner}
+              />
             </div>
           </div>
         )}

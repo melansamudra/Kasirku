@@ -4,6 +4,24 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
+export type BannerState = { error: string | null; saved?: boolean };
+
+export async function saveSelfOrderBanner(
+  businessId: string,
+  _prevState: BannerState,
+  formData: FormData,
+): Promise<BannerState> {
+  const banner = (formData.get("banner") as string)?.trim() || null;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ self_order_banner: banner })
+    .eq("id", businessId);
+  if (error) return { error: error.message };
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null, saved: true };
+}
+
 export type PaymentMethodState = { error: string | null };
 
 export async function addPaymentMethod(

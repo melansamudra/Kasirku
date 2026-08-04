@@ -13,6 +13,7 @@ import AdjustStockForm from "@/components/adjust-stock-form";
 import CategoryManager from "./category-manager";
 import DeleteProductButton from "./delete-product-button";
 import EditProductForm from "./edit-product-form";
+import FeaturedToggle from "./featured-toggle";
 import ImportProductsForm from "./import-products-form";
 
 export default async function ProductsPage({
@@ -35,7 +36,7 @@ export default async function ProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode, sku, variant_label, image_url")
+    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode, sku, variant_label, image_url, featured")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -212,6 +213,7 @@ type ProductRowData = {
   sku: string | null;
   variant_label: string | null;
   image_url: string | null;
+  featured: boolean | null;
 };
 
 function ProductRow({
@@ -285,6 +287,7 @@ function ProductRow({
         currentStock={Number(p.stock)}
         action={adjustProductStock.bind(null, businessId, p.id)}
       />
+      <FeaturedToggle businessId={businessId} productId={p.id} featured={!!p.featured} />
       <DeleteProductButton businessId={businessId} productId={p.id} productName={p.name} />
     </div>
   );
