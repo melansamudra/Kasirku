@@ -719,23 +719,16 @@ export default function PosScreen({
     const label = order.customerName
       ? `${order.tableName} - ${order.customerName}`
       : order.tableName;
-    const bonItems = order.items.flatMap((item) => {
-      const product = item.productId
-        ? effectiveProducts.find((p) => p.id === item.productId)
-        : undefined;
-      if (!product) return [];
-      const rule = discountRules.find(
-        (r) => r.type === "per_product" && r.product_id === product.id && r.active,
-      );
-      return [{
-        product_id: product.id,
-        name: product.name,
-        price: product.price,
+    const bonItems = order.items
+      .filter((item) => item.productId != null)
+      .map((item) => ({
+        product_id: item.productId as string,
+        name: item.name,
+        price: item.price,
         qty: item.qty,
-        disc: rule ? rule.value : 0,
-        disc_type: rule ? rule.value_type : "pct",
-      }];
-    });
+        disc: 0,
+        disc_type: "pct" as DiscountType,
+      }));
     if (bonItems.length > 0) {
       await saveOpenBill(businessId, null, label, bonItems);
     }
@@ -757,27 +750,21 @@ export default function PosScreen({
       ? `${tableName} - ${firstOrder.customerName}`
       : tableName;
     // Gabungkan semua item dari semua order meja ini
-    const bonItemMap = new Map<string, { product_id: string; name: string; price: number; qty: number; disc: number; disc_type: string }>();
+    const bonItemMap = new Map<string, { product_id: string; name: string; price: number; qty: number; disc: number; disc_type: DiscountType }>();
     for (const order of tableOrders) {
       for (const item of order.items) {
-        const product = item.productId
-          ? effectiveProducts.find((p) => p.id === item.productId)
-          : undefined;
-        if (!product) continue;
-        const rule = discountRules.find(
-          (r) => r.type === "per_product" && r.product_id === product.id && r.active,
-        );
-        const existing = bonItemMap.get(product.id);
+        if (!item.productId) continue;
+        const existing = bonItemMap.get(item.productId);
         if (existing) {
           existing.qty += item.qty;
         } else {
-          bonItemMap.set(product.id, {
-            product_id: product.id,
-            name: product.name,
-            price: product.price,
+          bonItemMap.set(item.productId, {
+            product_id: item.productId,
+            name: item.name,
+            price: item.price,
             qty: item.qty,
-            disc: rule ? rule.value : 0,
-            disc_type: rule ? rule.value_type : "pct",
+            disc: 0,
+            disc_type: "pct",
           });
         }
       }
