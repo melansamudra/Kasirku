@@ -529,6 +529,7 @@ export type PosProduct = {
   sku: string | null;
   variant_label: string | null;
   image_url: string | null;
+  show_in_self_order: boolean;
 };
 
 export type PosOpenBill = {
@@ -577,7 +578,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
   ] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label, image_url")
+      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label, image_url, show_in_self_order")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
@@ -810,4 +811,19 @@ export async function voidPosTransaction(
   );
 
   return { success: true, voidedByName };
+}
+
+export async function toggleSelfOrderVisibility(
+  businessId: string,
+  productId: string,
+  show: boolean,
+): Promise<void> {
+  const supabase = await createClient();
+  await supabase
+    .from("products")
+    .update({ show_in_self_order: show })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/pos`);
+  revalidatePath(`/business/${businessId}/tables`);
 }

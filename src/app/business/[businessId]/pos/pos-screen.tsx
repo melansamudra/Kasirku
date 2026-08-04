@@ -12,6 +12,7 @@ import {
   getSelfOrders,
   getShiftTransactions,
   saveOpenBill,
+  toggleSelfOrderVisibility,
   updateSelfOrderStatus,
   voidPosTransaction,
   type CheckoutResult,
@@ -52,6 +53,7 @@ type Product = {
   sku: string | null;
   variant_label: string | null;
   image_url: string | null;
+  show_in_self_order: boolean;
 };
 
 type CartItem = {
@@ -178,6 +180,8 @@ export default function PosScreen({
   const [cartOrderIds, setCartOrderIds] = useState<string[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [inboxNotice, setInboxNotice] = useState<string | null>(null);
+  const [selfOrderMenuOpen, setSelfOrderMenuOpen] = useState(false);
+  const [selfOrderProducts, setSelfOrderProducts] = useState<{ id: string; name: string; category: string | null; show: boolean }[]>([]);
   const [orderBusyId, setOrderBusyId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [orderDisc, setOrderDisc] = useState(0);
@@ -197,6 +201,18 @@ export default function PosScreen({
   const [bonLabel, setBonLabel] = useState("");
   const [bonError, setBonError] = useState<string | null>(null);
   const [bonSaving, setBonSaving] = useState(false);
+
+  function openSelfOrderMenu() {
+    setSelfOrderProducts(
+      products.map((p) => ({ id: p.id, name: p.name, category: p.category, show: p.show_in_self_order })),
+    );
+    setSelfOrderMenuOpen(true);
+  }
+
+  async function handleSelfOrderToggle(productId: string, show: boolean) {
+    setSelfOrderProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, show } : p)));
+    await toggleSelfOrderVisibility(businessId, productId, show);
+  }
 
   // Tidak lagi datang dari props server (page.tsx tidak fetch ini lagi) —
   // diambil sendiri di sini, sama seperti catalog di atas.
@@ -1309,17 +1325,26 @@ export default function PosScreen({
             )}
           </button>
           {isFnb && (
-            <button
-              onClick={() => setInboxOpen(true)}
-              className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              🛎️ <span className="hidden sm:inline">Order</span>
-              {newOrderCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                  {newOrderCount}
-                </span>
-              )}
-            </button>
+            <>
+              <button
+                onClick={() => setInboxOpen(true)}
+                className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+              >
+                🛎️ <span className="hidden sm:inline">Order</span>
+                {newOrderCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {newOrderCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={openSelfOrderMenu}
+                title="Kelola menu self-order"
+                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+              >
+                📋 <span className="hidden sm:inline">Menu</span>
+              </button>
+            </>
           )}
           <div className="flex shrink-0 items-center rounded-xl border border-zinc-200 bg-white overflow-hidden">
             {(["kecil", "sedang", "besar", "list"] as const).map((mode) => (
@@ -2133,6 +2158,54 @@ export default function PosScreen({
                   );
                 })
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel Kelola Menu Self-Order */}
+      {selfOrderMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelfOrderMenuOpen(false)} />
+          <div className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h2 className="text-sm font-bold text-zinc-900">📋 Menu Self-Order</h2>
+              <button onClick={() => setSelfOrderMenuOpen(false)} className="text-zinc-400 hover:text-zinc-700">✕</button>
+            </div>
+            <p className="px-5 pt-3 text-xs text-zinc-500">
+              Centang produk yang boleh dipesan pelanggan lewat QR meja.
+            </p>
+            <div className="flex-1 overflow-y-auto p-4">
+              {(() => {
+                const categories = Array.from(new Set(selfOrderProducts.map((p) => p.category ?? "Lainnya")));
+                return categories.map((cat) => (
+                  <div key={cat} className="mb-4">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{cat}</p>
+                    <div className="space-y-1">
+                      {selfOrderProducts
+                        .filter((p) => (p.category ?? "Lainnya") === cat)
+                        .map((p) => (
+                          <label
+                            key={p.id}
+                            className="flex cursor-pointer items-center justify-between rounded-xl border border-zinc-200 px-4 py-2.5 transition-colors hover:bg-zinc-50"
+                          >
+                            <span className={`text-sm ${p.show ? "text-zinc-900" : "text-zinc-400"}`}>{p.name}</span>
+                            <div className="relative ml-3 shrink-0">
+                              <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={p.show}
+                                onChange={(e) => void handleSelfOrderToggle(p.id, e.target.checked)}
+                              />
+                              <div className="h-5 w-9 rounded-full bg-zinc-200 peer-checked:bg-brand-600 transition-colors" />
+                              <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+                            </div>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         </div>
