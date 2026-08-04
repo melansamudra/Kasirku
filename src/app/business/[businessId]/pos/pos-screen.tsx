@@ -578,12 +578,7 @@ export default function PosScreen({
         continue;
       }
       const existing = next.find((c) => c.productId === product.id);
-      const currentQty = existing ? existing.qty : 0;
-      const addQty = Math.min(item.qty, product.stock - currentQty);
-      if (addQty <= 0) {
-        skipped.push(item.name);
-        continue;
-      }
+      const addQty = item.qty;
       if (existing) {
         existing.qty += addQty;
       } else {
@@ -595,7 +590,7 @@ export default function PosScreen({
           name: product.name,
           price: product.price,
           qty: addQty,
-          maxStock: product.stock,
+          maxStock: Math.max(product.stock, addQty),
           disc: rule ? rule.value : 0,
           discType: rule ? rule.value_type : ("pct" as DiscountType),
           note: item.note,
@@ -2040,13 +2035,22 @@ export default function PosScreen({
                               </button>
                             </>
                           ) : (
-                            <button
-                              onClick={() => handleOrderStatus(o.id, "selesai")}
-                              disabled={busy}
-                              className="rounded-lg bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
-                            >
-                              ✓ Selesai
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleAddOrderToCart(o)}
+                                disabled={busy}
+                                className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                              >
+                                + Ke Kasir
+                              </button>
+                              <button
+                                onClick={() => handleOrderStatus(o.id, "selesai")}
+                                disabled={busy}
+                                className="rounded-lg bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
+                              >
+                                ✓ Selesai
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
