@@ -18,6 +18,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
     "exceljs": "^4.4.0",
+    "qrcode": "^1.5.4",
     "jsbarcode": "^3.12.3",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/jsbarcode": "^3.11.4",
+    "@types/qrcode": "^1.5.5",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

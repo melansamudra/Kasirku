@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addTable } from "./actions";
+import { addTable, addTablesBulk } from "./actions";
 import AddTableForm from "./add-table-form";
+import BulkAddTableForm from "./bulk-add-table-form";
 import CopyLinkButton from "./copy-link-button";
 import DeleteTableButton from "./delete-table-button";
 import OrderStatusButton from "./order-status-button";
@@ -62,6 +63,7 @@ export default async function TablesPage({
   const orders = (orderRows ?? []) as unknown as SelfOrder[];
 
   const boundAddTable = addTable.bind(null, businessId);
+  const boundAddTablesBulk = addTablesBulk.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
@@ -150,10 +152,20 @@ export default async function TablesPage({
 
         {/* Daftar meja */}
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">Daftar Meja</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900">Daftar Meja</h2>
+            {tables && tables.length > 0 && (
+              <Link
+                href={`/business/${businessId}/tables/print-qr`}
+                target="_blank"
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+              >
+                🖨️ Print / Download QR
+              </Link>
+            )}
+          </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Setiap meja punya link order sendiri. Salin link-nya, jadikan QR code, lalu
-            tempel di meja.
+            Setiap meja punya QR code unik. Klik &ldquo;Print / Download QR&rdquo; untuk cetak semua sekaligus.
           </p>
 
           <div className="mt-4 space-y-2">
@@ -184,8 +196,15 @@ export default async function TablesPage({
             )}
           </div>
 
-          <div className="mt-4 border-t border-zinc-100 pt-4">
-            <AddTableForm action={boundAddTable} />
+          <div className="mt-4 border-t border-zinc-100 pt-4 space-y-4">
+            <div>
+              <p className="mb-2 text-xs font-medium text-zinc-600">Tambah satu meja</p>
+              <AddTableForm action={boundAddTable} />
+            </div>
+            <div className="border-t border-zinc-100 pt-4">
+              <p className="mb-2 text-xs font-medium text-zinc-600">Buat massal (maks 100)</p>
+              <BulkAddTableForm action={boundAddTablesBulk} />
+            </div>
           </div>
         </div>
     </div>
