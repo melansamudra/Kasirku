@@ -39,56 +39,80 @@ function ProductCard({
 }) {
   return (
     <div
-      className={`rounded-xl border bg-white p-3 ${
-        inCart ? "border-brand-300" : "border-zinc-200"
-      } ${p.in_stock ? "" : "opacity-50"}`}
+      className={`relative rounded-xl border bg-white overflow-hidden transition-all ${
+        inCart ? "border-brand-400 shadow-sm shadow-brand-100" : "border-zinc-200"
+      } ${!p.in_stock ? "opacity-60" : ""}`}
     >
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xl overflow-hidden">
-          {p.image_url ? (
-            <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
-          ) : (
-            p.emoji || "🍽️"
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
-          <p className="text-xs text-zinc-500">
-            {p.in_stock ? formatRupiah(p.price) : "Habis"}
-          </p>
-        </div>
+      {/* Foto / placeholder */}
+      <div className="relative w-full aspect-square bg-zinc-100 flex items-center justify-center overflow-hidden">
+        {p.image_url ? (
+          <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-4xl">{p.emoji || "🍽️"}</span>
+        )}
+        {/* Badge habis */}
+        {!p.in_stock && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-zinc-700">
+              Habis
+            </span>
+          </div>
+        )}
+        {/* Badge qty */}
+        {inCart && (
+          <span className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-[11px] font-bold text-white shadow">
+            {inCart.qty}
+          </span>
+        )}
+      </div>
+
+      {/* Info + kontrol */}
+      <div className="p-2.5">
+        <p className="text-xs font-semibold text-zinc-900 line-clamp-2 leading-tight">{p.name}</p>
+        <p className="mt-0.5 text-xs text-zinc-500">{formatRupiah(p.price)}</p>
+
         {p.in_stock && (
-          <div className="flex shrink-0 items-center gap-2">
-            {inCart && (
+          <div className="mt-2 flex items-center justify-between gap-1">
+            {inCart ? (
               <>
                 <button
                   onClick={() => onChangeQty(-1)}
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-100 text-sm font-bold text-zinc-600 hover:bg-zinc-200"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-100 text-base font-bold text-zinc-600 hover:bg-zinc-200 active:scale-95"
                 >
                   −
                 </button>
-                <span className="w-4 text-center text-sm tabular-nums">{inCart.qty}</span>
+                <span className="text-sm font-semibold tabular-nums text-zinc-800">
+                  {inCart.qty}
+                </span>
+                <button
+                  onClick={() => onChangeQty(1)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-base font-bold text-white hover:bg-brand-700 active:scale-95"
+                >
+                  +
+                </button>
               </>
+            ) : (
+              <button
+                onClick={() => onChangeQty(1)}
+                className="w-full rounded-lg bg-brand-600 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 active:scale-95"
+              >
+                + Tambah
+              </button>
             )}
-            <button
-              onClick={() => onChangeQty(1)}
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-sm font-bold text-white hover:bg-brand-700"
-            >
-              +
-            </button>
           </div>
         )}
+
+        {inCart && (
+          <input
+            type="text"
+            value={inCart.note}
+            onChange={(e) => onSetNote(e.target.value)}
+            maxLength={200}
+            placeholder="Catatan…"
+            className="mt-2 w-full rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
+          />
+        )}
       </div>
-      {inCart && (
-        <input
-          type="text"
-          value={inCart.note}
-          onChange={(e) => onSetNote(e.target.value)}
-          maxLength={200}
-          placeholder="Catatan (mis. tanpa es, pedas)…"
-          className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      )}
     </div>
   );
 }
@@ -128,10 +152,7 @@ export default function OrderScreen({
       const existing = prev.find((i) => i.productId === product.id);
       if (!existing) {
         if (delta <= 0) return prev;
-        return [
-          ...prev,
-          { productId: product.id, name: product.name, price: product.price, qty: 1, note: "" },
-        ];
+        return [...prev, { productId: product.id, name: product.name, price: product.price, qty: 1, note: "" }];
       }
       const qty = Math.min(99, Math.max(0, existing.qty + delta));
       if (qty === 0) return prev.filter((i) => i.productId !== product.id);
@@ -148,19 +169,10 @@ export default function OrderScreen({
     setSubmitting(true);
     const result = await submitSelfOrder(
       qrSlug,
-      cart.map((i) => ({
-        productId: i.productId,
-        qty: i.qty,
-        note: i.note.trim() || null,
-      })),
+      cart.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note.trim() || null })),
     );
     setSubmitting(false);
-
-    if (!result.success) {
-      setError(result.error);
-      return;
-    }
-
+    if (!result.success) { setError(result.error); return; }
     setSent(true);
     setCart([]);
   }
@@ -169,9 +181,7 @@ export default function OrderScreen({
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
         <div className="w-full max-w-sm rounded-xl bg-white shadow-sm p-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">
-            ✅
-          </div>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">✅</div>
           <h1 className="text-lg font-bold text-zinc-900">Pesanan terkirim!</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Pesanan untuk {tableName} sudah diterima. Silakan lakukan pembayaran di kasir.
@@ -188,34 +198,34 @@ export default function OrderScreen({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-8 pb-28">
-      <div className="w-full max-w-sm">
-        <p className="text-xs font-medium text-zinc-400">{businessName}</p>
-        <h1 className="text-lg font-bold text-zinc-900">🪑 {tableName}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Pilih menu, lalu kirim pesanan. Pembayaran dilakukan di kasir.
-        </p>
+    <div className="flex flex-1 flex-col bg-zinc-50 pb-28">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 py-3">
+        <p className="text-[11px] font-medium text-zinc-400">{businessName}</p>
+        <h1 className="text-base font-bold text-zinc-900">🪑 {tableName}</h1>
+      </div>
 
-        {/* Banner / iklan */}
+      <div className="px-4 py-4 space-y-6 max-w-lg mx-auto w-full">
+        {/* Banner */}
         {banner && (
-          <div className="mt-4 rounded-xl bg-brand-50 border border-brand-200 px-4 py-3">
+          <div className="rounded-xl bg-brand-50 border border-brand-200 px-4 py-3">
             <p className="text-sm text-brand-800 whitespace-pre-line">{banner}</p>
           </div>
         )}
 
         {products.length === 0 ? (
-          <p className="mt-8 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-xs text-zinc-400">
             Menu belum tersedia.
           </p>
         ) : (
           <>
-            {/* Menu Pilihan / Unggulan */}
+            {/* Menu Pilihan */}
             {featured.length > 0 && (
-              <div className="mt-6">
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-500">
+              <div>
+                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-500">
                   ★ Menu Pilihan
                 </h2>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
                   {featured.map((p) => (
                     <ProductCard
                       key={p.id}
@@ -229,13 +239,13 @@ export default function OrderScreen({
               </div>
             )}
 
-            {/* Kategori reguler */}
+            {/* Kategori */}
             {categories.map((cat) => (
-              <div key={cat} className="mt-6">
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              <div key={cat}>
+                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                   {cat}
                 </h2>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
                   {products
                     .filter((p) => !p.featured && (p.category || "Lainnya") === cat)
                     .map((p) => (
@@ -254,16 +264,17 @@ export default function OrderScreen({
         )}
       </div>
 
+      {/* Sticky order bar */}
       {cart.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 border-t border-zinc-200 bg-white px-4 py-3">
-          <div className="mx-auto w-full max-w-sm">
+          <div className="mx-auto w-full max-w-lg">
             {error && (
               <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
             )}
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="flex w-full items-center justify-between rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-between rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
             >
               <span>{submitting ? "Mengirim…" : `Kirim Pesanan (${itemCount} item)`}</span>
               <span>{formatRupiah(total)}</span>
