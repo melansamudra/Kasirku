@@ -83,7 +83,7 @@ export default async function ProductsPage({
             href={`/business/${businessId}/products/export`}
             className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
           >
-            ⬇️ Ekspor CSV
+            ⬇️ Ekspor Excel
           </a>
         </div>
 

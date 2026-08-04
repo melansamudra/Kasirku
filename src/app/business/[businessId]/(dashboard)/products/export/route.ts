@@ -1,17 +1,17 @@
+import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
-import { toCsv } from "@/lib/csv";
 
-const HEADER = [
-  "Nama",
-  "Kategori",
-  "Harga Jual",
-  "Modal (HPP)",
-  "Stok",
-  "Stok Minimum",
-  "Barcode",
-  "SKU",
-  "Varian",
-  "Emoji",
+const HEADERS = [
+  { header: "Nama", key: "name", width: 30 },
+  { header: "Kategori", key: "category", width: 20 },
+  { header: "Harga Jual", key: "price", width: 15 },
+  { header: "Modal (HPP)", key: "cost", width: 15 },
+  { header: "Stok", key: "stock", width: 10 },
+  { header: "Stok Minimum", key: "minStock", width: 15 },
+  { header: "Barcode", key: "barcode", width: 20 },
+  { header: "SKU", key: "sku", width: 15 },
+  { header: "Varian", key: "variantLabel", width: 15 },
+  { header: "Emoji", key: "emoji", width: 10 },
 ];
 
 export async function GET(
@@ -38,28 +38,47 @@ export async function GET(
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
-  const rows: (string | number)[][] = [HEADER];
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Produk");
+
+  sheet.columns = HEADERS;
+
+  // Style header row
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF16A34A" } };
+  headerRow.alignment = { vertical: "middle", horizontal: "center" };
+  headerRow.height = 20;
+
+  // Add data rows
   for (const p of products ?? []) {
-    rows.push([
-      p.name,
-      p.category ?? "",
-      Number(p.price),
-      Number(p.cost),
-      Number(p.stock),
-      Number(p.min_stock),
-      p.barcode ?? "",
-      p.sku ?? "",
-      p.variant_label ?? "",
-      p.emoji ?? "",
-    ]);
+    sheet.addRow({
+      name: p.name,
+      category: p.category ?? "",
+      price: Number(p.price),
+      cost: Number(p.cost),
+      stock: Number(p.stock),
+      minStock: Number(p.min_stock),
+      barcode: p.barcode ?? "",
+      sku: p.sku ?? "",
+      variantLabel: p.variant_label ?? "",
+      emoji: p.emoji ?? "",
+    });
   }
 
-  const filename = `Produk_${business.name.replace(/[^a-zA-Z0-9]+/g, "_")}.csv`;
+  // Format price & cost columns as currency
+  sheet.getColumn("price").numFmt = '#,##0';
+  sheet.getColumn("cost").numFmt = '#,##0';
 
-  // BOM (U+FEFF) supaya Excel membuka file sebagai UTF-8.
-  return new Response(String.fromCharCode(0xfeff) + toCsv(rows), {
+  // Freeze header row
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const filename = `Produk_${business.name.replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`;
+
+  return new Response(buffer, {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
