@@ -78,6 +78,33 @@ export async function deleteTable(businessId: string, tableId: string) {
   revalidatePath(`/business/${businessId}/tables`);
 }
 
+export async function toggleShowInSelfOrder(businessId: string, productId: string, show: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("products")
+    .update({ show_in_self_order: show })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/tables`);
+}
+
+export async function saveMenuOrder(
+  businessId: string,
+  items: { id: string; sort_order: number }[],
+) {
+  const supabase = await createClient();
+  await Promise.all(
+    items.map((item) =>
+      supabase
+        .from("products")
+        .update({ sort_order: item.sort_order })
+        .eq("id", item.id)
+        .eq("business_id", businessId),
+    ),
+  );
+  revalidatePath(`/business/${businessId}/tables`);
+}
+
 export async function setSelfOrderStatus(
   businessId: string,
   orderId: string,

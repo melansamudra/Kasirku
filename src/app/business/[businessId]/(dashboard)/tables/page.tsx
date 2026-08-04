@@ -6,6 +6,7 @@ import AddTableForm from "./add-table-form";
 import BulkAddTableForm from "./bulk-add-table-form";
 import CopyLinkButton from "./copy-link-button";
 import DeleteTableButton from "./delete-table-button";
+import MenuOrderClient from "./menu-order-client";
 import OrderStatusButton from "./order-status-button";
 
 function formatRupiah(value: number) {
@@ -61,6 +62,13 @@ export default async function TablesPage({
     .order("created_at", { ascending: true });
 
   const orders = (orderRows ?? []) as unknown as SelfOrder[];
+
+  const { data: menuProducts } = await supabase
+    .from("products")
+    .select("id, name, category, emoji, image_url, show_in_self_order, sort_order, featured")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
 
   const boundAddTable = addTable.bind(null, businessId);
   const boundAddTablesBulk = addTablesBulk.bind(null, businessId);
@@ -207,6 +215,28 @@ export default async function TablesPage({
             </div>
           </div>
         </div>
+
+        {/* Kelola urutan & visibilitas menu self-order */}
+        {menuProducts && menuProducts.length > 0 && (
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-zinc-900">Kelola Menu Self-Order</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Atur urutan tampil dan centang produk mana yang muncul di halaman order pelanggan.
+              Produk yang tidak dicentang hanya bisa dijual lewat kasir.
+            </p>
+            <div className="mt-4">
+              <MenuOrderClient
+                businessId={businessId}
+                initialItems={(menuProducts ?? []).map((p) => ({
+                  ...p,
+                  show_in_self_order: p.show_in_self_order ?? true,
+                  sort_order: p.sort_order ?? 0,
+                  featured: p.featured ?? false,
+                }))}
+              />
+            </div>
+          </div>
+        )}
     </div>
   );
 }
