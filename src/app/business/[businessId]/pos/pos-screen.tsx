@@ -733,7 +733,12 @@ export default function PosScreen({
       await saveOpenBill(businessId, null, label, bonItems);
     }
     setInboxOpen(false);
-    await handleOrderStatus(order.id, "diproses");
+    // Kalau masih "baru", proses dulu (cetak dapur) lalu selesai
+    if (order.status === "baru") {
+      await handleOrderStatus(order.id, "diproses");
+    }
+    // Tandai selesai → hilang dari inbox, tagihan ada di Bon
+    await handleOrderStatus(order.id, "selesai");
     void refreshCatalog();
     setOrderBusyId(null);
   }
@@ -778,6 +783,7 @@ export default function PosScreen({
       if (order.status === "baru") {
         await handleOrderStatus(order.id, "diproses");
       }
+      await handleOrderStatus(order.id, "selesai");
     }
     void refreshCatalog();
   }
