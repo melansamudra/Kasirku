@@ -20,6 +20,7 @@ export async function getCachedPosCatalog(businessId: string): Promise<PosCatalo
     // skip queries printer sampai refreshCatalog pertama selesai).
     hasKitchenPrinters: cached.hasKitchenPrinters ?? false,
     hasReceiptPrinters: cached.hasReceiptPrinters ?? false,
+    selfOrderEnabled: cached.selfOrderEnabled ?? true,
   };
 }
 

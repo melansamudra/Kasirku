@@ -40,7 +40,7 @@ import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 import { todayWibDateString } from "@/lib/wib";
 
-const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false };
+const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false, selfOrderEnabled: true };
 
 type Product = {
   id: string;
