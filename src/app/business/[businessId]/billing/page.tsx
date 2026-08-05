@@ -94,7 +94,7 @@ export default async function BillingPage({
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
           Paket Lengkap — Kasir + Akuntansi
         </p>
-        <PlanGrid plans={PLANS.filter((p) => p.family === "full")} businessId={businessId} business={business} />
+        <PlanGrid plans={PLANS.filter((p) => p.family === "full" && p.kind !== "lifetime")} businessId={businessId} business={business} />
       </div>
 
       <div className="mt-8">
