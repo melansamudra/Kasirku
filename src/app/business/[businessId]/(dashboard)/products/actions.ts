@@ -15,21 +15,77 @@ export async function addProduct(
 ): Promise<AddProductState> {
   const name = (formData.get("name") as string)?.trim();
   const category = (formData.get("category") as string)?.trim();
+  const minStockRaw = formData.get("minStock") as string;
+  const emoji = (formData.get("emoji") as string)?.trim();
+  const imageUrl = (formData.get("imageUrl") as string)?.trim() || null;
+  const variantsJson = (formData.get("variantsJson") as string)?.trim();
+
+  if (!name) return { error: "Nama produk wajib diisi." };
+  if (!category) return { error: "Kategori wajib dipilih." };
+
+  const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  if (Number.isNaN(minStock) || minStock < 0) {
+    return { error: "Stok minimum harus angka dan tidak boleh negatif." };
+  }
+
+  const supabase = await createClient();
+
+  // --- Mode varian: insert multiple rows ---
+  if (variantsJson) {
+    let variants: { label: string; price: string; cost: string; stock: string }[];
+    try {
+      variants = JSON.parse(variantsJson);
+    } catch {
+      return { error: "Data varian tidak valid." };
+    }
+
+    if (!Array.isArray(variants) || variants.length < 2) {
+      return { error: "Minimal 2 varian harus diisi." };
+    }
+
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
+      if (!v.label?.trim()) return { error: `Varian ke-${i + 1}: nama varian wajib diisi.` };
+      const vPrice = Number(v.price);
+      if (!v.price || Number.isNaN(vPrice) || vPrice < 0) {
+        return { error: `Varian ke-${i + 1}: harga jual tidak valid.` };
+      }
+    }
+
+    const inserts = variants.map((v) => ({
+      business_id: businessId,
+      name,
+      category: category || null,
+      price: Number(v.price),
+      cost: Number(v.cost) || 0,
+      stock: Number(v.stock) || 0,
+      min_stock: minStock,
+      emoji: emoji || null,
+      variant_label: v.label.trim(),
+      image_url: imageUrl,
+    }));
+
+    const { error } = await supabase.from("products").insert(inserts);
+    if (error) return { error: error.message };
+
+    await logActivity(
+      supabase,
+      businessId,
+      "produk",
+      "sukses",
+      `Produk baru: ${name}`,
+      `${variants.length} varian`,
+    );
+    revalidatePath(`/business/${businessId}/products`);
+    return { error: null };
+  }
+
+  // --- Mode normal: insert satu row ---
   const priceRaw = formData.get("price") as string;
   const costRaw = formData.get("cost") as string;
   const stockRaw = formData.get("stock") as string;
-  const minStockRaw = formData.get("minStock") as string;
-  const emoji = (formData.get("emoji") as string)?.trim();
   const barcode = (formData.get("barcode") as string)?.trim();
   const sku = (formData.get("sku") as string)?.trim();
-  const variantLabel = (formData.get("variantLabel") as string)?.trim();
-
-  if (!name) {
-    return { error: "Nama produk wajib diisi." };
-  }
-  if (!category) {
-    return { error: "Kategori wajib dipilih." };
-  }
 
   const price = Number(priceRaw);
   if (!priceRaw || Number.isNaN(price) || price < 0) {
@@ -46,14 +102,6 @@ export async function addProduct(
     return { error: "Stok harus angka dan tidak boleh negatif." };
   }
 
-  const minStock = minStockRaw ? Number(minStockRaw) : 0;
-  if (Number.isNaN(minStock) || minStock < 0) {
-    return { error: "Stok minimum harus angka dan tidak boleh negatif." };
-  }
-
-  const imageUrl = (formData.get("imageUrl") as string)?.trim() || null;
-
-  const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     business_id: businessId,
     name,
@@ -65,7 +113,6 @@ export async function addProduct(
     emoji: emoji || null,
     barcode: barcode || null,
     sku: sku || null,
-    variant_label: variantLabel || null,
     image_url: imageUrl,
   });
 
