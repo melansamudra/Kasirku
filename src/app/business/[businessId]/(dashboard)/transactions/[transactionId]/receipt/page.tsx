@@ -30,7 +30,7 @@ export default async function ReceiptPage({
       supabase
         .from("transactions")
         .select(
-          "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)",
+          "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)",
         )
         .eq("id", transactionId)
         .eq("business_id", businessId)
@@ -121,6 +121,18 @@ export default async function ReceiptPage({
                 <span>
                   {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
                 </span>
+              </div>
+            )}
+            {(transaction as unknown as { order_label?: string | null }).order_label && (
+              <div className="flex justify-between">
+                <span>Meja/Order</span>
+                <span className="max-w-[60%] text-right">{(transaction as unknown as { order_label: string }).order_label}</span>
+              </div>
+            )}
+            {(transaction as unknown as { customer_name?: string | null }).customer_name && (
+              <div className="flex justify-between">
+                <span>Pelanggan</span>
+                <span className="max-w-[60%] text-right">{(transaction as unknown as { customer_name: string }).customer_name}</span>
               </div>
             )}
           </div>

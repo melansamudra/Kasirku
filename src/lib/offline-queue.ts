@@ -19,6 +19,8 @@ export type PendingRetailSale = {
     orderDiscType: DiscountType;
     customerId: string | null;
     selfOrderIds: string[];
+    orderLabel: string | null;
+    customerName: string | null;
   };
 };
 

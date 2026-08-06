@@ -112,6 +112,8 @@ export async function checkout(
   // skip seluruh blok build-print-jobs supaya tidak ada query DB percuma.
   hasPrinters: boolean = true,
   hasReceiptPrinters: boolean = true,
+  orderLabel: string | null = null,
+  customerName: string | null = null,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -152,6 +154,14 @@ export async function checkout(
   if (!result.already_existed) {
     const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
+    // Simpan order_label dan customer_name ke transaksi jika ada
+    if (orderLabel || customerName) {
+      void supabase.from("transactions").update({
+        ...(orderLabel ? { order_label: orderLabel } : {}),
+        ...(customerName ? { customer_name: customerName } : {}),
+      }).eq("id", result.transaction_id);
+    }
+
     // Tiga hal ini tidak saling bergantung — dulu dijalankan berurutan
     // (await satu-satu), menambah beberapa detik nyata ke waktu konfirmasi
     // pembayaran di jaringan mobile. Sekarang jalan bersamaan.
@@ -172,7 +182,7 @@ export async function checkout(
             supabase,
             businessId,
             "Kasir",
-            result.invoice_number,
+            orderLabel || result.invoice_number,
             items.map((i) => ({
               productId: i.productId,
               qty: i.qty,
@@ -184,10 +194,11 @@ export async function checkout(
             undefined,
             cashierId,
             "NEW ORDER",
+            customerName,
           )
         : Promise.resolve([]),
       hasReceiptPrinters
-        ? buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id)
+        ? buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id, orderLabel, customerName)
         : Promise.resolve([]),
     ]);
     printJobs = printJobsResult;
@@ -215,6 +226,8 @@ async function buildReceiptPrintJobsForTransaction(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
   transactionId: string,
+  orderLabel?: string | null,
+  customerName?: string | null,
 ): Promise<KitchenPrintJobPayload[]> {
   const [
     { data: printers },
@@ -236,7 +249,7 @@ async function buildReceiptPrintJobsForTransaction(
       .single(),
     supabase
       .from("transactions")
-      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)")
+      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)")
       .eq("id", transactionId)
       .eq("business_id", businessId)
       .single(),
@@ -278,6 +291,8 @@ async function buildReceiptPrintJobsForTransaction(
       invoiceNumber: transaction.invoice_number,
       date,
       cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
+      orderLabel: orderLabel ?? (transaction as unknown as { order_label?: string | null }).order_label,
+      customerName: customerName ?? (transaction as unknown as { customer_name?: string | null }).customer_name,
       voided: transaction.voided,
       items: receiptItems,
       subtotal: Number(transaction.subtotal_raw),
@@ -312,6 +327,7 @@ async function buildKitchenPrintJobsForItems(
   orderType?: string,
   cashierId?: string,
   title?: string,
+  customerName?: string | null,
 ): Promise<KitchenPrintJobPayload[]> {
   if (items.length === 0) return [];
 
@@ -373,6 +389,7 @@ async function buildKitchenPrintJobsForItems(
       items: ticketItems,
       cashierName,
       orderType,
+      customerName,
       paperWidth: printer.paper_width ?? 58,
     });
     return {

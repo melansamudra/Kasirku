@@ -33,7 +33,7 @@ export default async function TransactionDetailPage({
   const { data: transaction } = await supabase
     .from("transactions")
     .select(
-      "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, total_cost, gross_profit, voided, voided_at, void_reason, cashiers!transactions_cashier_id_fkey(name), voided_by_cashier:cashiers!transactions_voided_by_fkey(name)",
+      "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, total_cost, gross_profit, voided, voided_at, void_reason, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name), voided_by_cashier:cashiers!transactions_voided_by_fkey(name)",
     )
     .eq("id", transactionId)
     .eq("business_id", businessId)
@@ -76,6 +76,12 @@ export default async function TransactionDetailPage({
         </div>
         <p className="text-xs text-zinc-400">
           Kasir: {(transaction.cashiers as unknown as { name: string } | null)?.name ?? "—"}
+          {(transaction as unknown as { order_label?: string | null }).order_label && (
+            <> · {(transaction as unknown as { order_label: string }).order_label}</>
+          )}
+          {(transaction as unknown as { customer_name?: string | null }).customer_name && (
+            <> · {(transaction as unknown as { customer_name: string }).customer_name}</>
+          )}
         </p>
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-4">

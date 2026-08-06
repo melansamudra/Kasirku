@@ -27,6 +27,8 @@ export type KitchenTicketInput = {
   items: KitchenTicketItem[];
   cashierName?: string;
   orderType?: string;
+  customerName?: string | null;
+  orderLabel?: string | null;
 };
 
 function formatQty(qty: number): string {
@@ -65,9 +67,11 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
   const now = new Date();
   const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
   const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  text(col2(input.source, input.label));
+  const tableLabel = input.orderLabel || input.label;
+  text(col2(input.source, tableLabel));
   text(col2(dateStr, timeStr));
   if (input.cashierName) text(`Kasir ${input.cashierName}`);
+  if (input.customerName) text(`Pelanggan: ${tr(input.customerName, W - 11)}`);
 
   // Separator + tipe order
   text("-".repeat(W));
@@ -146,6 +150,8 @@ export type ReceiptTicketInput = {
   invoiceNumber: string;
   date: string;
   cashierName: string;
+  customerName?: string | null;
+  orderLabel?: string | null;
   voided: boolean;
   items: ReceiptItem[];
   subtotal: number;
@@ -214,7 +220,9 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   divider();
   if (cfg.showInvoice) text(pl("No.", input.invoiceNumber));
   if (cfg.showDatetime) text(pl("Tanggal", input.date));
-  if (cfg.showCashier) text(pl("Kasir", input.cashierName));
+  if (cfg.showCashier && input.cashierName) text(pl("Kasir", input.cashierName));
+  if (input.orderLabel) text(pl("Meja/Order", tr(input.orderLabel, W - 11)));
+  if (input.customerName) text(pl("Pelanggan", tr(input.customerName, W - 10)));
 
   divider();
   for (const item of input.items) {

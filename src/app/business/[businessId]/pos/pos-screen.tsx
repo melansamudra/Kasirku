@@ -998,6 +998,8 @@ export default function PosScreen({
           clientRef,
           hasKitchenPrinters,
           hasReceiptPrinters && autoReceiptPrint,
+          activeBill?.label || bonLabel || null,
+          selectedCustomer?.name || null,
         ),
         10000,
       );
@@ -1020,6 +1022,8 @@ export default function PosScreen({
           orderDiscType,
           customerId: selectedCustomer?.id ?? null,
           selfOrderIds: cartOrderIds,
+          orderLabel: activeBill?.label || bonLabel || null,
+          customerName: selectedCustomer?.name || null,
         },
       });
 
