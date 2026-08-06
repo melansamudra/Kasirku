@@ -5,12 +5,12 @@
 const ESC = 0x1b;
 const GS = 0x1d;
 
-// 58mm → 30 cols, 80mm → 42 cols (Font A)
-// 30 instead of theoretical 32: most 58mm print heads have a slightly
-// narrower effective area (~48mm = 30 chars at 1.6mm/char), and using 32
-// causes the rightmost chars to overflow or wrap on cheap Chinese printers.
+// 58mm → 28 cols, 80mm → 42 cols (Font A)
+// iWare dan printer 58mm murah sejenis hanya muat ~28 char (area cetak
+// efektif ~45mm = 28 char × 1.6mm/char). Theoretical 32 terlalu lebar,
+// bahkan 30 masih terpotong 2 char di sisi kanan pada printer ini.
 function colsForPaper(paperWidth: number) {
-  return paperWidth >= 80 ? 42 : 30;
+  return paperWidth >= 80 ? 42 : 28;
 }
 
 export type KitchenTicketItem = {
@@ -196,11 +196,9 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   push([ESC, 0x40]); // initialize
 
   push([ESC, 0x61, 0x01]); // center align
-  push([GS, 0x21, 0x10]); // double height (not width — 0x01 would halve line capacity)
   push([ESC, 0x45, 0x01]); // bold
   text(input.businessName.toUpperCase());
   push([ESC, 0x45, 0x00]);
-  push([GS, 0x21, 0x00]); // normal size
   if (cfg.showAddress && input.businessAddress) text(tr(input.businessAddress));
   if (cfg.showPhone && input.businessPhone) text(`Tel: ${input.businessPhone}`);
   if (input.voided) {
@@ -216,13 +214,11 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (cfg.showCashier) text(pl("Kasir", input.cashierName));
 
   divider();
-  // Item list — nama double-height agar mudah dibaca
+  // Item list
   for (const item of input.items) {
-    push([GS, 0x21, 0x10]); // double height (not width)
     push([ESC, 0x45, 0x01]); // bold
     text(tr(item.name));
     push([ESC, 0x45, 0x00]);
-    push([GS, 0x21, 0x00]); // normal
     if (cfg.showUnitPrice) {
       text(pl(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
     } else {
@@ -237,12 +233,9 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (input.orderDiscount > 0) text(pl("Diskon order", `-${formatRp(input.orderDiscount)}`));
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
   if (cfg.showTax && input.tax > 0) text(pl("PPN", formatRp(input.tax)));
-  // Total — double height + bold agar menonjol
-  push([GS, 0x21, 0x10]); // double height (not width)
   push([ESC, 0x45, 0x01]); // bold
   text(pl("TOTAL", formatRp(input.total)));
   push([ESC, 0x45, 0x00]);
-  push([GS, 0x21, 0x00]); // normal
 
   if (cfg.showPaymentDetail) {
     divider();
