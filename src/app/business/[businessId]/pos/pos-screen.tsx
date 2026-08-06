@@ -1421,6 +1421,24 @@ export default function PosScreen({
         <div className="flex-1 overflow-y-auto p-4">
           {!catalogLoaded ? (
             <p className="mt-10 text-center text-sm text-zinc-400">Memuat produk…</p>
+          ) : selectedCategory === null && !search.trim() && categoryTabs.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              {categoryTabs.map((c) => {
+                const inCat = effectiveProducts.filter((p) => p.category === c);
+                const emoji = inCat.find((p) => p.emoji)?.emoji ?? "🍽️";
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setSelectedCategory(c)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white p-5 text-center shadow-sm transition-colors hover:border-brand-400 hover:bg-brand-50"
+                  >
+                    <span className="text-3xl">{emoji}</span>
+                    <span className="text-sm font-semibold text-zinc-800">{c}</span>
+                    <span className="text-xs text-zinc-400">{inCat.length} menu</span>
+                  </button>
+                );
+              })}
+            </div>
           ) : filteredProducts.length === 0 ? (
             <p className="mt-10 text-center text-sm text-zinc-400">
               {effectiveProducts.length === 0
