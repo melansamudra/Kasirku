@@ -127,6 +127,14 @@ function ReceiptPreview({
             <span>Andi</span>
           </div>
         )}
+        <div className="flex justify-between gap-1">
+          <span>Meja/Order</span>
+          <span>Meja 5</span>
+        </div>
+        <div className="flex justify-between gap-1">
+          <span>Pelanggan</span>
+          <span>Budi</span>
+        </div>
       </div>
 
       <div className="mt-1 border-t border-dashed border-zinc-300 pt-1 space-y-0.5">
