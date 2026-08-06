@@ -55,7 +55,7 @@ export default async function TransactionDetailPage({
       .select("id, name, category, price, qty")
       .eq("transaction_id", transactionId)
       .order("id", { ascending: true });
-    items = basicItems;
+    items = (basicItems ?? []).map((i) => ({ ...i, voided: false, void_reason: null, voided_at: null }));
   }
 
   const { data: payments } = await supabase

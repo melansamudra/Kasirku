@@ -382,6 +382,7 @@ export default function PosScreen({
   const [cashMoveSubmitting, setCashMoveSubmitting] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   const [voidOpen, setVoidOpen] = useState(false);
   const [voidTxs, setVoidTxs] = useState<ShiftTransaction[]>([]);
@@ -1393,9 +1394,9 @@ export default function PosScreen({
   }
 
   return (
-    <div className="flex h-screen flex-row overflow-hidden bg-zinc-50">
+    <div className="flex h-dvh flex-col sm:flex-row overflow-hidden bg-zinc-50">
       {/* Catalog */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-h-0">
         <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3">
           <div className="relative flex-1">
             <input
@@ -1746,8 +1747,55 @@ export default function PosScreen({
         );
       })()}
 
-      {/* Cart */}
-      <div className="flex w-72 flex-col border-l border-zinc-200 bg-white shrink-0">
+      {/* Bottom bar portrait — hanya muncul di HP portrait, menggantikan panel kanan */}
+      <div className="sm:hidden shrink-0 border-t border-zinc-200 bg-white px-3 py-2.5 flex items-center gap-2">
+        <button
+          onClick={() => setMobileCartOpen(true)}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
+          <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
+            {cart.reduce((s, i) => s + i.qty, 0)}
+          </span>
+          <span className="text-sm font-semibold text-zinc-900 tabular-nums">{formatRupiah(total)}</span>
+          {activeBill && (
+            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+              🧾 {activeBill.label}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={handleOpenPayment}
+          disabled={cart.length === 0}
+          className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          Bayar
+        </button>
+      </div>
+
+      {/* Backdrop portrait cart drawer */}
+      {mobileCartOpen && (
+        <div
+          className="sm:hidden fixed inset-0 z-40 bg-black/40"
+          onClick={() => setMobileCartOpen(false)}
+        />
+      )}
+
+      {/* Cart — drawer dari bawah di portrait, panel kanan di landscape */}
+      <div className={`
+        fixed sm:relative inset-x-0 bottom-0 sm:inset-auto z-50 sm:z-auto
+        flex flex-col
+        w-full sm:w-72
+        max-h-[85dvh] sm:max-h-none sm:h-auto
+        rounded-t-2xl sm:rounded-none
+        border-t sm:border-t-0 sm:border-l border-zinc-200
+        bg-white shrink-0
+        transition-transform sm:transition-none duration-300
+        ${mobileCartOpen ? 'translate-y-0' : 'translate-y-full sm:translate-y-0'}
+      `}>
+        {/* Drag handle + tutup — hanya portrait */}
+        <div className="sm:hidden flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
+          <div className="mx-auto h-1 w-10 rounded-full bg-zinc-200" />
+        </div>
         <div className="flex-1 overflow-y-auto">
         <div className="p-4">
           <div className="mb-3 flex items-center justify-between">
