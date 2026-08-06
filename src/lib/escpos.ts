@@ -196,9 +196,9 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   push([ESC, 0x40]); // initialize
 
   push([ESC, 0x61, 0x01]); // center align
-  push([GS, 0x21, 0x01]); // double height (iWare & kebanyakan printer murah: nibble bawah = tinggi)
+  push([GS, 0x21, 0x10]); // double width — iWare printer: 0x10=lebar 2x, muat W/2=14 char
   push([ESC, 0x45, 0x01]); // bold
-  text(input.businessName.toUpperCase());
+  text(tr(input.businessName.toUpperCase(), Math.floor(W / 2))); // max 14 char agar tidak overflow
   push([ESC, 0x45, 0x00]);
   push([GS, 0x21, 0x00]); // normal
   if (cfg.showAddress && input.businessAddress) text(tr(input.businessAddress));
@@ -218,11 +218,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   divider();
   // Item list
   for (const item of input.items) {
-    push([GS, 0x21, 0x01]); // double height
-    push([ESC, 0x45, 0x01]); // bold
-    text(tr(item.name));
-    push([ESC, 0x45, 0x00]);
-    push([GS, 0x21, 0x00]); // normal
+    push([ESC, 0x45, 0x01]); // bold — nama item tidak double-width agar aman untuk nama panjang
     if (cfg.showUnitPrice) {
       text(pl(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
     } else {
@@ -237,9 +233,9 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (input.orderDiscount > 0) text(pl("Diskon order", `-${formatRp(input.orderDiscount)}`));
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
   if (cfg.showTax && input.tax > 0) text(pl("PPN", formatRp(input.tax)));
-  push([GS, 0x21, 0x01]); // double height
+  push([GS, 0x21, 0x10]); // double width — TOTAL tampil besar, padLine di W/2
   push([ESC, 0x45, 0x01]); // bold
-  text(pl("TOTAL", formatRp(input.total)));
+  text(padLine("TOTAL", formatRp(input.total), Math.floor(W / 2)));
   push([ESC, 0x45, 0x00]);
   push([GS, 0x21, 0x00]); // normal
 
