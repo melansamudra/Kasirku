@@ -192,7 +192,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   push([ESC, 0x40]); // initialize
 
   push([ESC, 0x61, 0x01]); // center align
-  push([GS, 0x21, 0x01]); // double height for business name
+  push([GS, 0x21, 0x10]); // double height (not width — 0x01 would halve line capacity)
   push([ESC, 0x45, 0x01]); // bold
   text(input.businessName.toUpperCase());
   push([ESC, 0x45, 0x00]);
@@ -214,7 +214,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   divider();
   // Item list — nama double-height agar mudah dibaca
   for (const item of input.items) {
-    push([GS, 0x21, 0x01]); // double height
+    push([GS, 0x21, 0x10]); // double height (not width)
     push([ESC, 0x45, 0x01]); // bold
     text(tr(item.name));
     push([ESC, 0x45, 0x00]);
@@ -234,7 +234,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
   if (cfg.showTax && input.tax > 0) text(pl("PPN", formatRp(input.tax)));
   // Total — double height + bold agar menonjol
-  push([GS, 0x21, 0x01]); // double height
+  push([GS, 0x21, 0x10]); // double height (not width)
   push([ESC, 0x45, 0x01]); // bold
   text(pl("TOTAL", formatRp(input.total)));
   push([ESC, 0x45, 0x00]);

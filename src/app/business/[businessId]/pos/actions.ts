@@ -5,8 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { setCashierSession, clearCashierSession } from "@/lib/cashier-session";
 import { logActivity } from "@/lib/activity-log";
 import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
-import { buildKitchenTicket } from "@/lib/escpos";
-import { buildReceiptBuffer } from "@/lib/receipt-print";
+import { buildKitchenTicket, buildReceiptTicket } from "@/lib/escpos";
 
 type VerifyCashierPinRow = {
   id: string;
@@ -198,39 +197,101 @@ export async function checkout(
 // separate from printJobs (kitchen tickets) so callers can dispatch the
 // receipt first: same physical printer sometimes handles both roles, and
 // Bluetooth sockets don't like concurrent jobs to the same device.
+//
+// Fetches printers + all receipt data in one parallel batch (previously 2
+// serial round trips: printers first, then receipt data).
 async function buildReceiptPrintJobsForTransaction(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
   transactionId: string,
 ): Promise<KitchenPrintJobPayload[]> {
-  // Query printer dan bangun buffer struk tidak saling bergantung — buffer
-  // tidak butuh daftar printer sama sekali. Jalankan bersamaan, baru buang
-  // hasil buffer kalau ternyata tidak ada printer prints_receipt.
-  const { data: printers } = await supabase
-    .from("kitchen_printers")
-    .select("name, connection_type, address, paper_width")
-    .eq("business_id", businessId)
-    .eq("prints_receipt", true)
-    .not("address", "is", null);
+  const [
+    { data: printers },
+    { data: business },
+    { data: transaction },
+    { data: items },
+    { data: payments },
+  ] = await Promise.all([
+    supabase
+      .from("kitchen_printers")
+      .select("name, connection_type, address, paper_width")
+      .eq("business_id", businessId)
+      .eq("prints_receipt", true)
+      .not("address", "is", null),
+    supabase
+      .from("businesses")
+      .select("name, address, phone, receipt_settings")
+      .eq("id", businessId)
+      .single(),
+    supabase
+      .from("transactions")
+      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)")
+      .eq("id", transactionId)
+      .eq("business_id", businessId)
+      .single(),
+    supabase
+      .from("transaction_items")
+      .select("id, name, price, qty, note")
+      .eq("transaction_id", transactionId)
+      .order("id", { ascending: true }),
+    supabase
+      .from("transaction_payments")
+      .select("method, amount, received, change")
+      .eq("transaction_id", transactionId),
+  ]);
 
   if (!printers || printers.length === 0) return [];
+  if (!business || !transaction) return [];
 
-  // Buat buffer per printer (mungkin beda ukuran kertas)
+  const date = new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+  const receiptItems = (items ?? []).map((i) => ({
+    name: i.name,
+    qty: Number(i.qty),
+    price: Number(i.price),
+    note: (i as unknown as { note?: string | null }).note,
+  }));
+  const receiptPayments = (payments ?? []).map((p) => ({
+    method: p.method,
+    amount: Number(p.amount),
+    received: p.received === null ? null : Number(p.received),
+    change: p.change === null ? null : Number(p.change),
+  }));
+
   const jobs: KitchenPrintJobPayload[] = [];
   for (const p of printers) {
     const paperWidth = (p as unknown as { paper_width?: number }).paper_width ?? 58;
-    const bufferResult = await buildReceiptBuffer(supabase, businessId, transactionId, paperWidth);
-    if (!bufferResult.success) continue;
+    const buffer = buildReceiptTicket({
+      businessName: business.name,
+      businessAddress: (business as unknown as { address?: string | null }).address,
+      businessPhone: (business as unknown as { phone?: string | null }).phone,
+      invoiceNumber: transaction.invoice_number,
+      date,
+      cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
+      voided: transaction.voided,
+      items: receiptItems,
+      subtotal: Number(transaction.subtotal_raw),
+      itemDiscount: Number(transaction.total_item_disc),
+      orderDiscount: Number(transaction.order_disc_amt),
+      service: Number(transaction.service),
+      tax: Number(transaction.tax),
+      total: Number(transaction.total),
+      payments: receiptPayments,
+      settings: (business as unknown as { receipt_settings?: object }).receipt_settings as import("@/lib/escpos").ReceiptSettings | undefined,
+      paperWidth,
+    });
     jobs.push({
       printerName: p.name,
       address: p.address as string,
       connectionType: p.connection_type as "lan" | "bluetooth",
-      bytesBase64: bufferResult.buffer.toString("base64"),
+      bytesBase64: buffer.toString("base64"),
     });
   }
   return jobs;
 }
 
+// Fetches products + cashier + kitchen printers in one parallel batch
+// (previously 2 serial round trips: products+cashier, then printers inside
+// buildKitchenPrintJobs). Inlines the routing logic from kitchen-print.ts.
 async function buildKitchenPrintJobsForItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
@@ -240,29 +301,69 @@ async function buildKitchenPrintJobsForItems(
   orderType?: string,
   cashierId?: string,
 ): Promise<KitchenPrintJobPayload[]> {
+  if (items.length === 0) return [];
+
   const productIds = Array.from(new Set(items.map((i) => i.productId)));
 
-  const [{ data: products }, cashierRow] = await Promise.all([
+  const [{ data: products }, cashierRow, { data: printers }] = await Promise.all([
     supabase.from("products").select("id, name, category").in("id", productIds),
     cashierId
       ? supabase.from("cashiers").select("name").eq("id", cashierId).single()
       : Promise.resolve({ data: null }),
+    supabase
+      .from("kitchen_printers")
+      .select("id, name, categories, connection_type, address, prints_receipt, paper_width")
+      .eq("business_id", businessId),
   ]);
+
   const productMap = new Map((products ?? []).map((p) => [p.id, p]));
   const cashierName = (cashierRow.data as { name?: string } | null)?.name;
 
-  return buildKitchenPrintJobs(supabase, businessId, {
-    source,
-    label,
-    items: items.map((i) => ({
-      name: productMap.get(i.productId)?.name ?? "Item",
-      category: productMap.get(i.productId)?.category ?? null,
-      qty: i.qty,
-      note: i.note,
-    })),
-    cashierName,
-    orderType,
-  }).catch(() => []);
+  const mappedItems = items.map((i) => ({
+    name: productMap.get(i.productId)?.name ?? "Item",
+    category: productMap.get(i.productId)?.category ?? null,
+    qty: i.qty,
+    note: i.note,
+  }));
+
+  const addressedPrinters = (printers ?? []).filter(
+    (p) => !!p.address && !p.prints_receipt,
+  ) as {
+    id: string;
+    name: string;
+    categories: string[];
+    connection_type: "lan" | "bluetooth";
+    address: string;
+    paper_width: number;
+  }[];
+
+  const attempts = addressedPrinters
+    .map((printer) => {
+      const routed =
+        printer.categories.length > 0
+          ? mappedItems.filter((i) => i.category && printer.categories.includes(i.category))
+          : mappedItems;
+      return { printer, items: routed };
+    })
+    .filter((a) => a.items.length > 0);
+
+  return attempts.map(({ printer, items: ticketItems }) => {
+    const buffer = buildKitchenTicket({
+      station: printer.name,
+      source,
+      label,
+      items: ticketItems,
+      cashierName,
+      orderType,
+      paperWidth: printer.paper_width ?? 58,
+    });
+    return {
+      printerName: printer.name,
+      address: printer.address,
+      connectionType: printer.connection_type,
+      bytesBase64: buffer.toString("base64"),
+    };
+  });
 }
 
 export async function logKitchenPrintFailures(
@@ -506,18 +607,14 @@ export async function saveOpenBill(
     return { success: false, error: error?.message ?? "Gagal menyimpan bon." };
   }
 
-  await logActivity(
-    supabase,
-    businessId,
-    "transaksi",
-    "info",
-    `Open Bill dibuat: ${trimmed}`,
-    `${items.length} jenis item`,
-  );
   revalidatePath(`/business/${businessId}/pos`);
-  const printJobs = await buildKitchenPrintJobsForItems(
-    supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId,
-  ).catch(() => []);
+  // logActivity and print-job building are independent — run in parallel
+  const [printJobs] = await Promise.all([
+    buildKitchenPrintJobsForItems(
+      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId,
+    ).catch(() => []),
+    logActivity(supabase, businessId, "transaksi", "info", `Open Bill dibuat: ${trimmed}`, `${items.length} jenis item`),
+  ]);
   return { success: true, billId: data.id, printJobs };
 }
 
