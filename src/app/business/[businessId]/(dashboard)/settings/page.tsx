@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessType, updateTaxService } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateTaxService } from "./actions";
 import SelfOrderBannerForm from "./self-order-banner-form";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
+import BusinessProfileForm from "./business-profile-form";
 import BusinessTypeForm from "./business-type-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DeletePrinterButton from "./delete-printer-button";
@@ -109,6 +110,22 @@ export default async function SettingsPage({
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Pengaturan — {business.name}</h1>
+
+        {/* Profil Toko */}
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Profil Toko</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Nama, alamat, dan nomor telepon tampil di struk pelanggan.
+          </p>
+          <div className="mt-4">
+            <BusinessProfileForm
+              action={updateBusinessProfile.bind(null, businessId)}
+              name={business.name}
+              address={(business as unknown as { address?: string | null }).address ?? null}
+              phone={(business as unknown as { phone?: string | null }).phone ?? null}
+            />
+          </div>
+        </div>
 
         {/* Jenis Usaha */}
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

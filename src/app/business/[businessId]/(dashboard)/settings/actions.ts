@@ -381,6 +381,30 @@ export async function updateBusinessType(
   return { error: null, saved: true };
 }
 
+export type BusinessProfileState = { error: string | null; saved?: boolean };
+
+export async function updateBusinessProfile(
+  businessId: string,
+  _prevState: BusinessProfileState,
+  formData: FormData,
+): Promise<BusinessProfileState> {
+  const name = (formData.get("name") as string)?.trim();
+  const address = (formData.get("address") as string)?.trim() || null;
+  const phone = (formData.get("phone") as string)?.trim() || null;
+
+  if (!name) return { error: "Nama toko tidak boleh kosong." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ name, address, phone })
+    .eq("id", businessId);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/business/${businessId}`, "layout");
+  return { error: null, saved: true };
+}
+
 export type DiscountRuleState = { error: string | null };
 
 export async function addProductDiscountRule(
