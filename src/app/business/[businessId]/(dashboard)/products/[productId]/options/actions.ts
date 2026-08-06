@@ -105,6 +105,22 @@ export async function deleteOption(
   revalidatePath(`/business/${businessId}/products/${productId}/options`);
 }
 
+export async function toggleGlobalModifier(
+  businessId: string,
+  productId: string,
+  groupId: string,
+  linked: boolean,
+): Promise<void> {
+  const supabase = await createClient();
+  if (linked) {
+    await supabase.from("product_global_modifier_links").delete()
+      .eq("product_id", productId).eq("group_id", groupId);
+  } else {
+    await supabase.from("product_global_modifier_links").insert({ product_id: productId, group_id: groupId });
+  }
+  revalidatePath(`/business/${businessId}/products/${productId}/options`);
+}
+
 export async function updateOptionGroupName(
   businessId: string,
   productId: string,

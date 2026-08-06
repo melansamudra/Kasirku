@@ -830,6 +830,37 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     options: [...(g.product_options ?? [])].sort((a, b) => a.sort_order - b.sort_order),
   }));
 
+  // Load global modifier groups linked to any product of this business
+  const productIds = (products ?? []).map((p) => p.id);
+  if (productIds.length > 0) {
+    const { data: links } = await supabase
+      .from("product_global_modifier_links")
+      .select("product_id, group_id")
+      .in("product_id", productIds);
+
+    if (links && links.length > 0) {
+      const groupIds = [...new Set(links.map((l) => l.group_id))];
+      const { data: globalGroups } = await supabase
+        .from("global_modifier_groups")
+        .select("id, name, required, global_modifier_options(id, name, price_adjustment, sort_order)")
+        .in("id", groupIds);
+
+      const globalMap = new Map((globalGroups ?? []).map((g) => [g.id, g]));
+      for (const link of links) {
+        const g = globalMap.get(link.group_id);
+        if (!g) continue;
+        optionGroups.push({
+          id: `global:${g.id}:${link.product_id}`,
+          product_id: link.product_id,
+          name: g.name,
+          required: g.required,
+          sort_order: 9999,
+          options: [...(g.global_modifier_options ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+        });
+      }
+    }
+  }
+
   return {
     products: (products ?? []) as PosProduct[],
     openBills: (openBillRows ?? []) as unknown as PosOpenBill[],

@@ -85,6 +85,7 @@ function buildNavGroups(
         { key: "shifts", href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
         { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet },
         { key: "products", href: `${base}/products`, label: "Kelola Produk", icon: Package },
+        { key: "modifiers", href: `${base}/modifiers`, label: "Modifier Global", icon: Tag },
         ...(isFnb
           ? [
               { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
