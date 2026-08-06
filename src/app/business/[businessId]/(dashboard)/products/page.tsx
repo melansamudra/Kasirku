@@ -43,8 +43,7 @@ export default async function ProductsPage({
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
-  // Variants are just extra product rows sharing the same name — group them
-  // here purely for display, no schema relationship involved.
+  // Group by name (variants share the same name), then by category
   const groups: { name: string; rows: NonNullable<typeof products> }[] = [];
   for (const p of products ?? []) {
     const existing = groups.find((g) => g.name === p.name);
@@ -54,6 +53,20 @@ export default async function ProductsPage({
       groups.push({ name: p.name, rows: [p] });
     }
   }
+
+  // Group name-groups by category for the folder/accordion view
+  const categoryMap = new Map<string, typeof groups>();
+  for (const g of groups) {
+    const cat = g.rows[0].category || "Tanpa Kategori";
+    if (!categoryMap.has(cat)) categoryMap.set(cat, []);
+    categoryMap.get(cat)!.push(g);
+  }
+  // Sort: defined categories alphabetically, "Tanpa Kategori" last
+  const categoryEntries = [...categoryMap.entries()].sort(([a], [b]) => {
+    if (a === "Tanpa Kategori") return 1;
+    if (b === "Tanpa Kategori") return -1;
+    return a.localeCompare(b, "id");
+  });
 
   const { data: adjustments } = await supabase
     .from("stock_adjustments")
@@ -116,66 +129,67 @@ export default async function ProductsPage({
           </div>
         </div>
 
-        <div className="mt-6 space-y-2">
-          {groups.length > 0 ? (
-            groups.map((g) =>
-              g.rows.length === 1 ? (
-                <div key={g.rows[0].id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-                  <ProductRow
-                    businessId={businessId}
-                    p={g.rows[0]}
-                    showName
-                    categories={categoryNames}
-                  />
-                  <AddVariantForm
-                    action={addVariants.bind(
-                      null,
-                      businessId,
-                      g.rows[0].name,
-                      g.rows[0].category,
-                      g.rows[0].emoji,
-                    )}
-                  />
-                </div>
-              ) : (
-                <div
-                  key={g.name}
-                  className="rounded-xl border border-zinc-200 bg-white px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg">
-                      {g.rows[0].emoji || "📦"}
-                    </div>
+        <div className="mt-6 space-y-3">
+          {categoryEntries.length > 0 ? (
+            categoryEntries.map(([cat, catGroups], catIdx) => {
+              const totalProducts = catGroups.reduce((s, g) => s + g.rows.length, 0);
+              return (
+                <details key={cat} open={catIdx === 0} className="group rounded-xl border border-zinc-200 bg-white">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 select-none">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-base transition-transform group-open:rotate-90">
+                      ▶
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        {g.rows[0].category || "Tanpa kategori"} · {g.rows.length} varian
-                      </p>
+                      <p className="text-sm font-semibold text-zinc-900">{cat}</p>
+                      <p className="text-xs text-zinc-500">{totalProducts} produk</p>
                     </div>
+                  </summary>
+                  <div className="space-y-2 border-t border-zinc-100 px-4 pb-4 pt-3">
+                    {catGroups.map((g) =>
+                      g.rows.length === 1 ? (
+                        <div key={g.rows[0].id} className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5">
+                          <ProductRow
+                            businessId={businessId}
+                            p={g.rows[0]}
+                            showName
+                            categories={categoryNames}
+                          />
+                          <AddVariantForm
+                            action={addVariants.bind(null, businessId, g.rows[0].name, g.rows[0].category, g.rows[0].emoji)}
+                          />
+                        </div>
+                      ) : (
+                        <div key={g.name} className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg">
+                              {g.rows[0].emoji || "📦"}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
+                              <p className="text-xs text-zinc-500">{g.rows.length} varian</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
+                            {g.rows.map((p) => (
+                              <ProductRow
+                                key={p.id}
+                                businessId={businessId}
+                                p={p}
+                                showName={false}
+                                categories={categoryNames}
+                              />
+                            ))}
+                            <AddVariantForm
+                              action={addVariants.bind(null, businessId, g.name, g.rows[0].category, g.rows[0].emoji)}
+                            />
+                          </div>
+                        </div>
+                      ),
+                    )}
                   </div>
-                  <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
-                    {g.rows.map((p) => (
-                      <ProductRow
-                        key={p.id}
-                        businessId={businessId}
-                        p={p}
-                        showName={false}
-                        categories={categoryNames}
-                      />
-                    ))}
-                    <AddVariantForm
-                      action={addVariants.bind(
-                        null,
-                        businessId,
-                        g.name,
-                        g.rows[0].category,
-                        g.rows[0].emoji,
-                      )}
-                    />
-                  </div>
-                </div>
-              ),
-            )
+                </details>
+              );
+            })
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
               Belum ada produk. Tambahkan minimal satu supaya bisa mulai jualan.
