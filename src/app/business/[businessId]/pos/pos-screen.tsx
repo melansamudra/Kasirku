@@ -658,8 +658,8 @@ export default function PosScreen({
         next.push({
           cartKey: product.id,
           productId: product.id,
-          name: product.name,
-          price: product.price,
+          name: item.name,
+          price: item.price,
           basePrice: product.price,
           qty: addQty,
           maxStock: Math.max(product.stock, addQty),
@@ -973,7 +973,7 @@ export default function PosScreen({
       disc: i.disc,
       discType: i.discType,
       note: i.note,
-      unitPrice: i.selectedOptions.length > 0 ? i.price : undefined,
+      unitPrice: i.price !== i.basePrice ? i.price : undefined,
       optionNames: i.selectedOptions.length > 0 ? i.selectedOptions.map((o) => o.optionName) : undefined,
     }));
     const paymentsPayload: TenderInput[] = tenders.map((t) => ({
