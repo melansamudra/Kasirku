@@ -12,7 +12,7 @@ const DEFAULTS: Required<ReceiptSettings> = {
   show_invoice: true,
   show_datetime: true,
   show_cashier: true,
-  show_item_note: false,
+  show_item_note: true,
   show_unit_price: true,
   show_item_disc: true,
   show_service: true,

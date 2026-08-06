@@ -185,7 +185,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
     showInvoice: s.show_invoice ?? true,
     showDatetime: s.show_datetime ?? true,
     showCashier: s.show_cashier ?? true,
-    showItemNote: s.show_item_note ?? false,
+    showItemNote: s.show_item_note ?? true,
     showUnitPrice: s.show_unit_price ?? true,
     showItemDisc: s.show_item_disc ?? true,
     showService: s.show_service ?? true,

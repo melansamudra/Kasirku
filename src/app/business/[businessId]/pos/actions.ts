@@ -7,6 +7,15 @@ import { logActivity } from "@/lib/activity-log";
 import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
 import { buildKitchenTicket, buildReceiptTicket } from "@/lib/escpos";
 
+// Format tanggal secara manual supaya konsisten di semua platform
+// (Node.js id-ID locale di Linux kadang menambah "pukul" → baris jadi > 26 kolom)
+function fmtDate(d: Date): string {
+  const M = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+  const h = String(d.getHours()).padStart(2,"0");
+  const m = String(d.getMinutes()).padStart(2,"0");
+  return `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}, ${h}.${m}`;
+}
+
 type VerifyCashierPinRow = {
   id: string;
   business_id: string;
@@ -267,7 +276,7 @@ async function buildReceiptPrintJobsForTransaction(
   if (!printers || printers.length === 0) return [];
   if (!business || !transaction) return [];
 
-  const date = new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+  const date = fmtDate(new Date(transaction.date));
   const receiptItems = (items ?? []).map((i) => ({
     name: i.name,
     qty: Number(i.qty),
@@ -744,7 +753,7 @@ export async function printOpenBillToReceipt(
   const total = subtotal + service + tax;
 
   const settings = (business as unknown as { receipt_settings?: object }).receipt_settings as import("@/lib/escpos").ReceiptSettings | undefined;
-  const date = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+  const date = fmtDate(new Date());
 
   const jobs: KitchenPrintJobPayload[] = [];
   for (const p of printers) {
