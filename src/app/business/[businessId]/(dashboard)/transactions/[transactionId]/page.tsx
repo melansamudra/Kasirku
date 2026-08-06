@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import VoidTransactionForm from "./void-transaction-form";
 import ReprintKitchenButton from "./reprint-kitchen-button";
+import VoidItemButton from "./void-item-button";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -44,7 +45,7 @@ export default async function TransactionDetailPage({
 
   const { data: items } = await supabase
     .from("transaction_items")
-    .select("id, name, category, price, qty")
+    .select("id, name, category, price, qty, voided, void_reason, voided_at")
     .eq("transaction_id", transactionId)
     .order("id", { ascending: true });
 
@@ -80,20 +81,65 @@ export default async function TransactionDetailPage({
         <div className="mt-6 rounded-xl bg-white shadow-sm p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">Item</h2>
           <div className="space-y-2">
-            {items?.map((item) => (
-              <div key={item.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="text-zinc-900">{item.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {item.qty} × {formatRupiah(Number(item.price))}
-                  </p>
+            {items?.map((item) => {
+              const isVoided = (item as unknown as { voided?: boolean }).voided;
+              const voidReason = (item as unknown as { void_reason?: string | null }).void_reason;
+              const voidedAt = (item as unknown as { voided_at?: string | null }).voided_at;
+              return (
+                <div key={item.id}>
+                  <div className={`flex items-start justify-between text-sm ${isVoided ? "opacity-50" : ""}`}>
+                    <div className="flex-1">
+                      <p className={`text-zinc-900 ${isVoided ? "line-through" : ""}`}>{item.name}</p>
+                      <p className="text-xs text-zinc-500">
+                        {item.qty} × {formatRupiah(Number(item.price))}
+                      </p>
+                      {isVoided && (
+                        <p className="text-[11px] text-red-500">
+                          Void{voidReason ? ` · ${voidReason}` : ""}
+                          {voidedAt ? ` · ${new Date(voidedAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}` : ""}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className={`font-medium text-zinc-900 ${isVoided ? "line-through" : ""}`}>
+                        {formatRupiah(Number(item.price) * Number(item.qty))}
+                      </p>
+                      {!transaction.voided && !isVoided && (
+                        <VoidItemButton
+                          businessId={businessId}
+                          transactionId={transactionId}
+                          itemId={item.id}
+                          itemName={item.name}
+                          invoiceNumber={transaction.invoice_number}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  {/* Confirm panel muncul di bawah item (dirender dari client) */}
                 </div>
-                <p className="font-medium text-zinc-900">
-                  {formatRupiah(Number(item.price) * Number(item.qty))}
+              );
+            })}
+          </div>
+
+          {/* Total refund dari item yang di-void */}
+          {(() => {
+            const voidedTotal = (items ?? []).reduce((sum, item) => {
+              const isVoided = (item as unknown as { voided?: boolean }).voided;
+              return isVoided ? sum + Number(item.price) * Number(item.qty) : sum;
+            }, 0);
+            if (voidedTotal === 0) return null;
+            return (
+              <div className="mt-3 rounded-lg bg-red-50 px-3 py-2.5 border border-red-100">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-red-700">Kembalikan ke pelanggan</span>
+                  <span className="font-bold text-red-700">− {formatRupiah(voidedTotal)}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-red-500">
+                  Dari {(items ?? []).filter((i) => (i as unknown as { voided?: boolean }).voided).length} item yang di-void
                 </p>
               </div>
-            ))}
-          </div>
+            );
+          })()}
 
           <div className="mt-4 space-y-1 border-t border-zinc-100 pt-3 text-sm">
             <div className="flex justify-between text-zinc-600">
