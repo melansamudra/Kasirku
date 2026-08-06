@@ -43,11 +43,20 @@ export default async function TransactionDetailPage({
     notFound();
   }
 
-  const { data: items } = await supabase
+  // Coba select dengan kolom void; fallback ke basic jika migration belum dijalankan
+  let { data: items } = await supabase
     .from("transaction_items")
     .select("id, name, category, price, qty, voided, void_reason, voided_at")
     .eq("transaction_id", transactionId)
     .order("id", { ascending: true });
+  if (!items) {
+    const { data: basicItems } = await supabase
+      .from("transaction_items")
+      .select("id, name, category, price, qty")
+      .eq("transaction_id", transactionId)
+      .order("id", { ascending: true });
+    items = basicItems;
+  }
 
   const { data: payments } = await supabase
     .from("transaction_payments")
@@ -85,7 +94,12 @@ export default async function TransactionDetailPage({
         </p>
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-900">Item</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-900">Item</h2>
+            {!transaction.voided && (
+              <span className="text-[11px] text-zinc-400">Tekan "Batalkan item" untuk void per item</span>
+            )}
+          </div>
           <div className="space-y-2">
             {items?.map((item) => {
               const isVoided = (item as unknown as { voided?: boolean }).voided;

@@ -34,9 +34,9 @@ export default function VoidItemButton({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-red-400 hover:text-red-600"
+        className="rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
       >
-        Void
+        Batalkan item
       </button>
     );
   }
