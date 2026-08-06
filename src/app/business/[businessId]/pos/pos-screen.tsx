@@ -1423,39 +1423,18 @@ export default function PosScreen({
             )}
           </button>
           {isFnb && (
-            <>
-              <button
-                onClick={() => setInboxOpen(true)}
-                className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-              >
-                🛎️ <span className="hidden sm:inline">Order</span>
-                {newOrderCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                    {newOrderCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={openSelfOrderMenu}
-                title="Kelola menu self-order"
-                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-              >
-                📋 <span className="hidden sm:inline">Menu</span>
-              </button>
-            </>
+            <button
+              onClick={() => setInboxOpen(true)}
+              className="relative flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              🛎️ <span className="hidden sm:inline">Order</span>
+              {newOrderCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {newOrderCount}
+                </span>
+              )}
+            </button>
           )}
-          <div className="flex shrink-0 items-center rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            {(["kecil", "sedang", "besar", "list"] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                title={mode.charAt(0).toUpperCase() + mode.slice(1)}
-                className={`px-2 py-2 text-xs transition-colors ${viewMode === mode ? "bg-brand-600 text-white" : "text-zinc-500 hover:bg-zinc-50"}`}
-              >
-                {mode === "kecil" ? "⊞" : mode === "sedang" ? "⊟" : mode === "besar" ? "▦" : "☰"}
-              </button>
-            ))}
-          </div>
           <button
             onClick={() => setPosMenuOpen(true)}
             className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
@@ -2249,6 +2228,48 @@ export default function PosScreen({
               </button>
             </div>
             <div className="p-4">
+              {/* Tampilan grid produk */}
+              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                Tampilan Produk
+              </p>
+              <div className="mb-4 flex items-center rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                {([
+                  { mode: "kecil", icon: "⊞", label: "Kecil" },
+                  { mode: "sedang", icon: "⊟", label: "Sedang" },
+                  { mode: "besar", icon: "▦", label: "Besar" },
+                  { mode: "list", icon: "☰", label: "List" },
+                ] as const).map(({ mode, icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${viewMode === mode ? "bg-brand-600 text-white" : "text-zinc-500 hover:bg-zinc-50"}`}
+                  >
+                    <span>{icon}</span>
+                    <span className="text-[10px]">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Self-order menu (FnB saja) */}
+              {isFnb && (
+                <>
+                  <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                    Self-Order
+                  </p>
+                  <div className="mb-4 space-y-1.5">
+                    <button
+                      onClick={() => {
+                        setPosMenuOpen(false);
+                        openSelfOrderMenu();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                    >
+                      📋 Kelola Menu Self-Order
+                    </button>
+                  </div>
+                </>
+              )}
+
               {/* Aksi shift — dipakai selama ngasir */}
               <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                 Shift
