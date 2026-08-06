@@ -272,9 +272,16 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (cfg.showItemDisc && input.itemDiscount > 0) text(pl("Diskon item", `-${formatRp(input.itemDiscount)}`));
   if (input.orderDiscount > 0) text(pl("Diskon order", `-${formatRp(input.orderDiscount)}`));
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
-  if (cfg.showTax && input.tax > 0) text(pl("PPN", formatRp(input.tax)));
+  // Void items reduce the taxable base proportionally. Derive the tax rate from
+  // the original figures so we don't need to pass taxRate as a separate field.
+  const taxableBase = input.subtotal - input.itemDiscount - input.orderDiscount + input.service;
+  const voidedTax = input.tax > 0 && taxableBase > 0
+    ? Math.round(voidedItemsTotal / taxableBase * input.tax)
+    : 0;
+  const adjustedTax = input.tax - voidedTax;
+  if (cfg.showTax && adjustedTax > 0) text(pl("PPN", formatRp(adjustedTax)));
   push([ESC, 0x45, 0x01]); // bold
-  text(pl("TOTAL", formatRp(input.total - voidedItemsTotal)));
+  text(pl("TOTAL", formatRp(input.total - voidedItemsTotal - voidedTax)));
   push([ESC, 0x45, 0x00]);
 
   if (cfg.showPaymentDetail) {
