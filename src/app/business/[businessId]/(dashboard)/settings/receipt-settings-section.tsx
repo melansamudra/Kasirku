@@ -18,6 +18,8 @@ const DEFAULTS: Required<ReceiptSettings> = {
   show_service: true,
   show_tax: true,
   show_payment_detail: true,
+  show_order_label: true,
+  show_customer_name: true,
   footer_text: "Terima kasih!",
   font_large: false,
 };
@@ -33,6 +35,8 @@ const TOGGLES: {
   { key: "show_invoice", label: "Nomor invoice" },
   { key: "show_datetime", label: "Tanggal & jam" },
   { key: "show_cashier", label: "Nama kasir" },
+  { key: "show_order_label", label: "Meja / Order" },
+  { key: "show_customer_name", label: "Nama pelanggan" },
   {
     key: "show_item_note",
     label: "Catatan per item",
@@ -127,14 +131,18 @@ function ReceiptPreview({
             <span>Andi</span>
           </div>
         )}
-        <div className="flex justify-between gap-1">
-          <span>Meja/Order</span>
-          <span>Meja 5</span>
-        </div>
-        <div className="flex justify-between gap-1">
-          <span>Pelanggan</span>
-          <span>Budi</span>
-        </div>
+        {s.show_order_label && (
+          <div className="flex justify-between gap-1">
+            <span>Meja/Order</span>
+            <span>Meja 5</span>
+          </div>
+        )}
+        {s.show_customer_name && (
+          <div className="flex justify-between gap-1">
+            <span>Pelanggan</span>
+            <span>Budi</span>
+          </div>
+        )}
       </div>
 
       <div className="mt-1 border-t border-dashed border-zinc-300 pt-1 space-y-0.5">

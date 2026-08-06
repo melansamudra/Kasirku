@@ -132,6 +132,8 @@ export type ReceiptSettings = {
   show_service?: boolean;
   show_tax?: boolean;
   show_payment_detail?: boolean;
+  show_order_label?: boolean;
+  show_customer_name?: boolean;
   footer_text?: string;
   font_large?: boolean; // GS ! 0x10 — double-height, karakter 2× lebih tinggi, cocok untuk 80mm
 };
@@ -189,6 +191,8 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
     showService: s.show_service ?? true,
     showTax: s.show_tax ?? true,
     showPaymentDetail: s.show_payment_detail ?? true,
+    showOrderLabel: s.show_order_label ?? true,
+    showCustomerName: s.show_customer_name ?? true,
     footerText: s.footer_text ?? "Terima kasih!",
     fontLarge: s.font_large ?? false,
   };
@@ -221,8 +225,8 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (cfg.showInvoice) text(pl("No.", input.invoiceNumber));
   if (cfg.showDatetime) text(pl("Tanggal", input.date));
   if (cfg.showCashier && input.cashierName) text(pl("Kasir", input.cashierName));
-  if (input.orderLabel) text(pl("Meja/Order", tr(input.orderLabel, W - 11)));
-  if (input.customerName) text(pl("Pelanggan", tr(input.customerName, W - 10)));
+  if (cfg.showOrderLabel && input.orderLabel) text(pl("Meja/Order", tr(input.orderLabel, W - 11)));
+  if (cfg.showCustomerName && input.customerName) text(pl("Pelanggan", tr(input.customerName, W - 10)));
 
   divider();
   for (const item of input.items) {
