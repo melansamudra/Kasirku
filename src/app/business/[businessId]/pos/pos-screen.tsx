@@ -1352,7 +1352,7 @@ export default function PosScreen({
   }
 
   return (
-    <div className="flex flex-1 flex-row overflow-hidden bg-zinc-50">
+    <div className="flex h-screen flex-row overflow-hidden bg-zinc-50">
       {/* Catalog */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3">
