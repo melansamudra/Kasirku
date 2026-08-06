@@ -197,6 +197,23 @@ export default function AddPrinterForm({
         </div>
       )}
 
+      <div>
+        <label htmlFor="paper-width" className="mb-1 block text-xs font-medium text-zinc-600">
+          Ukuran Kertas
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {([58, 80] as const).map((mm) => (
+            <label
+              key={mm}
+              className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-zinc-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-zinc-700 has-checked:border-brand-500 has-checked:bg-brand-50"
+            >
+              <input type="radio" name="paperWidth" value={mm} defaultChecked={mm === 58} className="h-3.5 w-3.5" />
+              {mm}mm {mm === 58 ? "(standar)" : "(lebar)"}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <label className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-xs text-zinc-700 has-checked:border-brand-500 has-checked:bg-brand-50">
         <input type="checkbox" name="printsReceipt" className="h-3.5 w-3.5" />
         <span>

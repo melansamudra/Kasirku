@@ -24,7 +24,7 @@ describe("buildKitchenTicket", () => {
     expect(buf.indexOf(centerCmd)).toBeLessThan(text.indexOf("DAPUR"));
   });
 
-  it("wraps each item name in bold on/off and includes qty without 'x'", () => {
+  it("wraps each item name in bold on/off and includes qty with 'x'", () => {
     const buf = buildKitchenTicket({
       station: "Dapur",
       source: "Kasir",
@@ -32,12 +32,12 @@ describe("buildKitchenTicket", () => {
       items: [{ name: "Kopi Susu", qty: 2 }],
     });
     const text = buf.toString("latin1");
-    expect(text).toContain("2 Kopi Susu");
+    expect(text).toContain("2 x  Kopi Susu");
 
     const boldOn = Buffer.from([ESC, 0x45, 0x01]);
     const boldOff = Buffer.from([ESC, 0x45, 0x00]);
-    const boldOnIdx = buf.lastIndexOf(boldOn, text.indexOf("2 Kopi Susu"));
-    const itemIdx = text.indexOf("2 Kopi Susu");
+    const boldOnIdx = buf.lastIndexOf(boldOn, text.indexOf("2 x  Kopi Susu"));
+    const itemIdx = text.indexOf("2 x  Kopi Susu");
     const boldOffIdx = buf.indexOf(boldOff, itemIdx);
 
     expect(boldOnIdx).toBeGreaterThanOrEqual(0);
@@ -52,7 +52,7 @@ describe("buildKitchenTicket", () => {
       label: "INV-1",
       items: [{ name: "Es Batu", qty: 1.5 }],
     });
-    expect(buf.toString("latin1")).toContain("1.50 Es Batu");
+    expect(buf.toString("latin1")).toContain("1.50 x  Es Batu");
   });
 
   it("includes an item note indented on its own line when present", () => {
@@ -62,7 +62,7 @@ describe("buildKitchenTicket", () => {
       label: "INV-1",
       items: [{ name: "Nasi Goreng", qty: 1, note: "pedas" }],
     });
-    expect(buf.toString("latin1")).toContain("* pedas");
+    expect(buf.toString("latin1")).toContain("      pedas");
   });
 
   it("omits the note line entirely when there is no note", () => {
@@ -72,7 +72,8 @@ describe("buildKitchenTicket", () => {
       label: "INV-1",
       items: [{ name: "Nasi Goreng", qty: 1 }],
     });
-    expect(buf.toString("latin1")).not.toContain("* ");
+    const text = buf.toString("latin1");
+    expect(text).not.toContain("Nasi Goreng\n      ");
   });
 
   it("prints source and label as separate labeled lines", () => {

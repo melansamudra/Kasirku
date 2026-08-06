@@ -5,6 +5,11 @@
 const ESC = 0x1b;
 const GS = 0x1d;
 
+// 58mm → 32 cols, 80mm → 42 cols (Font A)
+function colsForPaper(paperWidth: number) {
+  return paperWidth >= 80 ? 42 : 32;
+}
+
 export type KitchenTicketItem = {
   name: string;
   qty: number;
@@ -15,6 +20,7 @@ export type KitchenTicketInput = {
   station: string;
   source: string;
   label: string;
+  paperWidth?: number;
   items: KitchenTicketItem[];
   cashierName?: string;
   orderType?: string;
@@ -24,48 +30,58 @@ function formatQty(qty: number): string {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2);
 }
 
-function padRight(label: string, value: string, width = 32): string {
-  const colon = `${label}: `;
-  return colon + value.slice(0, Math.max(width - colon.length, 1));
-}
-
 export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
+  const W = colsForPaper(input.paperWidth ?? 58);
   const chunks: Buffer[] = [];
   const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
   const text = (s: string) => chunks.push(Buffer.from(`${s}\n`, "latin1"));
 
+  function col2(left: string, right: string): string {
+    const space = Math.max(W - left.length - right.length, 1);
+    return left + " ".repeat(space) + right;
+  }
+
   push([ESC, 0x40]); // initialize
 
-  // Header: tanggal/jam, sumber pesanan, tipe order, kasir, nomor info
-  push([ESC, 0x61, 0x00]); // left align
-  text(new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }));
-  text(padRight("No./Sumber", input.source));
-  if (input.orderType) {
-    push([ESC, 0x45, 0x01]); // bold
-    text(input.orderType.toUpperCase());
-    push([ESC, 0x45, 0x00]);
-  }
-  if (input.cashierName) {
-    text(padRight("Server", input.cashierName));
-  }
-  text(padRight("Info", input.label));
-
-  // Station separator — nama stasiun dapur/bar di tengah
-  text("================================");
+  // Judul besar: "NEW ORDER" — double height + double width, bold, centered
   push([ESC, 0x61, 0x01]); // center
+  push([GS, 0x21, 0x11]); // double height + double width
   push([ESC, 0x45, 0x01]); // bold
+  text("NEW ORDER");
+  push([ESC, 0x45, 0x00]); // bold off
+  push([GS, 0x21, 0x00]); // normal size
+
+  // Nama stasiun (BAR / DAPUR / dll) — bold, centered
+  push([ESC, 0x45, 0x01]);
   text(input.station.toUpperCase());
   push([ESC, 0x45, 0x00]);
-  push([ESC, 0x61, 0x00]); // left
-  text("================================");
+  push([ESC, 0x61, 0x00]); // left align
 
-  // Item list
+  // Header info — 2 kolom seperti format Moka
+  text("-".repeat(W));
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  text(col2(input.source, input.label));
+  text(col2(dateStr, timeStr));
+  if (input.cashierName) text(`Kasir ${input.cashierName}`);
+
+  // Separator + tipe order
+  text("-".repeat(W));
+  if (input.orderType) {
+    push([ESC, 0x61, 0x01]); // center
+    text(input.orderType);
+    push([ESC, 0x61, 0x00]); // left
+  }
+  text("-".repeat(W));
+
+  // Daftar item — qty "x  Nama" bold, catatan indented di bawahnya
   for (const item of input.items) {
     push([ESC, 0x45, 0x01]); // bold on
-    text(`${formatQty(item.qty)} ${item.name}`);
+    text(`${formatQty(item.qty)} x  ${item.name}`);
     push([ESC, 0x45, 0x00]); // bold off
     if (item.note) {
-      text(`   * ${item.note}`);
+      text(`      ${item.note}`);
     }
   }
 
@@ -76,9 +92,7 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
   return Buffer.concat(chunks);
 }
 
-// 32 columns matches Font A on the 58mm thermal printers this app targets
-// (RPP02N and similar) — used to right-align prices/totals in plain text
-// since ESC/POS has no flex layout.
+// 32 columns = Font A on 58mm thermal printers
 const RECEIPT_WIDTH = 32;
 
 function padLine(left: string, right: string, width = RECEIPT_WIDTH): string {
@@ -138,6 +152,7 @@ export type ReceiptTicketInput = {
   total: number;
   payments: ReceiptPayment[];
   settings?: ReceiptSettings;
+  paperWidth?: number;
 };
 
 function formatRp(value: number): string {
@@ -150,6 +165,7 @@ function formatRp(value: number): string {
 // tickets, since Android's OS-level print framework generally can't drive
 // cheap ESC/POS thermal printers (see dispatch-print-jobs.ts).
 export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
+  const W = colsForPaper(input.paperWidth ?? 58);
   const s = input.settings ?? {};
   const cfg = {
     showAddress: s.show_address ?? false,
@@ -169,13 +185,19 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   const chunks: Buffer[] = [];
   const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
   const text = (str: string) => chunks.push(Buffer.from(`${str}\n`, "latin1"));
-  const divider = () => text("-".repeat(RECEIPT_WIDTH));
+  const divider = () => text("-".repeat(W));
+  const pl = (left: string, right: string) => padLine(left, right, W);
+  const tr = (str: string, w = W) => truncate(str, w);
 
   push([ESC, 0x40]); // initialize
 
   push([ESC, 0x61, 0x01]); // center align
+  push([GS, 0x21, 0x01]); // double height for business name
+  push([ESC, 0x45, 0x01]); // bold
   text(input.businessName.toUpperCase());
-  if (cfg.showAddress && input.businessAddress) text(truncate(input.businessAddress));
+  push([ESC, 0x45, 0x00]);
+  push([GS, 0x21, 0x00]); // normal size
+  if (cfg.showAddress && input.businessAddress) text(tr(input.businessAddress));
   if (cfg.showPhone && input.businessPhone) text(`Tel: ${input.businessPhone}`);
   if (input.voided) {
     push([ESC, 0x45, 0x01]);
@@ -185,37 +207,45 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   push([ESC, 0x61, 0x00]); // left align
 
   divider();
-  if (cfg.showInvoice) text(padLine("No.", input.invoiceNumber));
-  if (cfg.showDatetime) text(padLine("Tanggal", input.date));
-  if (cfg.showCashier) text(padLine("Kasir", input.cashierName));
+  if (cfg.showInvoice) text(pl("No.", input.invoiceNumber));
+  if (cfg.showDatetime) text(pl("Tanggal", input.date));
+  if (cfg.showCashier) text(pl("Kasir", input.cashierName));
 
   divider();
+  // Item list — nama double-height agar mudah dibaca
   for (const item of input.items) {
+    push([GS, 0x21, 0x01]); // double height
+    push([ESC, 0x45, 0x01]); // bold
+    text(tr(item.name));
+    push([ESC, 0x45, 0x00]);
+    push([GS, 0x21, 0x00]); // normal
     if (cfg.showUnitPrice) {
-      text(truncate(item.name));
-      text(padLine(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
+      text(pl(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
     } else {
-      text(padLine(truncate(item.name, RECEIPT_WIDTH - formatRp(item.price * item.qty).length - 1), formatRp(item.price * item.qty)));
+      text(pl(`  ${formatQty(item.qty)}x`, formatRp(item.price * item.qty)));
     }
-    if (cfg.showItemNote && item.note) text(`  * ${truncate(item.note, RECEIPT_WIDTH - 4)}`);
+    if (cfg.showItemNote && item.note) text(`  * ${tr(item.note, W - 4)}`);
   }
 
   divider();
-  text(padLine("Subtotal", formatRp(input.subtotal)));
-  if (cfg.showItemDisc && input.itemDiscount > 0) text(padLine("Diskon item", `-${formatRp(input.itemDiscount)}`));
-  if (input.orderDiscount > 0) text(padLine("Diskon order", `-${formatRp(input.orderDiscount)}`));
-  if (cfg.showService && input.service > 0) text(padLine("Layanan", formatRp(input.service)));
-  if (cfg.showTax && input.tax > 0) text(padLine("PPN", formatRp(input.tax)));
-  push([ESC, 0x45, 0x01]);
-  text(padLine("TOTAL", formatRp(input.total)));
+  text(pl("Subtotal", formatRp(input.subtotal)));
+  if (cfg.showItemDisc && input.itemDiscount > 0) text(pl("Diskon item", `-${formatRp(input.itemDiscount)}`));
+  if (input.orderDiscount > 0) text(pl("Diskon order", `-${formatRp(input.orderDiscount)}`));
+  if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
+  if (cfg.showTax && input.tax > 0) text(pl("PPN", formatRp(input.tax)));
+  // Total — double height + bold agar menonjol
+  push([GS, 0x21, 0x01]); // double height
+  push([ESC, 0x45, 0x01]); // bold
+  text(pl("TOTAL", formatRp(input.total)));
   push([ESC, 0x45, 0x00]);
+  push([GS, 0x21, 0x00]); // normal
 
   if (cfg.showPaymentDetail) {
     divider();
     for (const p of input.payments) {
-      text(padLine(p.method, formatRp(p.amount)));
-      if (p.received !== null) text(padLine("Diterima", formatRp(p.received)));
-      if (p.change !== null && p.change > 0) text(padLine("Kembalian", formatRp(p.change)));
+      text(pl(p.method, formatRp(p.amount)));
+      if (p.received !== null) text(pl("Diterima", formatRp(p.received)));
+      if (p.change !== null && p.change > 0) text(pl("Kembalian", formatRp(p.change)));
     }
   }
 

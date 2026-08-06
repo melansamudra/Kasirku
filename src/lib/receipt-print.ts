@@ -13,6 +13,7 @@ export async function buildReceiptBuffer(
   supabase: SupabaseClient,
   businessId: string,
   transactionId: string,
+  paperWidth = 58,
 ): Promise<BuildReceiptBufferResult> {
   const [{ data: business }, { data: transaction }, { data: items }, { data: payments }] =
     await Promise.all([
@@ -62,6 +63,7 @@ export async function buildReceiptBuffer(
       change: p.change === null ? null : Number(p.change),
     })),
     settings: (business as unknown as { receipt_settings?: object }).receipt_settings as import("./escpos").ReceiptSettings | undefined,
+    paperWidth,
   });
 
   return { success: true, buffer };

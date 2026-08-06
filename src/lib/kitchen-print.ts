@@ -33,7 +33,7 @@ export async function buildKitchenPrintJobs(
 
   const { data: printers } = await supabase
     .from("kitchen_printers")
-    .select("id, name, categories, connection_type, address, prints_receipt")
+    .select("id, name, categories, connection_type, address, prints_receipt, paper_width")
     .eq("business_id", businessId);
 
   // A printer marked prints_receipt is the cashier's receipt printer, not a
@@ -48,6 +48,7 @@ export async function buildKitchenPrintJobs(
     categories: string[];
     connection_type: "lan" | "bluetooth";
     address: string;
+    paper_width: number;
   }[];
 
   const attempts = addressedPrinters
@@ -68,6 +69,7 @@ export async function buildKitchenPrintJobs(
       items,
       cashierName: job.cashierName,
       orderType: job.orderType,
+      paperWidth: printer.paper_width ?? 58,
     });
     return {
       printerName: printer.name,

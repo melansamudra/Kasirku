@@ -75,6 +75,7 @@ export async function addKitchenPrinter(
   const deviceLabel = (formData.get("deviceLabel") as string)?.trim();
   const categories = formData.getAll("categories").map((c) => String(c));
   const printsReceipt = formData.get("printsReceipt") === "on";
+  const paperWidth = Number(formData.get("paperWidth")) || 58;
 
   if (!name) {
     return { error: "Nama stasiun printer wajib diisi." };
@@ -92,6 +93,7 @@ export async function addKitchenPrinter(
     device_label: deviceLabel || null,
     categories,
     prints_receipt: printsReceipt,
+    paper_width: paperWidth,
   });
 
   if (error) {

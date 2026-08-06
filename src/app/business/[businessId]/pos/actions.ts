@@ -206,26 +206,29 @@ async function buildReceiptPrintJobsForTransaction(
   // Query printer dan bangun buffer struk tidak saling bergantung — buffer
   // tidak butuh daftar printer sama sekali. Jalankan bersamaan, baru buang
   // hasil buffer kalau ternyata tidak ada printer prints_receipt.
-  const [{ data: printers }, bufferResult] = await Promise.all([
-    supabase
-      .from("kitchen_printers")
-      .select("name, connection_type, address")
-      .eq("business_id", businessId)
-      .eq("prints_receipt", true)
-      .not("address", "is", null),
-    buildReceiptBuffer(supabase, businessId, transactionId),
-  ]);
+  const { data: printers } = await supabase
+    .from("kitchen_printers")
+    .select("name, connection_type, address, paper_width")
+    .eq("business_id", businessId)
+    .eq("prints_receipt", true)
+    .not("address", "is", null);
 
   if (!printers || printers.length === 0) return [];
-  if (!bufferResult.success) return [];
 
-  const bytesBase64 = bufferResult.buffer.toString("base64");
-  return printers.map((p) => ({
-    printerName: p.name,
-    address: p.address as string,
-    connectionType: p.connection_type as "lan" | "bluetooth",
-    bytesBase64,
-  }));
+  // Buat buffer per printer (mungkin beda ukuran kertas)
+  const jobs: KitchenPrintJobPayload[] = [];
+  for (const p of printers) {
+    const paperWidth = (p as unknown as { paper_width?: number }).paper_width ?? 58;
+    const bufferResult = await buildReceiptBuffer(supabase, businessId, transactionId, paperWidth);
+    if (!bufferResult.success) continue;
+    jobs.push({
+      printerName: p.name,
+      address: p.address as string,
+      connectionType: p.connection_type as "lan" | "bluetooth",
+      bytesBase64: bufferResult.buffer.toString("base64"),
+    });
+  }
+  return jobs;
 }
 
 async function buildKitchenPrintJobsForItems(
@@ -457,7 +460,7 @@ export type OpenBillItemInput = {
 };
 
 export type SaveOpenBillResult =
-  | { success: true; billId: string }
+  | { success: true; billId: string; printJobs: KitchenPrintJobPayload[] }
   | { success: false; error: string };
 
 export async function saveOpenBill(
@@ -465,6 +468,7 @@ export async function saveOpenBill(
   billId: string | null,
   label: string,
   items: OpenBillItemInput[],
+  cashierId?: string,
 ): Promise<SaveOpenBillResult> {
   const trimmed = label.trim();
   if (!trimmed) {
@@ -486,7 +490,10 @@ export async function saveOpenBill(
       return { success: false, error: error.message };
     }
     revalidatePath(`/business/${businessId}/pos`);
-    return { success: true, billId };
+    const printJobs = await buildKitchenPrintJobsForItems(
+      supabase, businessId, trimmed, "Tambahan Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId,
+    ).catch(() => []);
+    return { success: true, billId, printJobs };
   }
 
   const { data, error } = await supabase
@@ -508,7 +515,10 @@ export async function saveOpenBill(
     `${items.length} jenis item`,
   );
   revalidatePath(`/business/${businessId}/pos`);
-  return { success: true, billId: data.id };
+  const printJobs = await buildKitchenPrintJobsForItems(
+    supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId,
+  ).catch(() => []);
+  return { success: true, billId: data.id, printJobs };
 }
 
 export async function deleteOpenBill(businessId: string, billId: string) {
