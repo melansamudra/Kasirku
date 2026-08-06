@@ -274,7 +274,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
   if (cfg.showTax && input.tax > 0) text(pl("PPN", formatRp(input.tax)));
   push([ESC, 0x45, 0x01]); // bold
-  text(pl("TOTAL", formatRp(input.total)));
+  text(pl("TOTAL", formatRp(input.total - voidedItemsTotal)));
   push([ESC, 0x45, 0x00]);
 
   if (cfg.showPaymentDetail) {
