@@ -749,7 +749,6 @@ export async function printOpenBillToReceipt(
   const jobs: KitchenPrintJobPayload[] = [];
   for (const p of printers) {
     const paperWidth = (p as unknown as { paper_width?: number }).paper_width ?? 58;
-    const { buildReceiptTicket } = await import("@/lib/escpos");
     const buffer = buildReceiptTicket({
       businessName: business.name,
       businessAddress: (business as unknown as { address?: string | null }).address,
