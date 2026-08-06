@@ -430,9 +430,10 @@ export default function PosScreen({
     if (pOptionGroups.length > 0) {
       setOptionPickerProduct(product);
       // Pre-select opsi pertama dari setiap grup agar user tinggal mengubah yang tidak sesuai
+      // Hanya pre-select grup wajib; grup opsional dibiarkan kosong
       setPendingOptions(
         pOptionGroups
-          .filter((g) => g.options.length > 0)
+          .filter((g) => g.required && g.options.length > 0)
           .map((g) => ({
             groupId: g.id,
             groupName: g.name,
@@ -1649,7 +1650,13 @@ export default function PosScreen({
                             <button
                               key={opt.id}
                               onClick={() => {
-                                if (isSelected) return;
+                                if (isSelected) {
+                                  // Grup opsional: bisa deselect; grup wajib: tidak bisa
+                                  if (!group.required) {
+                                    setPendingOptions((prev) => prev.filter((o) => o.groupId !== group.id));
+                                  }
+                                  return;
+                                }
                                 setPendingOptions((prev) => [
                                   ...prev.filter((o) => o.groupId !== group.id),
                                   {
