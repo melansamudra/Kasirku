@@ -8,6 +8,7 @@ import {
   checkout,
   closeShift,
   deleteOpenBill,
+  printOpenBillToReceipt,
   getPosCatalog,
   getSelfOrders,
   getShiftTransactions,
@@ -222,6 +223,7 @@ export default function PosScreen({
   // dead end that lands on "Akses Ditolak".
   const isNative = Capacitor.isNativePlatform();
   const [billBusyId, setBillBusyId] = useState<string | null>(null);
+  const [billPrintingId, setBillPrintingId] = useState<string | null>(null);
   const [activeBill, setActiveBill] = useState<{ id: string; label: string } | null>(null);
   const [saveBonOpen, setSaveBonOpen] = useState(false);
   const [bonLabel, setBonLabel] = useState("");
@@ -686,6 +688,17 @@ export default function PosScreen({
     setBillBusyId(null);
     if (activeBill?.id === bill.id) setActiveBill(null);
     void refreshCatalog();
+  }
+
+  async function handlePrintBill(bill: OpenBill) {
+    setBillPrintingId(bill.id);
+    const result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate);
+    setBillPrintingId(null);
+    if (!result.success) {
+      alert(`Gagal cetak: ${result.error}`);
+      return;
+    }
+    if (result.jobs.length > 0) void dispatchPrintJobs(businessId, result.jobs);
   }
 
   async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
@@ -2383,6 +2396,15 @@ export default function PosScreen({
                         >
                           Hapus
                         </button>
+                        {hasReceiptPrinters && (
+                          <button
+                            onClick={() => void handlePrintBill(bill)}
+                            disabled={busy || billPrintingId === bill.id}
+                            className="rounded-lg px-3 py-1.5 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                          >
+                            {billPrintingId === bill.id ? "Mencetak…" : "🖨️ Cetak"}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleLoadBill(bill)}
                           disabled={busy || isLoaded}

@@ -691,6 +691,77 @@ export async function deleteOpenBill(businessId: string, billId: string) {
   revalidatePath(`/business/${businessId}/pos`);
 }
 
+export type PrintOpenBillResult =
+  | { success: true; jobs: KitchenPrintJobPayload[] }
+  | { success: false; error: string };
+
+export async function printOpenBillToReceipt(
+  businessId: string,
+  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: "pct" | "flat" }[] },
+  serviceRate: number,
+  taxRate: number,
+): Promise<PrintOpenBillResult> {
+  const supabase = await createClient();
+  const [{ data: business }, { data: printers }] = await Promise.all([
+    supabase.from("businesses").select("name, address, phone, receipt_settings").eq("id", businessId).single(),
+    supabase
+      .from("kitchen_printers")
+      .select("name, connection_type, address, paper_width")
+      .eq("business_id", businessId)
+      .eq("prints_receipt", true)
+      .not("address", "is", null),
+  ]);
+
+  if (!business) return { success: false, error: "Data bisnis tidak ditemukan." };
+  if (!printers || printers.length === 0) return { success: false, error: "Tidak ada printer struk yang dikonfigurasi." };
+
+  const subtotal = bill.items.reduce((sum, i) => {
+    const gross = i.price * i.qty;
+    const disc = i.disc_type === "pct"
+      ? Math.round((gross * i.disc) / 100)
+      : Math.min(i.disc * i.qty, gross);
+    return sum + gross - disc;
+  }, 0);
+  const service = Math.round((subtotal * serviceRate) / 100);
+  const tax = Math.round(((subtotal + service) * taxRate) / 100);
+  const total = subtotal + service + tax;
+
+  const settings = (business as unknown as { receipt_settings?: object }).receipt_settings as import("@/lib/escpos").ReceiptSettings | undefined;
+  const date = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+
+  const jobs: KitchenPrintJobPayload[] = [];
+  for (const p of printers) {
+    const paperWidth = (p as unknown as { paper_width?: number }).paper_width ?? 58;
+    const { buildReceiptTicket } = await import("@/lib/escpos");
+    const buffer = buildReceiptTicket({
+      businessName: business.name,
+      businessAddress: (business as unknown as { address?: string | null }).address,
+      businessPhone: (business as unknown as { phone?: string | null }).phone,
+      invoiceNumber: bill.label,
+      date,
+      cashierName: "",
+      voided: false,
+      items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
+      subtotal,
+      itemDiscount: 0,
+      orderDiscount: 0,
+      service,
+      tax,
+      total,
+      payments: [],
+      settings: { ...settings, show_payment_detail: false, footer_text: "PRE-CHECK — Belum dibayar" },
+      paperWidth,
+    });
+    jobs.push({
+      printerName: p.name,
+      address: p.address as string,
+      connectionType: p.connection_type as "lan" | "bluetooth",
+      bytesBase64: buffer.toString("base64"),
+    });
+  }
+  return { success: true, jobs };
+}
+
 export type PosProduct = {
   id: string;
   name: string;
