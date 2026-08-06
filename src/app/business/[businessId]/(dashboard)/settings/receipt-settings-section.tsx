@@ -19,6 +19,7 @@ const DEFAULTS: Required<ReceiptSettings> = {
   show_tax: true,
   show_payment_detail: true,
   footer_text: "Terima kasih!",
+  font_large: false,
 };
 
 const TOGGLES: {
@@ -49,6 +50,11 @@ const TOGGLES: {
     key: "show_payment_detail",
     label: "Detail pembayaran",
     desc: "Metode, uang diterima, kembalian",
+  },
+  {
+    key: "font_large",
+    label: "Huruf lebih besar (2×)",
+    desc: "Cocok untuk printer 80mm agar tulisan lebih mudah dibaca",
   },
 ];
 

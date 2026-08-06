@@ -130,6 +130,7 @@ export type ReceiptSettings = {
   show_tax?: boolean;
   show_payment_detail?: boolean;
   footer_text?: string;
+  font_large?: boolean; // GS ! 0x10 — double-height, karakter 2× lebih tinggi, cocok untuk 80mm
 };
 
 export type ReceiptPayment = {
@@ -184,6 +185,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
     showTax: s.show_tax ?? true,
     showPaymentDetail: s.show_payment_detail ?? true,
     footerText: s.footer_text ?? "Terima kasih!",
+    fontLarge: s.font_large ?? false,
   };
 
   const chunks: Buffer[] = [];
@@ -194,6 +196,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   const tr = (str: string, w = W) => truncate(str, w);
 
   push([ESC, 0x40]); // initialize
+  if (cfg.fontLarge) push([GS, 0x21, 0x10]); // double-height seluruh struk
 
   // Header — nama bisnis bold centered, tanpa perubahan ukuran karakter
   push([ESC, 0x61, 0x01]); // center align
