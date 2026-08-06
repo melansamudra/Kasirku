@@ -1704,7 +1704,8 @@ export default function PosScreen({
 
       {/* Cart */}
       <div className="flex w-72 flex-col border-l border-zinc-200 bg-white shrink-0">
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto">
+        <div className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-900">Keranjang</h2>
             {activeBill && (
@@ -1827,8 +1828,9 @@ export default function PosScreen({
           )}
         </div>
 
-        <div className="border-t border-zinc-200 p-4">
-          <div className="mb-3">
+        {/* Customer picker — scrolls with items */}
+        {!paying && (
+          <div className="px-4 pb-3">
             <button
               onClick={() => setCustomerPickerOpen((v) => !v)}
               className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
@@ -1894,13 +1896,15 @@ export default function PosScreen({
               </div>
             )}
           </div>
-          <div className="mb-3 space-y-1">
-            {(totalItemDisc > 0 || orderDiscAmt > 0 || serviceAmt > 0 || taxAmt > 0) && (
-              <div className="flex items-center justify-between text-xs text-zinc-500">
-                <span>Subtotal</span>
-                <span className="tabular-nums">{formatRupiah(subtotalRaw)}</span>
-              </div>
-            )}
+        )}
+
+        {/* Totals breakdown — scrolls with items */}
+        {!paying && (totalItemDisc > 0 || orderDiscAmt > 0 || serviceAmt > 0 || taxAmt > 0) && (
+          <div className="px-4 pb-3 space-y-1 border-t border-zinc-100 pt-2">
+            <div className="flex items-center justify-between text-xs text-zinc-500">
+              <span>Subtotal</span>
+              <span className="tabular-nums">{formatRupiah(subtotalRaw)}</span>
+            </div>
             {totalItemDisc > 0 && (
               <div className="flex items-center justify-between text-xs text-brand-700">
                 <span>Diskon item</span>
@@ -1929,204 +1933,208 @@ export default function PosScreen({
                 <span className="tabular-nums">{formatRupiah(taxAmt)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between pt-1 text-sm font-semibold text-zinc-900">
-              <span>Total</span>
-              <span className="tabular-nums">{formatRupiah(total)}</span>
+          </div>
+        )}
+
+        {/* Payment tenders — scrollable */}
+        {paying && (
+          <div className="px-4 pb-4 space-y-3">
+            {/* Split bill helper */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500 shrink-0">Split:</span>
+              <input
+                type="number"
+                min="2"
+                max="20"
+                value={splitCount}
+                onChange={(e) => setSplitCount(e.target.value)}
+                placeholder="2 org"
+                className="w-16 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-center focus:border-brand-600 focus:outline-none"
+              />
+              <button
+                onClick={handleSplit}
+                disabled={!splitCount || parseInt(splitCount) < 2}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40"
+              >
+                Bagi
+              </button>
+              {splitCount && parseInt(splitCount) >= 2 && (
+                <span className="text-[11px] text-zinc-400">
+                  {formatRupiah(Math.ceil(total / parseInt(splitCount)))}/org
+                </span>
+              )}
             </div>
+
+            {/* Tender rows */}
+            <div className="space-y-2">
+              {tenders.map((t) => (
+                <div key={t.id} className="rounded-xl border border-zinc-200 p-2.5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={t.method}
+                      onChange={(e) => updateTender(t.id, { method: e.target.value })}
+                      className="rounded-lg border border-zinc-200 px-2 py-1.5 text-xs shrink-0 focus:border-brand-600 focus:outline-none bg-white"
+                    >
+                      {paymentMethods.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      value={t.amount || ""}
+                      onChange={(e) => updateTender(t.id, { amount: Number(e.target.value) || 0 })}
+                      className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-right focus:border-brand-600 focus:outline-none"
+                      placeholder="0"
+                    />
+                    {tenders.length > 1 && (
+                      <button
+                        onClick={() => removeTender(t.id)}
+                        className="shrink-0 text-zinc-300 hover:text-red-400 text-base leading-none px-0.5"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {t.method === "Tunai" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-zinc-500 shrink-0">Terima:</span>
+                      <input
+                        type="number"
+                        min={t.amount}
+                        value={t.received}
+                        onChange={(e) => updateTender(t.id, { received: e.target.value })}
+                        className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1 text-xs text-right focus:border-brand-600 focus:outline-none"
+                        placeholder={String(t.amount || total)}
+                      />
+                      {Number(t.received) >= t.amount && t.received !== "" && (
+                        <span className="text-[11px] text-zinc-500 shrink-0">
+                          ↩ <b>{formatRupiah(Number(t.received) - t.amount)}</b>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Tambah cara bayar */}
+            {remaining > 0 && (
+              <button
+                onClick={handleAddTender}
+                className="w-full rounded-xl border border-dashed border-zinc-300 py-2 text-xs text-zinc-500 hover:border-brand-400 hover:text-brand-600"
+              >
+                + Tambah Cara Bayar
+              </button>
+            )}
+
+            {/* Ringkasan pembayaran */}
+            <div className="rounded-xl bg-zinc-50 px-3 py-2 text-xs space-y-0.5">
+              {remaining > 0 ? (
+                <div className="flex justify-between text-amber-700 font-medium">
+                  <span>Sisa belum dibayar</span>
+                  <span>{formatRupiah(remaining)}</span>
+                </div>
+              ) : totalChange > 0 ? (
+                <div className="flex justify-between text-zinc-700">
+                  <span>Total kembalian</span>
+                  <span className="font-bold text-zinc-900">{formatRupiah(totalChange)}</span>
+                </div>
+              ) : (
+                <p className="text-center text-zinc-500">Pembayaran pas ✓</p>
+              )}
+            </div>
+          </div>
+        )}
+        </div>{/* end flex-1 scrollable */}
+
+        {/* Fixed footer — Total + action buttons always visible */}
+        <div className="border-t border-zinc-200 px-3 pt-2.5 pb-3 shrink-0">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-bold text-zinc-900">Total</span>
+            <span className="text-sm font-bold text-zinc-900 tabular-nums">{formatRupiah(total)}</span>
           </div>
 
           {!paying ? (
-            <>
-              {!saveBonOpen ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
-                      setBonError(null);
-                      setSaveBonOpen(true);
-                    }}
-                    disabled={cart.length === 0}
-                    className="rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    🧾 Simpan Bon
-                  </button>
-                  <button
-                    onClick={handleOpenPayment}
-                    disabled={cart.length === 0}
-                    className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Bayar
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
-                  <label
-                    htmlFor="bonLabel"
-                    className="block text-xs font-medium text-zinc-600"
-                  >
-                    Nama bon (mis. nama meja / pelanggan)
-                  </label>
-                  <input
-                    id="bonLabel"
-                    type="text"
-                    value={bonLabel}
-                    onChange={(e) => setBonLabel(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  />
-                  {bonError && (
-                    <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                      {bonError}
-                    </p>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setSaveBonOpen(false)}
-                      className="flex-1 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      onClick={handleSaveBon}
-                      disabled={bonSaving}
-                      className="flex-1 rounded-xl bg-brand-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
-                    >
-                      {bonSaving ? "Menyimpan…" : "Simpan"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="space-y-3">
-              {/* Split bill helper */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500 shrink-0">Split:</span>
+            !saveBonOpen ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
+                    setBonError(null);
+                    setSaveBonOpen(true);
+                  }}
+                  disabled={cart.length === 0}
+                  className="rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  🧾 Simpan Bon
+                </button>
+                <button
+                  onClick={handleOpenPayment}
+                  disabled={cart.length === 0}
+                  className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Bayar
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
+                <label htmlFor="bonLabel" className="block text-xs font-medium text-zinc-600">
+                  Nama bon (mis. nama meja / pelanggan)
+                </label>
                 <input
-                  type="number"
-                  min="2"
-                  max="20"
-                  value={splitCount}
-                  onChange={(e) => setSplitCount(e.target.value)}
-                  placeholder="2 org"
-                  className="w-16 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-center focus:border-brand-600 focus:outline-none"
+                  id="bonLabel"
+                  type="text"
+                  value={bonLabel}
+                  onChange={(e) => setBonLabel(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 />
-                <button
-                  onClick={handleSplit}
-                  disabled={!splitCount || parseInt(splitCount) < 2}
-                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40"
-                >
-                  Bagi
-                </button>
-                {splitCount && parseInt(splitCount) >= 2 && (
-                  <span className="text-[11px] text-zinc-400">
-                    {formatRupiah(Math.ceil(total / parseInt(splitCount)))}/org
-                  </span>
+                {bonError && (
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{bonError}</p>
                 )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSaveBonOpen(false)}
+                    className="flex-1 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleSaveBon}
+                    disabled={bonSaving}
+                    className="flex-1 rounded-xl bg-brand-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+                  >
+                    {bonSaving ? "Menyimpan…" : "Simpan"}
+                  </button>
+                </div>
               </div>
-
-              {/* Tender rows */}
-              <div className="space-y-2">
-                {tenders.map((t) => (
-                  <div key={t.id} className="rounded-xl border border-zinc-200 p-2.5 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={t.method}
-                        onChange={(e) => updateTender(t.id, { method: e.target.value })}
-                        className="rounded-lg border border-zinc-200 px-2 py-1.5 text-xs shrink-0 focus:border-brand-600 focus:outline-none bg-white"
-                      >
-                        {paymentMethods.map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        value={t.amount || ""}
-                        onChange={(e) => updateTender(t.id, { amount: Number(e.target.value) || 0 })}
-                        className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-right focus:border-brand-600 focus:outline-none"
-                        placeholder="0"
-                      />
-                      {tenders.length > 1 && (
-                        <button
-                          onClick={() => removeTender(t.id)}
-                          className="shrink-0 text-zinc-300 hover:text-red-400 text-base leading-none px-0.5"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                    {t.method === "Tunai" && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-zinc-500 shrink-0">Terima:</span>
-                        <input
-                          type="number"
-                          min={t.amount}
-                          value={t.received}
-                          onChange={(e) => updateTender(t.id, { received: e.target.value })}
-                          className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1 text-xs text-right focus:border-brand-600 focus:outline-none"
-                          placeholder={String(t.amount || total)}
-                        />
-                        {Number(t.received) >= t.amount && t.received !== "" && (
-                          <span className="text-[11px] text-zinc-500 shrink-0">
-                            ↩ <b>{formatRupiah(Number(t.received) - t.amount)}</b>
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Tambah cara bayar */}
-              {remaining > 0 && (
-                <button
-                  onClick={handleAddTender}
-                  className="w-full rounded-xl border border-dashed border-zinc-300 py-2 text-xs text-zinc-500 hover:border-brand-400 hover:text-brand-600"
-                >
-                  + Tambah Cara Bayar
-                </button>
-              )}
-
-              {/* Ringkasan pembayaran */}
-              <div className="rounded-xl bg-zinc-50 px-3 py-2 text-xs space-y-0.5">
-                {remaining > 0 ? (
-                  <div className="flex justify-between text-amber-700 font-medium">
-                    <span>Sisa belum dibayar</span>
-                    <span>{formatRupiah(remaining)}</span>
-                  </div>
-                ) : totalChange > 0 ? (
-                  <div className="flex justify-between text-zinc-700">
-                    <span>Total kembalian</span>
-                    <span className="font-bold text-zinc-900">{formatRupiah(totalChange)}</span>
-                  </div>
-                ) : (
-                  <p className="text-center text-zinc-500">Pembayaran pas ✓</p>
-                )}
-              </div>
-
+            )
+          ) : (
+            <>
               {error && (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+                <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
               )}
-
-              <button
-                onClick={handleConfirmPayment}
-                disabled={submitting || remaining > 0}
-                className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? "Memproses…" : "Konfirmasi Pembayaran"}
-              </button>
-              <button
-                onClick={() => {
-                  setPaying(false);
-                  setTenders([]);
-                  setSplitCount("");
-                  setError(null);
-                }}
-                className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
-              >
-                Batal
-              </button>
-            </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setPaying(false);
+                    setTenders([]);
+                    setSplitCount("");
+                    setError(null);
+                  }}
+                  className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmPayment}
+                  disabled={submitting || remaining > 0}
+                  className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Memproses…" : remaining > 0 ? `Kurang ${formatRupiah(remaining)}` : "Konfirmasi"}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
