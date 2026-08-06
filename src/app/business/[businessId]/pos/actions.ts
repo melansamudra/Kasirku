@@ -138,7 +138,7 @@ export async function checkout(
         qty: i.qty,
         disc: i.disc,
         disc_type: i.discType,
-        note: i.note ?? null,
+        note: [...(i.optionNames ?? []), i.note ?? null].filter((x): x is string => !!x).join(" · ") || null,
         ...(i.unitPrice ? { unit_price: i.unitPrice } : {}),
       })),
       p_payments: payments,
