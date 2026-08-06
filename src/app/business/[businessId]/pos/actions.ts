@@ -770,6 +770,7 @@ export async function printOpenBillToReceipt(
       cashierName: cashierName ?? "",
       customerName: customerName,
       voided: false,
+      preCheck: true,
       items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, note: i.note })),
       subtotal,
       itemDiscount: 0,

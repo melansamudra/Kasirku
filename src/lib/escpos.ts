@@ -155,6 +155,7 @@ export type ReceiptTicketInput = {
   customerName?: string | null;
   orderLabel?: string | null;
   voided: boolean;
+  preCheck?: boolean;
   items: ReceiptItem[];
   subtotal: number;
   itemDiscount: number;
@@ -219,6 +220,11 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
     text("*** DIBATALKAN ***");
     push([ESC, 0x45, 0x00]);
   }
+  if (input.preCheck) {
+    push([ESC, 0x45, 0x01]);
+    text("*** BELUM DIBAYAR ***");
+    push([ESC, 0x45, 0x00]);
+  }
   push([ESC, 0x61, 0x00]); // left align
 
   divider();
@@ -273,7 +279,9 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   text(cfg.footerText || "Terima kasih!");
   text("");
   text("");
-  push([GS, 0x56, 0x42, 0x00]); // partial cut with feed
+  text("");
+  text("");
+  push([GS, 0x56, 0x42, 0x05]); // partial cut — feed 5 lines dulu supaya footer tidak terpotong
 
   return Buffer.concat(chunks);
 }
