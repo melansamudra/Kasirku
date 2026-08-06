@@ -46,9 +46,11 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
 
   push([ESC, 0x40]); // initialize
 
-  // Judul besar: "NEW ORDER" — double height + double width, bold, centered
+  // Judul besar: "NEW ORDER" — double height, bold, centered
+  // Double-width (0x11) dihindari: banyak printer 58mm murah tidak
+  // render double-width dengan benar sehingga karakter jadi kacau.
   push([ESC, 0x61, 0x01]); // center
-  push([GS, 0x21, 0x11]); // double height + double width
+  push([GS, 0x21, 0x10]); // double height only (not width)
   push([ESC, 0x45, 0x01]); // bold
   text("NEW ORDER");
   push([ESC, 0x45, 0x00]); // bold off
