@@ -5,12 +5,11 @@
 const ESC = 0x1b;
 const GS = 0x1d;
 
-// 58mm → 28 cols, 80mm → 42 cols (Font A)
-// iWare dan printer 58mm murah sejenis hanya muat ~28 char (area cetak
-// efektif ~45mm = 28 char × 1.6mm/char). Theoretical 32 terlalu lebar,
-// bahkan 30 masih terpotong 2 char di sisi kanan pada printer ini.
+// 58mm → 26 cols, 80mm → 42 cols (Font A)
+// iWare dan sejenisnya maksimum 28 cols sebelum terpotong; pakai 26 supaya
+// ada margin 2 char dan padLine tidak wrap di tepi printer.
 function colsForPaper(paperWidth: number) {
-  return paperWidth >= 80 ? 42 : 28;
+  return paperWidth >= 80 ? 42 : 26;
 }
 
 export type KitchenTicketItem = {
