@@ -430,15 +430,21 @@ export async function buildTestPrintJob(
 
   let buffer: Buffer;
   if (isReceipt) {
-    // Printer struk pelanggan: cetak format struk sungguhan agar tampilannya
-    // sesuai dengan yang diterima pelanggan saat transaksi nyata.
     const { data: business } = await supabase
       .from("businesses")
-      .select("name")
+      .select("name, address, phone, receipt_settings")
       .eq("id", businessId)
       .single();
+    const biz = business as unknown as {
+      name?: string;
+      address?: string | null;
+      phone?: string | null;
+      receipt_settings?: import("@/lib/escpos").ReceiptSettings;
+    } | null;
     buffer = buildReceiptTicket({
-      businessName: business?.name ?? "Nama Bisnis",
+      businessName: biz?.name ?? "Nama Bisnis",
+      businessAddress: biz?.address ?? null,
+      businessPhone: biz?.phone ?? null,
       invoiceNumber: "TES-CETAK",
       date: new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }),
       cashierName: "Kasir",
@@ -446,14 +452,20 @@ export async function buildTestPrintJob(
       items: [
         { name: "Kopi Susu", qty: 2, price: 25000 },
         { name: "Teh Tarik", qty: 1, price: 18000 },
+        { name: "Es Teh Manis", qty: 1, price: 8000 },
       ],
-      subtotal: 68000,
+      subtotal: 76000,
       itemDiscount: 0,
       orderDiscount: 0,
       service: 0,
       tax: 0,
-      total: 68000,
-      payments: [{ method: "Tunai", amount: 68000, received: 70000, change: 2000 }],
+      total: 76000,
+      payments: [{ method: "Tunai", amount: 76000, received: 80000, change: 4000 }],
+      settings: {
+        ...(biz?.receipt_settings ?? {}),
+        show_address: !!(biz?.address),
+        show_phone: !!(biz?.phone),
+      },
       paperWidth,
     });
   } else {
