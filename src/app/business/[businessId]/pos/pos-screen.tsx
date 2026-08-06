@@ -22,6 +22,7 @@ import {
   type DiscountType,
   type OpenBillItemInput,
   type PosCatalog,
+  type PosOptionGroup,
   type ShiftTransaction,
   type TenderInput,
 } from "./actions";
@@ -40,7 +41,7 @@ import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 import { todayWibDateString } from "@/lib/wib";
 
-const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false, selfOrderEnabled: true };
+const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false, selfOrderEnabled: true, optionGroups: [] };
 
 type Product = {
   id: string;
@@ -57,15 +58,26 @@ type Product = {
   show_in_self_order: boolean;
 };
 
+type SelectedOption = {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  priceAdj: number;
+};
+
 type CartItem = {
+  cartKey: string; // unique per line — productId for plain items, productId:opt1,opt2 for option items
   productId: string;
   name: string;
-  price: number;
+  price: number; // harga satuan sudah termasuk opsi
+  basePrice: number; // harga dasar produk tanpa opsi
   qty: number;
   maxStock: number;
   disc: number;
   discType: DiscountType;
   note: string | null;
+  selectedOptions: SelectedOption[];
 };
 
 type Tender = {
@@ -410,10 +422,22 @@ export default function PosScreen({
     name: string;
     variants: Product[];
   } | null>(null);
+  const [optionPickerProduct, setOptionPickerProduct] = useState<Product | null>(null);
+  const [pendingOptions, setPendingOptions] = useState<SelectedOption[]>([]);
+
+  function openOptionPickerOrAddToCart(product: Product) {
+    const pOptionGroups = catalog.optionGroups.filter((g) => g.product_id === product.id);
+    if (pOptionGroups.length > 0) {
+      setOptionPickerProduct(product);
+      setPendingOptions([]);
+    } else {
+      addToCart(product);
+    }
+  }
 
   function handleProductClick(group: { name: string; variants: Product[] }) {
     if (group.variants.length === 1) {
-      addToCart(group.variants[0]);
+      openOptionPickerOrAddToCart(group.variants[0]);
     } else {
       setVariantPickerGroup(group);
     }
@@ -466,13 +490,17 @@ export default function PosScreen({
     return s + Math.max(0, rcv - t.amount);
   }, 0);
 
-  function addToCart(product: Product) {
+  function addToCart(product: Product, selectedOptions: SelectedOption[] = []) {
+    const optionPriceAdj = selectedOptions.reduce((s, o) => s + o.priceAdj, 0);
+    const unitPrice = product.price + optionPriceAdj;
+    const cartKey = selectedOptions.length > 0
+      ? `${product.id}:${selectedOptions.map((o) => o.optionId).join(",")}`
+      : product.id;
+
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id);
+      const existing = prev.find((i) => i.cartKey === cartKey);
       if (existing) {
-        return prev.map((i) =>
-          i.productId === product.id ? { ...i, qty: i.qty + 1 } : i,
-        );
+        return prev.map((i) => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i);
       }
       const rule = discountRules.find(
         (r) => r.type === "per_product" && r.product_id === product.id && r.active,
@@ -480,35 +508,38 @@ export default function PosScreen({
       return [
         ...prev,
         {
+          cartKey,
           productId: product.id,
           name: product.variant_label ? `${product.name} (${product.variant_label})` : product.name,
-          price: product.price,
+          price: unitPrice,
+          basePrice: product.price,
           qty: 1,
           maxStock: product.stock,
           disc: rule ? rule.value : 0,
           discType: rule ? rule.value_type : ("pct" as DiscountType),
           note: null,
+          selectedOptions,
         },
       ];
     });
   }
 
-  function setItemNote(productId: string, note: string | null) {
+  function setItemNote(cartKey: string, note: string | null) {
     setCart((prev) =>
-      prev.map((i) => (i.productId === productId ? { ...i, note: note || null } : i)),
+      prev.map((i) => (i.cartKey === cartKey ? { ...i, note: note || null } : i)),
     );
   }
 
-  function changeQty(productId: string, delta: number) {
+  function changeQty(cartKey: string, delta: number) {
     setCart((prev) =>
       prev
-        .map((i) => (i.productId === productId ? { ...i, qty: Math.max(0, i.qty + delta) } : i))
+        .map((i) => (i.cartKey === cartKey ? { ...i, qty: Math.max(0, i.qty + delta) } : i))
         .filter((i) => i.qty > 0),
     );
   }
 
-  function removeFromCart(productId: string) {
-    setCart((prev) => prev.filter((i) => i.productId !== productId));
+  function removeFromCart(cartKey: string) {
+    setCart((prev) => prev.filter((i) => i.cartKey !== cartKey));
   }
 
   async function handleOpenVoid() {
@@ -601,14 +632,17 @@ export default function PosScreen({
         existing.maxStock = Math.max(existing.maxStock, existing.qty);
       } else {
         next.push({
+          cartKey: product.id,
           productId: product.id,
           name: product.name,
           price: product.price,
+          basePrice: product.price,
           qty: addQty,
           maxStock: Math.max(product.stock, addQty),
           disc: item.disc,
           discType: item.disc_type,
           note: null,
+          selectedOptions: [],
         });
       }
     }
@@ -661,14 +695,17 @@ export default function PosScreen({
           (r) => r.type === "per_product" && r.product_id === product.id && r.active,
         );
         next.push({
+          cartKey: product.id,
           productId: product.id,
           name: product.name,
           price: product.price,
+          basePrice: product.price,
           qty: addQty,
           maxStock: Math.max(product.stock, addQty),
           disc: rule ? rule.value : 0,
           discType: rule ? rule.value_type : ("pct" as DiscountType),
           note: item.note,
+          selectedOptions: [],
         });
       }
     }
@@ -705,14 +742,17 @@ export default function PosScreen({
             (r) => r.type === "per_product" && r.product_id === product.id && r.active,
           );
           next.push({
+            cartKey: product.id,
             productId: product.id,
             name: product.name,
             price: product.price,
+            basePrice: product.price,
             qty: addQty,
             maxStock: Math.max(product.stock, addQty),
             disc: rule ? rule.value : 0,
             discType: rule ? rule.value_type : ("pct" as DiscountType),
             note: item.note,
+            selectedOptions: [],
           });
         }
       }
@@ -898,6 +938,8 @@ export default function PosScreen({
       disc: i.disc,
       discType: i.discType,
       note: i.note,
+      unitPrice: i.selectedOptions.length > 0 ? i.price : undefined,
+      optionNames: i.selectedOptions.length > 0 ? i.selectedOptions.map((o) => o.optionName) : undefined,
     }));
     const paymentsPayload: TenderInput[] = tenders.map((t) => ({
       method: t.method,
@@ -1540,8 +1582,8 @@ export default function PosScreen({
                 <button
                   key={v.id}
                   onClick={() => {
-                    addToCart(v);
                     setVariantPickerGroup(null);
+                    openOptionPickerOrAddToCart(v);
                   }}
                   className="flex w-full items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-brand-300"
                 >
@@ -1560,6 +1602,105 @@ export default function PosScreen({
           </div>
         </div>
       )}
+
+      {optionPickerProduct && (() => {
+        const pGroups = catalog.optionGroups.filter((g) => g.product_id === optionPickerProduct.id);
+        const optionPriceAdj = pendingOptions.reduce((s, o) => s + o.priceAdj, 0);
+        const allRequired = pGroups.filter((g) => g.required);
+        const allRequiredFilled = allRequired.every((g) =>
+          pendingOptions.some((o) => o.groupId === g.id),
+        );
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+            <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-white p-4 sm:rounded-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900">{optionPickerProduct.name}</h3>
+                  {optionPickerProduct.variant_label && (
+                    <p className="text-xs text-zinc-500">{optionPickerProduct.variant_label}</p>
+                  )}
+                </div>
+                <button onClick={() => setOptionPickerProduct(null)} className="text-zinc-400 hover:text-zinc-600">✕</button>
+              </div>
+              <div className="space-y-4">
+                {pGroups.map((group) => {
+                  const selected = pendingOptions.find((o) => o.groupId === group.id);
+                  return (
+                    <div key={group.id}>
+                      <p className="mb-1.5 text-xs font-semibold text-zinc-700">
+                        {group.name}
+                        {group.required && <span className="ml-1 text-red-500">*</span>}
+                      </p>
+                      <div className="space-y-1.5">
+                        {group.options.map((opt) => {
+                          const isSelected = selected?.optionId === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => {
+                                setPendingOptions((prev) => {
+                                  const without = prev.filter((o) => o.groupId !== group.id);
+                                  if (isSelected) return without;
+                                  return [
+                                    ...without,
+                                    {
+                                      groupId: group.id,
+                                      groupName: group.name,
+                                      optionId: opt.id,
+                                      optionName: opt.name,
+                                      priceAdj: opt.price_adjustment,
+                                    },
+                                  ];
+                                });
+                              }}
+                              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                                isSelected
+                                  ? "border-brand-500 bg-brand-50"
+                                  : "border-zinc-200 hover:border-brand-300"
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${isSelected ? "border-brand-500 bg-brand-500 text-white" : "border-zinc-300"}`}>
+                                  {isSelected && "✓"}
+                                </span>
+                                <span className="text-sm text-zinc-900">{opt.name}</span>
+                              </span>
+                              {opt.price_adjustment > 0 && (
+                                <span className="text-xs font-medium text-brand-700">+{formatRupiah(opt.price_adjustment)}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                {optionPriceAdj > 0 && (
+                  <p className="mb-2 text-right text-xs text-zinc-500">
+                    Harga: {formatRupiah(optionPickerProduct.price)} + {formatRupiah(optionPriceAdj)} = <span className="font-semibold text-zinc-900">{formatRupiah(optionPickerProduct.price + optionPriceAdj)}</span>
+                  </p>
+                )}
+                <button
+                  onClick={() => {
+                    addToCart(optionPickerProduct, pendingOptions);
+                    setOptionPickerProduct(null);
+                    setPendingOptions([]);
+                  }}
+                  disabled={!allRequiredFilled}
+                  className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Tambah ke Keranjang
+                </button>
+                {!allRequiredFilled && (
+                  <p className="mt-1.5 text-center text-xs text-red-500">Pilih semua opsi wajib (*)</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Cart */}
       <div className="flex w-72 flex-col border-l border-zinc-200 bg-white shrink-0">
@@ -1589,13 +1730,24 @@ export default function PosScreen({
             <div className="space-y-2">
               {cart.map((item) => {
                 const discAmt = itemDiscAmount(item);
-                const noteOpen = editingNoteId === item.productId;
+                const noteOpen = editingNoteId === item.cartKey;
                 return (
-                  <div key={item.productId} className="rounded-xl border border-zinc-100 p-2.5">
+                  <div key={item.cartKey} className="rounded-xl border border-zinc-100 p-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-medium text-zinc-900">{item.name}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-zinc-900">{item.name}</p>
+                        {item.selectedOptions.length > 0 && (
+                          <div className="mt-0.5 flex flex-wrap gap-1">
+                            {item.selectedOptions.map((o) => (
+                              <span key={o.optionId} className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] text-brand-700">
+                                {o.optionName}{o.priceAdj > 0 ? ` +${formatRupiah(o.priceAdj)}` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <button
-                        onClick={() => removeFromCart(item.productId)}
+                        onClick={() => removeFromCart(item.cartKey)}
                         className="text-xs text-zinc-400 hover:text-red-500"
                       >
                         ✕
@@ -1604,14 +1756,14 @@ export default function PosScreen({
                     <div className="mt-1.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => changeQty(item.productId, -1)}
+                          onClick={() => changeQty(item.cartKey, -1)}
                           className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
                         >
                           −
                         </button>
                         <span className="w-4 text-center text-xs tabular-nums">{item.qty}</span>
                         <button
-                          onClick={() => changeQty(item.productId, 1)}
+                          onClick={() => changeQty(item.cartKey, 1)}
                           className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
                         >
                           +
@@ -1640,7 +1792,7 @@ export default function PosScreen({
                       )}
                       {isFnb && (
                         <button
-                          onClick={() => setEditingNoteId(noteOpen ? null : item.productId)}
+                          onClick={() => setEditingNoteId(noteOpen ? null : item.cartKey)}
                           className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
                             item.note
                               ? "border-amber-200 bg-amber-50 text-amber-700"
@@ -1656,7 +1808,7 @@ export default function PosScreen({
                         <input
                           type="text"
                           value={item.note ?? ""}
-                          onChange={(e) => setItemNote(item.productId, e.target.value)}
+                          onChange={(e) => setItemNote(item.cartKey, e.target.value)}
                           placeholder="mis. pedas level 3, tanpa es"
                           className="flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
                         />

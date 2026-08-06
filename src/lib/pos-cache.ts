@@ -21,6 +21,7 @@ export async function getCachedPosCatalog(businessId: string): Promise<PosCatalo
     hasKitchenPrinters: cached.hasKitchenPrinters ?? false,
     hasReceiptPrinters: cached.hasReceiptPrinters ?? false,
     selfOrderEnabled: cached.selfOrderEnabled ?? true,
+    optionGroups: cached.optionGroups ?? [],
   };
 }
 

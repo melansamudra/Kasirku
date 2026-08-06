@@ -71,6 +71,8 @@ export type CartItemInput = {
   disc: number;
   discType: DiscountType;
   note?: string | null;
+  unitPrice?: number; // harga satuan setelah opsi (override harga produk di DB)
+  optionNames?: string[]; // label opsi yang dipilih — hanya untuk cetak dapur, tidak disimpan ke DB
 };
 
 export type TenderInput = {
@@ -126,6 +128,7 @@ export async function checkout(
         disc: i.disc,
         disc_type: i.discType,
         note: i.note ?? null,
+        ...(i.unitPrice ? { unit_price: i.unitPrice } : {}),
       })),
       p_payments: payments,
       p_order_disc: orderDisc,
@@ -170,7 +173,14 @@ export async function checkout(
             businessId,
             "Kasir",
             result.invoice_number,
-            items.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note })),
+            items.map((i) => ({
+              productId: i.productId,
+              qty: i.qty,
+              note: [
+                ...(i.optionNames ?? []),
+                i.note ?? null,
+              ].filter((x): x is string => !!x).join(" · ") || null,
+            })),
             undefined,
             cashierId,
             "NEW ORDER",
@@ -712,6 +722,16 @@ export type PosOpenBill = {
 
 export type PosCustomer = { id: string; name: string; phone: string | null };
 
+export type PosProductOption = { id: string; name: string; price_adjustment: number; sort_order: number };
+export type PosOptionGroup = {
+  id: string;
+  product_id: string;
+  name: string;
+  required: boolean;
+  sort_order: number;
+  options: PosProductOption[];
+};
+
 export type PosCatalog = {
   products: PosProduct[];
   openBills: PosOpenBill[];
@@ -721,6 +741,7 @@ export type PosCatalog = {
   hasKitchenPrinters: boolean;
   hasReceiptPrinters: boolean;
   selfOrderEnabled: boolean;
+  optionGroups: PosOptionGroup[];
 };
 
 // Sumber tunggal data katalog POS (produk/open bill/customer/metode bayar
@@ -739,6 +760,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     { data: discountRuleRows },
     { data: printerRows },
     { data: businessRow },
+    { data: optionGroupRows },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -776,9 +798,38 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
       .select("self_order_enabled")
       .eq("id", businessId)
       .single(),
+    supabase
+      .from("product_option_groups")
+      .select("id, product_id, name, required, sort_order, product_options(id, name, price_adjustment, sort_order)")
+      .in("product_id",
+        // akan diisi setelah produk di-load; pakai subquery via join tidak tersedia di Supabase JS,
+        // jadi kita ambil semua grup milik bisnis lewat join ke products
+        (await supabase
+          .from("products")
+          .select("id")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .then((r) => (r.data ?? []).map((p) => p.id)))
+      )
+      .order("sort_order", { ascending: true }),
   ]);
 
   const printers = printerRows ?? [];
+
+  const rawGroups = (optionGroupRows ?? []) as {
+    id: string; product_id: string; name: string; required: boolean; sort_order: number;
+    product_options: { id: string; name: string; price_adjustment: number; sort_order: number }[];
+  }[];
+
+  const optionGroups: PosOptionGroup[] = rawGroups.map((g) => ({
+    id: g.id,
+    product_id: g.product_id,
+    name: g.name,
+    required: g.required,
+    sort_order: g.sort_order,
+    options: [...(g.product_options ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+  }));
+
   return {
     products: (products ?? []) as PosProduct[],
     openBills: (openBillRows ?? []) as unknown as PosOpenBill[],
@@ -788,6 +839,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     hasKitchenPrinters: printers.some((p) => !p.prints_receipt),
     hasReceiptPrinters: printers.some((p) => p.prints_receipt),
     selfOrderEnabled: (businessRow as { self_order_enabled: boolean } | null)?.self_order_enabled !== false,
+    optionGroups,
   };
 }
 

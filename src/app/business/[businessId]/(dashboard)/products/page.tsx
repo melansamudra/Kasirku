@@ -120,13 +120,23 @@ export default async function ProductsPage({
           {groups.length > 0 ? (
             groups.map((g) =>
               g.rows.length === 1 ? (
-                <ProductRow
-                  key={g.rows[0].id}
-                  businessId={businessId}
-                  p={g.rows[0]}
-                  showName
-                  categories={categoryNames}
-                />
+                <div key={g.rows[0].id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                  <ProductRow
+                    businessId={businessId}
+                    p={g.rows[0]}
+                    showName
+                    categories={categoryNames}
+                  />
+                  <AddVariantForm
+                    action={addVariants.bind(
+                      null,
+                      businessId,
+                      g.rows[0].name,
+                      g.rows[0].category,
+                      g.rows[0].emoji,
+                    )}
+                  />
+                </div>
               ) : (
                 <div
                   key={g.name}
@@ -268,12 +278,20 @@ function ProductRow({
             {p.sku && <>SKU {p.sku}</>}
           </p>
         )}
-        <Link
-          href={`/business/${businessId}/products/${p.id}/recipe`}
-          className="text-xs font-medium text-brand-600 hover:underline"
-        >
-          Resep / HPP
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href={`/business/${businessId}/products/${p.id}/recipe`}
+            className="text-xs font-medium text-brand-600 hover:underline"
+          >
+            Resep / HPP
+          </Link>
+          <Link
+            href={`/business/${businessId}/products/${p.id}/options`}
+            className="text-xs font-medium text-zinc-400 hover:text-brand-600 hover:underline"
+          >
+            Opsi/Modifier
+          </Link>
+        </div>
       </div>
       <p className="shrink-0 text-sm font-semibold text-zinc-900">
         Rp{Number(p.price).toLocaleString("id-ID")}

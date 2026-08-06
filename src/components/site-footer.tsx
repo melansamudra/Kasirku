@@ -5,8 +5,10 @@ const LINKS = [
   { href: "/kasirku", label: "Aplikasi Kasir" },
   { href: "/layanan", label: "Layanan" },
   { href: "/blog", label: "Artikel" },
-  { href: "/rekomendasi-alat", label: "Rekomendasi Alat" },
-  { href: "/terms", label: "Syarat & Ketentuan" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/kontak", label: "Kontak" },
+  { href: "/syarat-ketentuan", label: "Syarat & Ketentuan" },
+  { href: "/refund-policy", label: "Kebijakan Refund" },
   { href: "/privacy", label: "Kebijakan Privasi" },
 ];
 
