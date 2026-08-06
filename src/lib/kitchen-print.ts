@@ -4,6 +4,7 @@ import { buildKitchenTicket, type KitchenTicketItem } from "./escpos";
 export type KitchenPrintJob = {
   source: string;
   label: string;
+  title?: string;
   items: (KitchenTicketItem & { category: string | null })[];
   cashierName?: string;
   orderType?: string;
@@ -66,6 +67,7 @@ export async function buildKitchenPrintJobs(
       station: printer.name,
       source: job.source,
       label: job.label,
+      title: job.title,
       items,
       cashierName: job.cashierName,
       orderType: job.orderType,

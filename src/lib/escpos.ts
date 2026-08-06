@@ -23,6 +23,7 @@ export type KitchenTicketInput = {
   station: string;
   source: string;
   label: string;
+  title?: string; // header besar: "NEW ORDER" / "ADDITIONAL ORDER" / "TES CETAK"
   paperWidth?: number;
   items: KitchenTicketItem[];
   cashierName?: string;
@@ -46,13 +47,11 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
 
   push([ESC, 0x40]); // initialize
 
-  // Judul besar: "NEW ORDER" — double height, bold, centered
-  // Double-width (0x11) dihindari: banyak printer 58mm murah tidak
-  // render double-width dengan benar sehingga karakter jadi kacau.
+  // Judul besar — double height, bold, centered
   push([ESC, 0x61, 0x01]); // center
   push([GS, 0x21, 0x10]); // double height only (not width)
   push([ESC, 0x45, 0x01]); // bold
-  text("NEW ORDER");
+  text(input.title ?? "NEW ORDER");
   push([ESC, 0x45, 0x00]); // bold off
   push([GS, 0x21, 0x00]); // normal size
 

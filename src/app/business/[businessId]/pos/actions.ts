@@ -173,6 +173,7 @@ export async function checkout(
             items.map((i) => ({ productId: i.productId, qty: i.qty, note: i.note })),
             undefined,
             cashierId,
+            "NEW ORDER",
           )
         : Promise.resolve([]),
       hasReceiptPrinters
@@ -300,6 +301,7 @@ async function buildKitchenPrintJobsForItems(
   items: { productId: string; qty: number; note?: string | null }[],
   orderType?: string,
   cashierId?: string,
+  title?: string,
 ): Promise<KitchenPrintJobPayload[]> {
   if (items.length === 0) return [];
 
@@ -352,6 +354,7 @@ async function buildKitchenPrintJobsForItems(
       station: printer.name,
       source,
       label,
+      title,
       items: ticketItems,
       cashierName,
       orderType,
@@ -460,6 +463,7 @@ export async function buildTestPrintJob(
       station: printer.name,
       source: "Tes Cetak",
       label: timeStr,
+      title: "TES CETAK",
       items: [{ name: "Ini tes cetak dari Kasirku", qty: 1 }],
       paperWidth,
     });
@@ -628,7 +632,7 @@ export async function saveOpenBill(
     }
     revalidatePath(`/business/${businessId}/pos`);
     const printJobs = await buildKitchenPrintJobsForItems(
-      supabase, businessId, trimmed, "Tambahan Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId,
+      supabase, businessId, trimmed, "Tambahan Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId, "ADDITIONAL ORDER",
     ).catch(() => []);
     return { success: true, billId, printJobs };
   }
@@ -647,7 +651,7 @@ export async function saveOpenBill(
   // logActivity and print-job building are independent — run in parallel
   const [printJobs] = await Promise.all([
     buildKitchenPrintJobsForItems(
-      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId,
+      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId, "NEW ORDER",
     ).catch(() => []),
     logActivity(supabase, businessId, "transaksi", "info", `Open Bill dibuat: ${trimmed}`, `${items.length} jenis item`),
   ]);
@@ -866,6 +870,7 @@ export async function updateSelfOrderStatus(
       printJobs = await buildKitchenPrintJobs(supabase, businessId, {
         source: tableName,
         label: "Pesanan Self-Order",
+        title: "NEW ORDER",
         orderType: "DINE IN",
         items: orderItems.map((i) => ({
           name: i.name,
