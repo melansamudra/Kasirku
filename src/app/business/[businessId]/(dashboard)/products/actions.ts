@@ -139,6 +139,68 @@ export async function addProduct(
   return { error: null };
 }
 
+export type AddVariantsState = { error: string | null };
+
+export async function addVariants(
+  businessId: string,
+  productName: string,
+  productCategory: string | null,
+  productEmoji: string | null,
+  _prevState: AddVariantsState,
+  formData: FormData,
+): Promise<AddVariantsState> {
+  const variantsJson = (formData.get("variantsJson") as string)?.trim();
+  if (!variantsJson) return { error: "Data varian kosong." };
+
+  let variants: { label: string; price: string; cost: string }[];
+  try {
+    variants = JSON.parse(variantsJson);
+  } catch {
+    return { error: "Data varian tidak valid." };
+  }
+
+  if (!Array.isArray(variants) || variants.length === 0) {
+    return { error: "Minimal 1 varian harus diisi." };
+  }
+
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    if (!v.label?.trim()) return { error: `Varian ke-${i + 1}: nama varian wajib diisi.` };
+    const vPrice = Number(v.price);
+    if (!v.price || Number.isNaN(vPrice) || vPrice < 0) {
+      return { error: `Varian ke-${i + 1}: harga jual tidak valid.` };
+    }
+  }
+
+  const supabase = await createClient();
+
+  const inserts = variants.map((v) => ({
+    business_id: businessId,
+    name: productName,
+    category: productCategory ?? null,
+    price: Number(v.price),
+    cost: Number(v.cost) || 0,
+    stock: 0,
+    min_stock: 0,
+    emoji: productEmoji ?? null,
+    variant_label: v.label.trim(),
+  }));
+
+  const { error } = await supabase.from("products").insert(inserts);
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "sukses",
+    `Tambah varian: ${productName}`,
+    `${variants.length} varian baru`,
+  );
+  revalidatePath(`/business/${businessId}/products`);
+  return { error: null };
+}
+
 export type EditProductState = { error: string | null };
 
 export async function editProduct(

@@ -4,11 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import {
   addProduct,
   addProductCategory,
+  addVariants,
   adjustProductStock,
   editProduct,
   importProducts,
 } from "./actions";
 import AddProductForm from "./add-product-form";
+import AddVariantForm from "./add-variant-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import CategoryManager from "./category-manager";
 import DeleteProductButton from "./delete-product-button";
@@ -151,6 +153,15 @@ export default async function ProductsPage({
                         categories={categoryNames}
                       />
                     ))}
+                    <AddVariantForm
+                      action={addVariants.bind(
+                        null,
+                        businessId,
+                        g.name,
+                        g.rows[0].category,
+                        g.rows[0].emoji,
+                      )}
+                    />
                   </div>
                 </div>
               ),
