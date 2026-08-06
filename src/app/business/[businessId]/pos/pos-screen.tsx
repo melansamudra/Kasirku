@@ -163,6 +163,16 @@ export default function PosScreen({
   // Sync ketika catalog refresh
   useEffect(() => { setSelfOrderEnabledLocal(catalogSelfOrderEnabled); }, [catalogSelfOrderEnabled]);
 
+  // Toggle cetak struk otomatis — disimpan di localStorage, per-device
+  const [autoReceiptPrint, setAutoReceiptPrintState] = useState(true);
+  useEffect(() => {
+    setAutoReceiptPrintState(localStorage.getItem("pos_auto_receipt") !== "off");
+  }, []);
+  function setAutoReceiptPrint(val: boolean) {
+    setAutoReceiptPrintState(val);
+    localStorage.setItem("pos_auto_receipt", val ? "on" : "off");
+  }
+
   const refreshCatalog = useCallback(async () => {
     const fresh = await getPosCatalog(businessId).catch(() => null);
     if (!fresh) return;
@@ -974,7 +984,7 @@ export default function PosScreen({
           cartOrderIds,
           clientRef,
           hasKitchenPrinters,
-          hasReceiptPrinters,
+          hasReceiptPrinters && autoReceiptPrint,
         ),
         10000,
       );
@@ -2241,6 +2251,26 @@ export default function PosScreen({
                   >
                     📊 Laporan
                   </a>
+                )}
+                {hasReceiptPrinters && (
+                  <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-700">🖨️ Cetak struk otomatis</p>
+                      <p className="text-[11px] text-zinc-400">
+                        {autoReceiptPrint ? "Struk dicetak setiap bayar" : "Struk tidak dicetak otomatis"}
+                      </p>
+                    </div>
+                    <label className="relative shrink-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={autoReceiptPrint}
+                        onChange={(e) => setAutoReceiptPrint(e.target.checked)}
+                      />
+                      <div className="h-6 w-11 rounded-full bg-zinc-200 peer-checked:bg-brand-600 transition-colors" />
+                      <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                    </label>
+                  </div>
                 )}
                 <a
                   href={`/business/${businessId}/pos/printers`}
