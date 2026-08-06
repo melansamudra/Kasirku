@@ -308,7 +308,7 @@ async function buildKitchenPrintJobsForItems(
   const productIds = Array.from(new Set(items.map((i) => i.productId)));
 
   const [{ data: products }, cashierRow, { data: printers }] = await Promise.all([
-    supabase.from("products").select("id, name, category").in("id", productIds),
+    supabase.from("products").select("id, name, variant_label, category").in("id", productIds),
     cashierId
       ? supabase.from("cashiers").select("name").eq("id", cashierId).single()
       : Promise.resolve({ data: null }),
@@ -321,12 +321,17 @@ async function buildKitchenPrintJobsForItems(
   const productMap = new Map((products ?? []).map((p) => [p.id, p]));
   const cashierName = (cashierRow.data as { name?: string } | null)?.name;
 
-  const mappedItems = items.map((i) => ({
-    name: productMap.get(i.productId)?.name ?? "Item",
-    category: productMap.get(i.productId)?.category ?? null,
-    qty: i.qty,
-    note: i.note,
-  }));
+  const mappedItems = items.map((i) => {
+    const p = productMap.get(i.productId);
+    const baseName = p?.name ?? "Item";
+    const variantLabel = (p as unknown as { variant_label?: string | null } | undefined)?.variant_label;
+    return {
+      name: variantLabel ? `${baseName} (${variantLabel})` : baseName,
+      category: p?.category ?? null,
+      qty: i.qty,
+      note: i.note,
+    };
+  });
 
   const addressedPrinters = (printers ?? []).filter(
     (p) => !!p.address && !p.prints_receipt,
