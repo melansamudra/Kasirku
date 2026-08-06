@@ -429,7 +429,18 @@ export default function PosScreen({
     const pOptionGroups = catalog.optionGroups.filter((g) => g.product_id === product.id);
     if (pOptionGroups.length > 0) {
       setOptionPickerProduct(product);
-      setPendingOptions([]);
+      // Pre-select opsi pertama dari setiap grup agar user tinggal mengubah yang tidak sesuai
+      setPendingOptions(
+        pOptionGroups
+          .filter((g) => g.options.length > 0)
+          .map((g) => ({
+            groupId: g.id,
+            groupName: g.name,
+            optionId: g.options[0].id,
+            optionName: g.options[0].name,
+            priceAdj: g.options[0].price_adjustment,
+          })),
+      );
     } else {
       addToCart(product);
     }
@@ -1638,20 +1649,17 @@ export default function PosScreen({
                             <button
                               key={opt.id}
                               onClick={() => {
-                                setPendingOptions((prev) => {
-                                  const without = prev.filter((o) => o.groupId !== group.id);
-                                  if (isSelected) return without;
-                                  return [
-                                    ...without,
-                                    {
-                                      groupId: group.id,
-                                      groupName: group.name,
-                                      optionId: opt.id,
-                                      optionName: opt.name,
-                                      priceAdj: opt.price_adjustment,
-                                    },
-                                  ];
-                                });
+                                if (isSelected) return;
+                                setPendingOptions((prev) => [
+                                  ...prev.filter((o) => o.groupId !== group.id),
+                                  {
+                                    groupId: group.id,
+                                    groupName: group.name,
+                                    optionId: opt.id,
+                                    optionName: opt.name,
+                                    priceAdj: opt.price_adjustment,
+                                  },
+                                ]);
                               }}
                               className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${
                                 isSelected
