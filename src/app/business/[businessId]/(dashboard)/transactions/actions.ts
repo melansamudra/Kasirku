@@ -25,15 +25,15 @@ export async function buildReceiptPrintJob(
 ): Promise<BuildReceiptPrintJobResult> {
   const supabase = await createClient();
 
-  const [{ data: printer }, bufferResult] = await Promise.all([
-    supabase
-      .from("kitchen_printers")
-      .select("name, connection_type, address")
-      .eq("id", printerId)
-      .eq("business_id", businessId)
-      .maybeSingle(),
-    buildReceiptBuffer(supabase, businessId, transactionId),
-  ]);
+  // Fetch printer first so we can pass its paper_width to buildReceiptBuffer —
+  // the two calls can't be parallel because buffer formatting depends on the
+  // printer's paper width (58mm → 26 cols, 80mm → 42 cols).
+  const { data: printer } = await supabase
+    .from("kitchen_printers")
+    .select("name, connection_type, address, paper_width")
+    .eq("id", printerId)
+    .eq("business_id", businessId)
+    .maybeSingle();
 
   if (!printer) {
     return { success: false, error: "Printer tidak ditemukan." };
@@ -41,6 +41,10 @@ export async function buildReceiptPrintJob(
   if (!printer.address) {
     return { success: false, error: "Printer ini belum diatur alamat/perangkatnya." };
   }
+
+  const paperWidth = (printer as unknown as { paper_width?: number }).paper_width ?? 58;
+  const bufferResult = await buildReceiptBuffer(supabase, businessId, transactionId, paperWidth);
+
   if (!bufferResult.success) {
     return { success: false, error: bufferResult.error };
   }

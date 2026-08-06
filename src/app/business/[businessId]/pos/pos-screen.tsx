@@ -999,7 +999,7 @@ export default function PosScreen({
           selectedCustomer?.id ?? null,
           cartOrderIds,
           clientRef,
-          hasKitchenPrinters,
+          hasKitchenPrinters && !activeBill,
           hasReceiptPrinters && autoReceiptPrint,
           activeBill?.label || bonLabel || null,
           selectedCustomer?.name || null,
