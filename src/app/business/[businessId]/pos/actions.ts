@@ -727,6 +727,8 @@ export async function printOpenBillToReceipt(
   bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: DiscountType; note?: string | null }[] },
   serviceRate: number,
   taxRate: number,
+  cashierName?: string,
+  customerName?: string,
 ): Promise<PrintOpenBillResult> {
   const supabase = await createClient();
   const [{ data: business }, { data: printers }] = await Promise.all([
@@ -765,7 +767,8 @@ export async function printOpenBillToReceipt(
       businessPhone: (business as unknown as { phone?: string | null }).phone,
       invoiceNumber: bill.label,
       date,
-      cashierName: "",
+      cashierName: cashierName ?? "",
+      customerName: customerName,
       voided: false,
       items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, note: i.note })),
       subtotal,

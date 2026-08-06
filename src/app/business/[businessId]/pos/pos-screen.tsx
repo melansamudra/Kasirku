@@ -694,7 +694,7 @@ export default function PosScreen({
 
   async function handlePrintBill(bill: OpenBill) {
     setBillPrintingId(bill.id);
-    const result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate);
+    const result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate, cashierName, selectedCustomer?.name ?? undefined);
     setBillPrintingId(null);
     if (!result.success) {
       alert(`Gagal cetak: ${result.error}`);

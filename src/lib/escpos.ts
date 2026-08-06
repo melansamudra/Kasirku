@@ -223,7 +223,15 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
 
   divider();
   if (cfg.showInvoice) text(pl("No.", input.invoiceNumber));
-  if (cfg.showDatetime) text(pl("Tanggal", input.date));
+  if (cfg.showDatetime) {
+    const sepIdx = input.date.lastIndexOf(", ");
+    if (sepIdx !== -1) {
+      text(pl("Tanggal", input.date.slice(0, sepIdx)));
+      text(pl("Jam", input.date.slice(sepIdx + 2)));
+    } else {
+      text(pl("Tanggal", input.date));
+    }
+  }
   if (cfg.showCashier && input.cashierName) text(pl("Kasir", input.cashierName));
   if (cfg.showOrderLabel && input.orderLabel) text(pl("Meja/Order", tr(input.orderLabel, W - 11)));
   if (cfg.showCustomerName && input.customerName) text(pl("Pelanggan", tr(input.customerName, W - 10)));
