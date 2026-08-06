@@ -116,6 +116,7 @@ type OpenBill = {
     qty: number;
     disc: number;
     disc_type: DiscountType;
+    note?: string | null;
   }[];
 };
 
@@ -608,6 +609,7 @@ export default function PosScreen({
         qty: i.qty,
         disc: i.disc,
         disc_type: i.discType,
+        note: i.note,
       })),
       cashierId,
     );
@@ -665,7 +667,7 @@ export default function PosScreen({
           maxStock: Math.max(product.stock, addQty),
           disc: item.disc,
           discType: item.disc_type,
-          note: null,
+          note: item.note ?? null,
           selectedOptions: [],
         });
       }

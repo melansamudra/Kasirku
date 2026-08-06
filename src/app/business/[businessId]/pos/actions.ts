@@ -651,6 +651,7 @@ export type OpenBillItemInput = {
   qty: number;
   disc: number;
   disc_type: DiscountType;
+  note?: string | null;
 };
 
 export type SaveOpenBillResult =
@@ -685,7 +686,7 @@ export async function saveOpenBill(
     }
     revalidatePath(`/business/${businessId}/pos`);
     const printJobs = await buildKitchenPrintJobsForItems(
-      supabase, businessId, trimmed, "Tambahan Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId, "ADDITIONAL ORDER",
+      supabase, businessId, trimmed, "Tambahan Order", items.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })), undefined, cashierId, "ADDITIONAL ORDER",
     ).catch(() => []);
     return { success: true, billId, printJobs };
   }
@@ -704,7 +705,7 @@ export async function saveOpenBill(
   // logActivity and print-job building are independent — run in parallel
   const [printJobs] = await Promise.all([
     buildKitchenPrintJobsForItems(
-      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty })), undefined, cashierId, "NEW ORDER",
+      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })), undefined, cashierId, "NEW ORDER",
     ).catch(() => []),
     logActivity(supabase, businessId, "transaksi", "info", `Open Bill dibuat: ${trimmed}`, `${items.length} jenis item`),
   ]);
@@ -723,7 +724,7 @@ export type PrintOpenBillResult =
 
 export async function printOpenBillToReceipt(
   businessId: string,
-  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: DiscountType }[] },
+  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: DiscountType; note?: string | null }[] },
   serviceRate: number,
   taxRate: number,
 ): Promise<PrintOpenBillResult> {
@@ -766,7 +767,7 @@ export async function printOpenBillToReceipt(
       date,
       cashierName: "",
       voided: false,
-      items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
+      items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, note: i.note })),
       subtotal,
       itemDiscount: 0,
       orderDiscount: 0,
