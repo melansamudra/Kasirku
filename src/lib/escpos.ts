@@ -116,6 +116,7 @@ export type ReceiptItem = {
   qty: number;
   price: number;
   note?: string | null;
+  voided?: boolean;
 };
 
 export type ReceiptSettings = {
@@ -245,18 +246,29 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   divider();
   for (const item of input.items) {
     push([ESC, 0x45, 0x01]); // bold
-    text(tr(item.name));
+    text(tr(item.voided ? `[VOID] ${item.name}` : item.name));
     push([ESC, 0x45, 0x00]);
-    if (cfg.showUnitPrice) {
-      text(pl(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, formatRp(item.price * item.qty)));
+    const lineTotal = formatRp(item.price * item.qty);
+    if (item.voided) {
+      if (cfg.showUnitPrice) {
+        text(pl(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, `(${lineTotal})`));
+      } else {
+        text(pl(`  ${formatQty(item.qty)}x`, `(${lineTotal})`));
+      }
     } else {
-      text(pl(`  ${formatQty(item.qty)}x`, formatRp(item.price * item.qty)));
+      if (cfg.showUnitPrice) {
+        text(pl(`  ${formatQty(item.qty)}x${formatRp(item.price)}`, lineTotal));
+      } else {
+        text(pl(`  ${formatQty(item.qty)}x`, lineTotal));
+      }
     }
     if (cfg.showItemNote && item.note) text(`  * ${tr(item.note, W - 4)}`);
   }
 
   divider();
   text(pl("Subtotal", formatRp(input.subtotal)));
+  const voidedItemsTotal = input.items.filter((i) => i.voided).reduce((s, i) => s + i.price * i.qty, 0);
+  if (voidedItemsTotal > 0) text(pl("Dikurangi (void)", `-${formatRp(voidedItemsTotal)}`));
   if (cfg.showItemDisc && input.itemDiscount > 0) text(pl("Diskon item", `-${formatRp(input.itemDiscount)}`));
   if (input.orderDiscount > 0) text(pl("Diskon order", `-${formatRp(input.orderDiscount)}`));
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));

@@ -264,7 +264,7 @@ async function buildReceiptPrintJobsForTransaction(
       .single(),
     supabase
       .from("transaction_items")
-      .select("id, name, price, qty, note")
+      .select("id, name, price, qty, note, voided")
       .eq("transaction_id", transactionId)
       .order("id", { ascending: true }),
     supabase
@@ -282,6 +282,7 @@ async function buildReceiptPrintJobsForTransaction(
     qty: Number(i.qty),
     price: Number(i.price),
     note: (i as unknown as { note?: string | null }).note,
+    voided: (i as unknown as { voided?: boolean }).voided,
   }));
   const receiptPayments = (payments ?? []).map((p) => ({
     method: p.method,
