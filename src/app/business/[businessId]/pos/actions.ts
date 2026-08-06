@@ -138,7 +138,7 @@ export async function checkout(
         qty: i.qty,
         disc: i.disc,
         disc_type: i.discType,
-        note: [...(i.optionNames ?? []), i.note ?? null].filter((x): x is string => !!x).join(" · ") || null,
+        note: [...(i.optionNames ?? []), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
         ...(i.unitPrice ? { unit_price: i.unitPrice } : {}),
       })),
       p_payments: payments,
@@ -198,7 +198,7 @@ export async function checkout(
               note: [
                 ...(i.optionNames ?? []),
                 i.note ?? null,
-              ].filter((x): x is string => !!x).join(" · ") || null,
+              ].filter((x): x is string => !!x).join(" | ") || null,
             })),
             undefined,
             cashierId,
@@ -765,7 +765,8 @@ export async function printOpenBillToReceipt(
       businessName: business.name,
       businessAddress: (business as unknown as { address?: string | null }).address,
       businessPhone: (business as unknown as { phone?: string | null }).phone,
-      invoiceNumber: bill.label,
+      invoiceNumber: "",
+      orderLabel: bill.label,
       date,
       cashierName: cashierName ?? "",
       customerName: customerName,
@@ -779,7 +780,14 @@ export async function printOpenBillToReceipt(
       tax,
       total,
       payments: [],
-      settings: { ...settings, show_payment_detail: false, footer_text: "PRE-CHECK — Belum dibayar" },
+      settings: {
+        ...settings,
+        show_payment_detail: false,
+        footer_text: "PRE-CHECK - Belum dibayar",
+        show_invoice: false,
+        show_order_label: true,
+        show_customer_name: true,
+      },
       paperWidth,
     });
     jobs.push({

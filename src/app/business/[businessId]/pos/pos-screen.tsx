@@ -609,7 +609,7 @@ export default function PosScreen({
         qty: i.qty,
         disc: i.disc,
         disc_type: i.discType,
-        note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" · ") || null,
+        note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
       })),
       cashierId,
     );
