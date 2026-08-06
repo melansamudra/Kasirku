@@ -5,9 +5,12 @@
 const ESC = 0x1b;
 const GS = 0x1d;
 
-// 58mm → 32 cols, 80mm → 42 cols (Font A)
+// 58mm → 30 cols, 80mm → 42 cols (Font A)
+// 30 instead of theoretical 32: most 58mm print heads have a slightly
+// narrower effective area (~48mm = 30 chars at 1.6mm/char), and using 32
+// causes the rightmost chars to overflow or wrap on cheap Chinese printers.
 function colsForPaper(paperWidth: number) {
-  return paperWidth >= 80 ? 42 : 32;
+  return paperWidth >= 80 ? 42 : 30;
 }
 
 export type KitchenTicketItem = {
