@@ -714,7 +714,7 @@ export type PrintOpenBillResult =
 
 export async function printOpenBillToReceipt(
   businessId: string,
-  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: "pct" | "flat" }[] },
+  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: DiscountType }[] },
   serviceRate: number,
   taxRate: number,
 ): Promise<PrintOpenBillResult> {
