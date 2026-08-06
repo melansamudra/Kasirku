@@ -20,6 +20,31 @@ type TestState =
   | { status: "ok" }
   | { status: "error"; message: string };
 
+function friendlyError(raw: string, connectionType: string): { msg: string; hint: string } {
+  if (raw === "print_agent_not_running") {
+    return {
+      msg: "Print Agent tidak aktif di PC ini.",
+      hint: "Instal dan jalankan aplikasi Print Agent di PC yang terhubung ke printer, lalu coba lagi.",
+    };
+  }
+  if (raw === "unsupported_on_web") {
+    return {
+      msg: "Bluetooth tidak bisa dipakai lewat browser.",
+      hint: "Buka KasirKu dari aplikasi Android untuk tes printer Bluetooth.",
+    };
+  }
+  if (connectionType === "bluetooth") {
+    return {
+      msg: "Printer Bluetooth tidak merespons.",
+      hint: `Pastikan: (1) printer menyala, (2) sudah dipasangkan di Pengaturan Bluetooth Android, (3) tidak sedang dipakai perangkat lain. (${raw})`,
+    };
+  }
+  return {
+    msg: "Printer tidak merespons.",
+    hint: `Pastikan: (1) printer menyala, (2) IP address benar (${raw.includes("ECONNREFUSED") || raw.includes("ETIMEDOUT") ? "tidak bisa terhubung" : raw}), (3) printer dan perangkat di jaringan Wi-Fi yang sama.`,
+  };
+}
+
 export default function PrinterTestScreen({
   businessId,
   businessName,
@@ -114,9 +139,15 @@ export default function PrinterTestScreen({
                 {state.status === "ok" && (
                   <p className="mt-2 text-xs font-medium text-green-600">✅ Terkirim.</p>
                 )}
-                {state.status === "error" && (
-                  <p className="mt-2 text-xs font-medium text-red-600">❌ Gagal: {state.message}</p>
-                )}
+                {state.status === "error" && (() => {
+                  const { msg, hint } = friendlyError(state.message, p.connection_type);
+                  return (
+                    <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs">
+                      <p className="font-semibold text-red-600">❌ {msg}</p>
+                      <p className="mt-0.5 text-red-500">{hint}</p>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })

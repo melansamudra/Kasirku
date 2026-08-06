@@ -1,15 +1,14 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateTaxService } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateKitchenPrinter, updateTaxService } from "./actions";
 import SelfOrderBannerForm from "./self-order-banner-form";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
 import BusinessProfileForm from "./business-profile-form";
 import BusinessTypeForm from "./business-type-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
-import DeletePrinterButton from "./delete-printer-button";
 import DiscountRulesSection from "./discount-rules-section";
-import PrinterReceiptToggle from "./printer-receipt-toggle";
+import PrinterCard from "./printer-card";
 import ReceiptSettingsSection from "./receipt-settings-section";
 import TaxServiceForm from "./tax-service-form";
 export default async function SettingsPage({
@@ -82,13 +81,14 @@ export default async function SettingsPage({
     address: string | null;
     device_label: string | null;
     prints_receipt: boolean;
+    paper_width: number;
   }[] = [];
   let productCategories: string[] = [];
 
   if (isFnb) {
     const { data: printerRows } = await supabase
       .from("kitchen_printers")
-      .select("id, name, categories, connection_type, address, device_label, prints_receipt")
+      .select("id, name, categories, connection_type, address, device_label, prints_receipt, paper_width")
       .eq("business_id", businessId)
       .order("name", { ascending: true });
     printers = printerRows ?? [];
@@ -223,28 +223,13 @@ export default async function SettingsPage({
             <div className="mt-4 space-y-2">
               {printers.length > 0 ? (
                 printers.map((p) => (
-                  <div key={p.id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-zinc-900">{p.name}</p>
-                      <DeletePrinterButton businessId={businessId} printerId={p.id} />
-                    </div>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      {p.connection_type === "lan" ? "🌐 LAN/Wi-Fi" : "📶 Bluetooth"}
-                      {p.address
-                        ? ` · ${p.connection_type === "bluetooth" ? (p.device_label ?? p.address) : p.address}`
-                        : ""}
-                    </p>
-                    {p.categories.length > 0 && (
-                      <p className="mt-1 text-[11px] text-zinc-400">
-                        Kategori: {p.categories.join(", ")}
-                      </p>
-                    )}
-                    <PrinterReceiptToggle
-                      businessId={businessId}
-                      printerId={p.id}
-                      printsReceipt={p.prints_receipt}
-                    />
-                  </div>
+                  <PrinterCard
+                    key={p.id}
+                    printer={p}
+                    businessId={businessId}
+                    updateAction={updateKitchenPrinter.bind(null, businessId, p.id)}
+                    productCategories={productCategories}
+                  />
                 ))
               ) : (
                 <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-4 text-center text-xs text-zinc-400">

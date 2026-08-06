@@ -114,6 +114,56 @@ export async function addKitchenPrinter(
   return { error: null };
 }
 
+export async function updateKitchenPrinter(
+  businessId: string,
+  printerId: string,
+  _prevState: KitchenPrinterState,
+  formData: FormData,
+): Promise<KitchenPrinterState> {
+  const name = (formData.get("name") as string)?.trim();
+  const connectionType = formData.get("connectionType") as string;
+  const address = (formData.get("address") as string)?.trim();
+  const deviceLabel = (formData.get("deviceLabel") as string)?.trim();
+  const categories = formData.getAll("categories").map((c) => String(c));
+  const printsReceipt = formData.get("printsReceipt") === "on";
+  const paperWidth = Number(formData.get("paperWidth")) || 58;
+
+  if (!name) return { error: "Nama stasiun printer wajib diisi." };
+  if (connectionType !== "bluetooth" && connectionType !== "lan") {
+    return { error: "Pilih jenis koneksi dulu." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("kitchen_printers")
+    .update({
+      name,
+      connection_type: connectionType,
+      address: address || null,
+      device_label: deviceLabel || null,
+      categories,
+      prints_receipt: printsReceipt,
+      paper_width: paperWidth,
+    })
+    .eq("id", printerId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "info",
+    `Printer diubah: ${name}`,
+    connectionType === "lan"
+      ? `LAN${address ? ` · ${address}` : ""}`
+      : `Bluetooth${deviceLabel ? ` · ${deviceLabel}` : ""}`,
+  );
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null };
+}
+
 export async function deleteKitchenPrinter(businessId: string, printerId: string) {
   const supabase = await createClient();
   await supabase.from("kitchen_printers").delete().eq("id", printerId).eq("business_id", businessId);
