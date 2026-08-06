@@ -410,7 +410,7 @@ export async function buildTestPrintJob(
   const supabase = await createClient();
   const { data: printer } = await supabase
     .from("kitchen_printers")
-    .select("name, connection_type, address")
+    .select("name, connection_type, address, prints_receipt, paper_width")
     .eq("id", printerId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -422,12 +422,48 @@ export async function buildTestPrintJob(
     return { success: false, error: "Printer ini belum diatur alamat/perangkatnya." };
   }
 
-  const buffer = buildKitchenTicket({
-    station: printer.name,
-    source: "Tes Cetak",
-    label: new Date().toLocaleString("id-ID"),
-    items: [{ name: "Ini tes cetak dari Kasirku", qty: 1 }],
-  });
+  const paperWidth = (printer as unknown as { paper_width?: number }).paper_width ?? 58;
+  const isReceipt = (printer as unknown as { prints_receipt?: boolean }).prints_receipt === true;
+
+  let buffer: Buffer;
+  if (isReceipt) {
+    // Printer struk pelanggan: cetak format struk sungguhan agar tampilannya
+    // sesuai dengan yang diterima pelanggan saat transaksi nyata.
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("name")
+      .eq("id", businessId)
+      .single();
+    buffer = buildReceiptTicket({
+      businessName: business?.name ?? "Nama Bisnis",
+      invoiceNumber: "TES-CETAK",
+      date: new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }),
+      cashierName: "Kasir",
+      voided: false,
+      items: [
+        { name: "Kopi Susu", qty: 2, price: 25000 },
+        { name: "Teh Tarik", qty: 1, price: 18000 },
+      ],
+      subtotal: 68000,
+      itemDiscount: 0,
+      orderDiscount: 0,
+      service: 0,
+      tax: 0,
+      total: 68000,
+      payments: [{ method: "Tunai", amount: 68000, received: 70000, change: 2000 }],
+      paperWidth,
+    });
+  } else {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    buffer = buildKitchenTicket({
+      station: printer.name,
+      source: "Tes Cetak",
+      label: timeStr,
+      items: [{ name: "Ini tes cetak dari Kasirku", qty: 1 }],
+      paperWidth,
+    });
+  }
 
   return {
     success: true,
