@@ -71,7 +71,7 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
   text(col2(input.source, tableLabel));
   text(col2(dateStr, timeStr));
   if (input.cashierName) text(`Kasir ${input.cashierName}`);
-  if (input.customerName) text(`Pelanggan: ${tr(input.customerName, W - 11)}`);
+  if (input.customerName) text(`Pelanggan: ${truncate(input.customerName, W - 11)}`);
 
   // Separator + tipe order
   text("-".repeat(W));
