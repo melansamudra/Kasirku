@@ -30,6 +30,7 @@ export async function buildReceiptBuffer(
         .from("transaction_items")
         .select("id, name, price, qty, note, voided, batch")
         .eq("transaction_id", transactionId)
+        .order("batch", { ascending: true })
         .order("id", { ascending: true }),
       supabase
         .from("transaction_payments")

@@ -270,6 +270,7 @@ async function buildReceiptPrintJobsForTransaction(
       .from("transaction_items")
       .select("id, name, price, qty, note, voided, batch")
       .eq("transaction_id", transactionId)
+      .order("batch", { ascending: true })
       .order("id", { ascending: true }),
     supabase
       .from("transaction_payments")
@@ -757,7 +758,7 @@ export type PrintOpenBillResult =
 
 export async function printOpenBillToReceipt(
   businessId: string,
-  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: DiscountType; note?: string | null }[] },
+  bill: { label: string; items: { name: string; price: number; qty: number; disc: number; disc_type: DiscountType; note?: string | null; batch?: number }[] },
   serviceRate: number,
   taxRate: number,
   cashierName?: string,
@@ -805,7 +806,7 @@ export async function printOpenBillToReceipt(
       customerName: customerName,
       voided: false,
       preCheck: true,
-      items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, note: i.note })),
+      items: bill.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, note: i.note, batch: i.batch ?? 0 })),
       subtotal,
       itemDiscount: 0,
       orderDiscount: 0,

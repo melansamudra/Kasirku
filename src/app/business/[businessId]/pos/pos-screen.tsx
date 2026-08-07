@@ -1838,11 +1838,22 @@ export default function PosScreen({
             <p className="text-xs text-zinc-400">Belum ada item. Klik produk untuk menambah.</p>
           ) : (
             <div className="space-y-2">
-              {cart.map((item) => {
+              {cart.map((item, index) => {
                 const discAmt = itemDiscAmount(item);
                 const noteOpen = editingNoteId === item.cartKey;
+                const currBatch = item.batch ?? 0;
+                const prevBatch = index > 0 ? (cart[index - 1]?.batch ?? 0) : 0;
+                const showTambahanDivider = currBatch > 0 && prevBatch === 0 && index > 0;
                 return (
-                  <div key={item.cartKey} className="rounded-xl border border-zinc-100 p-2.5">
+                  <div key={item.cartKey}>
+                  {showTambahanDivider && (
+                    <div className="flex items-center gap-2 pb-2">
+                      <div className="h-px flex-1 bg-zinc-200" />
+                      <span className="text-[10px] font-semibold tracking-wide text-zinc-400">TAMBAHAN</span>
+                      <div className="h-px flex-1 bg-zinc-200" />
+                    </div>
+                  )}
+                  <div className="rounded-xl border border-zinc-100 p-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-zinc-900">{item.name}</p>
@@ -1940,6 +1951,7 @@ export default function PosScreen({
                         </button>
                       </div>
                     )}
+                  </div>
                   </div>
                 );
               })}
