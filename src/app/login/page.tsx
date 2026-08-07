@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import AuthShell from "@/components/auth-shell";
+import Logo from "@/components/logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -72,87 +72,100 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  if (checkingSession) {
-    // Sebentar saja (baca local storage, bukan network) — tapi tanpa guard
-    // ini form login sempat kekedip sekilas sebelum redirect ke /dashboard
-    // buat yang sebenarnya sudah login.
-    return (
-      <AuthShell>
-        <div className="flex justify-center py-10">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-brand-600" />
-        </div>
-      </AuthShell>
-    );
-  }
-
   return (
-    <AuthShell>
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 shadow-lg shadow-brand-600/20">
-          <span className="text-lg font-bold text-white">K</span>
-        </div>
-        <h1 className="text-xl font-bold text-zinc-900">Masuk ke KasirKu</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Masuk dengan akun pemilik toko kamu
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="mb-1 block text-xs font-medium text-zinc-600">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm transition-shadow focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            placeholder="kamu@toko.com"
-          />
-        </div>
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <label htmlFor="password" className="block text-xs font-medium text-zinc-600">
-              Password
-            </label>
-            <Link href="/forgot-password" className="text-xs font-medium text-brand-600 hover:underline">
-              Lupa password?
-            </Link>
+    <div className="flex min-h-screen flex-col bg-zinc-100">
+      {/* Navbar */}
+      <header className="flex h-14 shrink-0 items-center bg-zinc-900 px-6">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 p-1">
+            <Logo className="h-full w-full brightness-0 invert" />
           </div>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm transition-shadow focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            placeholder="••••••••"
-          />
+          <span className="text-sm font-bold tracking-tight text-white">KasirKu</span>
         </div>
+        <div className="ml-auto flex items-center gap-5">
+          <a
+            href="mailto:support@kasirku.id"
+            className="text-xs font-medium text-zinc-400 hover:text-white"
+          >
+            Bantuan
+          </a>
+          <Link href="/signup" className="text-xs font-medium text-zinc-400 hover:text-white">
+            Daftar
+          </Link>
+        </div>
+      </header>
 
-        {error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+      {/* Content */}
+      <div className="flex flex-1 items-center justify-center px-4 py-12">
+        {checkingSession ? (
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-zinc-300 border-t-brand-600" />
+        ) : (
+          <div className="w-full max-w-sm rounded-2xl bg-white px-8 py-9 shadow-sm">
+            <h1 className="mb-6 text-xl font-bold text-zinc-900">Masuk</h1>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-zinc-600">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 transition-shadow focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  placeholder="email@toko.com"
+                />
+              </div>
+
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="password" className="block text-xs font-medium text-zinc-600">
+                    Password
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    Lupa password?
+                  </Link>
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 transition-shadow focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {error && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-1 w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Memproses…" : "Masuk"}
+              </button>
+            </form>
+
+            <p className="mt-5 text-center text-xs text-zinc-500">
+              Belum punya akun?{" "}
+              <Link href="/signup" className="font-medium text-brand-600 hover:underline">
+                Daftar sekarang
+              </Link>
+            </p>
+          </div>
         )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
-        >
-          {loading ? "Memproses…" : "Masuk"}
-        </button>
-      </form>
-
-      <p className="mt-6 text-center text-sm text-zinc-500">
-        Belum punya akun?{" "}
-        <Link href="/signup" className="font-medium text-brand-600 hover:underline">
-          Daftar
-        </Link>
-      </p>
-    </AuthShell>
+      </div>
+    </div>
   );
 }
