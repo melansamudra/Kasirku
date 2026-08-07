@@ -161,6 +161,7 @@ export type ReceiptTicketInput = {
   subtotal: number;
   itemDiscount: number;
   orderDiscount: number;
+  orderDiscountName?: string | null;
   service: number;
   tax: number;
   total: number;
@@ -270,7 +271,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   const voidedItemsTotal = input.items.filter((i) => i.voided).reduce((s, i) => s + i.price * i.qty, 0);
   if (voidedItemsTotal > 0) text(pl("Dikurangi (void)", `-${formatRp(voidedItemsTotal)}`));
   if (cfg.showItemDisc && input.itemDiscount > 0) text(pl("Diskon item", `-${formatRp(input.itemDiscount)}`));
-  if (input.orderDiscount > 0) text(pl("Diskon order", `-${formatRp(input.orderDiscount)}`));
+  if (input.orderDiscount > 0) text(pl(input.orderDiscountName ?? "Diskon order", `-${formatRp(input.orderDiscount)}`));
   if (cfg.showService && input.service > 0) text(pl("Layanan", formatRp(input.service)));
   // Void items reduce the taxable base proportionally. Derive the tax rate from
   // the original figures so we don't need to pass taxRate as a separate field.

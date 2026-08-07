@@ -21,7 +21,7 @@ export async function buildReceiptBuffer(
       supabase
         .from("transactions")
         .select(
-          "invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, total, voided, cashiers!transactions_cashier_id_fkey(name)",
+          "invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, cashiers!transactions_cashier_id_fkey(name)",
         )
         .eq("id", transactionId)
         .eq("business_id", businessId)
@@ -53,6 +53,7 @@ export async function buildReceiptBuffer(
     subtotal: Number(transaction.subtotal_raw),
     itemDiscount: Number(transaction.total_item_disc),
     orderDiscount: Number(transaction.order_disc_amt),
+    orderDiscountName: (transaction as unknown as { order_disc_name?: string | null }).order_disc_name ?? null,
     service: Number(transaction.service),
     tax: Number(transaction.tax),
     total: Number(transaction.total),

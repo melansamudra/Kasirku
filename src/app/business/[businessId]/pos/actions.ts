@@ -123,6 +123,7 @@ export async function checkout(
   hasReceiptPrinters: boolean = true,
   orderLabel: string | null = null,
   customerName: string | null = null,
+  orderDiscName: string | null = null,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -163,11 +164,12 @@ export async function checkout(
   if (!result.already_existed) {
     const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
-    // Simpan order_label dan customer_name ke transaksi jika ada
-    if (orderLabel || customerName) {
+    // Simpan order_label, customer_name, dan order_disc_name ke transaksi jika ada
+    if (orderLabel || customerName || orderDiscName) {
       void supabase.from("transactions").update({
         ...(orderLabel ? { order_label: orderLabel } : {}),
         ...(customerName ? { customer_name: customerName } : {}),
+        ...(orderDiscName ? { order_disc_name: orderDiscName } : {}),
       }).eq("id", result.transaction_id);
     }
 
@@ -258,7 +260,7 @@ async function buildReceiptPrintJobsForTransaction(
       .single(),
     supabase
       .from("transactions")
-      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)")
+      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)")
       .eq("id", transactionId)
       .eq("business_id", businessId)
       .single(),
@@ -308,6 +310,7 @@ async function buildReceiptPrintJobsForTransaction(
       subtotal: Number(transaction.subtotal_raw),
       itemDiscount: Number(transaction.total_item_disc),
       orderDiscount: Number(transaction.order_disc_amt),
+      orderDiscountName: (transaction as unknown as { order_disc_name?: string | null }).order_disc_name ?? null,
       service: Number(transaction.service),
       tax: Number(transaction.tax),
       total: Number(transaction.total),
