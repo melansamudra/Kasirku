@@ -88,7 +88,9 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
     text(`${formatQty(item.qty)} x  ${item.name}`);
     push([ESC, 0x45, 0x00]); // bold off
     if (item.note) {
-      text(`      ${item.note}`);
+      for (const part of item.note.split(" | ")) {
+        text(`   * ${part}`);
+      }
     }
   }
 

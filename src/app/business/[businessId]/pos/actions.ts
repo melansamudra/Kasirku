@@ -680,6 +680,14 @@ export async function saveOpenBill(
   const supabase = await createClient();
 
   if (billId) {
+    // Ambil item lama sebelum update agar tahu mana yang benar-benar baru
+    const { data: existingBill } = await supabase
+      .from("open_bills")
+      .select("items")
+      .eq("id", billId)
+      .single();
+    const existingItems = ((existingBill?.items ?? []) as OpenBillItemInput[]);
+
     const { error } = await supabase
       .from("open_bills")
       .update({ label: trimmed, items, updated_at: new Date().toISOString() })
@@ -689,8 +697,25 @@ export async function saveOpenBill(
       return { success: false, error: error.message };
     }
     revalidatePath(`/business/${businessId}/pos`);
+
+    // Hanya cetak item yang benar-benar baru atau bertambah qtynya
+    const addedItems = items
+      .map((item) => {
+        const prev = existingItems.find(
+          (e) => e.product_id === item.product_id && e.note === item.note,
+        );
+        if (!prev) return item;
+        if (item.qty > prev.qty) return { ...item, qty: item.qty - prev.qty };
+        return null;
+      })
+      .filter((i): i is OpenBillItemInput => i !== null);
+
+    if (addedItems.length === 0) return { success: true, billId, printJobs: [] };
+
     const printJobs = await buildKitchenPrintJobsForItems(
-      supabase, businessId, trimmed, "Tambahan Order", items.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })), undefined, cashierId, "ADDITIONAL ORDER",
+      supabase, businessId, trimmed, "Tambahan Order",
+      addedItems.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })),
+      undefined, cashierId, "ADDITIONAL ORDER",
     ).catch(() => []);
     return { success: true, billId, printJobs };
   }
