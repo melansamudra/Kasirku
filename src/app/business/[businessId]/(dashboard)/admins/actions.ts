@@ -83,7 +83,7 @@ async function _inviteAdminInner(
   try {
     const { data, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
       email,
-      { redirectTo: `${origin}/auth/callback?next=/reset-password` },
+      { redirectTo: `${origin}/reset-password` },
     );
     if (inviteError || !data?.user) {
       return {
