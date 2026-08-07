@@ -64,16 +64,26 @@ export async function inviteAdmin(
   const origin = host ? `${protocol}://${host}` : "";
 
   const serviceClient = createServiceClient();
-  const { data: invited, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
-    email,
-    { redirectTo: `${origin}/reset-password` },
-  );
-
-  if (inviteError || !invited?.user) {
+  let invited: { user: { id: string } } | null = null;
+  try {
+    const { data, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
+      email,
+      { redirectTo: `${origin}/reset-password` },
+    );
+    if (inviteError || !data?.user) {
+      return {
+        error:
+          inviteError?.message ??
+          "Gagal mengundang. Kalau email ini sudah terdaftar di Kasirku, gunakan email lain.",
+      };
+    }
+    invited = data;
+  } catch (e) {
     return {
       error:
-        inviteError?.message ??
-        "Gagal mengundang admin. Kalau email ini sudah pernah dipakai daftar akun Kasirku lain, gunakan email lain.",
+        e instanceof Error
+          ? e.message
+          : "Gagal mengundang. Kalau email ini sudah terdaftar di Kasirku, gunakan email lain.",
     };
   }
 
@@ -86,7 +96,12 @@ export async function inviteAdmin(
   });
 
   if (staffError) {
-    return { error: staffError.message };
+    const isUniqueViolation = staffError.code === "23505";
+    return {
+      error: isUniqueViolation
+        ? "Email ini sudah terdaftar sebagai admin/kasir di outlet ini."
+        : staffError.message,
+    };
   }
 
   await logActivity(
