@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Capacitor } from "@capacitor/core";
 import { buildReceiptPrintJob } from "../../actions";
 import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
 
@@ -34,11 +33,12 @@ export default function PrintButton({
     window.print();
   }, []);
 
-  // window.print() lewat print service Android tidak jalan untuk printer
-  // thermal ESC/POS biasa (mis. Bluetooth RPP02N) — di app native, tawarkan
-  // jalur alternatif: kirim struk (dengan harga) langsung ke printer yang
-  // sudah diatur di Printer Dapur & Bar, sama seperti tiket dapur.
-  const isNative = Capacitor.isNativePlatform();
+  // Selalu tawarkan jalur ESC/POS kalau ada printer terkonfigurasi, baik di
+  // native (pakai plugin Capacitor) maupun di browser biasa (pakai print-agent
+  // untuk LAN). Bluetooth memang tidak jalan di browser, tapi dispatchPrintJobs
+  // yang akan melaporkan error tersebut — lebih baik tombol kelihatan dan gagal
+  // dengan pesan yang jelas, daripada tersembunyi sama sekali.
+  const hasPrinterButtons = printers.length > 0;
   const [state, setState] = useState<Record<string, NativeState>>({});
 
   async function handlePrintToPrinter(printer: Printer) {
@@ -86,7 +86,7 @@ export default function PrintButton({
         </button>
       </div>
 
-      {isNative && printers.length > 0 && (
+      {hasPrinterButtons && (
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <p className="mb-2 text-[11px] font-semibold text-zinc-500">
             Atau kirim langsung ke printer (untuk printer thermal Bluetooth/LAN):
