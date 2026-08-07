@@ -265,7 +265,11 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
         text(pl(`  ${formatQty(item.qty)}x`, lineTotal));
       }
     }
-    if (cfg.showItemNote && item.note) text(`  * ${tr(item.note, W - 4)}`);
+    if (cfg.showItemNote && item.note) {
+      for (const part of item.note.split(" | ")) {
+        text(`  * ${tr(part, W - 4)}`);
+      }
+    }
   }
 
   divider();
