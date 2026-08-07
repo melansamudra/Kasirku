@@ -47,7 +47,7 @@ export async function buildReceiptBuffer(
     businessAddress: (business as unknown as { address?: string | null }).address,
     businessPhone: (business as unknown as { phone?: string | null }).phone,
     invoiceNumber: transaction.invoice_number,
-    date: new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
+    date: new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }),
     cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
     voided: transaction.voided,
     items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price), note: (i as unknown as { note?: string | null }).note, voided: (i as unknown as { voided?: boolean }).voided, batch: (i as unknown as { batch?: number }).batch ?? 0 })),

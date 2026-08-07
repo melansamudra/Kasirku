@@ -11,9 +11,17 @@ import { buildKitchenTicket, buildReceiptTicket } from "@/lib/escpos";
 // (Node.js id-ID locale di Linux kadang menambah "pukul" → baris jadi > 26 kolom)
 function fmtDate(d: Date): string {
   const M = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
-  const h = String(d.getHours()).padStart(2,"0");
-  const m = String(d.getMinutes()).padStart(2,"0");
-  return `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}, ${h}.${m}`;
+  const parts = new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? "0";
+  const day = parseInt(get("day"), 10);
+  const mon = parseInt(get("month"), 10) - 1;
+  const h = get("hour").padStart(2, "0");
+  const m = get("minute").padStart(2, "0");
+  return `${day} ${M[mon]} ${get("year")}, ${h}.${m}`;
 }
 
 type VerifyCashierPinRow = {
@@ -495,7 +503,7 @@ export async function buildTestPrintJob(
       businessAddress: biz?.address ?? null,
       businessPhone: biz?.phone ?? null,
       invoiceNumber: "TES-CETAK",
-      date: new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }),
+      date: new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Jakarta" }),
       cashierName: "Kasir",
       voided: false,
       items: [

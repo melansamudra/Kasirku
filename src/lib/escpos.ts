@@ -350,7 +350,7 @@ export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
 
   divider();
   text(padLine("Periode", input.periodLabel));
-  text(padLine("Dicetak", new Date().toLocaleString("id-ID")));
+  text(padLine("Dicetak", new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })));
 
   divider();
   if (input.byMethod.length === 0) {
@@ -403,7 +403,7 @@ export function buildMenuSalesTicket(input: MenuSalesTicketInput): Buffer {
 
   divider();
   text(padLine("Periode", input.periodLabel));
-  text(padLine("Dicetak", new Date().toLocaleString("id-ID")));
+  text(padLine("Dicetak", new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })));
 
   divider();
   if (input.items.length === 0) {
