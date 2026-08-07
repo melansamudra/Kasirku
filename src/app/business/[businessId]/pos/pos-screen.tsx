@@ -341,31 +341,37 @@ export default function PosScreen({
     );
   }, [products, pending]);
 
-  // Promo global yang sedang berlaku — berlaku hanya jika active=true dan
-  // hari ini ada dalam rentang valid_from/valid_until (jika diisi).
-  const activePromo = useMemo<DiscountRule | null>(() => {
+  // Semua promo yang valid hari ini (active + dalam rentang tanggal).
+  const availablePromos = useMemo<DiscountRule[]>(() => {
     const today = todayWibDateString();
-    return (
-      discountRules.find(
-        (r) =>
-          r.type === "promo" &&
-          r.active &&
-          (!r.valid_from || r.valid_from <= today) &&
-          (!r.valid_until || r.valid_until >= today),
-      ) ?? null
+    return discountRules.filter(
+      (r) =>
+        r.type === "promo" &&
+        r.active &&
+        (!r.valid_from || r.valid_from <= today) &&
+        (!r.valid_until || r.valid_until >= today),
     );
   }, [discountRules]);
 
-  // Sinkronkan orderDisc/orderDiscType dengan promo aktif.
+  const [selectedPromoId, setSelectedPromoId] = useState<string | null>(null);
+  const [promoPickerOpen, setPromoPickerOpen] = useState(false);
+
+  // Promo yang sedang dipilih kasir untuk transaksi ini.
+  const selectedPromo = useMemo(
+    () => availablePromos.find((r) => r.id === selectedPromoId) ?? null,
+    [availablePromos, selectedPromoId],
+  );
+
+  // Sinkronkan orderDisc/orderDiscType dengan promo yang dipilih kasir.
   useEffect(() => {
-    if (activePromo) {
-      setOrderDisc(activePromo.value);
-      setOrderDiscType(activePromo.value_type);
+    if (selectedPromo) {
+      setOrderDisc(selectedPromo.value);
+      setOrderDiscType(selectedPromo.value_type);
     } else {
       setOrderDisc(0);
       setOrderDiscType("pct");
     }
-  }, [activePromo]);
+  }, [selectedPromo]);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -556,6 +562,23 @@ export default function PosScreen({
     );
   }
 
+  function toggleFreeItem(cartKey: string) {
+    setCart((prev) =>
+      prev.map((i) => {
+        if (i.cartKey !== cartKey) return i;
+        const isAlreadyFree = i.disc === 100 && i.discType === "pct";
+        if (isAlreadyFree) {
+          // Kembalikan ke diskon rule bawaan, atau 0 jika tidak ada rule
+          const rule = discountRules.find(
+            (r) => r.type === "per_product" && r.product_id === i.productId && r.active,
+          );
+          return { ...i, disc: rule?.value ?? 0, discType: rule?.value_type ?? "pct" };
+        }
+        return { ...i, disc: 100, discType: "pct" };
+      }),
+    );
+  }
+
   function changeQty(cartKey: string, delta: number) {
     setCart((prev) =>
       prev
@@ -629,6 +652,7 @@ export default function PosScreen({
     setCartOrderIds([]);
     setOrderDisc(0);
     setOrderDiscType("pct");
+    setSelectedPromoId(null);
     setActiveBill(null);
     setSaveBonOpen(false);
     setBonLabel("");
@@ -1044,6 +1068,7 @@ export default function PosScreen({
       setSelectedCustomer(null);
       setCustomerPickerOpen(false);
       setCustomerSearch("");
+      setSelectedPromoId(null);
       void syncNow();
       return;
     }
@@ -1076,6 +1101,7 @@ export default function PosScreen({
     setSelectedCustomer(null);
     setCustomerPickerOpen(false);
     setCustomerSearch("");
+    setSelectedPromoId(null);
   }
 
   async function handleConfirmCloseShift() {
@@ -1859,9 +1885,19 @@ export default function PosScreen({
                     <div className="mt-1.5 flex items-center gap-1.5">
                       {discAmt > 0 && (
                         <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
-                          Diskon {item.discType === "pct" ? `${item.disc}%` : formatRupiah(item.disc)}
+                          {item.disc === 100 && item.discType === "pct" ? "🎂 Gratis" : `Diskon ${item.discType === "pct" ? `${item.disc}%` : formatRupiah(item.disc)}`}
                         </span>
                       )}
+                      <button
+                        onClick={() => toggleFreeItem(item.cartKey)}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                          item.disc === 100 && item.discType === "pct"
+                            ? "border-pink-300 bg-pink-50 text-pink-700 hover:bg-pink-100"
+                            : "border-zinc-200 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600"
+                        }`}
+                      >
+                        🎂 Gratis
+                      </button>
                       {isFnb && (
                         <button
                           onClick={() => setEditingNoteId(noteOpen ? null : item.cartKey)}
@@ -1969,6 +2005,72 @@ export default function PosScreen({
           </div>
         )}
 
+        {/* Promo picker — scrolls with items */}
+        {!paying && availablePromos.length > 0 && (
+          <div className="px-4 pb-3">
+            <button
+              onClick={() => setPromoPickerOpen((v) => !v)}
+              className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                selectedPromo
+                  ? "border-brand-200 bg-brand-50 text-brand-700"
+                  : "border-zinc-200 text-zinc-400 hover:border-brand-300 hover:text-brand-700"
+              }`}
+            >
+              <span>
+                🏷️{" "}
+                {selectedPromo
+                  ? `${selectedPromo.name} (${selectedPromo.value_type === "pct" ? `${selectedPromo.value}%` : `Rp${selectedPromo.value.toLocaleString("id-ID")}`})`
+                  : "Tanpa Promo"}
+              </span>
+              {selectedPromo && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPromoId(null);
+                  }}
+                  className="text-zinc-400 hover:text-red-500"
+                >
+                  ✕
+                </span>
+              )}
+            </button>
+            {promoPickerOpen && (
+              <div className="mt-1.5 rounded-lg border border-zinc-200 bg-white p-2">
+                <div className="max-h-40 overflow-y-auto space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setSelectedPromoId(null);
+                      setPromoPickerOpen(false);
+                    }}
+                    className="block w-full rounded-lg px-2 py-1.5 text-left text-xs text-zinc-500 hover:bg-zinc-50"
+                  >
+                    Tanpa Promo
+                  </button>
+                  {availablePromos.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setSelectedPromoId(p.id);
+                        setPromoPickerOpen(false);
+                      }}
+                      className={`block w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-zinc-50 ${
+                        selectedPromoId === p.id ? "font-semibold text-brand-700" : "text-zinc-700"
+                      }`}
+                    >
+                      {p.name}
+                      <span className="ml-1.5 text-zinc-400">
+                        {p.value_type === "pct" ? `${p.value}%` : `Rp${p.value.toLocaleString("id-ID")}`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Totals breakdown — scrolls with items */}
         {!paying && (totalItemDisc > 0 || orderDiscAmt > 0 || serviceAmt > 0 || taxAmt > 0) && (
           <div className="px-4 pb-3 space-y-1 border-t border-zinc-100 pt-2">
@@ -1982,10 +2084,10 @@ export default function PosScreen({
                 <span className="tabular-nums">− {formatRupiah(totalItemDisc)}</span>
               </div>
             )}
-            {activePromo && orderDiscAmt > 0 && (
+            {selectedPromo && orderDiscAmt > 0 && (
               <div className="flex items-center justify-between text-xs">
                 <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
-                  🎉 {activePromo.name}
+                  🎉 {selectedPromo.name}
                 </span>
                 <span className="tabular-nums text-brand-700">
                   − {formatRupiah(orderDiscAmt)}
