@@ -75,9 +75,9 @@ export default async function DashboardPage({
     { data: openShifts },
     { data: expenseRows },
   ] = await Promise.all([
-    supabase.from("transactions").select("business_id, total, voided")
+    supabase.from("transactions").select("business_id, total, voided, date")
       .in("business_id", targetIds).gte("date", fromIso ?? "1970-01-01"),
-    supabase.from("ticket_transactions").select("business_id, total, voided")
+    supabase.from("ticket_transactions").select("business_id, total, voided, date")
       .in("business_id", targetIds).gte("date", fromIso ?? "1970-01-01"),
     supabase.from("shifts").select("business_id")
       .in("business_id", businesses.map((b) => b.id)).is("closed_at", null),
@@ -107,6 +107,68 @@ export default async function DashboardPage({
     totalCount += s.count;
     totalExpense += s.expense;
   }
+
+  // ── Chart data ──
+  const WIB = "Asia/Jakarta";
+  const wibDateFmt = new Intl.DateTimeFormat("en-CA", { timeZone: WIB });
+  const wibHourFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: WIB });
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: WIB });
+
+  const allTx = [...(txRows ?? []), ...(ticketTxRows ?? [])].filter((t) => !t.voided);
+
+  let chartBars: number[];
+  let chartTooltips: string[];
+  let xAxisLabels: string[];
+
+  if (activePeriod === "today") {
+    const hourly = Array<number>(24).fill(0);
+    for (const t of allTx) hourly[Number(wibHourFmt.format(new Date(t.date)))] += Number(t.total);
+    chartBars = hourly;
+    chartTooltips = hourly.map((v, h) => `${String(h).padStart(2, "0")}:00 — ${fmtFull(v)}`);
+    xAxisLabels = ["00:00", "06:00", "12:00", "18:00", "23:00"];
+  } else if (activePeriod === "week") {
+    const dates: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dates.push(d.toLocaleDateString("en-CA", { timeZone: WIB }));
+    }
+    const dailyMap = new Map<string, number>();
+    for (const t of allTx) {
+      const d = wibDateFmt.format(new Date(t.date));
+      dailyMap.set(d, (dailyMap.get(d) ?? 0) + Number(t.total));
+    }
+    chartBars = dates.map((d) => dailyMap.get(d) ?? 0);
+    chartTooltips = dates.map((d, i) => `${d} — ${fmtFull(chartBars[i])}`);
+    xAxisLabels = dates.map((d) =>
+      new Date(d + "T12:00:00+07:00").toLocaleDateString("id-ID", { weekday: "short", timeZone: WIB }),
+    );
+  } else {
+    // month
+    const monthStart = `${todayStr.slice(0, 7)}-01`;
+    const dates: string[] = [];
+    let cur = monthStart;
+    while (cur <= todayStr) {
+      dates.push(cur);
+      const next = new Date(cur + "T12:00:00+07:00");
+      next.setDate(next.getDate() + 1);
+      cur = next.toLocaleDateString("en-CA", { timeZone: WIB });
+    }
+    const dailyMap = new Map<string, number>();
+    for (const t of allTx) {
+      const d = wibDateFmt.format(new Date(t.date));
+      dailyMap.set(d, (dailyMap.get(d) ?? 0) + Number(t.total));
+    }
+    chartBars = dates.map((d) => dailyMap.get(d) ?? 0);
+    chartTooltips = dates.map((d, i) => `${d} — ${fmtFull(chartBars[i])}`);
+    const step = Math.max(1, Math.floor(dates.length / 5));
+    xAxisLabels = dates
+      .filter((_, i) => i === 0 || i === dates.length - 1 || i % step === 0)
+      .map((d) => d.slice(8));
+  }
+
+  const chartMax = Math.max(...chartBars, 1);
+  const peakIdx = chartBars.indexOf(Math.max(...chartBars));
 
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
 
@@ -268,6 +330,50 @@ export default async function DashboardPage({
                 {fmtFull(totalExpense)}
               </p>
               <p className="mt-1 text-xs text-zinc-400">{selectedBiz?.name ?? "semua outlet"}</p>
+            </div>
+          </div>
+
+          {/* ── Chart ── */}
+          <div className="mb-6 rounded-xl bg-white border border-zinc-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-700">Trend Pendapatan</p>
+                <p className="text-xs text-zinc-400">
+                  {activePeriod === "today" ? "Per jam (WIB)" : activePeriod === "week" ? "7 hari terakhir" : "Bulan ini per hari"}
+                </p>
+              </div>
+              <p className="text-sm font-bold text-zinc-900">{fmtFull(totalRevenue)}</p>
+            </div>
+            <div className="px-5 py-5">
+              <div className="flex h-24 items-end gap-0.5">
+                {chartBars.map((val, i) => {
+                  const pct = Math.round((val / chartMax) * 100);
+                  const hasTx = val > 0;
+                  const isPeak = i === peakIdx && hasTx;
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-1 flex-col items-center justify-end"
+                      title={chartTooltips[i]}
+                    >
+                      <div
+                        className={`w-full rounded-t transition-all ${
+                          isPeak ? "bg-brand-600" : hasTx ? "bg-brand-300" : "bg-zinc-100"
+                        }`}
+                        style={{
+                          height: `${Math.max(pct, hasTx ? 5 : 1)}%`,
+                          minHeight: hasTx ? "5px" : "1px",
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex justify-between text-[10px] text-zinc-400">
+                {xAxisLabels.map((l) => (
+                  <span key={l}>{l}</span>
+                ))}
+              </div>
             </div>
           </div>
 
