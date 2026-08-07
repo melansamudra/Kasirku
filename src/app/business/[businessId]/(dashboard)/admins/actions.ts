@@ -40,6 +40,21 @@ export async function inviteAdmin(
   _prevState: InviteAdminState,
   formData: FormData,
 ): Promise<InviteAdminState> {
+  try {
+    return await _inviteAdminInner(businessId, formData);
+  } catch (e) {
+    console.error("[inviteAdmin] unexpected error:", e);
+    return {
+      error:
+        e instanceof Error ? e.message : "Terjadi kesalahan tak terduga. Coba lagi.",
+    };
+  }
+}
+
+async function _inviteAdminInner(
+  businessId: string,
+  formData: FormData,
+): Promise<InviteAdminState> {
   const name = (formData.get("name") as string)?.trim();
   const email = (formData.get("email") as string)?.trim().toLowerCase();
   const permissions = sanitizePermissions(formData.getAll("permissions"));
@@ -64,7 +79,7 @@ export async function inviteAdmin(
   const origin = host ? `${protocol}://${host}` : "";
 
   const serviceClient = createServiceClient();
-  let invited: { user: { id: string } } | null = null;
+  let invitedUserId: string;
   try {
     const { data, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
       email,
@@ -77,7 +92,7 @@ export async function inviteAdmin(
           "Gagal mengundang. Kalau email ini sudah terdaftar di Kasirku, gunakan email lain.",
       };
     }
-    invited = data;
+    invitedUserId = data.user.id;
   } catch (e) {
     return {
       error:
@@ -89,7 +104,7 @@ export async function inviteAdmin(
 
   const { error: staffError } = await supabase.from("business_staff").insert({
     business_id: businessId,
-    user_id: invited.user.id,
+    user_id: invitedUserId,
     name,
     email,
     permissions,
