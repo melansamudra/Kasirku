@@ -28,7 +28,7 @@ export async function buildReceiptBuffer(
         .single(),
       supabase
         .from("transaction_items")
-        .select("id, name, price, qty, note, voided")
+        .select("id, name, price, qty, note, voided, batch")
         .eq("transaction_id", transactionId)
         .order("id", { ascending: true }),
       supabase
@@ -49,7 +49,7 @@ export async function buildReceiptBuffer(
     date: new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
     cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
     voided: transaction.voided,
-    items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price), note: (i as unknown as { note?: string | null }).note, voided: (i as unknown as { voided?: boolean }).voided })),
+    items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price), note: (i as unknown as { note?: string | null }).note, voided: (i as unknown as { voided?: boolean }).voided, batch: (i as unknown as { batch?: number }).batch ?? 0 })),
     subtotal: Number(transaction.subtotal_raw),
     itemDiscount: Number(transaction.total_item_disc),
     orderDiscount: Number(transaction.order_disc_amt),

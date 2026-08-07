@@ -82,6 +82,7 @@ export type CartItemInput = {
   note?: string | null;
   unitPrice?: number; // harga satuan setelah opsi (override harga produk di DB)
   optionNames?: string[]; // label opsi yang dipilih — hanya untuk cetak dapur, tidak disimpan ke DB
+  batch?: number;
 };
 
 export type TenderInput = {
@@ -141,6 +142,7 @@ export async function checkout(
         disc_type: i.discType,
         note: [...(i.optionNames ?? []), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
         ...(i.unitPrice ? { unit_price: i.unitPrice } : {}),
+        ...(i.batch ? { batch: i.batch } : {}),
       })),
       p_payments: payments,
       p_order_disc: orderDisc,
@@ -266,7 +268,7 @@ async function buildReceiptPrintJobsForTransaction(
       .single(),
     supabase
       .from("transaction_items")
-      .select("id, name, price, qty, note, voided")
+      .select("id, name, price, qty, note, voided, batch")
       .eq("transaction_id", transactionId)
       .order("id", { ascending: true }),
     supabase
@@ -285,6 +287,7 @@ async function buildReceiptPrintJobsForTransaction(
     price: Number(i.price),
     note: (i as unknown as { note?: string | null }).note,
     voided: (i as unknown as { voided?: boolean }).voided,
+    batch: (i as unknown as { batch?: number }).batch ?? 0,
   }));
   const receiptPayments = (payments ?? []).map((p) => ({
     method: p.method,
@@ -656,6 +659,7 @@ export type OpenBillItemInput = {
   disc: number;
   disc_type: DiscountType;
   note?: string | null;
+  batch?: number;
 };
 
 export type SaveOpenBillResult =
@@ -855,6 +859,8 @@ export type PosOpenBill = {
     qty: number;
     disc: number;
     disc_type: DiscountType;
+    note?: string | null;
+    batch?: number;
   }[];
 };
 

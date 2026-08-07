@@ -79,6 +79,7 @@ type CartItem = {
   discType: DiscountType;
   note: string | null;
   selectedOptions: SelectedOption[];
+  batch: number;
 };
 
 type Tender = {
@@ -117,6 +118,7 @@ type OpenBill = {
     disc: number;
     disc_type: DiscountType;
     note?: string | null;
+    batch?: number;
   }[];
 };
 
@@ -537,6 +539,8 @@ export default function PosScreen({
       const rule = discountRules.find(
         (r) => r.type === "per_product" && r.product_id === product.id && r.active,
       );
+      // Item baru yang ditambahkan setelah bon dimuat = tambahan (batch 1)
+      const nextBatch = activeBill && prev.length > 0 ? 1 : 0;
       return [
         ...prev,
         {
@@ -551,6 +555,7 @@ export default function PosScreen({
           discType: rule ? rule.value_type : ("pct" as DiscountType),
           note: null,
           selectedOptions,
+          batch: nextBatch,
         },
       ];
     });
@@ -634,6 +639,7 @@ export default function PosScreen({
         disc: i.disc,
         disc_type: i.discType,
         note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
+        batch: i.batch,
       })),
       cashierId,
     );
@@ -694,6 +700,7 @@ export default function PosScreen({
           discType: item.disc_type,
           note: item.note ?? null,
           selectedOptions: [],
+          batch: item.batch ?? 0,
         });
       }
     }
@@ -768,6 +775,7 @@ export default function PosScreen({
           discType: rule ? rule.value_type : ("pct" as DiscountType),
           note: item.note,
           selectedOptions: [],
+          batch: 0,
         });
       }
     }
@@ -815,6 +823,7 @@ export default function PosScreen({
             discType: rule ? rule.value_type : ("pct" as DiscountType),
             note: item.note,
             selectedOptions: [],
+            batch: 0,
           });
         }
       }
@@ -1002,6 +1011,7 @@ export default function PosScreen({
       note: i.note,
       unitPrice: i.price !== i.basePrice ? i.price : undefined,
       optionNames: i.selectedOptions.length > 0 ? i.selectedOptions.map((o) => o.optionName) : undefined,
+      batch: i.batch,
     }));
     const paymentsPayload: TenderInput[] = tenders.map((t) => ({
       method: t.method,

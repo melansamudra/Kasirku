@@ -119,6 +119,7 @@ export type ReceiptItem = {
   price: number;
   note?: string | null;
   voided?: boolean;
+  batch?: number;
 };
 
 export type ReceiptSettings = {
@@ -247,7 +248,14 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
   if (cfg.showCustomerName && input.customerName) text(pl("Pelanggan", tr(input.customerName, W - 10)));
 
   divider();
+  let tambahShown = false;
   for (const item of input.items) {
+    if (!tambahShown && (item.batch ?? 0) > 0) {
+      tambahShown = true;
+      push([ESC, 0x61, 0x01]); // center
+      text("--- Tambahan ---");
+      push([ESC, 0x61, 0x00]); // left
+    }
     push([ESC, 0x45, 0x01]); // bold
     text(tr(item.voided ? `[VOID] ${item.name}` : item.name));
     push([ESC, 0x45, 0x00]);
