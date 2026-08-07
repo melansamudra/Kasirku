@@ -2331,8 +2331,8 @@ export default function PosScreen({
             className="absolute inset-0 bg-black/50"
             onClick={() => setPosMenuOpen(false)}
           />
-          <div className="relative flex w-full max-w-sm flex-col rounded-t-2xl bg-white sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <div className="relative flex max-h-[90dvh] w-full max-w-sm flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
               <h2 className="text-sm font-bold text-zinc-900">☰ Menu</h2>
               <button
                 onClick={() => setPosMenuOpen(false)}
@@ -2341,7 +2341,7 @@ export default function PosScreen({
                 ✕
               </button>
             </div>
-            <div className="p-4">
+            <div className="overflow-y-auto p-4">
               {/* Tampilan grid produk */}
               <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                 Tampilan Produk
