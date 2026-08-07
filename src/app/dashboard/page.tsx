@@ -5,8 +5,14 @@ import { getPeriodRange, parsePeriod } from "../business/[businessId]/(dashboard
 import LogoutButton from "./logout-button";
 
 function fmtCompact(v: number) {
-  if (v >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")} Jt`;
-  if (v >= 1_000) return `Rp ${Math.round(v / 1_000)} Rb`;
+  if (v >= 1_000_000) {
+    const s = (v / 1_000_000).toFixed(2).replace(".", ",").replace(/0+$/, "").replace(/,$/, "");
+    return `Rp ${s} Jt`;
+  }
+  if (v >= 1_000) {
+    const s = (v / 1_000).toFixed(1).replace(".", ",").replace(/,0$/, "");
+    return `Rp ${s} Rb`;
+  }
   if (v === 0) return "Rp 0";
   return `Rp ${Math.round(v).toLocaleString("id-ID")}`;
 }
