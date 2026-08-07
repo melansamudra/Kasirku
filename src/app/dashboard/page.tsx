@@ -49,13 +49,24 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // RLS returns businesses owned by user + businesses where user is active staff
   const { data: businesses } = await supabase
     .from("businesses")
-    .select("id, name, business_type")
+    .select("id, name, business_type, owner_id")
     .order("created_at", { ascending: true });
 
   if (!businesses || businesses.length === 0) {
     redirect("/onboarding");
+  }
+
+  // Kasir/staff: bukan owner dari bisnis manapun
+  const isOwner = businesses.some((b) => b.owner_id === user?.id);
+  if (!isOwner) {
+    // Satu outlet → langsung ke POS
+    if (businesses.length === 1) {
+      redirect(`/business/${businesses[0].id}/pos`);
+    }
+    // Multiple outlet → tampilkan pilihan POS sederhana (di bawah)
   }
 
   const businessIds = businesses.map((b) => b.id);
@@ -142,6 +153,7 @@ export default async function DashboardPage() {
             const shiftOpen = openShiftBusinessIds.has(b.id);
             const lowStock = lowStockCount.get(b.id) ?? 0;
             const accent = BUSINESS_TYPE_ACCENT[b.business_type] ?? DEFAULT_ACCENT;
+            const isThisBusinessOwned = b.owner_id === user?.id;
             return (
               <div
                 key={b.id}
@@ -172,7 +184,7 @@ export default async function DashboardPage() {
                         ● Shift aktif
                       </span>
                     )}
-                    {lowStock > 0 && (
+                    {lowStock > 0 && isThisBusinessOwned && (
                       <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
                         ⚠️ {lowStock} stok rendah
                       </span>
@@ -204,24 +216,28 @@ export default async function DashboardPage() {
                   >
                     🛎️ Buka Kasir
                   </Link>
-                  <Link
-                    href={`/business/${b.id}`}
-                    className="flex items-center justify-center rounded-xl border border-zinc-200 px-4 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
-                  >
-                    Kelola →
-                  </Link>
+                  {isThisBusinessOwned && (
+                    <Link
+                      href={`/business/${b.id}`}
+                      className="flex items-center justify-center rounded-xl border border-zinc-200 px-4 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+                    >
+                      Kelola →
+                    </Link>
+                  )}
                 </div>
               </div>
             );
           })}
 
-          <Link
-            href="/onboarding"
-            className="flex min-h-[11rem] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 p-5 text-zinc-400 transition-colors hover:border-brand-300 hover:text-brand-600"
-          >
-            <span className="text-2xl">＋</span>
-            <span className="text-sm font-semibold">Tambah Toko Baru</span>
-          </Link>
+          {isOwner && (
+            <Link
+              href="/onboarding"
+              className="flex min-h-[11rem] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 p-5 text-zinc-400 transition-colors hover:border-brand-300 hover:text-brand-600"
+            >
+              <span className="text-2xl">＋</span>
+              <span className="text-sm font-semibold">Tambah Toko Baru</span>
+            </Link>
+          )}
         </div>
       </div>
     </div>
