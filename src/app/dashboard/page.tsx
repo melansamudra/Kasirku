@@ -280,24 +280,22 @@ export default async function DashboardPage({
           ))}
         </div>
 
-        <div className="mx-auto max-w-4xl px-6 py-8">
+        <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-8">
 
           {/* Header */}
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900">
+              <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl">
                 {selectedBiz ? selectedBiz.name : "Semua Outlet"}
               </h1>
               {selectedBiz && (
-                <p className="mt-0.5 text-sm text-zinc-400">
+                <p className="mt-0.5 text-xs text-zinc-400">
                   {TYPE_LABEL[selectedBiz.business_type] ?? "Toko"}
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden md:block">
-                <LogoutButton variant="inline" />
-              </div>
+            <div className="hidden md:block">
+              <LogoutButton variant="inline" />
             </div>
           </div>
 
@@ -318,21 +316,21 @@ export default async function DashboardPage({
             ))}
           </div>
 
-          {/* KPI cards */}
-          <div className="mb-8 grid grid-cols-3 gap-4">
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-zinc-100">
+          {/* KPI cards — Omset full width di mobile, lalu 2 kolom */}
+          <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+            <div className="col-span-2 rounded-xl bg-white p-4 shadow-sm border border-zinc-100 sm:col-span-1 sm:p-5">
               <p className="text-xs font-medium text-zinc-400">Total Omset</p>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-zinc-900">{fmtFull(totalRevenue)}</p>
+              <p className="mt-1.5 text-2xl font-bold tracking-tight text-zinc-900 sm:mt-2">{fmtFull(totalRevenue)}</p>
               <p className="mt-1 text-xs text-zinc-400">{selectedBiz?.name ?? "semua outlet"}</p>
             </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-zinc-100">
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-zinc-100 sm:p-5">
               <p className="text-xs font-medium text-zinc-400">Transaksi</p>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-zinc-900">{totalCount}</p>
+              <p className="mt-1.5 text-2xl font-bold tracking-tight text-zinc-900 sm:mt-2">{totalCount}</p>
               <p className="mt-1 text-xs text-zinc-400">{selectedBiz?.name ?? "semua outlet"}</p>
             </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-zinc-100">
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-zinc-100 sm:p-5">
               <p className="text-xs font-medium text-zinc-400">Pengeluaran</p>
-              <p className={`mt-2 text-2xl font-bold tracking-tight ${totalExpense > 0 ? "text-red-500" : "text-zinc-900"}`}>
+              <p className={`mt-1.5 text-2xl font-bold tracking-tight sm:mt-2 ${totalExpense > 0 ? "text-red-500" : "text-zinc-900"}`}>
                 {fmtFull(totalExpense)}
               </p>
               <p className="mt-1 text-xs text-zinc-400">{selectedBiz?.name ?? "semua outlet"}</p>
@@ -383,48 +381,51 @@ export default async function DashboardPage({
             </div>
           </div>
 
-          {/* ── Semua outlet: tabel perbandingan ── */}
+          {/* ── Semua outlet ── */}
           {showAll && ownedBusinesses.length > 0 && (
             <div className="rounded-xl bg-white border border-zinc-100 shadow-sm overflow-hidden">
-              <div className="border-b border-zinc-100 px-5 py-4">
+              <div className="border-b border-zinc-100 px-4 py-3.5 sm:px-5 sm:py-4">
                 <h2 className="text-sm font-semibold text-zinc-700">Outlet</h2>
               </div>
 
-              {/* Table header */}
-              <div className="grid grid-cols-[1fr_7rem_5rem_5rem_auto] gap-4 border-b border-zinc-100 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                <span>Nama</span>
-                <span className="text-right">Omset</span>
-                <span className="text-right">Transaksi</span>
-                <span className="text-right">Pengeluaran</span>
-                <span />
-              </div>
-
-              <div className="divide-y divide-zinc-100">
+              {/* Mobile: card per outlet */}
+              <div className="divide-y divide-zinc-100 sm:hidden">
                 {ownedBusinesses.map((b) => {
                   const s = summary.get(b.id) ?? { revenue: 0, count: 0, expense: 0 };
                   const shiftOpen = openShiftSet.has(b.id);
                   return (
-                    <div key={b.id} className="grid grid-cols-[1fr_7rem_5rem_5rem_auto] items-center gap-4 px-5 py-4 hover:bg-zinc-50 transition-colors">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-zinc-900">{b.name}</p>
-                          {shiftOpen
-                            ? <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Shift aktif</span>
-                            : <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-400">Tutup</span>
-                          }
+                    <div key={b.id} className="px-4 py-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-zinc-900">{b.name}</p>
+                          <p className="text-xs text-zinc-400">{TYPE_LABEL[b.business_type] ?? "Toko"}</p>
                         </div>
-                        <p className="mt-0.5 text-xs text-zinc-400">{TYPE_LABEL[b.business_type] ?? "Toko"}</p>
+                        {shiftOpen
+                          ? <span className="rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-green-700">Shift aktif</span>
+                          : <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-medium text-zinc-400">Tutup</span>
+                        }
                       </div>
-                      <p className="text-right text-sm font-semibold text-zinc-900">{fmtCompact(s.revenue)}</p>
-                      <p className="text-right text-sm text-zinc-600">{s.count}</p>
-                      <p className={`text-right text-sm font-medium ${s.expense > 0 ? "text-red-500" : "text-zinc-400"}`}>
-                        {s.expense > 0 ? fmtCompact(s.expense) : "—"}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <Link href={`/business/${b.id}/pos`} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors whitespace-nowrap">
-                          Kasir
+                      <div className="mb-3 grid grid-cols-3 gap-2">
+                        <div>
+                          <p className="text-[10px] text-zinc-400">Omset</p>
+                          <p className="text-sm font-bold text-zinc-900">{fmtCompact(s.revenue)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-zinc-400">Transaksi</p>
+                          <p className="text-sm font-bold text-zinc-900">{s.count}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-zinc-400">Pengeluaran</p>
+                          <p className={`text-sm font-bold ${s.expense > 0 ? "text-red-500" : "text-zinc-400"}`}>
+                            {s.expense > 0 ? fmtCompact(s.expense) : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link href={`/business/${b.id}/pos`} className="flex-1 rounded-lg bg-brand-600 py-2 text-center text-xs font-semibold text-white">
+                          Buka Kasir
                         </Link>
-                        <Link href={`/business/${b.id}`} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors whitespace-nowrap">
+                        <Link href={`/business/${b.id}`} className="flex-1 rounded-lg border border-zinc-200 py-2 text-center text-xs font-semibold text-zinc-600">
                           Kelola
                         </Link>
                       </div>
@@ -433,8 +434,52 @@ export default async function DashboardPage({
                 })}
               </div>
 
+              {/* Desktop: tabel */}
+              <div className="hidden sm:block">
+                <div className="grid grid-cols-[1fr_7rem_5rem_5rem_auto] gap-4 border-b border-zinc-100 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                  <span>Nama</span>
+                  <span className="text-right">Omset</span>
+                  <span className="text-right">Transaksi</span>
+                  <span className="text-right">Pengeluaran</span>
+                  <span />
+                </div>
+                <div className="divide-y divide-zinc-100">
+                  {ownedBusinesses.map((b) => {
+                    const s = summary.get(b.id) ?? { revenue: 0, count: 0, expense: 0 };
+                    const shiftOpen = openShiftSet.has(b.id);
+                    return (
+                      <div key={b.id} className="grid grid-cols-[1fr_7rem_5rem_5rem_auto] items-center gap-4 px-5 py-4 hover:bg-zinc-50 transition-colors">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-zinc-900">{b.name}</p>
+                            {shiftOpen
+                              ? <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Shift aktif</span>
+                              : <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-400">Tutup</span>
+                            }
+                          </div>
+                          <p className="mt-0.5 text-xs text-zinc-400">{TYPE_LABEL[b.business_type] ?? "Toko"}</p>
+                        </div>
+                        <p className="text-right text-sm font-semibold text-zinc-900">{fmtCompact(s.revenue)}</p>
+                        <p className="text-right text-sm text-zinc-600">{s.count}</p>
+                        <p className={`text-right text-sm font-medium ${s.expense > 0 ? "text-red-500" : "text-zinc-400"}`}>
+                          {s.expense > 0 ? fmtCompact(s.expense) : "—"}
+                        </p>
+                        <div className="flex gap-1.5">
+                          <Link href={`/business/${b.id}/pos`} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors whitespace-nowrap">
+                            Kasir
+                          </Link>
+                          <Link href={`/business/${b.id}`} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors whitespace-nowrap">
+                            Kelola
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {isOwner && (
-                <div className="border-t border-zinc-100 px-5 py-3">
+                <div className="border-t border-zinc-100 px-4 py-3 sm:px-5">
                   <Link href="/onboarding" className="text-xs font-medium text-zinc-400 hover:text-brand-600 transition-colors">
                     + Tambah toko baru
                   </Link>
@@ -447,16 +492,16 @@ export default async function DashboardPage({
           {selectedBiz && (
             <div className="space-y-4">
               {/* Quick actions */}
-              <div className="flex gap-2">
-                <Link href={`/business/${selectedBiz.id}/pos`} className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <Link href={`/business/${selectedBiz.id}/pos`} className="col-span-2 rounded-xl bg-brand-600 py-3 text-center text-sm font-semibold text-white hover:bg-brand-700 transition-colors sm:col-span-1 sm:px-5 sm:py-2.5">
                   Buka Kasir
                 </Link>
                 {ownedIds.has(selectedBiz.id) && (
-                  <Link href={`/business/${selectedBiz.id}`} className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors">
-                    Kelola Toko
+                  <Link href={`/business/${selectedBiz.id}`} className="rounded-xl border border-zinc-200 bg-white py-3 text-center text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors sm:px-5 sm:py-2.5">
+                    Kelola
                   </Link>
                 )}
-                <Link href={`/business/${selectedBiz.id}/reports`} className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors">
+                <Link href={`/business/${selectedBiz.id}/reports`} className="rounded-xl border border-zinc-200 bg-white py-3 text-center text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors sm:px-5 sm:py-2.5">
                   Laporan
                 </Link>
               </div>
