@@ -2,6 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  const hostname = request.headers.get("host") ?? "";
+  const isBackoffice = hostname.startsWith("backoffice.");
+
+  // Kalau akses via backoffice.* dan landing ("/"), langsung ke /login
+  if (isBackoffice && request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
