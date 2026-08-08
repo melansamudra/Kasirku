@@ -25,6 +25,7 @@ type BusinessRow = {
   tx_count: number;
   subscription_status: string;
   plan_code: string | null;
+  period_end: string | null;
   mirroring_enabled: boolean;
 };
 
@@ -192,6 +193,11 @@ export default async function AdminPage() {
                         </span>
                         {b.plan_code && (
                           <span className="ml-1.5 text-[10px] text-zinc-400">{b.plan_code}</span>
+                        )}
+                        {b.period_end && (
+                          <span className="ml-1 text-[10px] text-zinc-400">
+                            s/d {formatDate(b.period_end)}
+                          </span>
                         )}
                       </td>
                       <td className="px-5 py-3 font-medium text-zinc-900">{b.tx_count}</td>

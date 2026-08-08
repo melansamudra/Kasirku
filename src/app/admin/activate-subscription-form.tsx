@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ActivateSubscriptionState } from "./actions";
 import { PLANS } from "@/lib/billing/plans";
 
@@ -13,14 +14,11 @@ export default function ActivateSubscriptionForm({
   action: (state: ActivateSubscriptionState, formData: FormData) => Promise<ActivateSubscriptionState>;
   subscriptionStatus: string;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(action, initialState);
   const [open, setOpen] = useState(false);
   const [justSucceeded, setJustSucceeded] = useState(false);
 
-  // Collapse back to the button + flash a success message right when a
-  // submit succeeds (resetToken just went up with no error) — adjusted
-  // during render, not in an effect, so it happens in the same paint as
-  // the state update instead of one render later.
   const [prevResetToken, setPrevResetToken] = useState(state.resetToken);
   if (state.resetToken !== prevResetToken) {
     setPrevResetToken(state.resetToken);
@@ -32,9 +30,11 @@ export default function ActivateSubscriptionForm({
 
   useEffect(() => {
     if (!justSucceeded) return;
+    // Refresh server component so status badge updates immediately
+    router.refresh();
     const timer = setTimeout(() => setJustSucceeded(false), 2500);
     return () => clearTimeout(timer);
-  }, [justSucceeded]);
+  }, [justSucceeded, router]);
 
   if (!open) {
     return (
