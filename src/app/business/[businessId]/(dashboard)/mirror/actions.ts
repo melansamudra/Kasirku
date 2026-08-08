@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 async function assertIsOwner(businessId: string) {
   const supabase = await createClient();
@@ -57,11 +58,18 @@ export async function inviteMirrorAccount(
   const protocol = headerList.get("x-forwarded-proto") ?? "https";
   const origin = host ? `${protocol}://${host}` : "";
 
-  const serviceClient = createServiceClient();
+  // Invite client pakai implicit flow supaya link di email berformat
+  // #access_token=... (hash) bukan ?code= (PKCE), agar bisa dibaca oleh
+  // set-password/page.tsx yang menggunakan createRecoveryClient.
+  const inviteClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false, flowType: "implicit" } },
+  );
   let invitedUserId: string;
 
   try {
-    const { data, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
+    const { data, error: inviteError } = await inviteClient.auth.admin.inviteUserByEmail(
       email,
       { redirectTo: `${origin}/set-password` },
     );
