@@ -125,6 +125,40 @@ export async function updateMirrorPermissions(
   revalidatePath(`/business/${businessId}/mirror`);
 }
 
+export async function saveTransactionSelections(
+  businessId: string,
+  mirrorAccountId: string,
+  formData: FormData,
+) {
+  let supabase;
+  try {
+    ({ supabase } = await assertIsOwner(businessId));
+  } catch {
+    return;
+  }
+
+  const selectedIds = formData.getAll("tx_id") as string[];
+
+  await supabase
+    .from("mirror_selections")
+    .delete()
+    .eq("mirror_account_id", mirrorAccountId)
+    .eq("business_id", businessId);
+
+  if (selectedIds.length > 0) {
+    await supabase.from("mirror_selections").insert(
+      selectedIds.map((tid) => ({
+        mirror_account_id: mirrorAccountId,
+        transaction_id: tid,
+        business_id: businessId,
+      })),
+    );
+  }
+
+  revalidatePath(`/business/${businessId}/mirror`);
+  revalidatePath(`/business/${businessId}/mirror/${mirrorAccountId}`);
+}
+
 export async function revokeMirrorAccess(businessId: string, mirrorAccountId: string) {
   const { supabase } = await assertIsOwner(businessId);
   await supabase

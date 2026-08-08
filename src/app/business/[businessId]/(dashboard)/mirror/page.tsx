@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { inviteMirrorAccount, updateMirrorPermissions } from "./actions";
 import InviteMirrorForm from "./invite-mirror-form";
@@ -29,13 +30,27 @@ export default async function MirrorPage({
   if (business.owner_id !== userData.user?.id) redirect(`/business/${businessId}`);
   if (!business.mirroring_enabled) redirect(`/business/${businessId}`);
 
-  const { data: mirrorAccounts } = await supabase
-    .from("mirror_accounts")
-    .select("id, invited_email, status, permissions")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: true });
+  const [{ data: mirrorAccounts }, { data: selectionRows }] = await Promise.all([
+    supabase
+      .from("mirror_accounts")
+      .select("id, invited_email, status, permissions")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("mirror_selections")
+      .select("mirror_account_id")
+      .eq("business_id", businessId),
+  ]);
 
   const accounts = (mirrorAccounts ?? []) as MirrorAccount[];
+
+  // Hitung jumlah transaksi dipilih per akun mirror
+  const selectionCounts: Record<string, number> = {};
+  for (const row of selectionRows ?? []) {
+    const id = row.mirror_account_id as string;
+    selectionCounts[id] = (selectionCounts[id] ?? 0) + 1;
+  }
+
   const boundInvite = inviteMirrorAccount.bind(null, businessId);
 
   return (
@@ -69,6 +84,16 @@ export default async function MirrorPage({
                   email={acc.invited_email}
                 />
               </div>
+
+              <Link
+                href={`/business/${businessId}/mirror/${acc.id}`}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
+              >
+                📋 Pilih Transaksi
+                <span className="ml-1 rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
+                  {selectionCounts[acc.id] ?? 0} dipilih
+                </span>
+              </Link>
 
               <form
                 action={updateMirrorPermissions.bind(null, businessId, acc.id)}
