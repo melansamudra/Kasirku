@@ -192,6 +192,8 @@ function isItemAllowed(
   if (isOwner) return true;
   if (item.ownerOnly && !bypassOwnerOnly.includes(item.key)) return false;
   if (item.key === "dashboard") return true;
+  // Supplier page boleh diakses kalau punya permission purchases (supplier adalah sub-fitur purchases)
+  if (item.key === "suppliers" && permissions.includes("purchases")) return true;
   return permissions.includes(item.key);
 }
 
