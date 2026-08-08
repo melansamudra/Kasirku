@@ -260,11 +260,6 @@ export default async function MirrorViewPage({
               </p>
             </div>
           </div>
-          <div className="mt-3">
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-600">
-              👁 Akun Mirror
-            </span>
-          </div>
         </div>
 
         {/* Nav */}
@@ -283,10 +278,7 @@ export default async function MirrorViewPage({
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
-                <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                  {item.count}
-                </span>
+                <span>{item.label}</span>
               </a>
             );
           })}
