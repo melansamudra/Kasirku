@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { Receipt, ShoppingBag, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -26,6 +27,15 @@ function formatDateOnly(iso: string) {
   });
 }
 
+function formatDayLong() {
+  return new Date().toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 type MirrorPermissions = {
   show_transactions: boolean;
   show_purchases: boolean;
@@ -42,9 +52,10 @@ export default async function MirrorViewPage({
 }) {
   const { businessId } = await params;
 
-  // Verify current user is a mirror account for this business
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const service = createServiceClient();
@@ -58,7 +69,6 @@ export default async function MirrorViewPage({
 
   if (!mirrorAccount) notFound();
 
-  // Auto-aktivasi: jika user sudah login dan terdaftar sebagai mirror → set active
   if (mirrorAccount.status === "pending") {
     await service
       .from("mirror_accounts")
@@ -84,9 +94,13 @@ export default async function MirrorViewPage({
 
   if (!business) notFound();
 
-  // Fetch data based on permissions
+  const BUSINESS_TYPE_LABEL: Record<string, string> = {
+    fnb: "Restoran / Kafe / F&B",
+    retail: "Toko Retail",
+    tiket: "Venue / Tiket",
+  };
+
   const [txResult, purchaseResult, expenseResult] = await Promise.all([
-    // Transactions: only those selected for this mirror account
     perms.show_transactions
       ? service
           .from("mirror_selections")
@@ -99,7 +113,6 @@ export default async function MirrorViewPage({
           .limit(200)
       : Promise.resolve({ data: null }),
 
-    // Purchases (pembelian & hutang)
     perms.show_purchases
       ? service
           .from("purchases")
@@ -109,7 +122,6 @@ export default async function MirrorViewPage({
           .limit(100)
       : Promise.resolve({ data: null }),
 
-    // Kas Harian: simple expenses list
     perms.show_kas_harian
       ? service
           .from("expenses")
@@ -193,222 +205,423 @@ export default async function MirrorViewPage({
 
   const hasAnyData = perms.show_transactions || perms.show_purchases || perms.show_kas_harian;
 
-  // Seksi nav: hanya tampilkan yang punya permission
-  const sections = [
-    perms.show_transactions && { id: "transaksi", label: "Transaksi", count: transactions.length },
-    perms.show_purchases && { id: "pembelian", label: "Pembelian", count: purchases.length },
-    perms.show_kas_harian && { id: "kas-harian", label: "Kas Harian", count: expenses.length },
-  ].filter(Boolean) as { id: string; label: string; count: number }[];
+  const navItems = [
+    perms.show_transactions && {
+      id: "transaksi",
+      label: "Transaksi",
+      count: transactions.length,
+      icon: Receipt,
+    },
+    perms.show_purchases && {
+      id: "pembelian",
+      label: "Pembelian",
+      count: purchases.length,
+      icon: ShoppingBag,
+    },
+    perms.show_kas_harian && {
+      id: "kas-harian",
+      label: "Kas Harian",
+      count: expenses.length,
+      icon: Wallet,
+    },
+  ].filter(Boolean) as { id: string; label: string; count: number; icon: React.ElementType }[];
+
+  const businessInitial = business.name.charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      {/* Topbar */}
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <div>
-            <p className="text-sm font-bold text-zinc-900">{business.name}</p>
-            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-              Akun Mirror
-            </span>
-          </div>
+    <div className="flex min-h-screen bg-zinc-50">
+      {/* Sidebar — desktop */}
+      <aside className="hidden md:flex md:w-56 flex-col fixed inset-y-0 border-r border-zinc-200 bg-white z-20">
+        {/* Business info */}
+        <div className="px-4 pt-5 pb-4 border-b border-zinc-100">
           <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-800"
-            >
-              ← Beranda
-            </Link>
-            <LogoutButton variant="inline" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
+              {businessInitial}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-zinc-900">{business.name}</p>
+              <p className="truncate text-[10px] text-zinc-400">
+                {BUSINESS_TYPE_LABEL[business.business_type] ?? business.business_type}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-600">
+              👁 Akun Mirror
+            </span>
           </div>
         </div>
 
-        {/* Seksi nav — hanya tampil jika ada lebih dari 1 seksi */}
-        {sections.length > 1 && (
-          <div className="flex gap-0 overflow-x-auto border-t border-zinc-100 px-4">
-            {sections.map((s) => (
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+          {navItems.length > 0 && (
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              Data
+            </p>
+          )}
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
               <a
-                key={s.id}
-                href={`#${s.id}`}
-                className="shrink-0 border-b-2 border-transparent px-4 py-2.5 text-xs font-medium text-zinc-500 transition-colors hover:border-brand-400 hover:text-zinc-900"
+                key={item.id}
+                href={`#${item.id}`}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
               >
-                {s.label}
-                <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                  {s.count}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                  {item.count}
                 </span>
               </a>
-            ))}
+            );
+          })}
+        </nav>
+
+        {/* Bottom */}
+        <div className="border-t border-zinc-100 px-3 py-3 space-y-1">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
+          >
+            ← Semua Toko
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main area */}
+      <div className="flex-1 md:ml-56 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white">
+          <div className="flex items-center justify-between px-5 py-3">
+            <div>
+              <p className="text-sm font-bold text-zinc-900">{business.name}</p>
+              <p className="text-xs text-zinc-400">{formatDayLong()}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+                  {user.email?.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs text-zinc-500">{user.email}</span>
+              </div>
+              <LogoutButton variant="inline" />
+            </div>
           </div>
-        )}
-      </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-6 space-y-6">
+          {/* Mobile nav tabs */}
+          {navItems.length > 1 && (
+            <div className="flex md:hidden gap-0 overflow-x-auto border-t border-zinc-100 px-4">
+              {navItems.map((item) => (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className="shrink-0 border-b-2 border-transparent px-4 py-2.5 text-xs font-medium text-zinc-500 hover:border-brand-400 hover:text-zinc-900"
+                >
+                  {item.label}
+                  <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                    {item.count}
+                  </span>
+                </a>
+              ))}
+            </div>
+          )}
+        </header>
 
-        {!hasAnyData && (
-          <div className="rounded-xl bg-white border border-zinc-200 px-6 py-10 text-center">
-            <p className="text-2xl mb-2">👁</p>
-            <p className="text-sm font-medium text-zinc-700">Belum ada data yang dibagikan</p>
-            <p className="mt-1 text-xs text-zinc-400">
-              Pemilik toko belum mengaktifkan data apa pun untuk akun mirror Anda.
-            </p>
-          </div>
-        )}
+        {/* Content */}
+        <main className="flex-1 px-5 py-6 space-y-6 max-w-4xl">
 
-        {/* Ringkasan */}
-        {hasAnyData && perms.show_amount && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {perms.show_transactions && (
-              <div className="rounded-xl bg-white border border-zinc-100 shadow-sm p-4">
-                <p className="text-xs text-zinc-400">Total Transaksi Dipilih</p>
-                <p className="mt-1 text-xl font-bold text-zinc-900">{formatRupiah(totalTx)}</p>
-                <p className="mt-0.5 text-[11px] text-zinc-400">{transactions.length} transaksi</p>
-              </div>
-            )}
-            {perms.show_purchases && (
-              <div className="rounded-xl bg-white border border-zinc-100 shadow-sm p-4">
-                <p className="text-xs text-zinc-400">Total Pembelian</p>
-                <p className="mt-1 text-xl font-bold text-red-600">{formatRupiah(totalPurchase)}</p>
-                <p className="mt-0.5 text-[11px] text-zinc-400">{purchases.length} entri</p>
-              </div>
-            )}
-            {perms.show_kas_harian && (
-              <div className="rounded-xl bg-white border border-zinc-100 shadow-sm p-4">
-                <p className="text-xs text-zinc-400">Total Pengeluaran</p>
-                <p className="mt-1 text-xl font-bold text-amber-600">{formatRupiah(totalExpense)}</p>
-                <p className="mt-0.5 text-[11px] text-zinc-400">{expenses.length} entri</p>
-              </div>
-            )}
-          </div>
-        )}
+          {!hasAnyData && (
+            <div className="rounded-xl bg-white border border-zinc-200 px-6 py-10 text-center">
+              <p className="text-2xl mb-2">👁</p>
+              <p className="text-sm font-medium text-zinc-700">Belum ada data yang dibagikan</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                Pemilik toko belum mengaktifkan data apa pun untuk akun mirror Anda.
+              </p>
+            </div>
+          )}
 
-        {/* Transaksi */}
-        {perms.show_transactions && (
-          <section id="transaksi">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Transaksi ({transactions.length})
-            </h2>
-            {transactions.length === 0 ? (
-              <div className="rounded-xl bg-white border border-zinc-200 px-5 py-6 text-center text-sm text-zinc-400">
-                Belum ada transaksi dipilih oleh pemilik toko.
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {transactions.map((t) => (
-                  <div
-                    key={t.id}
-                    className="rounded-xl border border-zinc-200 bg-white px-4 py-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-semibold text-zinc-900">{t.invoice_number}</p>
-                      {perms.show_amount ? (
-                        <p className="text-xs font-semibold text-zinc-900">{formatRupiah(t.total)}</p>
-                      ) : (
-                        <p className="text-xs font-medium text-zinc-400">— tersembunyi —</p>
-                      )}
-                    </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
-                      <span>{formatDate(t.date)}</span>
-                      {perms.show_cashier && t.cashier_name && (
-                        <span>· {t.cashier_name}</span>
-                      )}
-                      {perms.show_customer && t.customer_name && (
-                        <span>· {t.customer_name}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+          {/* Ringkasan */}
+          {hasAnyData && perms.show_amount && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {perms.show_transactions && (
+                <div className="rounded-xl bg-brand-600 px-5 py-4 text-white shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                    Total Transaksi Dipilih
+                  </p>
+                  <p className="mt-1 text-2xl font-bold">{formatRupiah(totalTx)}</p>
+                  <p className="mt-0.5 text-xs opacity-70">{transactions.length} transaksi</p>
+                </div>
+              )}
+              {perms.show_purchases && (
+                <div className="rounded-xl bg-white border border-zinc-100 px-5 py-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    Total Pembelian
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-red-600">{formatRupiah(totalPurchase)}</p>
+                  <p className="mt-0.5 text-xs text-zinc-400">{purchases.length} entri</p>
+                </div>
+              )}
+              {perms.show_kas_harian && (
+                <div className="rounded-xl bg-white border border-zinc-100 px-5 py-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    Total Pengeluaran
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-amber-600">{formatRupiah(totalExpense)}</p>
+                  <p className="mt-0.5 text-xs text-zinc-400">{expenses.length} entri</p>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Pembelian & Hutang */}
-        {perms.show_purchases && (
-          <section id="pembelian">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Pembelian & Hutang ({purchases.length})
-            </h2>
-            {purchases.length === 0 ? (
-              <div className="rounded-xl bg-white border border-zinc-200 px-5 py-6 text-center text-sm text-zinc-400">
-                Belum ada data pembelian.
+          {/* Transaksi */}
+          {perms.show_transactions && (
+            <section id="transaksi">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                    Laporan Transaksi
+                  </p>
+                  <h2 className="text-lg font-bold text-zinc-900">
+                    Transaksi ({transactions.length})
+                  </h2>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                {purchases.map((p) => {
-                  const hutang = p.amount - p.paid_amount;
-                  return (
-                    <div key={p.id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold text-zinc-900">
-                            {p.supplier_name ?? p.category}
-                          </p>
-                          {p.note && (
-                            <p className="text-[11px] text-zinc-400">{p.note}</p>
+
+              {transactions.length === 0 ? (
+                <div className="rounded-xl bg-white border border-zinc-200 px-5 py-8 text-center text-sm text-zinc-400">
+                  Belum ada transaksi dipilih oleh pemilik toko.
+                </div>
+              ) : (
+                <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
+                      <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
+                        <th className="px-4 py-3">Invoice</th>
+                        <th className="px-4 py-3">Tanggal</th>
+                        {perms.show_cashier && <th className="px-4 py-3">Kasir</th>}
+                        {perms.show_customer && <th className="px-4 py-3">Pelanggan</th>}
+                        {perms.show_amount && (
+                          <th className="px-4 py-3 text-right">Total</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((t, i) => (
+                        <tr
+                          key={t.id}
+                          className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
+                        >
+                          <td className="px-4 py-3 font-semibold text-zinc-900 text-xs">
+                            {t.invoice_number}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-zinc-500">{formatDate(t.date)}</td>
+                          {perms.show_cashier && (
+                            <td className="px-4 py-3 text-xs text-zinc-500">
+                              {t.cashier_name ?? "—"}
+                            </td>
                           )}
-                          <p className="text-[11px] text-zinc-400">{formatDateOnly(p.date)}</p>
-                        </div>
-                        {perms.show_amount ? (
-                          <div className="text-right shrink-0">
-                            <p className="text-xs font-semibold text-zinc-900">{formatRupiah(p.amount)}</p>
-                            {hutang > 0 && (
-                              <p className="text-[11px] font-medium text-red-500">
-                                Hutang {formatRupiah(hutang)}
+                          {perms.show_customer && (
+                            <td className="px-4 py-3 text-xs text-zinc-500">
+                              {t.customer_name ?? "—"}
+                            </td>
+                          )}
+                          {perms.show_amount && (
+                            <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-900">
+                              {formatRupiah(t.total)}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                    {perms.show_amount && transactions.length > 1 && (
+                      <tfoot className="border-t border-zinc-200 bg-zinc-50">
+                        <tr>
+                          <td
+                            colSpan={
+                              2 +
+                              (perms.show_cashier ? 1 : 0) +
+                              (perms.show_customer ? 1 : 0)
+                            }
+                            className="px-4 py-3 text-xs font-semibold text-zinc-500"
+                          >
+                            Total
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-zinc-900">
+                            {formatRupiah(totalTx)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Pembelian & Hutang */}
+          {perms.show_purchases && (
+            <section id="pembelian">
+              <div className="mb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Pembelian & Hutang
+                </p>
+                <h2 className="text-lg font-bold text-zinc-900">
+                  Pembelian ({purchases.length})
+                </h2>
+              </div>
+
+              {purchases.length === 0 ? (
+                <div className="rounded-xl bg-white border border-zinc-200 px-5 py-8 text-center text-sm text-zinc-400">
+                  Belum ada data pembelian.
+                </div>
+              ) : (
+                <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
+                      <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
+                        <th className="px-4 py-3">Supplier / Keterangan</th>
+                        <th className="px-4 py-3">Tanggal</th>
+                        {perms.show_amount && (
+                          <>
+                            <th className="px-4 py-3 text-right">Total</th>
+                            <th className="px-4 py-3 text-right">Sisa Hutang</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchases.map((p, i) => {
+                        const hutang = p.amount - p.paid_amount;
+                        return (
+                          <tr
+                            key={p.id}
+                            className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
+                          >
+                            <td className="px-4 py-3">
+                              <p className="text-xs font-semibold text-zinc-900">
+                                {p.supplier_name ?? p.category}
                               </p>
+                              {p.note && (
+                                <p className="text-[11px] text-zinc-400">{p.note}</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-zinc-500">
+                              {formatDateOnly(p.date)}
+                            </td>
+                            {perms.show_amount && (
+                              <>
+                                <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-900">
+                                  {formatRupiah(p.amount)}
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs font-medium">
+                                  {hutang > 0 ? (
+                                    <span className="text-red-500">{formatRupiah(hutang)}</span>
+                                  ) : (
+                                    <span className="text-brand-600">Lunas</span>
+                                  )}
+                                </td>
+                              </>
                             )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-zinc-400">— tersembunyi —</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {perms.show_amount && purchases.length > 1 && (
+                      <tfoot className="border-t border-zinc-200 bg-zinc-50">
+                        <tr>
+                          <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-zinc-500">
+                            Total
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-zinc-900">
+                            {formatRupiah(totalPurchase)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-red-500">
+                            {formatRupiah(
+                              purchases.reduce((s, p) => s + Math.max(0, p.amount - p.paid_amount), 0),
+                            )}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
 
-        {/* Kas Harian (Pengeluaran) */}
-        {perms.show_kas_harian && (
-          <section id="kas-harian">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Pengeluaran Kas Harian ({expenses.length})
-            </h2>
-            {expenses.length === 0 ? (
-              <div className="rounded-xl bg-white border border-zinc-200 px-5 py-6 text-center text-sm text-zinc-400">
-                Belum ada data pengeluaran.
+          {/* Kas Harian */}
+          {perms.show_kas_harian && (
+            <section id="kas-harian">
+              <div className="mb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Pengeluaran
+                </p>
+                <h2 className="text-lg font-bold text-zinc-900">
+                  Kas Harian ({expenses.length})
+                </h2>
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                {expenses.map((e) => (
-                  <div key={e.id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold text-zinc-900">{e.category}</p>
-                        {e.note && (
-                          <p className="text-[11px] text-zinc-400">{e.note}</p>
-                        )}
-                        <p className="text-[11px] text-zinc-400">{formatDateOnly(e.date)}</p>
-                      </div>
-                      {perms.show_amount ? (
-                        <p className="shrink-0 text-xs font-semibold text-amber-600">
-                          {formatRupiah(e.amount)}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-zinc-400">— tersembunyi —</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
 
-        <p className="text-center text-[11px] text-zinc-300 pb-4">
-          Tampilan baca-saja · Data ditentukan oleh pemilik toko
-        </p>
-      </main>
+              {expenses.length === 0 ? (
+                <div className="rounded-xl bg-white border border-zinc-200 px-5 py-8 text-center text-sm text-zinc-400">
+                  Belum ada data pengeluaran.
+                </div>
+              ) : (
+                <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
+                      <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
+                        <th className="px-4 py-3">Kategori</th>
+                        <th className="px-4 py-3">Tanggal</th>
+                        <th className="px-4 py-3">Keterangan</th>
+                        {perms.show_amount && (
+                          <th className="px-4 py-3 text-right">Jumlah</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenses.map((e, i) => (
+                        <tr
+                          key={e.id}
+                          className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
+                        >
+                          <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
+                            {e.category}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-zinc-500">
+                            {formatDateOnly(e.date)}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-zinc-500">{e.note ?? "—"}</td>
+                          {perms.show_amount && (
+                            <td className="px-4 py-3 text-right text-xs font-semibold text-amber-600">
+                              {formatRupiah(e.amount)}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                    {perms.show_amount && expenses.length > 1 && (
+                      <tfoot className="border-t border-zinc-200 bg-zinc-50">
+                        <tr>
+                          <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-zinc-500">
+                            Total
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-amber-600">
+                            {formatRupiah(totalExpense)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          <p className="text-center text-[11px] text-zinc-300 pb-4">
+            Tampilan baca-saja · Data ditentukan oleh pemilik toko
+          </p>
+        </main>
+      </div>
     </div>
   );
 }
