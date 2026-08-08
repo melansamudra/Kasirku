@@ -1485,10 +1485,10 @@ export default function PosScreen({
             onRetryNow={() => void retryPrintsNow()}
             onDiscard={discardPrint}
           />
-          <div className="text-right">
+          <Link href={`/business/${businessId}`} className="text-right hover:opacity-70 transition-opacity">
             <p className="text-xs font-semibold text-zinc-700">{cashierName}</p>
             <p className="text-[10px] text-zinc-400">{businessName}</p>
-          </div>
+          </Link>
         </div>
 
         {categoryTabs.length > 0 && (
@@ -2485,15 +2485,6 @@ export default function PosScreen({
                   className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                 >
                   🖨️ Uji Cetak Printer
-                </a>
-                <a
-                  href={`/business/${businessId}/settings`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setPosMenuOpen(false)}
-                  className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-                >
-                  ⚙️ Pengaturan
                 </a>
                 <p className="px-1 pt-0.5 text-[11px] text-zinc-400">
                   Dibuka di tab baru — keranjang belanja tidak hilang.
