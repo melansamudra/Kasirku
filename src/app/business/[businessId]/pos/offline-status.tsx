@@ -1,12 +1,12 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import type { PendingSale } from "@/lib/offline-queue";
 
 // Pill kecil di header POS: hijau kalau online & tidak ada antrian, kuning
 // kalau offline atau ada transaksi menunggu sync, merah kalau ada transaksi
 // yang gagal sync karena alasan bisnis (bukan jaringan) dan butuh tinjauan
-// manual — mis. nomor tiket fisik bentrok. Dipakai pos-screen.tsx dan
-// ticket-pos-screen.tsx.
+// manual — mis. nomor tiket fisik bentrok.
 export default function OfflineStatus({
   isOnline,
   pending,
@@ -18,6 +18,24 @@ export default function OfflineStatus({
   onSyncNow: () => void;
   onDiscard: (clientRef: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent | TouchEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [open]);
+
   const errorCount = pending.filter((p) => p.status === "error").length;
   const waitingCount = pending.length - errorCount;
 
@@ -29,11 +47,16 @@ export default function OfflineStatus({
     );
   }
 
+  function discardAll() {
+    pending.filter((p) => p.status === "error").forEach((p) => onDiscard(p.clientRef));
+    setOpen(false);
+  }
+
   return (
-    <div className="group relative shrink-0">
+    <div ref={ref} className="relative shrink-0">
       <button
         type="button"
-        onClick={onSyncNow}
+        onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium ${
           errorCount > 0
             ? "border-red-200 bg-red-50 text-red-700"
@@ -46,14 +69,25 @@ export default function OfflineStatus({
         {!isOnline && "Offline"}
         {isOnline && waitingCount > 0 && "Menyinkronkan…"}
         {errorCount > 0 && ` · ${errorCount} perlu ditinjau`}
-        {waitingCount > 0 && ` · ${waitingCount} menunggu`}
+        {isOnline && errorCount === 0 && waitingCount > 0 && ` · ${waitingCount} menunggu`}
       </button>
 
-      {pending.length > 0 && (
-        <div className="invisible absolute right-0 top-full z-20 mt-1 w-72 rounded-xl border border-zinc-200 bg-white p-2 text-left opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100">
-          <p className="px-1 pb-1 text-[11px] font-semibold text-zinc-500">
-            Transaksi offline ({pending.length})
-          </p>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-1 w-72 rounded-xl border border-zinc-200 bg-white p-2 text-left shadow-lg">
+          <div className="flex items-center justify-between px-1 pb-1">
+            <p className="text-[11px] font-semibold text-zinc-500">
+              Transaksi offline ({pending.length})
+            </p>
+            {errorCount > 0 && (
+              <button
+                type="button"
+                onClick={discardAll}
+                className="text-[11px] font-medium text-red-600 hover:underline"
+              >
+                Hapus Semua Error
+              </button>
+            )}
+          </div>
           <ul className="max-h-56 space-y-1 overflow-y-auto">
             {pending.map((sale) => (
               <li
@@ -68,7 +102,7 @@ export default function OfflineStatus({
                   {sale.status === "error" && (
                     <button
                       type="button"
-                      onClick={() => onDiscard(sale.clientRef)}
+                      onClick={() => { onDiscard(sale.clientRef); }}
                       className="shrink-0 text-red-600 hover:underline"
                     >
                       Hapus
@@ -81,6 +115,13 @@ export default function OfflineStatus({
               </li>
             ))}
           </ul>
+          <button
+            type="button"
+            onClick={() => { onSyncNow(); setOpen(false); }}
+            className="mt-2 w-full rounded-lg bg-zinc-100 py-1.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-200"
+          >
+            Coba Sinkronkan Sekarang
+          </button>
         </div>
       )}
     </div>
