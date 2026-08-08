@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 const TYPE_ICONS: Record<string, string> = {
@@ -31,14 +31,17 @@ export default async function ActivityPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!business) {
     notFound();
+  }
+
+  if (business.owner_id !== userData.user?.id) {
+    redirect(`/business/${businessId}`);
   }
 
   const { data: entries } = await supabase

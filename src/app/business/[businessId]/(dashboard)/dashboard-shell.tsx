@@ -158,7 +158,7 @@ function buildNavGroups(
       title: "Lainnya",
       items: [
         { key: "notifikasi", href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
-        { key: "activity", href: `${base}/activity`, label: "Aktivitas", icon: Activity },
+        { key: "activity", href: `${base}/activity`, label: "Aktivitas", icon: Activity, ownerOnly: true },
       ],
     },
   ];

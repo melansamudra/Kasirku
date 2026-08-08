@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import DeleteShiftButton from "./delete-shift-button";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -39,15 +40,16 @@ export default async function ShiftsPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!business) {
     notFound();
   }
+
+  const isOwner = business.owner_id === userData.user?.id;
 
   const { data: shiftRows } = await supabase
     .from("shifts")
@@ -77,13 +79,22 @@ export default async function ShiftsPage({
                   key={s.id}
                   className="rounded-xl border border-zinc-200 bg-white px-4 py-3"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium text-zinc-900">
                       {s.cashiers?.name ?? "Kasir terhapus"}
                     </p>
-                    <p className="text-sm font-semibold text-zinc-900">
-                      {formatRupiah(Number(s.total_sales))}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {formatRupiah(Number(s.total_sales))}
+                      </p>
+                      {isOwner && (
+                        <DeleteShiftButton
+                          businessId={businessId}
+                          shiftId={s.id}
+                          label={formatDateTime(s.opened_at)}
+                        />
+                      )}
+                    </div>
                   </div>
                   <p className="mt-0.5 text-xs text-zinc-500">
                     {formatDateTime(s.opened_at)} – {formatDateTime(s.closed_at)}
