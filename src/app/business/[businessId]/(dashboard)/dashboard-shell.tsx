@@ -474,9 +474,8 @@ export default function DashboardShell({
   const isNative = Capacitor.isNativePlatform();
   const navIsOwner = isNative ? false : isOwner;
   const nativeBase = ["transactions", "shifts", "settings"];
-  const nativeOptional = ["products"];
   const navPermissions = isNative
-    ? [...nativeBase, ...nativeOptional.filter((k) => isOwner || permissions.includes(k))]
+    ? [...new Set([...nativeBase, ...permissions])]
     : permissions;
   const navBypassOwnerOnly = isNative ? ["settings"] : [];
 
