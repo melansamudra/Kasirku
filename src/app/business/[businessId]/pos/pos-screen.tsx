@@ -2438,15 +2438,6 @@ export default function PosScreen({
               </p>
               <div className="space-y-1.5">
                 <a
-                  href={`/business/${businessId}/transactions`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setPosMenuOpen(false)}
-                  className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-                >
-                  🧾 Riwayat Transaksi
-                </a>
-                <a
                   href={`/business/${businessId}/pos/reports`}
                   target="_blank"
                   rel="noreferrer"
