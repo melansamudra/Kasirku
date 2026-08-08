@@ -256,6 +256,7 @@ function SidebarContent({
   groups,
   activeHref,
   isFinanceOnly,
+  canAccessPos,
   onNavigate,
   showLogout = true,
 }: {
@@ -265,6 +266,7 @@ function SidebarContent({
   groups: NavGroup[];
   activeHref: string | null;
   isFinanceOnly: boolean;
+  canAccessPos: boolean;
   onNavigate?: () => void;
   showLogout?: boolean;
 }) {
@@ -292,7 +294,7 @@ function SidebarContent({
         </div>
       </div>
 
-      {!isFinanceOnly && (isOwner || permissions.includes("pos")) && (
+      {!isFinanceOnly && canAccessPos && (
         <div className="px-3 pt-4">
           <Link
             href={`/business/${businessId}/pos`}
@@ -501,6 +503,7 @@ export default function DashboardShell({
             groups={visibleGroups}
             activeHref={activeHref}
             isFinanceOnly={isFinanceOnly}
+            canAccessPos={isOwner || permissions.includes("pos")}
             showLogout={false}
           />
         </div>
@@ -521,6 +524,7 @@ export default function DashboardShell({
               groups={visibleGroups}
               activeHref={activeHref}
               isFinanceOnly={isFinanceOnly}
+              canAccessPos={isOwner || permissions.includes("pos")}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </div>
