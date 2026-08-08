@@ -30,7 +30,7 @@ export default async function PosLayout({
       .eq("user_id", userData.user!.id)
       .maybeSingle();
 
-    if (!staff || !staff.active || !staff.permissions.includes("pos")) {
+    if (!staff || !staff.active || !(staff.permissions as string[]).includes("pos")) {
       notFound();
     }
   }
