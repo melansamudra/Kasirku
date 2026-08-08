@@ -127,7 +127,7 @@ export default async function ShiftsPage({
                     </div>
                   </div>
 
-                  {s.void_count > 0 && (
+                  {isOwner && s.void_count > 0 && (
                     <p className="mt-1.5 text-[11px] text-red-500">
                       {s.void_count} transaksi dibatalkan
                     </p>
