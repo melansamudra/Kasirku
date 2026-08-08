@@ -5,8 +5,11 @@ const MIRROR_PERMISSIONS = [
   { key: "show_purchases", label: "Pembelian & Pengeluaran" },
   { key: "show_kas_harian", label: "Kas Harian" },
   { key: "show_amount", label: "Lihat Nominal Angka" },
+  { key: "show_invoice_number", label: "Lihat Nomor Invoice" },
+  { key: "show_payment_method", label: "Lihat Metode Bayar" },
   { key: "show_customer", label: "Lihat Nama Pelanggan" },
   { key: "show_cashier", label: "Lihat Nama Kasir" },
+  { key: "show_items", label: "Lihat Detail Item" },
 ];
 
 type Permissions = Record<string, boolean>;

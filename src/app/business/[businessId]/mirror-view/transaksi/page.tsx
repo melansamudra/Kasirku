@@ -44,6 +44,9 @@ export default async function MirrorTransaksiPage({
     show_amount?: boolean;
     show_cashier?: boolean;
     show_customer?: boolean;
+    show_invoice_number?: boolean;
+    show_payment_method?: boolean;
+    show_items?: boolean;
   };
 
   if (!p.show_transactions) notFound();
@@ -51,7 +54,14 @@ export default async function MirrorTransaksiPage({
   const { data: rows } = await service
     .from("mirror_visible_transactions")
     .select(
-      "transaction_id, transactions!mirror_visible_transactions_transaction_id_fkey(id, invoice_number, date, total, cashiers!transactions_cashier_id_fkey(name), customers!transactions_customer_id_fkey(name))",
+      `transaction_id,
+      transactions!mirror_visible_transactions_transaction_id_fkey(
+        id, invoice_number, date, total,
+        cashiers!transactions_cashier_id_fkey(name),
+        customers!transactions_customer_id_fkey(name),
+        transaction_payments(method),
+        transaction_items(qty, products(name))
+      )`,
     )
     .eq("business_id", businessId)
     .order("transaction_id", { ascending: false });
@@ -63,6 +73,8 @@ export default async function MirrorTransaksiPage({
     total: number;
     cashier_name: string | null;
     customer_name: string | null;
+    payment_methods: string[];
+    items: { qty: number; product_name: string }[];
   };
 
   const transactions: TxRow[] = (rows ?? [])
@@ -74,6 +86,8 @@ export default async function MirrorTransaksiPage({
         total: number;
         cashiers: { name: string } | null;
         customers: { name: string } | null;
+        transaction_payments: { method: string }[] | null;
+        transaction_items: { qty: number; products: { name: string } | null }[] | null;
       } | null;
       if (!t) return null;
       return {
@@ -83,6 +97,13 @@ export default async function MirrorTransaksiPage({
         total: Number(t.total),
         cashier_name: (t.cashiers as { name: string } | null)?.name ?? null,
         customer_name: (t.customers as { name: string } | null)?.name ?? null,
+        payment_methods: (t.transaction_payments ?? []).map((p) => p.method),
+        items: (t.transaction_items ?? [])
+          .map((i) => ({
+            qty: i.qty,
+            product_name: (i.products as { name: string } | null)?.name ?? "—",
+          }))
+          .filter((i) => i.product_name !== "—"),
       };
     })
     .filter(Boolean) as TxRow[];
@@ -90,7 +111,15 @@ export default async function MirrorTransaksiPage({
   transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const totalTx = transactions.reduce((s, t) => s + t.total, 0);
-  const colSpan = 1 + (p.show_cashier ? 1 : 0) + (p.show_customer ? 1 : 0);
+
+  // Hitung colspan untuk footer
+  const extraCols = [
+    true, // tanggal selalu ada
+    p.show_invoice_number,
+    p.show_cashier,
+    p.show_customer,
+    p.show_payment_method,
+  ].filter(Boolean).length;
 
   return (
     <div className="w-full">
@@ -109,42 +138,76 @@ export default async function MirrorTransaksiPage({
             <table className="w-full text-sm">
               <thead className="border-b border-zinc-100 bg-zinc-50">
                 <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
-                  <th className="px-4 py-3">Invoice</th>
                   <th className="px-4 py-3">Tanggal</th>
+                  {p.show_invoice_number && <th className="px-4 py-3">Invoice</th>}
                   {p.show_cashier && <th className="px-4 py-3">Kasir</th>}
                   {p.show_customer && <th className="px-4 py-3">Pelanggan</th>}
+                  {p.show_payment_method && <th className="px-4 py-3">Metode Bayar</th>}
                   {p.show_amount && <th className="px-4 py-3 text-right">Total</th>}
                 </tr>
               </thead>
               <tbody>
                 {transactions.map((t, i) => (
-                  <tr
-                    key={t.id}
-                    className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
-                  >
-                    <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
-                      {t.invoice_number}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-zinc-500">{formatDateTime(t.date)}</td>
-                    {p.show_cashier && (
-                      <td className="px-4 py-3 text-xs text-zinc-500">{t.cashier_name ?? "—"}</td>
+                  <>
+                    <tr
+                      key={t.id}
+                      className={`border-b border-zinc-50 ${
+                        p.show_items && t.items.length > 0 ? "" : "last:border-0"
+                      } ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
+                    >
+                      <td className="px-4 py-3 text-xs text-zinc-500">{formatDateTime(t.date)}</td>
+                      {p.show_invoice_number && (
+                        <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
+                          {t.invoice_number}
+                        </td>
+                      )}
+                      {p.show_cashier && (
+                        <td className="px-4 py-3 text-xs text-zinc-500">{t.cashier_name ?? "—"}</td>
+                      )}
+                      {p.show_customer && (
+                        <td className="px-4 py-3 text-xs text-zinc-500">{t.customer_name ?? "—"}</td>
+                      )}
+                      {p.show_payment_method && (
+                        <td className="px-4 py-3 text-xs text-zinc-500">
+                          {t.payment_methods.length > 0 ? t.payment_methods.join(" + ") : "—"}
+                        </td>
+                      )}
+                      {p.show_amount && (
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-900">
+                          {formatRupiah(t.total)}
+                        </td>
+                      )}
+                    </tr>
+                    {p.show_items && t.items.length > 0 && (
+                      <tr
+                        key={`${t.id}-items`}
+                        className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
+                      >
+                        <td
+                          colSpan={extraCols + (p.show_amount ? 1 : 0)}
+                          className="px-4 pb-3 pt-0"
+                        >
+                          <div className="flex flex-wrap gap-1.5 pl-2">
+                            {t.items.map((item, idx) => (
+                              <span
+                                key={idx}
+                                className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600"
+                              >
+                                {item.qty}× {item.product_name}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                    {p.show_customer && (
-                      <td className="px-4 py-3 text-xs text-zinc-500">{t.customer_name ?? "—"}</td>
-                    )}
-                    {p.show_amount && (
-                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-900">
-                        {formatRupiah(t.total)}
-                      </td>
-                    )}
-                  </tr>
+                  </>
                 ))}
               </tbody>
               {p.show_amount && transactions.length > 1 && (
                 <tfoot className="border-t border-zinc-200 bg-zinc-50">
                   <tr>
                     <td
-                      colSpan={colSpan}
+                      colSpan={extraCols}
                       className="px-4 py-3 text-xs font-semibold text-zinc-500"
                     >
                       Total
