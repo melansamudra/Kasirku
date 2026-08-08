@@ -58,7 +58,7 @@ export async function addPurchase(
   if (!date) {
     return fail("Tanggal wajib diisi.");
   }
-  if (category !== "Bahan Baku" && category !== "Barang Dagang") {
+  if (!["Bahan Baku", "Barang Dagang", "Lainnya"].includes(category)) {
     return fail("Kategori tidak valid.");
   }
 
@@ -75,85 +75,92 @@ export async function addPurchase(
     return fail("Jumlah dibayar tidak boleh lebih besar dari total pembelian.");
   }
 
-  const qty = Number(qtyRaw);
-  if (!qtyRaw || Number.isNaN(qty) || qty <= 0) {
-    return fail("Qty dibeli harus angka lebih dari 0.");
-  }
-
   const supabase = await createClient();
 
   let ingredientId: string | null = null;
   let productId: string | null = null;
   let itemName = "";
+  let qty = 0;
 
-  if (category === "Bahan Baku") {
-    ingredientId = formData.get("ingredientId") as string;
-    if (!ingredientId) {
-      return fail("Pilih bahan yang dibeli.");
-    }
-
-    const { data: ingredient } = await supabase
-      .from("ingredients")
-      .select("id, name, business_id, stock, unit_cost")
-      .eq("id", ingredientId)
-      .single();
-
-    if (!ingredient || ingredient.business_id !== businessId) {
-      return fail("Bahan baku tidak ditemukan.");
-    }
-    itemName = ingredient.name;
-
-    const oldValue = Number(ingredient.stock) * Number(ingredient.unit_cost);
-    const newStock = Number(ingredient.stock) + qty;
-    const newUnitCost =
-      newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(ingredient.unit_cost);
-
-    const { error: updateError } = await supabase
-      .from("ingredients")
-      .update({ stock: newStock, unit_cost: newUnitCost })
-      .eq("id", ingredientId);
-
-    if (updateError) {
-      return fail(updateError.message);
-    }
-
-    if (newUnitCost !== Number(ingredient.unit_cost)) {
-      await supabase.from("ingredient_price_history").insert({
-        business_id: businessId,
-        ingredient_id: ingredientId,
-        unit_cost: newUnitCost,
-        source: "pembelian",
-      });
-      await recalculateProductCostsForIngredient(supabase, ingredientId);
-    }
+  if (category === "Lainnya") {
+    // Catatan cepat — tidak perlu item atau qty, stok tidak diubah
+    itemName = note || "Pembelian";
   } else {
-    productId = formData.get("productId") as string;
-    if (!productId) {
-      return fail("Pilih produk yang dibeli.");
+    const qtyVal = Number(qtyRaw);
+    if (!qtyRaw || Number.isNaN(qtyVal) || qtyVal <= 0) {
+      return fail("Qty dibeli harus angka lebih dari 0.");
     }
+    qty = qtyVal;
 
-    const { data: product } = await supabase
-      .from("products")
-      .select("id, name, business_id, stock, cost")
-      .eq("id", productId)
-      .single();
+    if (category === "Bahan Baku") {
+      ingredientId = formData.get("ingredientId") as string;
+      if (!ingredientId) {
+        return fail("Pilih bahan yang dibeli.");
+      }
 
-    if (!product || product.business_id !== businessId) {
-      return fail("Produk tidak ditemukan.");
-    }
-    itemName = product.name;
+      const { data: ingredient } = await supabase
+        .from("ingredients")
+        .select("id, name, business_id, stock, unit_cost")
+        .eq("id", ingredientId)
+        .single();
 
-    const oldValue = Number(product.stock) * Number(product.cost);
-    const newStock = Number(product.stock) + qty;
-    const newCost = newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(product.cost);
+      if (!ingredient || ingredient.business_id !== businessId) {
+        return fail("Bahan baku tidak ditemukan.");
+      }
+      itemName = ingredient.name;
 
-    const { error: updateError } = await supabase
-      .from("products")
-      .update({ stock: newStock, cost: newCost })
-      .eq("id", productId);
+      const oldValue = Number(ingredient.stock) * Number(ingredient.unit_cost);
+      const newStock = Number(ingredient.stock) + qty;
+      const newUnitCost =
+        newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(ingredient.unit_cost);
 
-    if (updateError) {
-      return fail(updateError.message);
+      const { error: updateError } = await supabase
+        .from("ingredients")
+        .update({ stock: newStock, unit_cost: newUnitCost })
+        .eq("id", ingredientId);
+
+      if (updateError) {
+        return fail(updateError.message);
+      }
+
+      if (newUnitCost !== Number(ingredient.unit_cost)) {
+        await supabase.from("ingredient_price_history").insert({
+          business_id: businessId,
+          ingredient_id: ingredientId,
+          unit_cost: newUnitCost,
+          source: "pembelian",
+        });
+        await recalculateProductCostsForIngredient(supabase, ingredientId);
+      }
+    } else {
+      productId = formData.get("productId") as string;
+      if (!productId) {
+        return fail("Pilih produk yang dibeli.");
+      }
+
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, name, business_id, stock, cost")
+        .eq("id", productId)
+        .single();
+
+      if (!product || product.business_id !== businessId) {
+        return fail("Produk tidak ditemukan.");
+      }
+      itemName = product.name;
+
+      const oldValue = Number(product.stock) * Number(product.cost);
+      const newStock = Number(product.stock) + qty;
+      const newCost = newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(product.cost);
+
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ stock: newStock, cost: newCost })
+        .eq("id", productId);
+
+      if (updateError) {
+        return fail(updateError.message);
+      }
     }
   }
 

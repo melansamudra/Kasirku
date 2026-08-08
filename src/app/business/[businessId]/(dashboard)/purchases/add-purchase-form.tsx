@@ -72,7 +72,7 @@ function PurchaseFormFields({
   prefill?: PurchasePrefill | null;
 }) {
   const [category, setCategory] = useState<string>(
-    prefill?.category ?? (isFnb ? "Bahan Baku" : "Barang Dagang"),
+    prefill?.category ?? "Lainnya",
   );
   const [ingredientId, setIngredientId] = useState(
     prefill?.category === "Bahan Baku" ? prefill.itemId : ingredients[0]?.id ?? "",
@@ -82,6 +82,7 @@ function PurchaseFormFields({
   const [paidAmount, setPaidAmount] = useState("");
 
   const isIngredientPurchase = category === "Bahan Baku";
+  const isProductPurchase = category === "Barang Dagang";
   const selectedIngredient = ingredients.find((i) => i.id === ingredientId);
 
   const effectivePaidAmount =
@@ -122,26 +123,34 @@ function PurchaseFormFields({
         </div>
       </div>
 
-      {isFnb && (
-        <div>
-          <label htmlFor="category" className="mb-1 block text-xs font-medium text-zinc-600">
-            Kategori
-          </label>
-          <select
-            id="category"
-            name="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          >
-            <option value="Bahan Baku">Bahan Baku</option>
-            <option value="Barang Dagang">Barang Dagang</option>
-          </select>
+      <div>
+        <label htmlFor="category" className="mb-1 block text-xs font-medium text-zinc-600">
+          Kategori
+        </label>
+        <select
+          id="category"
+          name="category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="Lainnya">Lainnya / Umum (catatan cepat)</option>
+          {isFnb && <option value="Bahan Baku">Bahan Baku (update stok otomatis)</option>}
+          <option value="Barang Dagang">Barang Dagang (update stok otomatis)</option>
+        </select>
+      </div>
+
+      {/* Catatan cepat — tanpa detail item */}
+      {category === "Lainnya" && (
+        <div className="rounded-xl bg-zinc-50 px-3 py-2.5">
+          <p className="text-[11px] text-zinc-500">
+            Catat nominal invoice tanpa detail per item. Stok tidak diubah otomatis — detail bisa dilengkapi belakangan.
+          </p>
         </div>
       )}
-      {!isFnb && <input type="hidden" name="category" value="Barang Dagang" />}
 
-      {isIngredientPurchase ? (
+      {/* Detail bahan baku */}
+      {isIngredientPurchase && (
         <div className="space-y-2 rounded-xl bg-amber-50 p-3">
           <div>
             <label htmlFor="ingredientId" className="mb-1 block text-xs font-medium text-amber-800">
@@ -193,7 +202,10 @@ function PurchaseFormFields({
             Stok bahan ini otomatis bertambah, harga/satuan disesuaikan (rata-rata tertimbang).
           </p>
         </div>
-      ) : (
+      )}
+
+      {/* Detail barang dagang */}
+      {isProductPurchase && (
         <div className="space-y-2 rounded-xl bg-blue-50 p-3">
           <div>
             <label htmlFor="productId" className="mb-1 block text-xs font-medium text-blue-800">
