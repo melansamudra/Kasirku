@@ -56,7 +56,15 @@ export default async function MirrorViewPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!mirrorAccount || mirrorAccount.status !== "active") notFound();
+  if (!mirrorAccount) notFound();
+
+  // Auto-aktivasi: jika user sudah login dan terdaftar sebagai mirror → set active
+  if (mirrorAccount.status === "pending") {
+    await service
+      .from("mirror_accounts")
+      .update({ status: "active" })
+      .eq("id", mirrorAccount.id);
+  }
 
   const p = (mirrorAccount.permissions ?? {}) as Partial<MirrorPermissions>;
   const perms: MirrorPermissions = {
@@ -185,25 +193,52 @@ export default async function MirrorViewPage({
 
   const hasAnyData = perms.show_transactions || perms.show_purchases || perms.show_kas_harian;
 
+  // Seksi nav: hanya tampilkan yang punya permission
+  const sections = [
+    perms.show_transactions && { id: "transaksi", label: "Transaksi", count: transactions.length },
+    perms.show_purchases && { id: "pembelian", label: "Pembelian", count: purchases.length },
+    perms.show_kas_harian && { id: "kas-harian", label: "Kas Harian", count: expenses.length },
+  ].filter(Boolean) as { id: string; label: string; count: number }[];
+
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* Topbar */}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3.5 shadow-sm">
-        <div>
-          <p className="text-sm font-bold text-zinc-900">{business.name}</p>
-          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-            Akun Mirror
-          </span>
+      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between px-5 py-3.5">
+          <div>
+            <p className="text-sm font-bold text-zinc-900">{business.name}</p>
+            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+              Akun Mirror
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-800"
+            >
+              ← Beranda
+            </Link>
+            <LogoutButton variant="inline" />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-800"
-          >
-            ← Beranda
-          </Link>
-          <LogoutButton variant="inline" />
-        </div>
+
+        {/* Seksi nav — hanya tampil jika ada lebih dari 1 seksi */}
+        {sections.length > 1 && (
+          <div className="flex gap-0 overflow-x-auto border-t border-zinc-100 px-4">
+            {sections.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="shrink-0 border-b-2 border-transparent px-4 py-2.5 text-xs font-medium text-zinc-500 transition-colors hover:border-brand-400 hover:text-zinc-900"
+              >
+                {s.label}
+                <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                  {s.count}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-6 space-y-6">
@@ -247,7 +282,7 @@ export default async function MirrorViewPage({
 
         {/* Transaksi */}
         {perms.show_transactions && (
-          <section>
+          <section id="transaksi">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
               Transaksi ({transactions.length})
             </h2>
@@ -288,7 +323,7 @@ export default async function MirrorViewPage({
 
         {/* Pembelian & Hutang */}
         {perms.show_purchases && (
-          <section>
+          <section id="pembelian">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
               Pembelian & Hutang ({purchases.length})
             </h2>
@@ -335,7 +370,7 @@ export default async function MirrorViewPage({
 
         {/* Kas Harian (Pengeluaran) */}
         {perms.show_kas_harian && (
-          <section>
+          <section id="kas-harian">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
               Pengeluaran Kas Harian ({expenses.length})
             </h2>
