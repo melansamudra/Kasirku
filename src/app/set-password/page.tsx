@@ -24,7 +24,24 @@ export default function SetPasswordPage() {
 
   useEffect(() => {
     let cancelled = false;
-    // Cek sesi dari hash URL yang diproses oleh Supabase JS saat halaman dimuat
+
+    // Cek apakah URL punya ?code= (PKCE flow dari invite Supabase)
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+
+    if (code) {
+      // PKCE: tukar code dengan sesi langsung, tanpa butuh code_verifier
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (cancelled) return;
+        if (!error) {
+          setSessionReady(true);
+        }
+        setChecking(false);
+      });
+      return () => { cancelled = true; };
+    }
+
+    // Implicit flow: sesi dari hash URL (#access_token=...)
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       if (data.session) {
@@ -32,7 +49,6 @@ export default function SetPasswordPage() {
         setChecking(false);
       }
     });
-    // onAuthStateChange menangkap SIGNED_IN dari invite hash token
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session) {
@@ -40,10 +56,10 @@ export default function SetPasswordPage() {
         setChecking(false);
       }
     });
-    // Timeout fallback: kalau 3 detik tidak ada sesi, link tidak valid
+    // Timeout fallback
     const timer = setTimeout(() => {
       if (!cancelled) setChecking(false);
-    }, 3000);
+    }, 4000);
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
