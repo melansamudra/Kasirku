@@ -122,6 +122,9 @@ export async function updateMirrorPermissions(
     show_transactions: formData.get("show_transactions") === "on",
     show_purchases: formData.get("show_purchases") === "on",
     show_kas_harian: formData.get("show_kas_harian") === "on",
+    show_invoice_number: formData.get("show_invoice_number") === "on",
+    show_payment_method: formData.get("show_payment_method") === "on",
+    show_items: formData.get("show_items") === "on",
   };
 
   await supabase
