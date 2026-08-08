@@ -138,23 +138,25 @@ export async function saveTransactionSelections(
   mirrorAccountId: string,
   formData: FormData,
 ) {
-  let supabase;
   try {
-    ({ supabase } = await assertIsOwner(businessId));
+    await assertIsOwner(businessId);
   } catch {
     return;
   }
 
+  // Pakai service client — RLS pada mirror_selections tidak cover owner,
+  // ownership sudah diverifikasi di assertIsOwner di atas.
+  const service = createServiceClient();
   const selectedIds = formData.getAll("tx_id") as string[];
 
-  await supabase
+  await service
     .from("mirror_selections")
     .delete()
     .eq("mirror_account_id", mirrorAccountId)
     .eq("business_id", businessId);
 
   if (selectedIds.length > 0) {
-    await supabase.from("mirror_selections").insert(
+    await service.from("mirror_selections").insert(
       selectedIds.map((tid) => ({
         mirror_account_id: mirrorAccountId,
         transaction_id: tid,
