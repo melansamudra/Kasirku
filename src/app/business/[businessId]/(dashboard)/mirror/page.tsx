@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { inviteMirrorAccount, updateMirrorPermissions } from "./actions";
 import InviteMirrorForm from "./invite-mirror-form";
 import RevokeButton from "./revoke-button";
@@ -30,13 +31,15 @@ export default async function MirrorPage({
   if (business.owner_id !== userData.user?.id) redirect(`/business/${businessId}`);
   if (!business.mirroring_enabled) redirect(`/business/${businessId}`);
 
+  const service = createServiceClient();
+
   const [{ data: mirrorAccounts }, { data: selectionRows }] = await Promise.all([
     supabase
       .from("mirror_accounts")
       .select("id, invited_email, status, permissions")
       .eq("business_id", businessId)
       .order("created_at", { ascending: true }),
-    supabase
+    service
       .from("mirror_selections")
       .select("mirror_account_id")
       .eq("business_id", businessId),

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import SelectTransactionsForm from "./select-transactions-form";
 
 export default async function MirrorTransactionSelectPage({
@@ -33,6 +34,8 @@ export default async function MirrorTransactionSelectPage({
 
   if (!mirrorAccount) notFound();
 
+  const service = createServiceClient();
+
   const [{ data: transactions }, { data: selections }] = await Promise.all([
     supabase
       .from("transactions")
@@ -43,7 +46,7 @@ export default async function MirrorTransactionSelectPage({
       .eq("voided", false)
       .order("date", { ascending: false })
       .limit(100),
-    supabase
+    service
       .from("mirror_selections")
       .select("transaction_id")
       .eq("mirror_account_id", mirrorAccountId)
