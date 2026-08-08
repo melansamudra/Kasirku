@@ -38,6 +38,7 @@ export default function SelectTransactionsForm({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function toggle(id: string) {
@@ -62,11 +63,16 @@ export default function SelectTransactionsForm({
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSaveError(null);
     const formData = new FormData();
     selected.forEach((id) => formData.append("tx_id", id));
     startTransition(async () => {
-      await saveTransactionSelections(businessId, mirrorAccountId, formData);
-      setSaved(true);
+      const result = await saveTransactionSelections(businessId, mirrorAccountId, formData);
+      if (result?.error) {
+        setSaveError(result.error);
+      } else {
+        setSaved(true);
+      }
     });
   }
 
@@ -140,6 +146,9 @@ export default function SelectTransactionsForm({
         </button>
         {saved && !isPending && (
           <span className="text-xs font-medium text-green-600">✓ Tersimpan</span>
+        )}
+        {saveError && !isPending && (
+          <span className="text-xs font-medium text-red-600">{saveError}</span>
         )}
       </div>
     </form>

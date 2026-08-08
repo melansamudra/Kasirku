@@ -137,36 +137,44 @@ export async function saveTransactionSelections(
   businessId: string,
   mirrorAccountId: string,
   formData: FormData,
-) {
+): Promise<{ error: string | null }> {
   try {
     await assertIsOwner(businessId);
   } catch {
-    return;
+    return { error: "Tidak diizinkan." };
   }
 
-  // Pakai service client — RLS pada mirror_selections tidak cover owner,
-  // ownership sudah diverifikasi di assertIsOwner di atas.
   const service = createServiceClient();
   const selectedIds = formData.getAll("tx_id") as string[];
 
-  await service
+  const { error: delErr } = await service
     .from("mirror_selections")
     .delete()
     .eq("mirror_account_id", mirrorAccountId)
     .eq("business_id", businessId);
 
+  if (delErr) {
+    console.error("[mirror_selections] delete error:", delErr);
+    return { error: `Gagal hapus seleksi lama: ${delErr.message}` };
+  }
+
   if (selectedIds.length > 0) {
-    await service.from("mirror_selections").insert(
+    const { error: insErr } = await service.from("mirror_selections").insert(
       selectedIds.map((tid) => ({
         mirror_account_id: mirrorAccountId,
         transaction_id: tid,
         business_id: businessId,
       })),
     );
+    if (insErr) {
+      console.error("[mirror_selections] insert error:", insErr);
+      return { error: `Gagal simpan: ${insErr.message}` };
+    }
   }
 
   revalidatePath(`/business/${businessId}/mirror`);
   revalidatePath(`/business/${businessId}/mirror/${mirrorAccountId}`);
+  return { error: null };
 }
 
 export async function revokeMirrorAccess(businessId: string, mirrorAccountId: string) {
