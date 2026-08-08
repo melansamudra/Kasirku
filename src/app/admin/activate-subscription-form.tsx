@@ -8,8 +8,10 @@ const initialState: ActivateSubscriptionState = { error: null, resetToken: 0 };
 
 export default function ActivateSubscriptionForm({
   action,
+  subscriptionStatus,
 }: {
   action: (state: ActivateSubscriptionState, formData: FormData) => Promise<ActivateSubscriptionState>;
+  subscriptionStatus: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [open, setOpen] = useState(false);
@@ -40,9 +42,13 @@ export default function ActivateSubscriptionForm({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-lg bg-brand-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-brand-700"
+          className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold ${
+            subscriptionStatus === "active"
+              ? "border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+              : "bg-brand-600 text-white hover:bg-brand-700"
+          }`}
         >
-          Tandai Sudah Bayar
+          {subscriptionStatus === "active" ? "Perpanjang" : "Tandai Sudah Bayar"}
         </button>
         {justSucceeded && (
           <span className="text-[10px] font-medium text-brand-700">✓ Berhasil diaktifkan</span>

@@ -199,7 +199,7 @@ export default async function AdminPage() {
                         <ToggleMirroringButton businessId={b.id} enabled={b.mirroring_enabled} />
                       </td>
                       <td className="px-5 py-3">
-                        <ActivateSubscriptionForm action={activateSubscriptionManually.bind(null, b.id)} />
+                        <ActivateSubscriptionForm action={activateSubscriptionManually.bind(null, b.id)} subscriptionStatus={b.subscription_status} />
                       </td>
                     </tr>
                   );
