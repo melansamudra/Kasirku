@@ -1,10 +1,22 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState } from "react";
 import type { InviteAdminState } from "./actions";
 import PermissionChecklist from "./permission-checklist";
 
 const initialState: InviteAdminState = { error: null };
+
+const KASIR_DEFAULT_PERMISSIONS = [
+  "pos",
+  "reports",
+  "transactions",
+  "shifts",
+  "kas-harian",
+  "products",
+  "settings",
+  "purchases",
+  "suppliers",
+];
 
 export default function InviteAdminForm({
   action,
@@ -13,10 +25,12 @@ export default function InviteAdminForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const [role, setRole] = useState<"kasir" | "admin">("kasir");
 
   useEffect(() => {
     if (!pending && !state.error) {
       formRef.current?.reset();
+      setRole("kasir");
     }
   }, [pending, state.error]);
 
@@ -25,7 +39,7 @@ export default function InviteAdminForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="name" className="mb-1 block text-xs font-medium text-zinc-600">
-            Nama Admin
+            Nama
           </label>
           <input
             id="name"
@@ -51,9 +65,46 @@ export default function InviteAdminForm({
         </div>
       </div>
 
+      {/* Role toggle */}
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-zinc-600">Tipe akun</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setRole("kasir")}
+            className={`flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
+              role === "kasir"
+                ? "border-brand-600 bg-brand-50 text-brand-700"
+                : "border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50"
+            }`}
+          >
+            🧾 Kasir
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole("admin")}
+            className={`flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
+              role === "admin"
+                ? "border-brand-600 bg-brand-50 text-brand-700"
+                : "border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50"
+            }`}
+          >
+            ⚙️ Admin
+          </button>
+        </div>
+        {role === "kasir" && (
+          <p className="mt-1.5 text-[11px] text-zinc-400">
+            Permission dasar kasir sudah dicentang otomatis. Bisa diubah sesuai kebutuhan.
+          </p>
+        )}
+      </div>
+
       <div>
         <p className="mb-1.5 text-xs font-medium text-zinc-600">Fitur yang boleh diakses</p>
-        <PermissionChecklist />
+        <PermissionChecklist
+          key={role}
+          defaultChecked={role === "kasir" ? KASIR_DEFAULT_PERMISSIONS : []}
+        />
       </div>
 
       {state.error && (
@@ -65,7 +116,7 @@ export default function InviteAdminForm({
         disabled={pending}
         className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending ? "Mengirim undangan…" : "Undang Admin"}
+        {pending ? "Mengirim undangan…" : "Undang"}
       </button>
     </form>
   );
