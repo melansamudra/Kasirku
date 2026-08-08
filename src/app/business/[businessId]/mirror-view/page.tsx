@@ -100,17 +100,15 @@ export default async function MirrorViewPage({
     tiket: "Venue / Tiket",
   };
 
-  const [txResult, purchaseResult, expenseResult] = await Promise.all([
+  const [txResult, purchaseResult, kasVisibleResult] = await Promise.all([
     perms.show_transactions
       ? service
-          .from("mirror_selections")
+          .from("mirror_visible_transactions")
           .select(
-            "transaction_id, transactions!mirror_selections_transaction_id_fkey(id, invoice_number, date, total, cashiers!transactions_cashier_id_fkey(name), customers!transactions_customer_id_fkey(name))",
+            "transaction_id, transactions!mirror_visible_transactions_transaction_id_fkey(id, invoice_number, date, total, cashiers!transactions_cashier_id_fkey(name), customers!transactions_customer_id_fkey(name))",
           )
-          .eq("mirror_account_id", mirrorAccount.id)
           .eq("business_id", businessId)
           .order("transaction_id", { ascending: false })
-          .limit(200)
       : Promise.resolve({ data: null }),
 
     perms.show_purchases
@@ -124,11 +122,12 @@ export default async function MirrorViewPage({
 
     perms.show_kas_harian
       ? service
-          .from("expenses")
-          .select("id, date, category, amount, note")
+          .from("mirror_visible_kas")
+          .select(
+            "journal_line_id, journal_lines!mirror_visible_kas_journal_line_id_fkey(id, debit, credit, journal_entries!inner(id, date, description, source))",
+          )
           .eq("business_id", businessId)
-          .order("date", { ascending: false })
-          .limit(100)
+          .order("journal_line_id", { ascending: false })
       : Promise.resolve({ data: null }),
   ]);
 
@@ -183,25 +182,41 @@ export default async function MirrorViewPage({
     supplier_name: (p.suppliers as unknown as { name: string } | null)?.name ?? null,
   }));
 
-  type ExpenseRow = {
+  type KasRow = {
     id: string;
     date: string;
-    category: string;
-    amount: number;
-    note: string | null;
+    description: string;
+    source: string;
+    masuk: number;
+    keluar: number;
   };
 
-  const expenses: ExpenseRow[] = (expenseResult.data ?? []).map((e) => ({
-    id: e.id,
-    date: e.date,
-    category: e.category,
-    amount: Number(e.amount),
-    note: e.note,
-  }));
+  const kasEntries: KasRow[] = (kasVisibleResult.data ?? [])
+    .map((row) => {
+      const line = row.journal_lines as unknown as {
+        id: string;
+        debit: number;
+        credit: number;
+        journal_entries: { id: string; date: string; description: string; source: string } | null;
+      } | null;
+      if (!line || !line.journal_entries) return null;
+      return {
+        id: line.id,
+        date: line.journal_entries.date,
+        description: line.journal_entries.description,
+        source: line.journal_entries.source,
+        masuk: Number(line.debit),
+        keluar: Number(line.credit),
+      };
+    })
+    .filter(Boolean) as KasRow[];
+
+  kasEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const totalTx = transactions.reduce((s, t) => s + t.total, 0);
   const totalPurchase = purchases.reduce((s, p) => s + p.amount, 0);
-  const totalExpense = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalKasMasuk = kasEntries.reduce((s, k) => s + k.masuk, 0);
+  const totalKasKeluar = kasEntries.reduce((s, k) => s + k.keluar, 0);
 
   const hasAnyData = perms.show_transactions || perms.show_purchases || perms.show_kas_harian;
 
@@ -221,7 +236,7 @@ export default async function MirrorViewPage({
     perms.show_kas_harian && {
       id: "kas-harian",
       label: "Kas Harian",
-      count: expenses.length,
+      count: kasEntries.length,
       icon: Wallet,
     },
   ].filter(Boolean) as { id: string; label: string; count: number; icon: React.ElementType }[];
@@ -364,10 +379,10 @@ export default async function MirrorViewPage({
               {perms.show_kas_harian && (
                 <div className="rounded-xl bg-white border border-zinc-100 px-5 py-4 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    Total Pengeluaran
+                    Kas Masuk / Keluar
                   </p>
-                  <p className="mt-1 text-2xl font-bold text-amber-600">{formatRupiah(totalExpense)}</p>
-                  <p className="mt-0.5 text-xs text-zinc-400">{expenses.length} entri</p>
+                  <p className="mt-1 text-2xl font-bold text-brand-700">{formatRupiah(totalKasMasuk)}</p>
+                  <p className="mt-0.5 text-xs text-red-500">keluar {formatRupiah(totalKasKeluar)}</p>
                 </div>
               )}
             </div>
@@ -554,59 +569,68 @@ export default async function MirrorViewPage({
             <section id="kas-harian">
               <div className="mb-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                  Pengeluaran
+                  Kas Harian
                 </p>
                 <h2 className="text-lg font-bold text-zinc-900">
-                  Kas Harian ({expenses.length})
+                  Kas Harian ({kasEntries.length})
                 </h2>
               </div>
 
-              {expenses.length === 0 ? (
+              {kasEntries.length === 0 ? (
                 <div className="rounded-xl bg-white border border-zinc-200 px-5 py-8 text-center text-sm text-zinc-400">
-                  Belum ada data pengeluaran.
+                  Belum ada data kas yang dibagikan.
                 </div>
               ) : (
                 <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-zinc-50 border-b border-zinc-100">
                       <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
-                        <th className="px-4 py-3">Kategori</th>
-                        <th className="px-4 py-3">Tanggal</th>
                         <th className="px-4 py-3">Keterangan</th>
+                        <th className="px-4 py-3">Tanggal</th>
                         {perms.show_amount && (
-                          <th className="px-4 py-3 text-right">Jumlah</th>
+                          <>
+                            <th className="px-4 py-3 text-right">Masuk</th>
+                            <th className="px-4 py-3 text-right">Keluar</th>
+                          </>
                         )}
                       </tr>
                     </thead>
                     <tbody>
-                      {expenses.map((e, i) => (
+                      {kasEntries.map((k, i) => (
                         <tr
-                          key={e.id}
+                          key={k.id}
                           className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
                         >
-                          <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
-                            {e.category}
+                          <td className="px-4 py-3 text-xs font-medium text-zinc-900">
+                            {k.description}
                           </td>
                           <td className="px-4 py-3 text-xs text-zinc-500">
-                            {formatDateOnly(e.date)}
+                            {formatDateOnly(k.date)}
                           </td>
-                          <td className="px-4 py-3 text-xs text-zinc-500">{e.note ?? "—"}</td>
                           {perms.show_amount && (
-                            <td className="px-4 py-3 text-right text-xs font-semibold text-amber-600">
-                              {formatRupiah(e.amount)}
-                            </td>
+                            <>
+                              <td className="px-4 py-3 text-right text-xs font-semibold text-brand-700">
+                                {k.masuk > 0 ? formatRupiah(k.masuk) : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-right text-xs font-semibold text-red-500">
+                                {k.keluar > 0 ? formatRupiah(k.keluar) : "—"}
+                              </td>
+                            </>
                           )}
                         </tr>
                       ))}
                     </tbody>
-                    {perms.show_amount && expenses.length > 1 && (
+                    {perms.show_amount && kasEntries.length > 1 && (
                       <tfoot className="border-t border-zinc-200 bg-zinc-50">
                         <tr>
-                          <td colSpan={3} className="px-4 py-3 text-xs font-semibold text-zinc-500">
+                          <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-zinc-500">
                             Total
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-bold text-amber-600">
-                            {formatRupiah(totalExpense)}
+                          <td className="px-4 py-3 text-right text-sm font-bold text-brand-700">
+                            {formatRupiah(totalKasMasuk)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-red-500">
+                            {formatRupiah(totalKasKeluar)}
                           </td>
                         </tr>
                       </tfoot>

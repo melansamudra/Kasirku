@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import MirrorKasToggle from "./mirror-kas-toggle";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -65,11 +66,10 @@ export default async function KasHarianPage({
 
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, owner_id, mirroring_enabled").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!business) {
     notFound();
@@ -117,6 +117,18 @@ export default async function KasHarianPage({
         (a, b) => new Date(b.journal_entries.date).getTime() - new Date(a.journal_entries.date).getTime(),
       );
   }
+
+  const isOwner = business?.owner_id === userData.user?.id;
+  const showMirrorToggle = isOwner && !!business?.mirroring_enabled;
+
+  const { data: visibleKasRows } = showMirrorToggle
+    ? await supabase
+        .from("mirror_visible_kas")
+        .select("journal_line_id")
+        .eq("business_id", businessId)
+    : { data: null };
+
+  const visibleKasIds = new Set((visibleKasRows ?? []).map((r) => r.journal_line_id as string));
 
   const totalMasuk = lines.reduce((s, l) => s + Number(l.debit), 0);
   const totalKeluar = lines.reduce((s, l) => s + Number(l.credit), 0);
@@ -189,8 +201,8 @@ export default async function KasHarianPage({
             {lines.map((l) => {
               const isMasuk = Number(l.debit) > 0;
               return (
-                <div key={l.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
+                <div key={l.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-medium text-zinc-900">
                       {l.journal_entries.description}
                     </p>
@@ -213,6 +225,13 @@ export default async function KasHarianPage({
                     {isMasuk ? "+" : "-"}
                     {formatRupiah(isMasuk ? Number(l.debit) : Number(l.credit))}
                   </p>
+                  {showMirrorToggle && (
+                    <MirrorKasToggle
+                      businessId={businessId}
+                      journalLineId={l.id}
+                      visible={visibleKasIds.has(l.id)}
+                    />
+                  )}
                 </div>
               );
             })}

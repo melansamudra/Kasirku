@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { importTransactions } from "./actions";
 import { TransactionActions } from "./transaction-actions";
+import MirrorToggle from "./mirror-toggle";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -26,7 +27,11 @@ export default async function TransactionsPage({
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }] = await Promise.all([
-    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase
+      .from("businesses")
+      .select("id, name, owner_id, mirroring_enabled")
+      .eq("id", businessId)
+      .single(),
     supabase.auth.getUser(),
   ]);
 
@@ -35,6 +40,7 @@ export default async function TransactionsPage({
   }
 
   const isOwner = business.owner_id === userData.user?.id;
+  const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 
   const query = supabase
     .from("transactions")
@@ -48,29 +54,50 @@ export default async function TransactionsPage({
   // Non-owner tidak perlu lihat transaksi yang dibatalkan
   if (!isOwner) query.eq("voided", false);
 
-  const { data: transactions } = await query;
+  const [{ data: transactions }, { data: visibleRows }] = await Promise.all([
+    query,
+    showMirrorToggle
+      ? supabase
+          .from("mirror_visible_transactions")
+          .select("transaction_id")
+          .eq("business_id", businessId)
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const visibleIds = new Set((visibleRows ?? []).map((r) => r.transaction_id as string));
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold text-zinc-900">
-              Riwayat Transaksi — {business.name}
-            </h1>
-            {isOwner && <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>}
-          </div>
-          {isOwner && <TransactionActions businessId={businessId} importAction={boundImportTransactions} />}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">
+            Riwayat Transaksi — {business.name}
+          </h1>
+          {isOwner && <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>}
         </div>
+        {isOwner && (
+          <TransactionActions businessId={businessId} importAction={boundImportTransactions} />
+        )}
+      </div>
 
-        <div className="mt-6 space-y-2">
-          {transactions && transactions.length > 0 ? (
-            transactions.map((t) => (
+      {showMirrorToggle && (
+        <p className="mt-2 text-xs text-zinc-400">
+          Ikon <span className="font-medium text-brand-600">👁</span> di setiap transaksi mengontrol visibilitas di akun mirror.
+        </p>
+      )}
+
+      <div className="mt-6 space-y-2">
+        {transactions && transactions.length > 0 ? (
+          transactions.map((t) => (
+            <div
+              key={t.id}
+              className="flex items-stretch overflow-hidden rounded-xl border border-zinc-200 bg-white transition-colors hover:border-brand-300"
+            >
               <Link
-                key={t.id}
                 href={`/business/${businessId}/transactions/${t.id}`}
-                className="block rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-brand-300"
+                className="flex-1 px-4 py-3"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-zinc-900">{t.invoice_number}</p>
@@ -87,16 +114,28 @@ export default async function TransactionsPage({
                 <p className="mt-1 text-xs text-zinc-500">
                   {formatDateTime(t.date)} ·{" "}
                   {(t.cashiers as unknown as { name: string } | null)?.name ?? "—"} ·{" "}
-                  {(t.transaction_payments as { method: string }[] | null)?.map((p) => p.method).join(" + ") || "—"}
+                  {(t.transaction_payments as { method: string }[] | null)
+                    ?.map((p) => p.method)
+                    .join(" + ") || "—"}
                 </p>
               </Link>
-            ))
-          ) : (
-            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-              Belum ada transaksi.
-            </p>
-          )}
-        </div>
+              {showMirrorToggle && (
+                <div className="flex items-center border-l border-zinc-100 px-3">
+                  <MirrorToggle
+                    businessId={businessId}
+                    transactionId={t.id}
+                    visible={visibleIds.has(t.id)}
+                  />
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+            Belum ada transaksi.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
