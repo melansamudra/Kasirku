@@ -40,6 +40,7 @@ import {
   Activity,
   Bell,
   ShoppingCart,
+  Layers,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
@@ -71,6 +72,7 @@ function buildNavGroups(
   businessType: BusinessType,
   isFinanceOnly: boolean,
   isStarter: boolean,
+  mirroringEnabled = false,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
@@ -159,6 +161,9 @@ function buildNavGroups(
       items: [
         { key: "notifikasi", href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
         { key: "activity", href: `${base}/activity`, label: "Aktivitas", icon: Activity, ownerOnly: true },
+        ...(mirroringEnabled
+          ? [{ key: "mirror", href: `${base}/mirror`, label: "Akun Mirror", icon: Layers, ownerOnly: true }]
+          : []),
       ],
     },
   ];
@@ -447,6 +452,7 @@ export default function DashboardShell({
   isStarter = false,
   isOwner = true,
   permissions = [],
+  mirroringEnabled = false,
   children,
 }: {
   businessId: string;
@@ -459,6 +465,7 @@ export default function DashboardShell({
   isStarter?: boolean;
   isOwner?: boolean;
   permissions?: string[];
+  mirroringEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -483,7 +490,7 @@ export default function DashboardShell({
     ? ["settings"]
     : permissions.includes("settings") ? ["settings"] : [];
 
-  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter);
+  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter, mirroringEnabled);
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can

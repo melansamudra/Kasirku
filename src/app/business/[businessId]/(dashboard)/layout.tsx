@@ -17,7 +17,7 @@ export default async function BusinessDashboardLayout({
   const [{ data: business }, { data: userData }, access] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, business_type, owner_id")
+      .select("id, name, business_type, owner_id, mirroring_enabled")
       .eq("id", businessId)
       .single(),
     supabase.auth.getUser(),
@@ -61,6 +61,7 @@ export default async function BusinessDashboardLayout({
       isStarter={isStarterPlan(access.planCode)}
       isOwner={isOwner}
       permissions={permissions}
+      mirroringEnabled={business.mirroring_enabled ?? false}
     >
       {children}
     </DashboardShell>
