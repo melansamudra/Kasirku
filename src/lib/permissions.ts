@@ -11,6 +11,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     title: "Utama",
     items: [
+      { key: "pos", label: "Akses POS/Kasir" },
       { key: "reports", label: "Laporan" },
       { key: "transactions", label: "Riwayat Transaksi" },
       { key: "check-in", label: "Check-in Tiket" },

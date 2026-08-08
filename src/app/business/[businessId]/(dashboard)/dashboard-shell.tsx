@@ -292,7 +292,7 @@ function SidebarContent({
         </div>
       </div>
 
-      {!isFinanceOnly && (
+      {!isFinanceOnly && (isOwner || permissions.includes("pos")) && (
         <div className="px-3 pt-4">
           <Link
             href={`/business/${businessId}/pos`}
