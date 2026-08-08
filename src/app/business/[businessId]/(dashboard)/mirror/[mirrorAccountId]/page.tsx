@@ -3,13 +3,17 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import SelectTransactionsForm from "./select-transactions-form";
+import DateRangeFilter from "./date-range-filter";
 
 export default async function MirrorTransactionSelectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string; mirrorAccountId: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { businessId, mirrorAccountId } = await params;
+  const { from, to } = await searchParams;
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }] = await Promise.all([
@@ -36,16 +40,19 @@ export default async function MirrorTransactionSelectPage({
 
   const service = createServiceClient();
 
+  let txQuery = supabase
+    .from("transactions")
+    .select("id, invoice_number, date, total, cashiers!transactions_cashier_id_fkey(name)")
+    .eq("business_id", businessId)
+    .eq("voided", false)
+    .order("date", { ascending: false })
+    .limit(200);
+
+  if (from) txQuery = txQuery.gte("date", from);
+  if (to) txQuery = txQuery.lte("date", to + "T23:59:59");
+
   const [{ data: transactions }, { data: selections }] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select(
-        "id, invoice_number, date, total, cashiers!transactions_cashier_id_fkey(name)",
-      )
-      .eq("business_id", businessId)
-      .eq("voided", false)
-      .order("date", { ascending: false })
-      .limit(100),
+    txQuery,
     service
       .from("mirror_selections")
       .select("transaction_id")
@@ -79,8 +86,9 @@ export default async function MirrorTransactionSelectPage({
         Akun mirror{" "}
         <span className="font-medium text-zinc-700">{mirrorAccount.invited_email}</span>{" "}
         hanya bisa melihat transaksi yang dipilih di bawah.
-        Menampilkan 100 transaksi terbaru (tidak termasuk yang dibatalkan).
       </p>
+
+      <DateRangeFilter from={from} to={to} />
 
       {txList.length === 0 ? (
         <div className="mt-8 rounded-xl border border-zinc-200 bg-white px-6 py-8 text-center text-sm text-zinc-400">
