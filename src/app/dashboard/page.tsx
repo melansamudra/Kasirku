@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { getPeriodRange, parsePeriod } from "../business/[businessId]/(dashboard)/reports/period";
 import LogoutButton from "./logout-button";
 
@@ -46,6 +47,7 @@ export default async function DashboardPage({
     : "today";
 
   const supabase = await createClient();
+  const service = createServiceClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -54,6 +56,28 @@ export default async function DashboardPage({
     .from("businesses")
     .select("id, name, business_type, owner_id")
     .order("created_at", { ascending: true });
+
+  // Cek mirror accounts untuk user ini
+  const { data: myMirrorRows } = await service
+    .from("mirror_accounts")
+    .select("id, business_id, status")
+    .eq("user_id", user?.id ?? "")
+    .eq("status", "active");
+
+  const mirrorBusinessIds = (myMirrorRows ?? []).map((m) => m.business_id as string);
+  const { data: mirrorBusinessRows } =
+    mirrorBusinessIds.length > 0
+      ? await service
+          .from("businesses")
+          .select("id, name, business_type")
+          .in("id", mirrorBusinessIds)
+      : { data: [] };
+  const mirrorBusinesses = mirrorBusinessRows ?? [];
+
+  // Jika user tidak punya toko sendiri tapi punya akses mirror → langsung ke mirror-view
+  if ((!businesses || businesses.length === 0) && mirrorBusinesses.length > 0) {
+    redirect(`/business/${mirrorBusinesses[0].id}/mirror-view`);
+  }
 
   if (!businesses || businesses.length === 0) redirect("/onboarding");
 
@@ -253,6 +277,24 @@ export default async function DashboardPage({
           })}
         </nav>
 
+        {mirrorBusinesses.length > 0 && (
+          <div className="border-t border-zinc-100 px-3 pt-3 pb-1">
+            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+              Akun Mirror
+            </p>
+            {mirrorBusinesses.map((b) => (
+              <Link
+                key={b.id}
+                href={`/business/${b.id}/mirror-view`}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                <span className="truncate">{b.name}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+
         <div className="border-t border-zinc-100 px-3 py-3 space-y-1">
           {isOwner && (
             <Link href="/onboarding" className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-zinc-500 hover:bg-zinc-50 transition-colors">
@@ -276,6 +318,11 @@ export default async function DashboardPage({
           {ownedBusinesses.map((b) => (
             <Link key={b.id} href={outletHref(b.id)} className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${selectedId === b.id ? "bg-brand-600 text-white" : "bg-zinc-100 text-zinc-600"}`}>
               {b.name}
+            </Link>
+          ))}
+          {mirrorBusinesses.map((b) => (
+            <Link key={b.id} href={`/business/${b.id}/mirror-view`} className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700">
+              👁 {b.name}
             </Link>
           ))}
         </div>
