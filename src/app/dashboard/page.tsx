@@ -57,12 +57,12 @@ export default async function DashboardPage({
     .select("id, name, business_type, owner_id")
     .order("created_at", { ascending: true });
 
-  // Cek mirror accounts untuk user ini
+  // Cek mirror accounts untuk user ini (active + pending — pending diaktifkan di mirror-view)
   const { data: myMirrorRows } = await service
     .from("mirror_accounts")
     .select("id, business_id, status")
     .eq("user_id", user?.id ?? "")
-    .eq("status", "active");
+    .in("status", ["active", "pending"]);
 
   const mirrorBusinessIds = (myMirrorRows ?? []).map((m) => m.business_id as string);
   const { data: mirrorBusinessRows } =
