@@ -84,6 +84,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/order") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
+    request.nextUrl.pathname.startsWith("/set-password") ||
     request.nextUrl.pathname.startsWith("/terms") ||
     request.nextUrl.pathname.startsWith("/privacy") ||
     request.nextUrl.pathname.startsWith("/rekomendasi-alat") ||
