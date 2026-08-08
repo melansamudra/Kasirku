@@ -4,6 +4,15 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPlan } from "@/lib/billing/plans";
 
+export async function toggleMirroring(businessId: string, enabled: boolean) {
+  const supabase = await createClient();
+  await supabase.rpc("admin_toggle_mirroring", {
+    p_business_id: businessId,
+    p_enabled: enabled,
+  });
+  revalidatePath("/admin");
+}
+
 export type ActivateSubscriptionState = { error: string | null; resetToken: number };
 
 export async function activateSubscriptionManually(

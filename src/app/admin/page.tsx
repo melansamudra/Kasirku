@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/app/dashboard/logout-button";
 import { activateSubscriptionManually } from "./actions";
 import ActivateSubscriptionForm from "./activate-subscription-form";
+import ToggleMirroringButton from "./toggle-mirroring-button";
 
 type Stats = {
   total_businesses: number;
@@ -24,6 +25,7 @@ type BusinessRow = {
   tx_count: number;
   subscription_status: string;
   plan_code: string | null;
+  mirroring_enabled: boolean;
 };
 
 const BUSINESS_TYPE_ACCENT: Record<string, { label: string; chip: string }> = {
@@ -149,6 +151,7 @@ export default async function AdminPage() {
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Langganan</th>
                   <th className="px-5 py-3">Transaksi</th>
+                  <th className="px-5 py-3">Mirroring</th>
                   <th className="px-5 py-3">Aksi</th>
                 </tr>
               </thead>
@@ -192,6 +195,9 @@ export default async function AdminPage() {
                         )}
                       </td>
                       <td className="px-5 py-3 font-medium text-zinc-900">{b.tx_count}</td>
+                      <td className="px-5 py-3">
+                        <ToggleMirroringButton businessId={b.id} enabled={b.mirroring_enabled} />
+                      </td>
                       <td className="px-5 py-3">
                         <ActivateSubscriptionForm action={activateSubscriptionManually.bind(null, b.id)} />
                       </td>
