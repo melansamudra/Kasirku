@@ -63,7 +63,7 @@ export async function inviteMirrorAccount(
   try {
     const { data, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
       email,
-      { redirectTo: `${origin}/auth/callback?next=/set-password` },
+      { redirectTo: `${origin}/set-password` },
     );
     if (inviteError || !data?.user) {
       return {
