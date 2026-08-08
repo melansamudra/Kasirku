@@ -2402,15 +2402,6 @@ export default function PosScreen({
               </p>
               <div className="space-y-1.5">
                 <button
-                  onClick={() => {
-                    setPosMenuOpen(false);
-                    setCashMoveOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-                >
-                  💵 Kas Masuk/Keluar
-                </button>
-                <button
                   type="button"
                   onClick={() => void handleOpenVoid()}
                   className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
