@@ -477,7 +477,9 @@ export default function DashboardShell({
   const navPermissions = isNative
     ? [...new Set([...nativeBase, ...permissions])]
     : permissions;
-  const navBypassOwnerOnly = isNative ? ["settings"] : [];
+  const navBypassOwnerOnly = isNative
+    ? ["settings"]
+    : permissions.includes("settings") ? ["settings"] : [];
 
   const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter);
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);

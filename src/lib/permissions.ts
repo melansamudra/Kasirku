@@ -58,6 +58,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { key: "notifikasi", label: "Notifikasi" },
       { key: "activity", label: "Aktivitas" },
+      { key: "settings", label: "Pengaturan" },
     ],
   },
 ];
