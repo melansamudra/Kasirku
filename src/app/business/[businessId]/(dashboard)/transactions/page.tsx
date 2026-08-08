@@ -25,17 +25,18 @@ export default async function TransactionsPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!business) {
     notFound();
   }
 
-  const { data: transactions } = await supabase
+  const isOwner = business.owner_id === userData.user?.id;
+
+  const query = supabase
     .from("transactions")
     .select(
       "id, invoice_number, date, total, voided, cashiers!transactions_cashier_id_fkey(name), transaction_payments(method)",
@@ -43,6 +44,11 @@ export default async function TransactionsPage({
     .eq("business_id", businessId)
     .order("date", { ascending: false })
     .limit(50);
+
+  // Non-owner tidak perlu lihat transaksi yang dibatalkan
+  if (!isOwner) query.eq("voided", false);
+
+  const { data: transactions } = await query;
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
 
@@ -55,7 +61,7 @@ export default async function TransactionsPage({
             </h1>
             <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>
           </div>
-          <TransactionActions businessId={businessId} importAction={boundImportTransactions} />
+          {isOwner && <TransactionActions businessId={businessId} importAction={boundImportTransactions} />}
         </div>
 
         <div className="mt-6 space-y-2">
