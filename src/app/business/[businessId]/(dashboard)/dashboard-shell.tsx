@@ -471,7 +471,11 @@ export default function DashboardShell({
   // owner-only item through despite navIsOwner being forced false.
   const isNative = Capacitor.isNativePlatform();
   const navIsOwner = isNative ? false : isOwner;
-  const navPermissions = isNative ? ["transactions", "shifts", "settings"] : permissions;
+  const nativeBase = ["transactions", "shifts", "settings"];
+  const nativeOptional = ["products"];
+  const navPermissions = isNative
+    ? [...nativeBase, ...nativeOptional.filter((k) => isOwner || permissions.includes(k))]
+    : permissions;
   const navBypassOwnerOnly = isNative ? ["settings"] : [];
 
   const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter);
