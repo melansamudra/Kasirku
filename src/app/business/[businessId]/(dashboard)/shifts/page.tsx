@@ -68,7 +68,7 @@ export default async function ShiftsPage({
         <h1 className="text-lg font-bold text-zinc-900">
           Riwayat Shift — {business.name}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">50 shift terakhir yang sudah ditutup.</p>
+        {isOwner && <p className="mt-1 text-sm text-zinc-500">50 shift terakhir yang sudah ditutup.</p>}
 
         <div className="mt-6 space-y-2">
           {shifts.length > 0 ? (

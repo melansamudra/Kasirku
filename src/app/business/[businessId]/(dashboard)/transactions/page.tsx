@@ -59,7 +59,7 @@ export default async function TransactionsPage({
             <h1 className="text-lg font-bold text-zinc-900">
               Riwayat Transaksi — {business.name}
             </h1>
-            <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>
+            {isOwner && <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>}
           </div>
           {isOwner && <TransactionActions businessId={businessId} importAction={boundImportTransactions} />}
         </div>
