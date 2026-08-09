@@ -56,14 +56,16 @@ export default async function MirrorLaporanPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!mirrorAccount) notFound();
+  let isOwner = false;
+  if (!mirrorAccount) {
+    const { data: biz } = await service.from("businesses").select("owner_id").eq("id", businessId).single();
+    isOwner = biz?.owner_id === user.id;
+  }
+  if (!mirrorAccount && !isOwner) notFound();
 
-  const p = (mirrorAccount.permissions ?? {}) as {
-    show_transactions?: boolean;
-    show_amount?: boolean;
-    show_purchases?: boolean;
-    show_kas_harian?: boolean;
-  };
+  const p = isOwner
+    ? { show_transactions: true, show_amount: true }
+    : (mirrorAccount!.permissions ?? {}) as { show_transactions?: boolean; show_amount?: boolean };
 
   const basePath = `/business/${businessId}/laporan`;
 

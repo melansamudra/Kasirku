@@ -30,12 +30,16 @@ export default async function MirrorLaporanMenuPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!mirrorAccount) notFound();
+  let isOwner = false;
+  if (!mirrorAccount) {
+    const { data: biz } = await service.from("businesses").select("owner_id").eq("id", businessId).single();
+    isOwner = biz?.owner_id === user.id;
+  }
+  if (!mirrorAccount && !isOwner) notFound();
 
-  const p = (mirrorAccount.permissions ?? {}) as {
-    show_items?: boolean;
-    show_amount?: boolean;
-  };
+  const p = isOwner
+    ? { show_items: true, show_amount: true }
+    : (mirrorAccount!.permissions ?? {}) as { show_items?: boolean; show_amount?: boolean };
 
   if (!p.show_items) notFound();
 

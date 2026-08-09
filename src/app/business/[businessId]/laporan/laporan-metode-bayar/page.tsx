@@ -51,13 +51,16 @@ export default async function MirrorLaporanMetodeBayarPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!mirrorAccount) notFound();
+  let isOwner = false;
+  if (!mirrorAccount) {
+    const { data: biz } = await service.from("businesses").select("owner_id").eq("id", businessId).single();
+    isOwner = biz?.owner_id === user.id;
+  }
+  if (!mirrorAccount && !isOwner) notFound();
 
-  const p = (mirrorAccount.permissions ?? {}) as {
-    show_transactions?: boolean;
-    show_payment_method?: boolean;
-    show_amount?: boolean;
-  };
+  const p = isOwner
+    ? { show_transactions: true, show_payment_method: true, show_amount: true }
+    : (mirrorAccount!.permissions ?? {}) as { show_transactions?: boolean; show_payment_method?: boolean; show_amount?: boolean };
 
   if (!p.show_transactions || !p.show_payment_method) notFound();
 

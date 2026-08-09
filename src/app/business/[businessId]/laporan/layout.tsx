@@ -30,33 +30,39 @@ export default async function MirrorViewLayout({
       .maybeSingle(),
     service
       .from("businesses")
-      .select("id, name, business_type")
+      .select("id, name, business_type, owner_id")
       .eq("id", businessId)
       .single(),
   ]);
 
-  if (!mirrorAccount || !business) notFound();
+  if (!business) notFound();
+  const isOwner = business.owner_id === user.id;
+  if (!mirrorAccount && !isOwner) notFound();
 
-  if (mirrorAccount.status === "pending") {
+  if (mirrorAccount?.status === "pending") {
     await service
       .from("mirror_accounts")
       .update({ status: "active" })
       .eq("id", mirrorAccount.id);
   }
 
-  if (mirrorAccount.status === "revoked") notFound();
+  if (!isOwner && mirrorAccount?.status === "revoked") notFound();
 
-  const p = (mirrorAccount.permissions ?? {}) as Partial<MirrorPerms & {
-    show_amount: boolean;
-    show_cashier: boolean;
-    show_customer: boolean;
-  }>;
+  const p = isOwner
+    ? null
+    : (mirrorAccount!.permissions ?? {}) as Partial<MirrorPerms & {
+        show_amount: boolean;
+        show_cashier: boolean;
+        show_customer: boolean;
+      }>;
 
-  const perms: MirrorPerms = {
-    show_transactions: p.show_transactions ?? false,
-    show_items: p.show_items ?? false,
-    show_payment_method: p.show_payment_method ?? false,
-  };
+  const perms: MirrorPerms = isOwner
+    ? { show_transactions: true, show_items: true, show_payment_method: true }
+    : {
+        show_transactions: p!.show_transactions ?? false,
+        show_items: p!.show_items ?? false,
+        show_payment_method: p!.show_payment_method ?? false,
+      };
 
   const today = new Date().toLocaleDateString("id-ID", {
     weekday: "long",
