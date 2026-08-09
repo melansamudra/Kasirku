@@ -57,7 +57,7 @@ export default async function MirrorTransaksiPage({
     .select(
       `transaction_id,
       transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, invoice_number, date, total,
+        id, invoice_number, date, total, order_label, customer_name,
         cashiers!transactions_cashier_id_fkey(name),
         customers!transactions_customer_id_fkey(name),
         transaction_payments(method),
@@ -72,8 +72,10 @@ export default async function MirrorTransaksiPage({
     invoice_number: string;
     date: string;
     total: number;
+    order_label: string | null;
     cashier_name: string | null;
     customer_name: string | null;
+    free_customer_name: string | null;
     payment_methods: string[];
     items: { qty: number; product_name: string }[];
   };
@@ -85,6 +87,8 @@ export default async function MirrorTransaksiPage({
         invoice_number: string;
         date: string;
         total: number;
+        order_label: string | null;
+        customer_name: string | null;
         cashiers: { name: string } | null;
         customers: { name: string } | null;
         transaction_payments: { method: string }[] | null;
@@ -96,8 +100,10 @@ export default async function MirrorTransaksiPage({
         invoice_number: t.invoice_number,
         date: t.date,
         total: Number(t.total),
+        order_label: t.order_label ?? null,
         cashier_name: (t.cashiers as { name: string } | null)?.name ?? null,
         customer_name: (t.customers as { name: string } | null)?.name ?? null,
+        free_customer_name: t.customer_name ?? null,
         payment_methods: (t.transaction_payments ?? []).map((p) => p.method),
         items: (t.transaction_items ?? [])
           .map((i) => ({
@@ -142,7 +148,7 @@ export default async function MirrorTransaksiPage({
                   <th className="px-4 py-3">Tanggal</th>
                   {p.show_invoice_number && <th className="px-4 py-3">Invoice</th>}
                   {p.show_cashier && <th className="px-4 py-3">Kasir</th>}
-                  {p.show_customer && <th className="px-4 py-3">Pelanggan</th>}
+                  {p.show_customer && <th className="px-4 py-3">Bon / Pelanggan</th>}
                   {p.show_payment_method && <th className="px-4 py-3">Metode Bayar</th>}
                   {p.show_amount && <th className="px-4 py-3 text-right">Total</th>}
                 </tr>
@@ -166,7 +172,13 @@ export default async function MirrorTransaksiPage({
                         <td className="px-4 py-3 text-xs text-zinc-500">{t.cashier_name ?? "—"}</td>
                       )}
                       {p.show_customer && (
-                        <td className="px-4 py-3 text-xs text-zinc-500">{t.customer_name ?? "—"}</td>
+                        <td className="px-4 py-3 text-xs text-zinc-500">
+                          {t.order_label ? (
+                            <span className="font-medium text-zinc-700">{t.order_label}</span>
+                          ) : null}
+                          {t.order_label && (t.customer_name || t.free_customer_name) ? " · " : null}
+                          {t.customer_name ?? t.free_customer_name ?? (!t.order_label ? "—" : null)}
+                        </td>
                       )}
                       {p.show_payment_method && (
                         <td className="px-4 py-3 text-xs text-zinc-500">

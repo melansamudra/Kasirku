@@ -78,15 +78,13 @@ export default function PrintQueueStatus({
                   <span>
                     {p.job.printerName} · {new Date(p.createdAt).toLocaleTimeString("id-ID")}
                   </span>
-                  {p.status === "error" && (
-                    <button
-                      type="button"
-                      onClick={() => onDiscard(p.id)}
-                      className="shrink-0 text-red-600 hover:underline"
-                    >
-                      Hapus
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onDiscard(p.id)}
+                    className="shrink-0 text-red-600 hover:underline"
+                  >
+                    Hapus
+                  </button>
                 </div>
                 {p.status === "error" && (
                   <p className="mt-0.5 text-red-600">

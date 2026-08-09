@@ -174,22 +174,7 @@ export async function checkout(
   if (!result.already_existed) {
     const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
-    // Simpan order_label, customer_name, dan order_disc_name ke transaksi jika ada
-    if (orderLabel || customerName || orderDiscName) {
-      void supabase.from("transactions").update({
-        ...(orderLabel ? { order_label: orderLabel } : {}),
-        ...(customerName ? { customer_name: customerName } : {}),
-        ...(orderDiscName ? { order_disc_name: orderDiscName } : {}),
-      }).eq("id", result.transaction_id);
-    }
-
-    // Tiga hal ini tidak saling bergantung — dulu dijalankan berurutan
-    // (await satu-satu), menambah beberapa detik nyata ke waktu konfirmasi
-    // pembayaran di jaringan mobile. Sekarang jalan bersamaan.
-    // hasPrinters/hasReceiptPrinters dikirim dari client berdasarkan catalog
-    // cache — kalau false, skip query DB printer supaya checkout lebih cepat
-    // bagi bisnis yang belum punya printer dapur/struk.
-    const [, printJobsResult, receiptJobsResult] = await Promise.all([
+    const [, , printJobsResult, receiptJobsResult] = await Promise.all([
       logActivity(
         supabase,
         businessId,
@@ -198,6 +183,13 @@ export async function checkout(
         `Transaksi ${result.invoice_number}`,
         `${itemCount} item · ${payments.map((p) => p.method).join(", ")}`,
       ),
+      orderLabel || customerName || orderDiscName
+        ? supabase.from("transactions").update({
+            ...(orderLabel ? { order_label: orderLabel } : {}),
+            ...(customerName ? { customer_name: customerName } : {}),
+            ...(orderDiscName ? { order_disc_name: orderDiscName } : {}),
+          }).eq("id", result.transaction_id)
+        : Promise.resolve(null),
       hasPrinters
         ? buildKitchenPrintJobsForItems(
             supabase,
