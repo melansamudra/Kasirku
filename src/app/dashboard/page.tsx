@@ -74,14 +74,15 @@ export default async function DashboardPage({
       : { data: [] };
   const mirrorBusinesses = mirrorBusinessRows ?? [];
 
-  // Jika user tidak punya toko sendiri tapi punya akses mirror → langsung ke mirror-view
-  if ((!businesses || businesses.length === 0) && mirrorBusinesses.length > 0) {
+  const isOwner = (businesses ?? []).some((b) => b.owner_id === user?.id);
+
+  // Jika user punya akses mirror DAN bukan pemilik toko manapun → langsung ke laporan mirror
+  if (mirrorBusinesses.length > 0 && !isOwner) {
     redirect(`/business/${mirrorBusinesses[0].id}/laporan`);
   }
 
   if (!businesses || businesses.length === 0) redirect("/onboarding");
 
-  const isOwner = businesses.some((b) => b.owner_id === user?.id);
   if (!isOwner && businesses.length === 1) {
     redirect(`/business/${businesses[0].id}/pos`);
   }
