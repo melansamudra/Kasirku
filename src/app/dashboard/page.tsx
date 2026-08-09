@@ -52,22 +52,24 @@ export default async function DashboardPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Hanya ambil bisnis yang dimiliki sendiri — bisnis mirror tidak boleh masuk sini
   const { data: businesses } = await supabase
     .from("businesses")
     .select("id, name, business_type, owner_id")
+    .eq("owner_id", user?.id ?? "")
     .order("created_at", { ascending: true });
 
   // Cek mirror accounts — pakai regular client (RLS policy "mirror user reads own row")
-  // sehingga tidak bergantung pada SUPABASE_SERVICE_ROLE_KEY
   const { data: myMirrorRows } = await supabase
     .from("mirror_accounts")
     .select("id, business_id, status")
     .in("status", ["active", "pending"]);
 
   const mirrorBusinessIds = (myMirrorRows ?? []).map((m) => m.business_id as string);
+  // Pakai regular client — RLS policy "mirror user reads assigned business" membolehkan akses
   const { data: mirrorBusinessRows } =
     mirrorBusinessIds.length > 0
-      ? await service
+      ? await supabase
           .from("businesses")
           .select("id, name, business_type")
           .in("id", mirrorBusinessIds)
