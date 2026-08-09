@@ -79,7 +79,6 @@ export default async function MirrorLaporanTrenPage({
     )
     .eq("business_id", businessId);
 
-  // Agregasi per tanggal WIB
   const dayMap = new Map<string, { count: number; revenue: number }>();
 
   for (const row of rows ?? []) {
@@ -105,17 +104,36 @@ export default async function MirrorLaporanTrenPage({
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const maxRevenue = Math.max(...dayList.map((d) => d.revenue), 1);
+  const minRevenue = Math.min(...dayList.map((d) => d.revenue), 0);
   const totalRevenue = dayList.reduce((s, d) => s + d.revenue, 0);
   const totalCount = dayList.reduce((s, d) => s + d.count, 0);
   const avgRevenue = dayList.length > 0 ? totalRevenue / dayList.length : 0;
+  const bestDay = dayList.length > 0
+    ? dayList.reduce((max, d) => d.revenue > max.revenue ? d : max, dayList[0])
+    : null;
 
-  // Dimensi bar chart
-  const CHART_H = 160;
-  const BAR_GAP = 4;
-  const MIN_BAR_W = 20;
-  const barCount = dayList.length;
-  const barW = Math.max(MIN_BAR_W, Math.min(48, Math.floor((600 - barCount * BAR_GAP) / barCount)));
-  const chartW = barCount * (barW + BAR_GAP);
+  // Line chart: 560×160 viewBox, padding 8 kiri-kanan, 12 atas-bawah
+  const W = 560;
+  const H = 160;
+  const PAD_X = 8;
+  const PAD_Y = 20;
+  const chartW = W - PAD_X * 2;
+  const chartH = H - PAD_Y * 2;
+  const n = dayList.length;
+
+  function xOf(i: number) {
+    return PAD_X + (n === 1 ? chartW / 2 : (i / (n - 1)) * chartW);
+  }
+  function yOf(v: number) {
+    const range = maxRevenue - minRevenue || 1;
+    return PAD_Y + chartH - ((v - minRevenue) / range) * chartH;
+  }
+
+  const points = dayList.map((d, i) => ({ x: xOf(i), y: yOf(d.revenue), d }));
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaPath = n > 0
+    ? `${linePath} L${points[n - 1].x.toFixed(1)},${(PAD_Y + chartH).toFixed(1)} L${points[0].x.toFixed(1)},${(PAD_Y + chartH).toFixed(1)} Z`
+    : "";
 
   return (
     <div className="w-full max-w-3xl">
@@ -163,69 +181,78 @@ export default async function MirrorLaporanTrenPage({
                 <p className="mt-1 text-base font-bold text-zinc-900">{fmt(avgRevenue)}</p>
                 <p className="text-[11px] text-zinc-400">{dayList.length} hari</p>
               </div>
-              <div className="rounded-xl border border-zinc-100 bg-white px-4 py-3 shadow-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Tertinggi</p>
-                <p className="mt-1 text-base font-bold text-brand-700">
-                  {fmt(Math.max(...dayList.map((d) => d.revenue)))}
-                </p>
-                <p className="text-[11px] text-zinc-400">
-                  {formatDateLabel(dayList.reduce((max, d) => d.revenue > max.revenue ? d : max, dayList[0]).date)}
-                </p>
-              </div>
+              {bestDay && (
+                <div className="rounded-xl border border-zinc-100 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Tertinggi</p>
+                  <p className="mt-1 text-base font-bold text-brand-700">{fmt(bestDay.revenue)}</p>
+                  <p className="text-[11px] text-zinc-400">{formatDateLabel(bestDay.date)}</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Bar chart */}
-          {p.show_amount && dayList.length > 1 && (
+          {/* Line chart */}
+          {p.show_amount && n > 0 && (
             <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white p-4">
               <div className="overflow-x-auto">
                 <svg
-                  viewBox={`0 0 ${chartW + 8} ${CHART_H + 36}`}
-                  width={chartW + 8}
+                  viewBox={`0 0 ${W} ${H + 28}`}
+                  width="100%"
+                  style={{ minWidth: Math.max(300, n * 40) }}
                   className="block"
-                  style={{ minWidth: "100%" }}
                 >
-                  {/* Garis referensi */}
-                  {[0.25, 0.5, 0.75, 1].map((ratio) => {
-                    const y = CHART_H - CHART_H * ratio;
+                  <defs>
+                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#16a34a" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="#16a34a" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Garis referensi horizontal */}
+                  {[0, 0.25, 0.5, 0.75, 1].map((r) => {
+                    const y = PAD_Y + chartH - r * chartH;
+                    const v = minRevenue + r * (maxRevenue - minRevenue);
                     return (
-                      <line key={ratio} x1={0} y1={y} x2={chartW + 8} y2={y}
-                        stroke="#f4f4f5" strokeWidth={1} />
+                      <g key={r}>
+                        <line x1={PAD_X} y1={y} x2={W - PAD_X} y2={y}
+                          stroke="#f4f4f5" strokeWidth={1} />
+                        {r > 0 && r < 1 && (
+                          <text x={PAD_X} y={y - 3} fontSize={8} fill="#d4d4d8">
+                            {fmtShort(v)}
+                          </text>
+                        )}
+                      </g>
                     );
                   })}
 
-                  {dayList.map((d, i) => {
-                    const barH = Math.max(4, Math.round((d.revenue / maxRevenue) * CHART_H));
-                    const x = i * (barW + BAR_GAP);
-                    const y = CHART_H - barH;
-                    const isMax = d.revenue === maxRevenue;
+                  {/* Area fill */}
+                  {n > 1 && <path d={areaPath} fill="url(#areaGrad)" />}
+
+                  {/* Garis */}
+                  {n > 1 && (
+                    <path d={linePath} fill="none" stroke="#16a34a" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                  )}
+
+                  {/* Titik + label */}
+                  {points.map((pt, i) => {
+                    const isMax = pt.d.revenue === maxRevenue;
+                    const showLabel = n <= 14 || isMax;
                     return (
-                      <g key={d.date}>
-                        <rect
-                          x={x} y={y} width={barW} height={barH}
-                          rx={3}
-                          fill={isMax ? "#16a34a" : "#4ade80"}
-                        />
-                        {/* Label nilai di atas bar (hanya kalau cukup ruang) */}
-                        {barW >= 32 && (
-                          <text
-                            x={x + barW / 2} y={y - 3}
-                            textAnchor="middle"
-                            fontSize={8}
-                            fill="#52525b"
-                          >
-                            {fmtShort(d.revenue)}
+                      <g key={pt.d.date}>
+                        <circle cx={pt.x} cy={pt.y} r={isMax ? 5 : 3.5}
+                          fill={isMax ? "#16a34a" : "#fff"}
+                          stroke="#16a34a" strokeWidth={isMax ? 0 : 2} />
+                        {showLabel && (
+                          <text x={pt.x} y={pt.y - 8}
+                            textAnchor="middle" fontSize={8.5} fontWeight={isMax ? "700" : "400"}
+                            fill={isMax ? "#16a34a" : "#71717a"}>
+                            {fmtShort(pt.d.revenue)}
                           </text>
                         )}
                         {/* Label tanggal di bawah */}
-                        <text
-                          x={x + barW / 2} y={CHART_H + 14}
-                          textAnchor="middle"
-                          fontSize={8}
-                          fill="#a1a1aa"
-                          transform={barW < 28 ? `rotate(-45, ${x + barW / 2}, ${CHART_H + 14})` : undefined}
-                        >
-                          {formatDateLabel(d.date)}
+                        <text x={pt.x} y={H + 16}
+                          textAnchor="middle" fontSize={8} fill="#a1a1aa">
+                          {formatDateLabel(pt.d.date)}
                         </text>
                       </g>
                     );
