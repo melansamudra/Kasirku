@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { logActivity } from "@/lib/activity-log";
 
 async function assertIsOwner(businessId: string) {
   const supabase = await createClient();
@@ -188,13 +189,29 @@ export async function revokeMirrorAccess(businessId: string, mirrorAccountId: st
 
   const service = createServiceClient();
 
-  // Ambil user_id dulu sebelum row dihapus
+  // Ambil user_id + detail dulu sebelum row dihapus
   const { data: account } = await service
     .from("mirror_accounts")
-    .select("user_id")
+    .select("user_id, invited_email, permissions")
     .eq("id", mirrorAccountId)
     .eq("business_id", businessId)
     .single();
+
+  // Catat ke activity log sebelum dihapus (best-effort, tidak gagalkan revoke)
+  if (account) {
+    const permLabels = Object.entries(account.permissions as Record<string, boolean>)
+      .filter(([, v]) => v)
+      .map(([k]) => k.replace("show_", ""))
+      .join(", ");
+    await logActivity(
+      service,
+      businessId,
+      "pengaturan",
+      "warning",
+      `Akses mirror dicabut: ${account.invited_email}`,
+      permLabels ? `Permission: ${permLabels}` : "Tanpa permission",
+    ).catch(() => {});
+  }
 
   // Hapus mirror_accounts — mirror_selections ikut terhapus via CASCADE
   await service
