@@ -46,15 +46,13 @@ export async function inviteMirrorAccount(
   }
 
   const permissions = {
+    show_transactions: formData.get("show_transactions") === "on",
+    show_items: formData.get("show_items") === "on",
+    show_payment_method: formData.get("show_payment_method") === "on",
     show_amount: formData.get("show_amount") === "on",
+    show_invoice_number: formData.get("show_invoice_number") === "on",
     show_customer: formData.get("show_customer") === "on",
     show_cashier: formData.get("show_cashier") === "on",
-    show_transactions: formData.get("show_transactions") === "on",
-    show_purchases: formData.get("show_purchases") === "on",
-    show_kas_harian: formData.get("show_kas_harian") === "on",
-    show_invoice_number: formData.get("show_invoice_number") === "on",
-    show_payment_method: formData.get("show_payment_method") === "on",
-    show_items: formData.get("show_items") === "on",
   };
 
   const headerList = await headers();
@@ -120,15 +118,13 @@ export async function updateMirrorPermissions(
   }
 
   const permissions = {
+    show_transactions: formData.get("show_transactions") === "on",
+    show_items: formData.get("show_items") === "on",
+    show_payment_method: formData.get("show_payment_method") === "on",
     show_amount: formData.get("show_amount") === "on",
+    show_invoice_number: formData.get("show_invoice_number") === "on",
     show_customer: formData.get("show_customer") === "on",
     show_cashier: formData.get("show_cashier") === "on",
-    show_transactions: formData.get("show_transactions") === "on",
-    show_purchases: formData.get("show_purchases") === "on",
-    show_kas_harian: formData.get("show_kas_harian") === "on",
-    show_invoice_number: formData.get("show_invoice_number") === "on",
-    show_payment_method: formData.get("show_payment_method") === "on",
-    show_items: formData.get("show_items") === "on",
   };
 
   await supabase

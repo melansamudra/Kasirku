@@ -38,7 +38,12 @@ export default function InviteMirrorForm({
 
       <div>
         <p className="mb-1.5 text-xs font-medium text-zinc-600">Data yang boleh dilihat</p>
-        <MirrorPermissionChecklist defaultValues={{ show_transactions: true, show_amount: true }} />
+        <MirrorPermissionChecklist defaultValues={{
+          show_transactions: true,
+          show_items: true,
+          show_payment_method: true,
+          show_amount: true,
+        }} />
       </div>
 
       {state.error && (
