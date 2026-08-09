@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { toggleKasMirrorVisibility } from "./mirror-actions";
 
@@ -15,32 +14,78 @@ export default function MirrorKasToggle({
   visible: boolean;
 }) {
   const [visible, setVisible] = useState(initialVisible);
+  const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (Capacitor.isNativePlatform()) return null;
 
-  function toggle(e: React.MouseEvent) {
+  function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const next = !visible;
-    setVisible(next);
+    if (visible) {
+      setConfirming(true);
+    } else {
+      setVisible(true);
+      startTransition(() => {
+        toggleKasMirrorVisibility(businessId, journalLineId, true);
+      });
+    }
+  }
+
+  function handleConfirmOff(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirming(false);
+    setVisible(false);
     startTransition(() => {
-      toggleKasMirrorVisibility(businessId, journalLineId, next);
+      toggleKasMirrorVisibility(businessId, journalLineId, false);
     });
+  }
+
+  function handleCancel(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirming(false);
+  }
+
+  if (confirming) {
+    return (
+      <div
+        className="flex flex-col items-end gap-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[10px] font-medium text-zinc-500 whitespace-nowrap">Matikan?</p>
+        <div className="flex gap-1">
+          <button
+            onClick={handleConfirmOff}
+            className="rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-red-600"
+          >
+            Ya
+          </button>
+          <button
+            onClick={handleCancel}
+            className="rounded-md border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50"
+          >
+            Batal
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <button
-      onClick={toggle}
+      onClick={handleClick}
       disabled={pending}
-      title={visible ? "Tampil di akun mirror (klik untuk sembunyikan)" : "Tersembunyi dari akun mirror (klik untuk tampilkan)"}
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
-        visible
-          ? "bg-brand-50 text-brand-600 hover:bg-brand-100"
-          : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+        visible ? "bg-brand-600" : "bg-zinc-300"
       }`}
     >
-      {visible ? <Eye size={15} /> : <EyeOff size={15} />}
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+          visible ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
     </button>
   );
 }
