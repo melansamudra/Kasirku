@@ -83,6 +83,10 @@ export async function retryPendingPrintJobs(businessId: string): Promise<void> {
   const pending = await listPendingPrints(businessId);
   for (const p of pending.filter((p) => p.status === "pending")) {
     const result = await dispatchOne(p.job);
+    // Re-baca IDB setelah dispatch — user mungkin hapus item ini saat retry
+    // sedang berjalan. Kalau sudah tidak ada, jangan upsert balik.
+    const stillExists = (await listPendingPrints(businessId)).some((x) => x.id === p.id);
+    if (!stillExists) continue;
     if (result.ok) {
       await markPrintSynced(p.id);
       await logPrintQueueRecovered(businessId, p.job.printerName).catch(() => {});
