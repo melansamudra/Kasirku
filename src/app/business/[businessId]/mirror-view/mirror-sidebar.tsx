@@ -9,6 +9,7 @@ import {
   Wallet,
   ShoppingBag,
   UtensilsCrossed,
+  Clock,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
@@ -59,6 +60,9 @@ export default function MirrorSidebar({
           : []),
         ...(perms.show_items
           ? [{ href: `${base}/laporan-menu`, label: "Laporan per Menu", icon: UtensilsCrossed }]
+          : []),
+        ...(perms.show_transactions
+          ? [{ href: `${base}/laporan-jam`, label: "Laporan per Jam", icon: Clock }]
           : []),
       ],
     },

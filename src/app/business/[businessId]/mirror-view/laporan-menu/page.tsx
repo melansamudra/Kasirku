@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import DateRangeFilter from "../date-range-filter";
 
 function formatRupiah(v: number) {
   return `Rp${Math.round(v).toLocaleString("id-ID")}`;
@@ -8,15 +9,16 @@ function formatRupiah(v: number) {
 
 export default async function MirrorLaporanMenuPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { businessId } = await params;
+  const { from, to } = await searchParams;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
   const service = createServiceClient();
@@ -37,24 +39,40 @@ export default async function MirrorLaporanMenuPage({
 
   if (!p.show_items) notFound();
 
-  // Ambil semua item dari transaksi yang sudah dipilih owner
-  const { data: rows } = await service
+  // Ambil transaksi yang dipilih owner beserta item-nya
+  let query = service
     .from("mirror_visible_transactions")
     .select(
       `transactions!mirror_visible_transactions_transaction_id_fkey(
+        date,
         transaction_items(name, qty, price)
       )`,
     )
     .eq("business_id", businessId);
+
+  if (from) {
+    query = query.gte("transactions.date", `${from}T00:00:00+07:00`);
+  }
+  if (to) {
+    query = query.lte("transactions.date", `${to}T23:59:59+07:00`);
+  }
+
+  const { data: rows } = await query;
 
   // Agregasi per nama menu
   const menuMap = new Map<string, { qty: number; revenue: number }>();
 
   for (const row of rows ?? []) {
     const tx = row.transactions as unknown as {
+      date: string;
       transaction_items: { name: string; qty: number; price: number }[] | null;
     } | null;
     if (!tx) continue;
+
+    // Filter tanggal manual karena nested filter Supabase tidak selalu reliable
+    if (from && tx.date < `${from}T00:00:00`) continue;
+    if (to && tx.date > `${to}T23:59:59`) continue;
+
     for (const item of tx.transaction_items ?? []) {
       const name = item.name ?? "—";
       const qty = Number(item.qty);
@@ -79,16 +97,17 @@ export default async function MirrorLaporanMenuPage({
   return (
     <div className="w-full">
       <h1 className="text-lg font-bold text-zinc-900">Laporan Penjualan per Menu</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Rekap item dari transaksi yang dibagikan oleh pemilik toko
-      </p>
+
+      <div className="mt-4">
+        <DateRangeFilter from={from} to={to} />
+      </div>
 
       {menuList.length === 0 ? (
         <div className="mt-6 rounded-xl border border-zinc-200 bg-white px-5 py-8 text-center text-sm text-zinc-400">
-          Belum ada data item dari transaksi yang dibagikan.
+          Belum ada data item untuk periode ini.
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-zinc-100 bg-zinc-50">
