@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import { toggleKasMirrorVisibility } from "./mirror-actions";
 
 export default function MirrorKasToggle({
@@ -15,6 +16,8 @@ export default function MirrorKasToggle({
 }) {
   const [visible, setVisible] = useState(initialVisible);
   const [pending, startTransition] = useTransition();
+
+  if (Capacitor.isNativePlatform()) return null;
 
   function toggle(e: React.MouseEvent) {
     e.preventDefault();

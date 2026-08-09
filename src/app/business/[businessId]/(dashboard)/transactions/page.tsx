@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { importTransactions } from "./actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
+import MirrorHint from "./mirror-hint";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -83,11 +84,7 @@ export default async function TransactionsPage({
         )}
       </div>
 
-      {showMirrorToggle && (
-        <p className="mt-2 text-xs text-zinc-400">
-          Ikon <span className="font-medium text-brand-600">👁</span> di setiap transaksi mengontrol visibilitas di akun mirror.
-        </p>
-      )}
+      {showMirrorToggle && <MirrorHint />}
 
       <div className="mt-6 space-y-2">
         {transactions && transactions.length > 0 ? (
@@ -131,13 +128,11 @@ export default async function TransactionsPage({
                 </p>
               </Link>
               {showMirrorToggle && (
-                <div className="flex items-center border-l border-zinc-100 px-3">
-                  <MirrorToggle
-                    businessId={businessId}
-                    transactionId={t.id}
-                    visible={visibleIds.has(t.id)}
-                  />
-                </div>
+                <MirrorToggle
+                  businessId={businessId}
+                  transactionId={t.id}
+                  visible={visibleIds.has(t.id)}
+                />
               )}
             </div>
           ))
