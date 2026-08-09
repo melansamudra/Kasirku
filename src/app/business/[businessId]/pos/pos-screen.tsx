@@ -110,6 +110,8 @@ type OpenBill = {
   id: string;
   label: string;
   updated_at: string;
+  customer_name: string | null;
+  customer_id: string | null;
   items: {
     product_id: string;
     name: string;
@@ -227,9 +229,10 @@ export default function PosScreen({
   const isNative = Capacitor.isNativePlatform();
   const [billBusyId, setBillBusyId] = useState<string | null>(null);
   const [billPrintingId, setBillPrintingId] = useState<string | null>(null);
-  const [activeBill, setActiveBill] = useState<{ id: string; label: string } | null>(null);
+  const [activeBill, setActiveBill] = useState<{ id: string; label: string; customer_id?: string | null } | null>(null);
   const [saveBonOpen, setSaveBonOpen] = useState(false);
   const [bonLabel, setBonLabel] = useState("");
+  const [bonCustomerName, setBonCustomerName] = useState("");
   const [bonError, setBonError] = useState<string | null>(null);
   const [bonSaving, setBonSaving] = useState(false);
 
@@ -642,6 +645,7 @@ export default function PosScreen({
         batch: i.batch,
       })),
       cashierId,
+      bonCustomerName || null,
     );
     setBonSaving(false);
 
@@ -662,6 +666,7 @@ export default function PosScreen({
     setActiveBill(null);
     setSaveBonOpen(false);
     setBonLabel("");
+    setBonCustomerName("");
     void refreshCatalog();
   }
 
@@ -706,7 +711,17 @@ export default function PosScreen({
     }
 
     setCart(next);
-    setActiveBill({ id: bill.id, label: bill.label });
+    setActiveBill({ id: bill.id, label: bill.label, customer_id: bill.customer_id ?? null });
+
+    // Auto-pilih customer jika bon punya customer_id yang tersimpan
+    if (bill.customer_id) {
+      const linked = customers.find((c) => c.id === bill.customer_id);
+      if (linked) setSelectedCustomer(linked);
+      else setSelectedCustomer(null);
+    } else {
+      setSelectedCustomer(null);
+    }
+
     setInboxNotice(
       skipped.length > 0
         ? `Tidak masuk keranjang (stok habis / produk terhapus): ${skipped.join(", ")}`
@@ -2278,7 +2293,11 @@ export default function PosScreen({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
+                    const activeBillFull = activeBill?.id
+                      ? openBills.find((b) => b.id === activeBill.id)
+                      : null;
                     setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
+                    setBonCustomerName(activeBillFull?.customer_name ?? "");
                     setBonError(null);
                     setSaveBonOpen(true);
                   }}
@@ -2297,22 +2316,38 @@ export default function PosScreen({
               </div>
             ) : (
               <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
-                <label htmlFor="bonLabel" className="block text-xs font-medium text-zinc-600">
-                  Nama bon (mis. nama meja / pelanggan)
-                </label>
-                <input
-                  id="bonLabel"
-                  type="text"
-                  value={bonLabel}
-                  onChange={(e) => setBonLabel(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                />
+                <div>
+                  <label htmlFor="bonLabel" className="block text-xs font-medium text-zinc-600">
+                    No Meja / Label <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="bonLabel"
+                    type="text"
+                    value={bonLabel}
+                    onChange={(e) => setBonLabel(e.target.value)}
+                    placeholder="mis. Meja 5 / Bon 1"
+                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="bonCustomerName" className="block text-xs font-medium text-zinc-600">
+                    Nama Pelanggan <span className="text-zinc-400">(opsional)</span>
+                  </label>
+                  <input
+                    id="bonCustomerName"
+                    type="text"
+                    value={bonCustomerName}
+                    onChange={(e) => setBonCustomerName(e.target.value)}
+                    placeholder="mis. Pak Budi"
+                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
                 {bonError && (
                   <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{bonError}</p>
                 )}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setSaveBonOpen(false)}
+                    onClick={() => { setSaveBonOpen(false); setBonCustomerName(""); }}
                     className="flex-1 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
                   >
                     Batal
@@ -2570,6 +2605,11 @@ export default function PosScreen({
                               </span>
                             )}
                           </p>
+                          {bill.customer_name && (
+                            <p className="text-[11px] font-medium text-brand-700">
+                              👤 {bill.customer_name}
+                            </p>
+                          )}
                           <p className="text-[11px] text-zinc-400">
                             {new Date(bill.updated_at).toLocaleTimeString("id-ID", {
                               hour: "2-digit",

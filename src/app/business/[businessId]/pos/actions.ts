@@ -673,8 +673,10 @@ export async function saveOpenBill(
   label: string,
   items: OpenBillItemInput[],
   cashierId?: string,
+  customerName?: string | null,
 ): Promise<SaveOpenBillResult> {
   const trimmed = label.trim();
+  const trimmedCustomer = customerName?.trim() || null;
   if (!trimmed) {
     return { success: false, error: "Nama bon wajib diisi." };
   }
@@ -683,6 +685,29 @@ export async function saveOpenBill(
   }
 
   const supabase = await createClient();
+
+  // Cari atau buat customer jika nama diisi
+  let resolvedCustomerId: string | null = null;
+  if (trimmedCustomer) {
+    const { data: existing } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("business_id", businessId)
+      .ilike("name", trimmedCustomer)
+      .is("deleted_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      resolvedCustomerId = existing.id;
+    } else {
+      const { data: created } = await supabase
+        .from("customers")
+        .insert({ business_id: businessId, name: trimmedCustomer })
+        .select("id")
+        .single();
+      resolvedCustomerId = created?.id ?? null;
+    }
+  }
 
   if (billId) {
     // Ambil item lama sebelum update agar tahu mana yang benar-benar baru
@@ -695,7 +720,7 @@ export async function saveOpenBill(
 
     const { error } = await supabase
       .from("open_bills")
-      .update({ label: trimmed, items, updated_at: new Date().toISOString() })
+      .update({ label: trimmed, items, updated_at: new Date().toISOString(), customer_name: trimmedCustomer, customer_id: resolvedCustomerId })
       .eq("id", billId)
       .eq("business_id", businessId);
     if (error) {
@@ -727,7 +752,7 @@ export async function saveOpenBill(
 
   const { data, error } = await supabase
     .from("open_bills")
-    .insert({ business_id: businessId, label: trimmed, items })
+    .insert({ business_id: businessId, label: trimmed, items, customer_name: trimmedCustomer, customer_id: resolvedCustomerId })
     .select("id")
     .single();
 
@@ -853,6 +878,8 @@ export type PosOpenBill = {
   id: string;
   label: string;
   updated_at: string;
+  customer_name: string | null;
+  customer_id: string | null;
   items: {
     product_id: string;
     name: string;
@@ -915,7 +942,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
       .order("name", { ascending: true }),
     supabase
       .from("open_bills")
-      .select("id, label, items, updated_at")
+      .select("id, label, items, updated_at, customer_name, customer_id")
       .eq("business_id", businessId)
       .order("updated_at", { ascending: false }),
     supabase
