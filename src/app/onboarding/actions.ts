@@ -144,9 +144,9 @@ export async function createBusiness(
     return { error: error?.message ?? "Gagal membuat bisnis." };
   }
 
-  // Grants a 3-day trial (hardcoded server-side in the RPC) so a new owner
+  // Grants a 14-day trial (hardcoded server-side in the RPC) so a new owner
   // can look around before being asked to pick and pay for a plan — see
-  // start_trial() in 20260725110000_trial_subscriptions.sql.
+  // start_trial() in 20260809220000_extend_trial_to_14_days.sql.
   const { error: subscriptionError } = await supabase.rpc("start_trial", {
     p_business_id: business.id,
   });
