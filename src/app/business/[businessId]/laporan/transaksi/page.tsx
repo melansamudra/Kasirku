@@ -29,21 +29,14 @@ export default async function MirrorTransaksiPage({
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const service = createServiceClient();
-
-  const { data: mirrorAccount } = await service
-    .from("mirror_accounts")
-    .select("id, permissions")
-    .eq("business_id", businessId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  let isOwner = false;
-  if (!mirrorAccount) {
-    const { data: biz } = await service.from("businesses").select("owner_id").eq("id", businessId).single();
-    isOwner = biz?.owner_id === user.id;
-  }
+  const [{ data: mirrorAccount }, { data: biz }] = await Promise.all([
+    supabase.from("mirror_accounts").select("id, permissions").eq("business_id", businessId).maybeSingle(),
+    supabase.from("businesses").select("owner_id").eq("id", businessId).maybeSingle(),
+  ]);
+  const isOwner = biz?.owner_id === user.id;
   if (!mirrorAccount && !isOwner) notFound();
+
+  const service = createServiceClient();
 
   const p = isOwner
     ? { show_transactions: true, show_amount: true, show_cashier: true, show_customer: true, show_invoice_number: true, show_payment_method: true, show_items: true }

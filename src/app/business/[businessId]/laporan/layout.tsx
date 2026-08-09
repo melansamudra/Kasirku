@@ -29,11 +29,11 @@ export default async function MirrorViewLayout({
       .select("id, status, permissions")
       .eq("business_id", businessId)
       .maybeSingle(),
-    service
+    supabase
       .from("businesses")
       .select("id, name, business_type, owner_id")
       .eq("id", businessId)
-      .single(),
+      .maybeSingle(),
   ]);
 
   if (!business) notFound();

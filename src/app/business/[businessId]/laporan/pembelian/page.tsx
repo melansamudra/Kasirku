@@ -27,16 +27,15 @@ export default async function MirrorPembelianPage({
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const service = createServiceClient();
-
-  const { data: mirrorAccount } = await service
+  const { data: mirrorAccount } = await supabase
     .from("mirror_accounts")
     .select("id, permissions")
     .eq("business_id", businessId)
-    .eq("user_id", user.id)
     .maybeSingle();
 
   if (!mirrorAccount) notFound();
+
+  const service = createServiceClient();
 
   const p = (mirrorAccount.permissions ?? {}) as {
     show_purchases?: boolean;
