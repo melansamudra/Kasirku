@@ -1,6 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/business/:businessId/mirror-view",
+        destination: "/business/:businessId/laporan",
+        permanent: true,
+      },
+      {
+        source: "/business/:businessId/mirror-view/:path*",
+        destination: "/business/:businessId/laporan/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
