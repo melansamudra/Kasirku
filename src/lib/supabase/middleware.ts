@@ -69,6 +69,9 @@ export async function updateSession(request: NextRequest) {
   // — sama alasannya, harus bisa dibaca tanpa login.
   // /panduan-akuntansi adalah halaman marketing publik (panduan cara kerja
   // akuntansi) — sama alasannya, harus bisa dibaca tanpa login.
+  // /faq, /kontak, /syarat-ketentuan, /refund-policy adalah halaman publik
+  // yang harus bisa diakses pengunjung tanpa login — diperlukan oleh iPaymu
+  // untuk verifikasi merchant (mereka harus bisa membaca halaman-halaman ini).
   // /sitemap.xml dan /robots.txt dipanggil crawler mesin pencari tanpa sesi
   // browser sama sekali — harus tetap terbaca meski tidak ada user login.
   // /api/midtrans (webhook Midtrans) dan /api/cron (dipicu Vercel Cron) adalah
@@ -99,7 +102,11 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/robots.txt" ||
     request.nextUrl.pathname.startsWith("/api/midtrans") ||
     request.nextUrl.pathname.startsWith("/api/cron") ||
-    request.nextUrl.pathname.startsWith("/api/kalkulator-hpp-desktop");
+    request.nextUrl.pathname.startsWith("/api/kalkulator-hpp-desktop") ||
+    request.nextUrl.pathname.startsWith("/faq") ||
+    request.nextUrl.pathname.startsWith("/kontak") ||
+    request.nextUrl.pathname.startsWith("/syarat-ketentuan") ||
+    request.nextUrl.pathname.startsWith("/refund-policy");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
