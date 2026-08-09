@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import Link from "next/link";
 import { createRecoveryClient } from "@/lib/supabase/recovery-client";
 import Logo from "@/components/logo";
@@ -12,60 +12,89 @@ function useInviteClient() {
   return client;
 }
 
+const POLL_INTERVAL_MS = 1500;
+const MAX_POLL_ATTEMPTS = 8; // 8 × 1.5s = 12s total
+
 export default function SetPasswordPage() {
   const supabase = useInviteClient();
   const [checking, setChecking] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const startChecking = useCallback(() => {
+    setChecking(true);
+    setTimedOut(false);
 
-    // Cek apakah URL punya ?code= (PKCE flow dari invite Supabase)
+    let cancelled = false;
+    let attempts = 0;
+    let pollTimer: ReturnType<typeof setTimeout>;
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
 
     if (code) {
       // PKCE: tukar code dengan sesi langsung, tanpa butuh code_verifier
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      supabase.auth.exchangeCodeForSession(code).then(({ error: exchErr }) => {
         if (cancelled) return;
-        if (!error) {
-          setSessionReady(true);
-        }
+        if (!exchErr) setSessionReady(true);
         setChecking(false);
       });
       return () => { cancelled = true; };
     }
 
-    // Implicit flow: sesi dari hash URL (#access_token=...)
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      if (data.session) {
-        setSessionReady(true);
-        setChecking(false);
-      }
-    });
+    // Implicit flow: poll getSession() tiap POLL_INTERVAL_MS sampai MAX_POLL_ATTEMPTS.
+    // onAuthStateChange jadi sinyal cepat kalau sesi sudah siap sebelum poll berikutnya.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session) {
+        cancelled = true;
+        clearTimeout(pollTimer);
+        sub.subscription.unsubscribe();
         setSessionReady(true);
         setChecking(false);
       }
     });
-    // Timeout fallback
-    const timer = setTimeout(() => {
-      if (!cancelled) setChecking(false);
-    }, 4000);
+
+    function poll() {
+      supabase.auth.getSession().then(({ data }) => {
+        if (cancelled) return;
+        if (data.session) {
+          cancelled = true;
+          sub.subscription.unsubscribe();
+          setSessionReady(true);
+          setChecking(false);
+          return;
+        }
+        attempts++;
+        if (attempts >= MAX_POLL_ATTEMPTS) {
+          sub.subscription.unsubscribe();
+          setTimedOut(true);
+          setChecking(false);
+          return;
+        }
+        pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+      });
+    }
+
+    poll();
+
     return () => {
       cancelled = true;
+      clearTimeout(pollTimer);
       sub.subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, [supabase]);
+
+  useEffect(() => {
+    const cleanup = startChecking();
+    return cleanup;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -101,6 +130,29 @@ export default function SetPasswordPage() {
   }
 
   if (!sessionReady) {
+    if (timedOut) {
+      return (
+        <Shell>
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-2xl">
+              ⏱
+            </div>
+            <h1 className="text-xl font-bold text-zinc-900">Koneksi Lambat</h1>
+            <p className="mt-2 text-sm text-zinc-500">
+              Verifikasi belum selesai. Pastikan koneksi internet stabil, lalu coba lagi.
+              Jika link memang sudah kedaluwarsa, hubungi pengelola untuk kirim ulang undangan.
+            </p>
+            <button
+              type="button"
+              onClick={startChecking}
+              className="mt-6 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </Shell>
+      );
+    }
     return (
       <Shell>
         <div className="text-center">
@@ -109,7 +161,7 @@ export default function SetPasswordPage() {
           </div>
           <h1 className="text-xl font-bold text-zinc-900">Link Tidak Valid atau Kedaluwarsa</h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Link undangan ini sudah digunakan atau kedaluwarsa. Hubungi pemilik toko untuk dikirim undangan baru.
+            Link undangan ini sudah digunakan atau kedaluwarsa. Hubungi pengelola untuk dikirim undangan baru.
           </p>
         </div>
       </Shell>
@@ -120,12 +172,12 @@ export default function SetPasswordPage() {
     return (
       <Shell>
         <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-2xl">
-            👁
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl">
+            ✓
           </div>
           <h1 className="text-xl font-bold text-zinc-900">Kata Sandi Tersimpan!</h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Akun mirror Anda sudah aktif. Silakan masuk untuk melihat data toko.
+            Akun Anda sudah aktif. Silakan masuk untuk melanjutkan.
           </p>
           <Link
             href="/login"
