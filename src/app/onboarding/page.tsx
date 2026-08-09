@@ -11,14 +11,17 @@ export default async function OnboardingPage() {
 
   // Jika user punya akses mirror → jangan tampilkan onboarding, langsung ke laporan
   // Pakai service client + explicit user_id agar tidak bergantung pada auth.uid() di RLS
+  let debugInfo: string | null = null;
   if (user) {
     const service = createServiceClient();
-    const { data: mirrorRows } = await service
+    const { data: mirrorRows, error: mirrorError } = await service
       .from("mirror_accounts")
-      .select("business_id")
+      .select("business_id, status")
       .eq("user_id", user.id)
       .in("status", ["active", "pending"])
       .limit(1);
+
+    debugInfo = `uid=${user.id} rows=${JSON.stringify(mirrorRows)} err=${mirrorError?.message ?? "none"} svcKey=${process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "MISSING"}`;
 
     if (mirrorRows && mirrorRows.length > 0) {
       redirect(`/business/${mirrorRows[0].business_id}/laporan`);
@@ -41,6 +44,11 @@ export default async function OnboardingPage() {
           <span className="text-xs text-zinc-400">{user.email}</span>
           <LogoutButton variant="inline" />
         </div>
+      )}
+      {debugInfo && (
+        <pre className="mx-4 rounded bg-zinc-800 p-3 text-[10px] text-green-400 break-all whitespace-pre-wrap">
+          {debugInfo}
+        </pre>
       )}
       <div className="flex flex-1 items-center justify-center px-4">
         <OnboardingForm
