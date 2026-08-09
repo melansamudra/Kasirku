@@ -10,6 +10,9 @@ import {
   ShoppingBag,
   UtensilsCrossed,
   Clock,
+  CreditCard,
+  Tag,
+  TrendingUp,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +32,7 @@ export type MirrorPerms = {
   show_purchases: boolean;
   show_kas_harian: boolean;
   show_items: boolean;
+  show_payment_method: boolean;
 };
 
 export default function MirrorSidebar({
@@ -66,6 +70,15 @@ export default function MirrorSidebar({
           : []),
         ...(perms.show_transactions
           ? [{ href: `${base}/laporan-transaksi`, label: "Laporan per Transaksi", icon: Receipt }]
+          : []),
+        ...(perms.show_transactions
+          ? [{ href: `${base}/laporan-tren`, label: "Tren Penjualan", icon: TrendingUp }]
+          : []),
+        ...(perms.show_payment_method
+          ? [{ href: `${base}/laporan-metode-bayar`, label: "Metode Bayar", icon: CreditCard }]
+          : []),
+        ...(perms.show_items
+          ? [{ href: `${base}/laporan-kategori`, label: "Kategori Menu", icon: Tag }]
           : []),
       ],
     },

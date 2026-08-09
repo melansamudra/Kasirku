@@ -57,6 +57,7 @@ export default async function MirrorViewLayout({
     show_purchases: p.show_purchases ?? false,
     show_kas_harian: p.show_kas_harian ?? false,
     show_items: p.show_items ?? false,
+    show_payment_method: p.show_payment_method ?? false,
   };
 
   const today = new Date().toLocaleDateString("id-ID", {
