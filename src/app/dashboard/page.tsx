@@ -59,6 +59,8 @@ export default async function DashboardPage({
     .eq("owner_id", user?.id ?? "")
     .order("created_at", { ascending: true });
 
+  const isOwner = Boolean(businesses && businesses.length > 0);
+
   // Cek mirror accounts — pakai regular client (RLS policy "mirror user reads own row")
   const { data: myMirrorRows } = await supabase
     .from("mirror_accounts")
@@ -66,7 +68,14 @@ export default async function DashboardPage({
     .in("status", ["active", "pending"]);
 
   const mirrorBusinessIds = (myMirrorRows ?? []).map((m) => m.business_id as string);
-  // Pakai regular client — RLS policy "mirror user reads assigned business" membolehkan akses
+
+  // Jika user punya akses mirror DAN bukan pemilik toko manapun → redirect langsung pakai
+  // business_id dari mirror_accounts (tidak perlu query businesses lagi)
+  if (mirrorBusinessIds.length > 0 && !isOwner) {
+    redirect(`/business/${mirrorBusinessIds[0]}/laporan`);
+  }
+
+  // Hanya lookup nama bisnis mirror untuk tampilan sidebar (hanya relevan jika user juga owner)
   const { data: mirrorBusinessRows } =
     mirrorBusinessIds.length > 0
       ? await supabase
@@ -75,13 +84,6 @@ export default async function DashboardPage({
           .in("id", mirrorBusinessIds)
       : { data: [] };
   const mirrorBusinesses = mirrorBusinessRows ?? [];
-
-  const isOwner = (businesses ?? []).some((b) => b.owner_id === user?.id);
-
-  // Jika user punya akses mirror DAN bukan pemilik toko manapun → langsung ke laporan mirror
-  if (mirrorBusinesses.length > 0 && !isOwner) {
-    redirect(`/business/${mirrorBusinesses[0].id}/laporan`);
-  }
 
   if (!businesses || businesses.length === 0) redirect("/onboarding");
 
