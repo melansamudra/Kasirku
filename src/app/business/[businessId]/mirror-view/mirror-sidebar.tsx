@@ -144,13 +144,6 @@ export default function MirrorSidebar({
       </nav>
 
       <div className="border-t border-zinc-100 px-3 py-3">
-        <Link
-          href="/dashboard"
-          onClick={onNavigate}
-          className="mb-1 block rounded-lg px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-50"
-        >
-          ← Semua Toko
-        </Link>
         <LogoutButton />
       </div>
     </div>

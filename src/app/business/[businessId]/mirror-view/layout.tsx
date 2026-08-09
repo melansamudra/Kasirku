@@ -71,7 +71,6 @@ export default async function MirrorViewLayout({
       businessName={business.name}
       businessType={business.business_type}
       perms={perms}
-      userEmail={user.email ?? ""}
       today={today}
     >
       {children}

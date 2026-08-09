@@ -9,7 +9,6 @@ export default function MirrorViewShell({
   businessName,
   businessType,
   perms,
-  userEmail,
   today,
   children,
 }: {
@@ -17,7 +16,6 @@ export default function MirrorViewShell({
   businessName: string;
   businessType: string;
   perms: MirrorPerms;
-  userEmail: string;
   today: string;
   children: React.ReactNode;
 }) {
@@ -63,13 +61,7 @@ export default function MirrorViewShell({
             <p className="text-sm font-bold text-zinc-800">{businessName}</p>
             <p className="text-[11.5px] text-zinc-400">{today}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
-              {userEmail.charAt(0).toUpperCase()}
-            </div>
-            <p className="max-w-[180px] truncate text-sm text-zinc-600">{userEmail}</p>
-            <LogoutButton variant="inline" />
-          </div>
+          <LogoutButton variant="inline" />
         </div>
 
         {/* Topbar — mobile */}
