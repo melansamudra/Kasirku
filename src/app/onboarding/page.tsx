@@ -5,7 +5,6 @@ import LogoutButton from "@/app/dashboard/logout-button";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
-  const service = createServiceClient();
 
   const { data: { user } } = await supabase.auth.getUser();
 
