@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { inviteMirrorAccount, updateMirrorPermissions } from "./actions";
 import InviteMirrorForm from "./invite-mirror-form";
 import RevokeButton from "./revoke-button";
+import ResendInviteButton from "./resend-invite-button";
 import MirrorPermissionChecklist from "./mirror-permission-checklist";
 
 type MirrorAccount = {
@@ -80,6 +81,11 @@ export default async function MirrorPage({
                   <p className="text-xs text-zinc-400">
                     {acc.status === "active" ? "✅ Aktif" : "⏳ Menunggu konfirmasi email"}
                   </p>
+                  {acc.status === "pending" && (
+                    <div className="mt-1">
+                      <ResendInviteButton businessId={businessId} mirrorAccountId={acc.id} />
+                    </div>
+                  )}
                 </div>
                 <RevokeButton
                   businessId={businessId}

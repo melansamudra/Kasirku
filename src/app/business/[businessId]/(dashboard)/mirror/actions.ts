@@ -192,3 +192,46 @@ export async function revokeMirrorAccess(businessId: string, mirrorAccountId: st
     .eq("business_id", businessId);
   revalidatePath(`/business/${businessId}/mirror`);
 }
+
+export type ResendInviteState = { error: string | null; success: boolean };
+
+export async function resendMirrorInvite(
+  businessId: string,
+  mirrorAccountId: string,
+): Promise<ResendInviteState> {
+  try {
+    await assertIsOwner(businessId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Tidak diizinkan.", success: false };
+  }
+
+  const service = createServiceClient();
+  const { data: account } = await service
+    .from("mirror_accounts")
+    .select("invited_email, status")
+    .eq("id", mirrorAccountId)
+    .eq("business_id", businessId)
+    .single();
+
+  if (!account) return { error: "Akun mirror tidak ditemukan.", success: false };
+  if (account.status === "active") return { error: "Akun sudah aktif, tidak perlu kirim ulang.", success: false };
+
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
+  const protocol = headerList.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${protocol}://${host}` : "";
+
+  const inviteClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false, flowType: "implicit" } },
+  );
+
+  const { error } = await inviteClient.auth.admin.inviteUserByEmail(
+    account.invited_email,
+    { redirectTo: `${origin}/set-password` },
+  );
+
+  if (error) return { error: error.message, success: false };
+  return { error: null, success: true };
+}
