@@ -1,0 +1,9 @@
+{
+  "id": "6",
+  "subject": "UI: Neraca (Balance Sheet) page",
+  "description": "accounting/neraca page.tsx: compute account balances as of a chosen date from journal_lines (sum debit-credit up to that date per account, sign per normal_balance), grouped by type (aset/kewajiban/modal), verify aset = kewajiban + modal.",
+  "activeForm": "Building Neraca page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

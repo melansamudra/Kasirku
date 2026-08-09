@@ -1,0 +1,9 @@
+{
+  "id": "13",
+  "subject": "Verify detail page + receipt + void in browser preview",
+  "description": "Type-check, lint, then click through the new detail/receipt/void flow in the browser preview using the existing test tiket business",
+  "activeForm": "Verifying detail page in preview",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

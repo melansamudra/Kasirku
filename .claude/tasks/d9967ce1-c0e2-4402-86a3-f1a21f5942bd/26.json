@@ -1,0 +1,9 @@
+{
+  "id": "26",
+  "subject": "Halaman beli + createDesktopOrder action",
+  "description": "src/app/kalkulator-hpp/beli/page.tsx + actions.ts, hormati BILLING_MANUAL_MODE.",
+  "activeForm": "Membuat halaman beli & Server Action",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

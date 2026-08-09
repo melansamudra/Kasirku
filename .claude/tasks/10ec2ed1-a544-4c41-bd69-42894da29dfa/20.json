@@ -1,0 +1,9 @@
+{
+  "id": "20",
+  "subject": "Verify all 4 additions end-to-end in browser preview",
+  "description": "tsc/eslint, then test cart per-unit checkout, member panel scan/browse/add, barcode card print, CSV exports using the existing Kolam Renang Test business",
+  "activeForm": "Verifying all additions in preview",
+  "status": "in_progress",
+  "blocks": [],
+  "blockedBy": []
+}

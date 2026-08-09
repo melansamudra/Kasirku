@@ -1,0 +1,9 @@
+{
+  "id": "7",
+  "subject": "Verifikasi E2E mode offline",
+  "description": "npm test, lalu uji manual di browser (akun test): checkout saat offline, cek stok effective, reconnect & auto-sync, cek riwayat transaksi & jurnal tidak duplikat, ulangi untuk tiket termasuk konflik nomor.",
+  "activeForm": "Menjalankan verifikasi E2E mode offline",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

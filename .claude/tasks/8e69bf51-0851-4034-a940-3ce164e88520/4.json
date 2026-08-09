@@ -1,0 +1,9 @@
+{
+  "id": "4",
+  "subject": "Schema: budgets table for Target vs Aktual",
+  "description": "New table public.budgets (business_id, account_id, period 'YYYY-MM', target_amount) with RLS, unique per business+account+period. Simple upsert action to set targets per account per month.",
+  "activeForm": "Building budgets schema",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "38",
+  "subject": "Tambah IPC export HPP menu (.xlsx) + backup/restore (.json) di main.js/preload.js",
+  "description": "dialog:exportMenuHpp (save dialog + tulis xlsx dari data menu), dialog:backupData (save dialog + tulis JSON seluruh state), dialog:restoreData (open dialog + baca & validasi JSON)",
+  "activeForm": "Menambah IPC export/backup/restore",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

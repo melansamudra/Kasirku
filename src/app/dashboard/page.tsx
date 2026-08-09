@@ -76,7 +76,7 @@ export default async function DashboardPage({
 
   // Jika user tidak punya toko sendiri tapi punya akses mirror → langsung ke mirror-view
   if ((!businesses || businesses.length === 0) && mirrorBusinesses.length > 0) {
-    redirect(`/business/${mirrorBusinesses[0].id}/mirror-view`);
+    redirect(`/business/${mirrorBusinesses[0].id}/laporan`);
   }
 
   if (!businesses || businesses.length === 0) redirect("/onboarding");
@@ -285,7 +285,7 @@ export default async function DashboardPage({
             {mirrorBusinesses.map((b) => (
               <Link
                 key={b.id}
-                href={`/business/${b.id}/mirror-view`}
+                href={`/business/${b.id}/laporan`}
                 className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
               >
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
@@ -321,7 +321,7 @@ export default async function DashboardPage({
             </Link>
           ))}
           {mirrorBusinesses.map((b) => (
-            <Link key={b.id} href={`/business/${b.id}/mirror-view`} className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700">
+            <Link key={b.id} href={`/business/${b.id}/laporan`} className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700">
               👁 {b.name}
             </Link>
           ))}

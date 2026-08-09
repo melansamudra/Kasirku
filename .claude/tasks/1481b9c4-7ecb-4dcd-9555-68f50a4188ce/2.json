@@ -1,0 +1,8 @@
+{
+  "id": "2",
+  "subject": "Add plan catalog + subscription status helper lib",
+  "description": "src/lib/billing/plans.ts and src/lib/billing/status.ts",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

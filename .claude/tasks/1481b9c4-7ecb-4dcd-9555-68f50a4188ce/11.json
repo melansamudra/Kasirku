@@ -1,0 +1,8 @@
+{
+  "id": "11",
+  "subject": "Lint, typecheck, and verify E2E in browser preview",
+  "description": "npx eslint + tsc, then follow the plan's 8-step verification once migration is applied",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

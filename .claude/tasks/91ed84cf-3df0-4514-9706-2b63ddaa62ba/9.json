@@ -1,0 +1,9 @@
+{
+  "id": "9",
+  "subject": "Build POS UI: menu grid + Zustand cart + checkout",
+  "description": "pos/page.tsx menu grid with variant picker, lib/pos/cart-store.ts Zustand store, checkout page with order type/payment method, calling create_order RPC.",
+  "activeForm": "Building POS UI and cart",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,8 @@
+{
+  "id": "15",
+  "subject": "Lint, typecheck, verify E2E (temp-grant admin to test account)",
+  "description": "Verified E2E in production by the user directly (Toko Billing Test flipped to Aktif lifetime)",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

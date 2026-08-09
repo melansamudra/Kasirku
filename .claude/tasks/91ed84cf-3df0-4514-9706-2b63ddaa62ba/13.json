@@ -1,0 +1,9 @@
+{
+  "id": "13",
+  "subject": "Build Bluetooth receipt printing client",
+  "description": "lib/print/bluetooth-client.ts with pairing (requestDevice/getDevices), chunked GATT writes, and POS integration for customer receipt printing.",
+  "activeForm": "Building Bluetooth receipt printing",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

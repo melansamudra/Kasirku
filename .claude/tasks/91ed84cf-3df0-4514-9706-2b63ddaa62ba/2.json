@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "Write Supabase schema migration (tables, enums, indexes)",
+  "description": "supabase/migrations/0001_init_schema.sql with branches, profiles, categories, menu_items, menu_item_variants, orders, order_items, printers, receipt_settings, and all enums/indexes per plan.",
+  "activeForm": "Writing schema migration",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

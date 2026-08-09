@@ -1,0 +1,9 @@
+{
+  "id": "3",
+  "subject": "Build ticket-selling POS screen",
+  "description": "Create ticket-pos-screen.tsx and ticket-actions.ts (checkoutTicket, lookupMemberByCode, voidTicketTransaction), wire into pos/page.tsx branch for business_type === 'tiket'",
+  "activeForm": "Building ticket POS screen",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

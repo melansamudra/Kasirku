@@ -1,0 +1,27 @@
+# Memory index
+
+- [Supabase migrations applied manually](supabase-migrations-manual.md) — CLI not linked; paste new migration SQL into dashboard SQL Editor
+- [Test account for preview verification](test-account-preview.md) — claude.test.reports@gmail.com login + seeded toko for checking pages in the browser
+- [KasirKu is a product to sell](project-purpose-saas-product.md) — built for other business owners to buy/use, not Melan's own store; Melan's only account is a superadmin seed, not a real tenant
+- [Midtrans billing system](billing-midtrans.md) — subscription+lifetime plans, gating, webhook/cron, built & E2E verified 2026-07-12; still needs real Midtrans keys before live
+- [Mini-ERP scope & progress](mini-erp-scope.md) — gap analysis vs a reference HTML; all closed incl. bank reconciliation 2026-07-12
+- [Respond in Bahasa Indonesia](feedback-bahasa-indonesia.md) — default all replies to Indonesian, keep only literal UI/technical terms in English
+- [Product roadmap (2026-07)](product-roadmap-2026-07.md) — 4 backlog ideas: sell HPP calc (done) & finance system (done) separately, redesign website (in progress), split prod/dev Supabase (done)
+- [Website redesign](website-redesign.md) — receipt-themed concept mockup shown 2026-07-16 (awaiting feedback) + separate live-site mobile UX fixes (hero carousel, nav menu) already shipped
+- [Show plan when asked "what's next"](feedback-show-plan-when-asked-next.md) — surface the saved status ledger Artifact + roadmap first, don't start fresh
+- [Offline POS Phase 1](offline-pos-phase1.md) — mid-session offline resilience, migration applied & verified 2026-07-13
+- [Offline POS Phase 2](offline-pos-phase2.md) — cold-start offline via Service Worker, built & verified 2026-07-13; note middleware.ts is now proxy.ts in Next 16
+- [Kalkulator HPP Mandiri (superseded)](kalkulator-hpp-standalone.md) — AI web-tool version, reversed same day — see kalkulator-hpp-desktop instead
+- [Kalkulator HPP Desktop](kalkulator-hpp-desktop.md) — Electron app + web preview mockup done, price Rp69.000 set, migrations applied; only waiting on Midtrans business review (step 3/4)
+- [Finance standalone product](finance-standalone-product.md) — "Finance Only" billing plan; all 10 build phases done 2026-07-16, only launch prep (real prices, Midtrans) left
+- [Deployment status](deployment-status.md) — live at custom domain createimpact.id (connected 2026-07-18) via public GitHub repo auto-deploy to Vercel; stray public signups happening, user OK'd leaving it as-is
+- [Verify before recommending setup](feedback-verify-before-recommending.md) — check if infra/deploy already exists before writing setup instructions; don't trust casual "not live yet" claims
+- [Supabase dev/prod split](supabase-dev-prod-split.md) — separate "KasirKu Dev" project created 2026-07-16, .env.local now points there, not production
+- [Forgot-password fix](auth-forgot-password-fix.md) — two-round fix; root cause was @supabase/ssr hardcoding PKCE flowType, broke recovery links opened cross-device; fixed 2026-07-16 via a separate implicit-flow client
+- [UI bugfixes 2026-07-16](ui-bugfixes-2026-07-16.md) — Kembalian/dark-mode fixed; "lemot": homepage 07-16, accounting pages 07-19, POS local-first+checkout parallelized 07-27 (loading.tsx breaks routing on this Next build — don't use it)
+- [Growth/marketing phase](growth-marketing-phase.md) — shifted to CRO/ads focus 2026-07-18; homepage pricing section shipped, Meta Pixel setup paused pending Pixel ID
+- [CreateImpact portal pivot](createimpact-portal-pivot.md) — 2026-07-19: site restructured into a multi-pillar F&B portal (KasirKu now at /kasirku, "/" is a new gateway, /layanan added for tax/COGS consulting); logo done, header/footer unified
+- [Site food photography](site-food-photography.md) — 2026-07-19: Melan's own Drive photos pulled via uc?export=download + contact-sheet review trick, hero + 3 blog covers shipped, 36 more photos reviewed but unused
+- [Google Ads Buyer Intent campaign](google-ads-buyer-intent-campaign.md) — 2026-07-19: first account+Search campaign live (Rp70rb/day, targets /kasirku), funded via bank transfer; 2nd "Edukasi" campaign still to build
+- [Kitchen/receipt printer LAN+Bluetooth](kitchen-printer-lan-bluetooth.md) — architecture + verified 2026-07-27 vs real hardware; SOP for finding/setting a new client's printer IP (ARP+Ping, never touch PC's own WiFi IP)
+- [Discount settings redesign](discount-settings-redesign.md) — planned 2026-07-31: remove manual discount from kasir, add per-item + global/promo discount rules in Settings

@@ -1,0 +1,9 @@
+{
+  "id": "6",
+  "subject": "Build ticket sales report page",
+  "description": "Create ticket-reports/page.tsx with active member count KPI, category/serial-range/date filters (reuse period.ts), ticket_serials table joined to ticket_transactions, per-category summary",
+  "activeForm": "Building ticket reports page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,8 @@
+{
+  "id": "3",
+  "subject": "Build new per-business Dashboard landing page",
+  "description": "Create src/app/business/[businessId]/(dashboard)/page.tsx as the new default landing page inside the shell: stat cards (Total Pendapatan, Laba Bersih, Total Beban, Kas/Bank), a daily cash flow line chart, and a net profit margin donut chart, similar in structure to the AkunPro reference screenshot but using KasirKu's real data and green branding.",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

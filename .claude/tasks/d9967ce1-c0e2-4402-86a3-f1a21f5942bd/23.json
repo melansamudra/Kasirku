@@ -1,0 +1,9 @@
+{
+  "id": "23",
+  "subject": "Hapus versi web kalkulator HPP mandiri",
+  "description": "Hapus src/app/kalkulator-hpp/app, /daftar, src/lib/ai/price-recommendation.ts, revert dashboard/page.tsx & middleware.ts, revert CTA, uninstall @anthropic-ai/sdk, buat migrasi drop tabel hpp_*.",
+  "activeForm": "Menghapus versi web kalkulator HPP mandiri",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

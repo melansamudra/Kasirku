@@ -1,0 +1,8 @@
+{
+  "id": "3",
+  "subject": "Add service-role Supabase client",
+  "description": "src/lib/supabase/service.ts, server-only, uses SUPABASE_SERVICE_ROLE_KEY",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

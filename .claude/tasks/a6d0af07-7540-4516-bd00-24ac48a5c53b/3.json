@@ -1,0 +1,9 @@
+{
+  "id": "3",
+  "subject": "E2E: products, POS checkout, receipt auto-print",
+  "description": "Add a product, open POS with a cashier PIN, do a cash checkout with change, open the receipt page and confirm the new auto-print + parallel queries work and Kembalian contrast fix renders",
+  "activeForm": "Testing POS checkout and receipt",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

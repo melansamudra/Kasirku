@@ -1,0 +1,18 @@
+---
+name: deployment-status
+description: "KasirKu is live in production at createimpact.id (custom domain, connected 2026-07-18), with kasirku-nine.vercel.app as the underlying Vercel URL"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: ca864c9f-7c89-4e64-9c64-0e933fd48665
+---
+
+**Update 2026-07-18**: custom domain **`createimpact.id`** is now live and connected. Melan bought it himself at DomaiNesia (not `kasirku.id`/`kasir.id` — both taken/premium; chose a flexible personal-brand domain instead, matching his existing Midtrans business identity). DNS wired via DomaiNesia's DNS Management page (`my.domainesia.com/clientarea.php?action=domaindns`): A record `@` → `216.198.79.1`, CNAME `www` → `fbdb5e98d8002ab3.vercel-dns-017.com`, added in Vercel under Project Settings → Domains on the `kasirku` project (`vercel.com/melan1/kasirku/settings/domains`). One gotcha hit along the way: DNS save failed once with a generic "contact support" error — root cause was the domain's pending email-verification (registrar sends a verification link that must be clicked within 3×24 hours of purchase); once verified, the save worked immediately. Both `createimpact.id` and `www.createimpact.id` reached "Valid Configuration" in Vercel; `https://createimpact.id` confirmed loading over HTTPS in-browser. **This is now the correct URL to hand to external parties (Midtrans, etc.).** `NEXT_PUBLIC_SITE_URL` was added in Vercel (Project Settings → Environments → Production, `vercel.com/melan1/kasirku/settings/environments/production`) set to `https://createimpact.id`, and a redeploy was triggered same day — no longer needs setup, just verify the deploy finished if debugging site-URL-dependent behavior (email links, Midtrans callback URLs, etc.). Note: on this project's current Vercel UI, env vars live under Environments → click the "Production" row, not a separate "Environment Variables" settings page.
+
+Discovered 2026-07-14 (while sorting out what URL to give Midtrans for [[billing-midtrans]] merchant onboarding): the app is also reachable at **https://kasirku-nine.vercel.app** (the original Vercel-assigned URL, still works) — auto-deployed via a Vercel↔GitHub integration on `melansamudra/Kasirku` (which is a **public** GitHub repo, created 2026-07-07). `src/lib/site.ts` falls back to the Vercel-assigned URL when `NEXT_PUBLIC_SITE_URL` isn't set — worth checking whether that env var should now point at `createimpact.id`.
+
+**Real strangers have already found and used it**: the admin panel (`/admin`) shows businesses "HAHA" (alissafania58@gmail.com, 14 Jul) and "Kopi Blirik" (fjr.us.one@gmail.com, 12 Jul) that aren't any known test account — organic signups, likely discovered via the public GitHub repo. This works because Supabase signup on this project has **email confirmation disabled**, so anyone who finds the URL can self-serve create a business instantly, no verification step.
+
+**User's explicit decision (2026-07-14)**: leave it as-is for now — public exposure during active development is acceptable, stray signups are harmless (`Belum Bayar` status via [[billing-midtrans]], no paid access). Declined both Vercel Deployment Protection and making the GitHub repo private. Don't re-raise this as a problem needing action unless the user brings it up again or the volume/nature of unexpected signups changes materially.
+
+**How to apply**: `https://kasirku-nine.vercel.app` is the correct live URL to hand to any external party (payment gateway reviewers, etc.) needing to see the site — no need to deploy anything new or ask "is it live yet" again. If asked to add a custom domain later, this is the project to point `kasirku.id` at.

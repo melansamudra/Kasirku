@@ -1,0 +1,9 @@
+{
+  "id": "36",
+  "subject": "Rewrite renderer.js — state bundles, kategori, harga jual, dashboard, import excel",
+  "description": "Tambah field category & sellingPrice ke menuItems, entity bundles baru, computeBundleHpp, render dashboard (stat+chart), render menu satuan & bundling dengan expand detail, wiring import excel",
+  "activeForm": "Menulis ulang renderer.js",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

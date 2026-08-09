@@ -1,0 +1,9 @@
+{
+  "id": "3",
+  "subject": "Phase 2: Native LAN print plugin + wiring",
+  "description": "Implement printLan in Kotlin, add src/lib/kitchen-printer-plugin.ts, wire native/web branch in dispatch-print-jobs.ts for LAN case, verify against fake TCP listener from emulator.",
+  "activeForm": "Building native LAN print plugin",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "3",
+  "subject": "Auto-post journal entries from expense recording (finance/actions.ts)",
+  "description": "After addExpense inserts into public.expenses, call the post_journal_entry RPC: purchases (bahan baku/barang dagang) debit Persediaan credit Kas; other expense categories debit mapped Beban account (fallback Beban Lain-lain) credit Kas. Map category name to account via a lookup table/const.",
+  "activeForm": "Wiring expense auto-posting",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

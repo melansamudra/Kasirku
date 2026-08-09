@@ -1,0 +1,9 @@
+{
+  "id": "34",
+  "subject": "Rewrite index.html — sidebar nav + panel Dashboard/Bahan Baku/Menu",
+  "description": "Struktur baru: sidebar kiri (Dashboard/Bahan Baku/Menu), panel Bahan Baku dengan tombol import Excel, panel Menu dengan subtab Menu Satuan & Menu Bundling",
+  "activeForm": "Menulis ulang index.html",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

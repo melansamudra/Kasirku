@@ -1,0 +1,9 @@
+{
+  "id": "12",
+  "subject": "Tambah header no-cache untuk /sw.js di next.config.ts",
+  "description": "headers() config supaya browser tidak cache file sw.js itu sendiri, agar update SW langsung kepakai.",
+  "activeForm": "Menambah header no-cache untuk /sw.js",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

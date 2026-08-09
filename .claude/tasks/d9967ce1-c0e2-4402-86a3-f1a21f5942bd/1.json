@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Migrasi idempotency client_ref",
+  "description": "Buat supabase/migrations/20260713100000_offline_checkout_idempotency.sql: kolom client_ref + unique partial index di transactions & ticket_transactions, plus update checkout_transaction & checkout_ticket_transaction untuk terima p_client_ref dan idempotent replay.",
+  "activeForm": "Membuat migrasi idempotency client_ref",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

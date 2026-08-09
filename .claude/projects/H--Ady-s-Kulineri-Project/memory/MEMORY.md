@@ -1,0 +1,2 @@
+- [Granular permissions roadmap](granular_permissions_roadmap.md) — future checklist-style admin permissions, deferred until scoped
+- [Kasirku feature backlog](kasirku_feature_backlog.md) — shipped features + queued asks for the Kasirku POS/accounting SaaS

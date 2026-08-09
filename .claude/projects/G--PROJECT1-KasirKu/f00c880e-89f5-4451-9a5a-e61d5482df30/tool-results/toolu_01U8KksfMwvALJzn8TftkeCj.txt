@@ -1,0 +1,274 @@
+supabase\migrations\20260702100600_activity_log.sql:20:create policy "Owner reads activity of own businesses plus system-wide entries"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100600_activity_log.sql-21-on public.activity_log for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100600_activity_log.sql-22-using (business_id is null or private.owns_business(business_id));
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100600_activity_log.sql-23-
+supabase\migrations\20260702100600_activity_log.sql:24:create policy "Owner writes activity for own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100600_activity_log.sql-25-on public.activity_log for insert
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100600_activity_log.sql-26-with check (business_id is null or private.owns_business(business_id));
+--
+supabase\migrations\20260708300000_accounting_core.sql:21:create policy "Owner manages accounts of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-22-on public.accounts for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-23-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-24-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260708300000_accounting_core.sql:49:create policy "Owner views journal entries of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-50-on public.journal_entries for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-51-using (private.owns_business(business_id));
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-52-
+--
+supabase\migrations\20260708300000_accounting_core.sql:71:create policy "Owner views journal lines of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-72-on public.journal_lines for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-73-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300000_accounting_core.sql-74-  exists (
+--
+supabase\migrations\20260709110000_suppliers_purchases.sql:22:create policy "Owner manages suppliers of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-23-on public.suppliers for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-24-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-25-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260709110000_suppliers_purchases.sql:48:create policy "Owner manages purchases of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-49-on public.purchases for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-50-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-51-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260709110000_suppliers_purchases.sql:68:create policy "Owner manages purchase payments of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-69-on public.purchase_payments for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-70-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260709110000_suppliers_purchases.sql-71-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260709100000_ingredient_price_history.sql:22:create policy "Owner manages ingredient price history of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260709100000_ingredient_price_history.sql-23-on public.ingredient_price_history for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260709100000_ingredient_price_history.sql-24-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260709100000_ingredient_price_history.sql-25-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100500_fnb_support_tables.sql:14:create policy "Owner manages custom payment methods of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-15-on public.custom_payment_methods for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-16-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-17-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100500_fnb_support_tables.sql:34:create policy "Owner manages kitchen printers of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-35-on public.kitchen_printers for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-36-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-37-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100500_fnb_support_tables.sql:52:create policy "Owner manages tables of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-53-on public.tables for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-54-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-55-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100500_fnb_support_tables.sql:79:create policy "Owner manages self orders of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-80-on public.self_orders for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-81-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-82-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100500_fnb_support_tables.sql:100:create policy "Owner manages self order items of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-101-on public.self_order_items for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-102-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100500_fnb_support_tables.sql-103-  exists (
+--
+supabase\migrations\20260708300200_budgets.sql:18:create policy "Owner manages budgets of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300200_budgets.sql-19-on public.budgets for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300200_budgets.sql-20-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260708300200_budgets.sql-21-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706200000_ticket_venue.sql:41:create policy "Owner manages ticket categories of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-42-on public.ticket_categories for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-43-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-44-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706200000_ticket_venue.sql:63:create policy "Owner manages ticket holidays of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-64-on public.ticket_holidays for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-65-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-66-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706200000_ticket_venue.sql:92:create policy "Owner manages members of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-93-on public.members for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-94-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-95-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706200000_ticket_venue.sql:133:create policy "Owner manages ticket transactions of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-134-on public.ticket_transactions for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-135-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-136-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706200000_ticket_venue.sql:165:create policy "Owner manages ticket serials of own transactions"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-166-on public.ticket_serials for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-167-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706200000_ticket_venue.sql-168-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100400_finance_tables.sql:22:create policy "Owner manages expenses of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-23-on public.expenses for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-24-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-25-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100400_finance_tables.sql:40:create policy "Owner manages inventory snapshots of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-41-on public.inventory_snapshots for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-42-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-43-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100400_finance_tables.sql:60:create policy "Owner manages reconciliations of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-61-on public.reconciliations for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-62-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-63-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100400_finance_tables.sql:77:create policy "Owner manages merchant fees of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-78-on public.merchant_fees for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-79-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100400_finance_tables.sql-80-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100300_shifts_and_transactions.sql:28:create policy "Owner manages shifts of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-29-on public.shifts for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-30-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-31-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100300_shifts_and_transactions.sql:68:create policy "Owner manages transactions of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-69-on public.transactions for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-70-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-71-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100300_shifts_and_transactions.sql:92:create policy "Owner manages items of own transactions"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-93-on public.transaction_items for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-94-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-95-  exists (
+--
+supabase\migrations\20260702100300_shifts_and_transactions.sql:124:create policy "Owner manages payments of own transactions"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-125-on public.transaction_payments for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-126-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-127-  exists (
+--
+supabase\migrations\20260702100300_shifts_and_transactions.sql:155:create policy "Owner manages ingredient consumption of own transactions"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-156-on public.transaction_ingredient_consumption for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-157-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100300_shifts_and_transactions.sql-158-  exists (
+--
+supabase\migrations\20260712110000_billing.sql:27:create policy "Owner reads own subscription"
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-28-on public.subscriptions for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-29-using (private.owns_business(business_id));
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-30-
+--
+supabase\migrations\20260712110000_billing.sql:35:create policy "Owner creates own initial subscription"
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-36-on public.subscriptions for insert
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-37-with check (private.owns_business(business_id) and status = 'unpaid');
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-38-
+--
+supabase\migrations\20260712110000_billing.sql:57:create policy "Owner reads own payments"
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-58-on public.payments for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-59-using (private.owns_business(business_id));
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-60-
+supabase\migrations\20260712110000_billing.sql:61:create policy "Owner creates own pending payments"
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-62-on public.payments for insert
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-63-with check (private.owns_business(business_id) and status = 'pending');
+G:\PROJECT1\KasirKu\supabase\migrations\20260712110000_billing.sql-64-
+--
+supabase\migrations\20260706100000_payroll.sql:26:create policy "Owner manages attendance of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-27-on public.attendance for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-28-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-29-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706100000_payroll.sql:54:create policy "Owner manages payslips of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-55-on public.payslips for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-56-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-57-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260706100000_payroll.sql:76:create policy "Owner manages payslip adjustments of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-77-on public.payslip_adjustments for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-78-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260706100000_payroll.sql-79-  exists (
+--
+supabase\migrations\20260702100200_products_ingredients_recipes.sql:31:create policy "Owner manages products of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-32-on public.products for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-33-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-34-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100200_products_ingredients_recipes.sql:52:create policy "Owner manages ingredients of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-53-on public.ingredients for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-54-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-55-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100200_products_ingredients_recipes.sql:75:create policy "Owner manages recipes of own products"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-76-on public.product_recipes for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-77-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100200_products_ingredients_recipes.sql-78-  exists (
+--
+supabase\migrations\20260712100000_account_reconciliations.sql:24:create policy "Owner manages account reconciliations of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260712100000_account_reconciliations.sql-25-on public.account_reconciliations for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260712100000_account_reconciliations.sql-26-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260712100000_account_reconciliations.sql-27-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260714120000_invoices.sql:30:create policy "Owner manages invoices of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260714120000_invoices.sql-31-on public.invoices for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260714120000_invoices.sql-32-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260714120000_invoices.sql-33-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260714120000_invoices.sql:47:create policy "Owner manages invoice lines of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260714120000_invoices.sql-48-on public.invoice_lines for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260714120000_invoices.sql-49-using (
+G:\PROJECT1\KasirKu\supabase\migrations\20260714120000_invoices.sql-50-  exists (
+--
+supabase\migrations\20260704200000_customers.sql:24:create policy "Owner manages customers of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260704200000_customers.sql-25-on public.customers for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260704200000_customers.sql-26-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260704200000_customers.sql-27-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260702100100_businesses_and_cashiers.sql:26:create policy "Owner has full access to own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100100_businesses_and_cashiers.sql-27-on public.businesses for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100100_businesses_and_cashiers.sql-28-using (owner_id = auth.uid())
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100100_businesses_and_cashiers.sql-29-with check (owner_id = auth.uid());
+--
+supabase\migrations\20260702100100_businesses_and_cashiers.sql:66:create policy "Owner manages cashiers of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100100_businesses_and_cashiers.sql-67-on public.cashiers for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100100_businesses_and_cashiers.sql-68-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260702100100_businesses_and_cashiers.sql-69-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260711100000_employees.sql:25:create policy "Owner manages employees of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260711100000_employees.sql-26-on public.employees for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260711100000_employees.sql-27-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260711100000_employees.sql-28-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260704100000_stock_adjustments.sql:31:create policy "Owner manages stock adjustments of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260704100000_stock_adjustments.sql-32-on public.stock_adjustments for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260704100000_stock_adjustments.sql-33-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260704100000_stock_adjustments.sql-34-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260710160000_fix_depreciation_postings_rls.sql:8:create policy "Owner manages depreciation postings of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260710160000_fix_depreciation_postings_rls.sql-9-on public.depreciation_postings for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260710160000_fix_depreciation_postings_rls.sql-10-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260710160000_fix_depreciation_postings_rls.sql-11-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260703120000_open_bills.sql:20:create policy "Owner manages open bills of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260703120000_open_bills.sql-21-on public.open_bills for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260703120000_open_bills.sql-22-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260703120000_open_bills.sql-23-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260710130000_period_closing.sql:32:create policy "Owner views period closings of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260710130000_period_closing.sql-33-on public.period_closings for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260710130000_period_closing.sql-34-using (private.owns_business(business_id));
+G:\PROJECT1\KasirKu\supabase\migrations\20260710130000_period_closing.sql-35-
+--
+supabase\migrations\20260710150000_fixed_assets_depreciation.sql:72:create policy "Owner manages fixed assets of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260710150000_fixed_assets_depreciation.sql-73-on public.fixed_assets for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260710150000_fixed_assets_depreciation.sql-74-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260710150000_fixed_assets_depreciation.sql-75-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260710150000_fixed_assets_depreciation.sql:93:create policy "Owner views depreciation postings of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260710150000_fixed_assets_depreciation.sql-94-on public.depreciation_postings for select
+G:\PROJECT1\KasirKu\supabase\migrations\20260710150000_fixed_assets_depreciation.sql-95-using (private.owns_business(business_id));
+--
+supabase\migrations\20260710120000_receivables.sql:22:create policy "Owner manages receivables of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260710120000_receivables.sql-23-on public.receivables for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260710120000_receivables.sql-24-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260710120000_receivables.sql-25-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260710120000_receivables.sql:42:create policy "Owner manages receivable payments of own businesses"
+G:\PROJECT1\KasirKu\supabase\migrations\20260710120000_receivables.sql-43-on public.receivable_payments for all
+G:\PROJECT1\KasirKu\supabase\migrations\20260710120000_receivables.sql-44-using (private.owns_business(business_id))
+G:\PROJECT1\KasirKu\supabase\migrations\20260710120000_receivables.sql-45-with check (private.owns_business(business_id));
+--
+supabase\migrations\20260713110000_hpp_standalone_tool.sql:49:create policy "own hpp_ingredients" on public.hpp_ingredients
+G:\PROJECT1\KasirKu\supabase\migrations\20260713110000_hpp_standalone_tool.sql-50-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+G:\PROJECT1\KasirKu\supabase\migrations\20260713110000_hpp_standalone_tool.sql-51-
+supabase\migrations\20260713110000_hpp_standalone_tool.sql:52:create policy "own hpp_menu_items" on public.hpp_menu_items
+G:\PROJECT1\KasirKu\supabase\migrations\20260713110000_hpp_standalone_tool.sql-53-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+G:\PROJECT1\KasirKu\supabase\migrations\20260713110000_hpp_standalone_tool.sql-54-
+supabase\migrations\20260713110000_hpp_standalone_tool.sql:55:create policy "own hpp_recipe_lines" on public.hpp_recipe_lines
+G:\PROJECT1\KasirKu\supabase\migrations\20260713110000_hpp_standalone_tool.sql-56-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());

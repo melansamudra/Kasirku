@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "Set up Supabase client helpers + Next.js middleware",
+  "description": "lib/supabase/{client,server,middleware}.ts and middleware.ts implementing role/branch-based route protection per plan.",
+  "activeForm": "Setting up Supabase clients and middleware",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

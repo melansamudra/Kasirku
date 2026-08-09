@@ -1,0 +1,8 @@
+{
+  "id": "13",
+  "subject": "Add admin server action + form component",
+  "description": "src/app/admin/actions.ts activateSubscriptionManually + client form component using resetToken pattern",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

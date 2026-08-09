@@ -1,0 +1,8 @@
+{
+  "id": "9",
+  "subject": "Extend admin panel with subscription status columns",
+  "description": "Update admin_list_businesses RPC + src/app/admin/page.tsx",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

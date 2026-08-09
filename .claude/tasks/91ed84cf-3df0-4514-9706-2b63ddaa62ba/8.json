@@ -1,0 +1,9 @@
+{
+  "id": "8",
+  "subject": "Build admin: menu management (categories/items/variants)",
+  "description": "/admin/menu CRUD for categories, menu_items, menu_item_variants.",
+  "activeForm": "Building admin menu management",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

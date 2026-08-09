@@ -1,0 +1,8 @@
+{
+  "id": "1",
+  "subject": "Write billing migration (subscriptions, payments tables + RLS)",
+  "description": "New migration supabase/migrations/<ts>_billing.sql per plan",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

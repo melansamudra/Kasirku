@@ -1,0 +1,9 @@
+{
+  "id": "19",
+  "subject": "Server Actions CRUD bahan baku & menu",
+  "description": "src/app/kalkulator-hpp/app/actions.ts: add/update/delete ingredient, menu item, recipe line, plus getAiPriceRecommendation.",
+  "activeForm": "Membuat Server Actions CRUD bahan baku & menu",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

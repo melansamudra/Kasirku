@@ -1,0 +1,8 @@
+{
+  "id": "2",
+  "subject": "Restructure business routes into (dashboard) route group",
+  "description": "Move all non-POS feature folders (activity, attendance, cashiers, customers, finance, ingredients, payroll, products, reports, settings, shifts, tables, transactions) under src/app/business/[businessId]/(dashboard)/ so a shared layout.tsx can wrap them with the sidebar shell, while pos/ stays outside the group and keeps its current mobile-only layout with no sidebar.",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

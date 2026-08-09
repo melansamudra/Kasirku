@@ -1,0 +1,500 @@
+[8804.3274] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.3275] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.3276] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.3277] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.3278] GET http://localhost:3000/_next/static/chunks/node_modules_01ot5q6._.js → 200 OK
+[8804.3279] GET http://localhost:3000/_next/static/chunks/src_0pxcy5s._.js → 200 OK
+[8804.3280] GET http://localhost:3000/_next/static/chunks/src_app_dashboard_page_tsx_004tgyl._.js → 200 OK
+[8804.3281] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.3282] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.3314] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.3315] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.3321] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[1829D65CC4BD262DF159951823CFCEEB] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/reports/laba-rugi [FAILED: net::ERR_ABORTED]
+[5BF4892967DCD6550404532B32608548] GET http://localhost:3000/dashboard → 200 OK
+[8804.3324] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3325] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3326] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3328] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 304 Not Modified
+[8804.3329] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 304 Not Modified
+[8804.3330] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 304 Not Modified
+[8804.3331] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 304 Not Modified
+[8804.3332] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 304 Not Modified
+[8804.3333] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 304 Not Modified
+[8804.3334] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 304 Not Modified
+[8804.3335] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 304 Not Modified
+[8804.3336] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 304 Not Modified
+[8804.3337] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 304 Not Modified
+[8804.3338] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 304 Not Modified
+[8804.3339] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 304 Not Modified
+[8804.3340] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 304 Not Modified
+[8804.3341] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 304 Not Modified
+[8804.3342] GET http://localhost:3000/_next/static/chunks/node_modules_01ot5q6._.js → 304 Not Modified
+[8804.3343] GET http://localhost:3000/_next/static/chunks/src_0pxcy5s._.js → 304 Not Modified
+[8804.3344] GET http://localhost:3000/_next/static/chunks/src_app_dashboard_page_tsx_004tgyl._.js → 304 Not Modified
+[8804.3345] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 304 Not Modified
+[8804.3346] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 304 Not Modified
+[8804.3378] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 304 Not Modified
+[8804.3379] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 304 Not Modified
+[8804.3385] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[86EB0BC83F31A1B2375CB30561A52C82] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/reports/laba-rugi → 200 OK
+[8804.3388] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3389] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3390] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3392] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.3393] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 200 OK
+[8804.3394] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 200 OK
+[8804.3395] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 200 OK
+[8804.3396] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 200 OK
+[8804.3397] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 200 OK
+[8804.3398] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 200 OK
+[8804.3399] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 200 OK
+[8804.3400] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 200 OK
+[8804.3401] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 200 OK
+[8804.3402] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.3403] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.3404] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.3405] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.3406] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_0bb1by5._.js → 200 OK
+[8804.3407] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_reports_laba-rugi_page_tsx_004tgyl._.js → 200 OK
+[8804.3408] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.3409] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.3440] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.3441] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.3447] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[8804.3449] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/reports/laba-rugi?period=all&_rsc=5bxCnPWORDU65Aj2 → 200 OK
+[4ABE6ADF0D60CE606105F0DC01301A01] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance [FAILED: net::ERR_ABORTED]
+[AF29373BA1E6345A1C59F9B26387B521] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/reports/laba-rugi?period=all → 200 OK
+[8804.3451] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3452] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3453] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3455] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.3456] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 200 OK
+[8804.3457] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 200 OK
+[8804.3458] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 200 OK
+[8804.3459] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 200 OK
+[8804.3460] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 200 OK
+[8804.3461] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 200 OK
+[8804.3462] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 200 OK
+[8804.3463] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 200 OK
+[8804.3464] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 200 OK
+[8804.3465] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.3466] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.3467] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.3468] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.3469] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_0bb1by5._.js → 200 OK
+[8804.3470] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_reports_laba-rugi_page_tsx_004tgyl._.js → 200 OK
+[8804.3471] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.3472] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.3503] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.3504] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.3510] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[C213A5269C7332F34D24F470028B65B8] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[8804.3513] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3514] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3515] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3517] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 304 Not Modified
+[8804.3518] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 304 Not Modified
+[8804.3519] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 304 Not Modified
+[8804.3520] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 304 Not Modified
+[8804.3521] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 304 Not Modified
+[8804.3522] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 304 Not Modified
+[8804.3523] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 304 Not Modified
+[8804.3524] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 304 Not Modified
+[8804.3525] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 304 Not Modified
+[8804.3526] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 304 Not Modified
+[8804.3527] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 304 Not Modified
+[8804.3528] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 304 Not Modified
+[8804.3529] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 304 Not Modified
+[8804.3530] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 304 Not Modified
+[8804.3531] GET http://localhost:3000/_next/static/chunks/_02kk26j._.js → 200 OK
+[8804.3532] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_finance_page_tsx_004tgyl._.js → 200 OK
+[8804.3533] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 304 Not Modified
+[8804.3534] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 304 Not Modified
+[8804.3564] GET data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNSIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJXaW5kb3dUZXh0IiBkPSJNMjAgM2gtMVYxaC0ydjJIN1YxSDV2Mkg0Yy0xLjEgMC0yIC45LTIgMnYxNmMwIDEuMS45IDIgMiAyaDE2YzEuMSAwIDItLjkgMi0yVjVjMC0xLjEtLjktMi0yLTJ6bTAgMThINFY4aDE2djEzeiIvPjxwYXRoIGZpbGw9Im5vbmUiIGQ9Ik0wIDBoMjR2MjRIMHoiLz48L3N2Zz4= → 200 OK
+[8804.3566] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 304 Not Modified
+[8804.3567] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 304 Not Modified
+[8804.3573] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[8804.3575] POST http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[8804.3576] POST http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[19769CD126F205C4B84F3FFE85192077] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/reports/laba-rugi?period=all → 200 OK
+[8804.3578] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3579] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3580] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3582] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.3583] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 200 OK
+[8804.3584] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 200 OK
+[8804.3585] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 200 OK
+[8804.3586] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 200 OK
+[8804.3587] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 200 OK
+[8804.3588] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 200 OK
+[8804.3589] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 200 OK
+[8804.3590] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 200 OK
+[8804.3591] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 200 OK
+[8804.3592] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.3593] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.3594] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.3595] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.3596] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_0bb1by5._.js → 200 OK
+[8804.3597] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_reports_laba-rugi_page_tsx_004tgyl._.js → 200 OK
+[8804.3598] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.3599] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.3630] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.3631] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.3637] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[2E81A333C750A1059D02212EAB0C5DEE] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[8804.3640] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3641] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3642] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3644] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 304 Not Modified
+[8804.3645] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 304 Not Modified
+[8804.3646] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 304 Not Modified
+[8804.3647] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 304 Not Modified
+[8804.3648] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 304 Not Modified
+[8804.3649] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 304 Not Modified
+[8804.3650] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 304 Not Modified
+[8804.3651] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 304 Not Modified
+[8804.3652] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 304 Not Modified
+[8804.3653] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 304 Not Modified
+[8804.3654] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 304 Not Modified
+[8804.3655] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 304 Not Modified
+[8804.3656] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 304 Not Modified
+[8804.3657] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 304 Not Modified
+[8804.3658] GET http://localhost:3000/_next/static/chunks/_02kk26j._.js → 200 OK
+[8804.3659] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_finance_page_tsx_004tgyl._.js → 200 OK
+[8804.3660] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 304 Not Modified
+[8804.3661] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 304 Not Modified
+[8804.3692] GET data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNSIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJXaW5kb3dUZXh0IiBkPSJNMjAgM2gtMVYxaC0ydjJIN1YxSDV2Mkg0Yy0xLjEgMC0yIC45LTIgMnYxNmMwIDEuMS45IDIgMiAyaDE2YzEuMSAwIDItLjkgMi0yVjVjMC0xLjEtLjktMi0yLTJ6bTAgMThINFY4aDE2djEzeiIvPjxwYXRoIGZpbGw9Im5vbmUiIGQ9Ik0wIDBoMjR2MjRIMHoiLz48L3N2Zz4= → 200 OK
+[8804.3693] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 304 Not Modified
+[8804.3694] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 304 Not Modified
+[8804.3700] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[8804.3702] POST http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[8804.3703] POST http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[8804.3704] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3705] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3706] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3707] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3708] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3709] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3710] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3711] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3712] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3713] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 200 OK
+[8804.3725] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3726] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3727] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3728] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3729] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3730] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3731] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3732] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3733] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3734] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3735] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3736] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3737] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3738] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3739] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3740] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3741] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3742] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3743] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3744] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3745] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3746] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3747] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3748] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3749] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3750] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3751] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3752] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3753] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3754] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3755] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3756] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3757] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3758] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3759] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3760] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3761] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3762] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3763] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3764] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3765] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3766] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3767] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3768] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3769] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3770] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3771] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3772] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3773] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3774] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3775] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3776] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3777] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3778] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3779] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3780] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3781] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3782] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3783] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3784] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 200 OK
+[8804.3796] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3797] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3798] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3799] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3800] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3801] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3802] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3803] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3804] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3805] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3806] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3807] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3808] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3809] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3810] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3811] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3812] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3813] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3814] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3815] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3816] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3817] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3818] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3819] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3820] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3821] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3822] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3823] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3824] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3825] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3826] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3827] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3828] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3829] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3830] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3831] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3832] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3833] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3834] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3835] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3836] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3837] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3838] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3839] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3840] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3841] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3842] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3843] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3844] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3845] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3846] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3847] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3848] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3849] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3850] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3851] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3852] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3853] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3854] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3855] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3856] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3857] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 200 OK
+[8804.3869] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3870] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3871] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3872] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3873] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3874] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3875] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3876] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3877] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3878] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3879] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3880] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3881] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3882] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3883] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3884] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3885] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3886] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3887] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3888] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3889] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3890] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3891] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3892] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3893] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3894] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3895] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3896] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3897] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3898] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3899] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3900] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3901] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3902] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3903] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3904] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3905] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3906] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3907] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3908] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3909] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3910] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3911] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3912] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3913] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3914] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3915] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3916] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3917] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3918] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3919] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3920] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3921] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3922] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3923] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3924] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3925] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3926] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3927] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3928] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3929] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3930] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3931] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3932] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 200 OK
+[8804.3944] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[8804.3945] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance?_rsc=B98ezOn2bf4-N-XB → 200 OK
+[CDD0C80AFBF48A8EC128512D3AB72A93] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers [FAILED: net::ERR_ABORTED]
+[7DE6B104F57FF179284C26CEEBE7DC43] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[4C0593EAD34C5D5B92450259A7C91A38] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/finance → 200 OK
+[8804.3947] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.3948] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.3949] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.3951] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.3952] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 200 OK
+[8804.3953] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 200 OK
+[8804.3954] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 200 OK
+[8804.3955] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 200 OK
+[8804.3956] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 200 OK
+[8804.3957] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 200 OK
+[8804.3958] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 200 OK
+[8804.3959] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 200 OK
+[8804.3960] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 200 OK
+[8804.3961] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.3962] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.3963] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.3964] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.3965] GET http://localhost:3000/_next/static/chunks/_02kk26j._.js → 200 OK
+[8804.3966] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_finance_page_tsx_004tgyl._.js → 200 OK
+[8804.3967] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.3968] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.3998] GET data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNSIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJXaW5kb3dUZXh0IiBkPSJNMjAgM2gtMVYxaC0ydjJIN1YxSDV2Mkg0Yy0xLjEgMC0yIC45LTIgMnYxNmMwIDEuMS45IDIgMiAyaDE2YzEuMSAwIDItLjkgMi0yVjVjMC0xLjEtLjktMi0yLTJ6bTAgMThINFY4aDE2djEzeiIvPjxwYXRoIGZpbGw9Im5vbmUiIGQ9Ik0wIDBoMjR2MjRIMHoiLz48L3N2Zz4= → 200 OK
+[8804.4000] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.4001] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.4007] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[8804.4010] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.4011] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.4012] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.4014] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 304 Not Modified
+[8804.4015] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 304 Not Modified
+[8804.4016] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 304 Not Modified
+[8804.4017] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 304 Not Modified
+[8804.4018] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 304 Not Modified
+[8804.4019] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 304 Not Modified
+[8804.4020] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 304 Not Modified
+[8804.4021] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 304 Not Modified
+[8804.4022] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 304 Not Modified
+[8804.4023] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 304 Not Modified
+[8804.4024] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 304 Not Modified
+[8804.4025] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 304 Not Modified
+[8804.4026] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 304 Not Modified
+[8804.4027] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 304 Not Modified
+[8804.4028] GET http://localhost:3000/_next/static/chunks/_02kk26j._.js → 304 Not Modified
+[8804.4029] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_finance_page_tsx_004tgyl._.js → 304 Not Modified
+[8804.4030] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 304 Not Modified
+[8804.4031] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 304 Not Modified
+[69BD094A4A711F80B7CE5945F311E92A] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers → 200 OK
+[8804.4061] GET data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNSIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJXaW5kb3dUZXh0IiBkPSJNMjAgM2gtMVYxaC0ydjJIN1YxSDV2Mkg0Yy0xLjEgMC0yIC45LTIgMnYxNmMwIDEuMS45IDIgMiAyaDE2YzEuMSAwIDItLjkgMi0yVjVjMC0xLjEtLjktMi0yLTJ6bTAgMThINFY4aDE2djEzeiIvPjxwYXRoIGZpbGw9Im5vbmUiIGQ9Ik0wIDBoMjR2MjRIMHoiLz48L3N2Zz4= → 200 OK
+[8804.4063] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.4064] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.4065] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.4067] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.4068] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 304 Not Modified
+[8804.4069] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 304 Not Modified
+[8804.4070] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 304 Not Modified
+[8804.4071] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 304 Not Modified
+[8804.4072] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 304 Not Modified
+[8804.4073] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 304 Not Modified
+[8804.4074] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 304 Not Modified
+[8804.4075] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 304 Not Modified
+[8804.4076] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 304 Not Modified
+[8804.4077] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 304 Not Modified
+[8804.4078] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 304 Not Modified
+[8804.4079] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 304 Not Modified
+[8804.4080] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 304 Not Modified
+[8804.4081] GET http://localhost:3000/_next/static/chunks/_0lz3vy9._.js → 200 OK
+[8804.4082] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_cashiers_page_tsx_004tgyl._.js → 200 OK
+[8804.4083] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 304 Not Modified
+[8804.4084] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 304 Not Modified
+[8804.4115] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 304 Not Modified
+[8804.4116] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 304 Not Modified
+[8804.4122] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[8804.4124] POST http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers → 200 OK
+[8804.4125] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers?_rsc=P3PicRVMYhxneyO1 → 200 OK
+[A742252D4E23123F67EFE19FC27A2963] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/attendance [FAILED: net::ERR_ABORTED]
+[C6CD03A5F6B808D690A632EA26D518EB] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers → 200 OK
+[8804.4127] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.4128] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.4129] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.4131] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.4132] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 200 OK
+[8804.4133] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 200 OK
+[8804.4134] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 200 OK
+[8804.4135] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 200 OK
+[8804.4136] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 200 OK
+[8804.4137] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 200 OK
+[8804.4138] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 200 OK
+[8804.4139] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 200 OK
+[8804.4140] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 200 OK
+[8804.4141] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.4142] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.4143] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.4144] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.4145] GET http://localhost:3000/_next/static/chunks/_0lz3vy9._.js → 200 OK
+[8804.4146] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_cashiers_page_tsx_004tgyl._.js → 200 OK
+[8804.4147] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.4148] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.4179] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.4180] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.4186] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK
+[EC8B14482938598DD8FCC8B93BDA5985] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/attendance [FAILED: net::ERR_ABORTED]
+[8804.4188] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers?_rsc=P3PicRVMYhxneyO1 → 200 OK
+[E316DE66583C9956718538E0B3A14D55] GET http://localhost:3000/business/7c483432-1c9a-4f03-a0b2-aa4d89f7f5e9/cashiers → 200 OK
+[8804.4190] GET http://localhost:3000/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2 → 200 OK
+[8804.4191] GET http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2 → 200 OK
+[8804.4192] GET http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__04kpziu._.css → 304 Not Modified
+[8804.4194] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xx01vv._.js → 200 OK
+[8804.4195] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js → 200 OK
+[8804.4196] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js → 200 OK
+[8804.4197] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js → 200 OK
+[8804.4198] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js → 200 OK
+[8804.4199] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js → 200 OK
+[8804.4200] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js → 200 OK
+[8804.4201] GET http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js → 200 OK
+[8804.4202] GET http://localhost:3000/_next/static/chunks/_1anvha4._.js → 200 OK
+[8804.4203] GET http://localhost:3000/_next/static/chunks/turbopack-_01_ro95._.js → 200 OK
+[8804.4204] GET http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e9_p6y._.js → 200 OK
+[8804.4205] GET http://localhost:3000/_next/static/chunks/src_app_layout_tsx_007e4b2._.js → 200 OK
+[8804.4206] GET http://localhost:3000/_next/static/chunks/_11l4w7u._.js → 200 OK
+[8804.4207] GET http://localhost:3000/_next/static/chunks/src_app_error_tsx_004tgyl._.js → 200 OK
+[8804.4208] GET http://localhost:3000/_next/static/chunks/_0lz3vy9._.js → 200 OK
+[8804.4209] GET http://localhost:3000/_next/static/chunks/src_app_business_%5BbusinessId%5D_cashiers_page_tsx_004tgyl._.js → 200 OK
+[8804.4210] GET http://localhost:3000/_next/static/chunks/_1ttm_zx._.js → 200 OK
+[8804.4211] GET http://localhost:3000/_next/static/chunks/src_app_global-error_tsx_004tgyl._.js → 200 OK
+[8804.4242] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js → 200 OK
+[8804.4243] GET http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1xch-cm._.js → 200 OK
+[8804.4249] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 OK

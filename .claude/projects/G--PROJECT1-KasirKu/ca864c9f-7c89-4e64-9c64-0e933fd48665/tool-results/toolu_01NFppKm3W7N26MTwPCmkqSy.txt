@@ -1,0 +1,252 @@
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-138-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-139-    <div className="w-full max-w-2xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-140-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-141-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-142-          <h1 className="text-lg font-bold text-zinc-900">Perubahan Modal — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-143-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-144-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-145-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx:146:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-147-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-148-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-149-              href={`/business/${businessId}/accounting/modal?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-150-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-151-                p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-152-                  ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-153-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-154-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-155-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-156-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-157-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-158-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-159-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\modal\page.tsx-160-      </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-96-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-97-    <div className="w-full max-w-3xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-98-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-99-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-100-          <h1 className="text-lg font-bold text-zinc-900">Laba Rugi (Akrual) — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-101-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-102-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-103-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx:104:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-105-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-106-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-107-              href={`/business/${businessId}/accounting/laba-rugi?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-108-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-109-                p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-110-                  ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-111-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-112-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-113-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-114-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-115-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-116-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-117-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\laba-rugi\page.tsx-118-      </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-210-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-211-    <div className="w-full max-w-3xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-212-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-213-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-214-          <h1 className="text-lg font-bold text-zinc-900">Laporan Tiket — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-215-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-216-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-217-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx:218:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-219-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-220-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-221-              href={`/business/${businessId}/ticket-reports?period=${p}&${filterQuery.toString()}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-222-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-223-                p === period ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-224-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-225-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-226-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-227-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-228-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-229-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-230-      </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-231-
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\ticket-reports\page.tsx-232-      {/* KPI */}
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-86-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-87-    <div className="w-full max-w-2xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-88-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-89-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-90-          <h1 className="text-lg font-bold text-zinc-900">Jurnal Transaksi — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-91-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-92-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-93-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx:94:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-95-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-96-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-97-              href={`/business/${businessId}/accounting/jurnal?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-98-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-99-                p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-100-                  ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-101-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-102-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-103-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-104-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-105-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-106-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-107-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\jurnal\page.tsx-108-      </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-103-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-104-    <div className="w-full max-w-2xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-105-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-106-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-107-          <h1 className="text-lg font-bold text-zinc-900">Kas Harian — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-108-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-109-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-110-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx:111:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-112-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-113-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-114-              href={`/business/${businessId}/kas-harian?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-115-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-116-                p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-117-                  ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-118-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-119-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-120-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-121-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-122-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-123-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-124-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\kas-harian\page.tsx-125-      </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-141-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-142-    <div className="w-full max-w-2xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-143-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-144-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-145-          <h1 className="text-lg font-bold text-zinc-900">Laporan Arus Kas — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-146-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-147-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-148-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx:149:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-150-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-151-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-152-              href={`/business/${businessId}/accounting/arus-kas?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-153-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-154-                p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-155-                  ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-156-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-157-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-158-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-159-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-160-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-161-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-162-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\accounting\arus-kas\page.tsx-163-      </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-104-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-105-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-106-          <h1 className="text-lg font-bold text-zinc-900">Tren Harga Bahan Baku — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-107-          <p className="mt-0.5 text-xs text-zinc-500">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-108-            Perubahan harga per satuan bahan baku, dari pembelian &amp; edit manual.
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-109-          </p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-110-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-111-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx:112:          {(["30", "90", "all"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-113-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-114-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-115-              href={`/business/${businessId}/reports/price-trend?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-116-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-117-                p === period ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-118-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-119-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-120-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-121-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-122-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-123-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-124-      </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-125-
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\price-trend\page.tsx-126-      <div className="mt-6 grid grid-cols-2 gap-3">
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-264-    .eq("manual", true)
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-265-    .maybeSingle();
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-266-
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-267-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-268-    <div className="w-full max-w-3xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-269-        <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-270-          <h1 className="text-lg font-bold text-zinc-900">Keuangan — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-271-          <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\finance\page.tsx:272:            {(["today", "week", "month", "all"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-273-              <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-274-                key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-275-                href={`/business/${businessId}/finance?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-276-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-277-                  p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-278-                    ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\finance\page.tsx-279-                    : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-280-                }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-281-              >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-282-                {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-283-              </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-284-            ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-285-          </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\finance\page.tsx-286-        </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-203-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-204-    <div className="w-full max-w-3xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-205-        <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-206-          <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-207-            <h1 className="text-lg font-bold text-zinc-900">Laporan — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-208-            <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-209-          </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-210-          <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\reports\page.tsx:211:            {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-212-              <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-213-                key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-214-                href={`/business/${businessId}/reports?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-215-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-216-                  p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-217-                    ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\reports\page.tsx-218-                    : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-219-                }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-220-              >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-221-                {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-222-              </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-223-            ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-224-          </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\page.tsx-225-        </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-131-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-132-    <div className="w-full max-w-3xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-133-      <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-134-        <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-135-          <h1 className="text-lg font-bold text-zinc-900">Laporan COGS — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-136-          <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-137-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-138-        <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx:139:          {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-140-            <Link
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-141-              key={p}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-142-              href={`/business/${businessId}/reports/cogs?period=${p}`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-143-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-144-                p === period
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-145-                  ? "bg-brand-600 text-white"
+src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-146-                  : "bg-white text-zinc-600 hover:bg-zinc-100"
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-147-              }`}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-148-            >
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-149-              {PERIOD_LABELS[p]}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-150-            </Link>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-151-          ))}
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-152-        </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\cogs\page.tsx-153-      </div>
+--
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-88-  return (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-89-    <div className="w-full max-w-3xl">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-90-        <div className="flex flex-wrap items-center justify-between gap-2">
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-91-          <div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-92-            <h1 className="text-lg font-bold text-zinc-900">Laba Rugi — {business.name}</h1>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-93-            <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-94-          </div>
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-95-          <div className="flex flex-wrap gap-1.5">
+src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx:96:            {(["today", "week", "month", "all", "custom"] as Period[]).map((p) => (
+G:\PROJECT1\KasirKu\src\app\business\[businessId]\(dashboard)\reports\laba-rugi\page.tsx-97-              <Link
+
+[Showing results with pagination = limit: 250]

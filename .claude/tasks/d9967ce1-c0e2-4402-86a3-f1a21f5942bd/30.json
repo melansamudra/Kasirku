@@ -1,0 +1,9 @@
+{
+  "id": "30",
+  "subject": "Bangun aplikasi Electron desktop-app/",
+  "description": "main.js, index.html, renderer.js, style.css, package.json, pakai electron-store, logika HPP/margin disalin dari kalkulator web.",
+  "activeForm": "Membangun aplikasi Electron desktop",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

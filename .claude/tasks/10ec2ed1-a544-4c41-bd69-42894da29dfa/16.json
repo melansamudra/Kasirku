@@ -1,0 +1,9 @@
+{
+  "id": "16",
+  "subject": "Rework ticket-pos-screen.tsx cart to per-unit inputs",
+  "description": "Replace qtyByCategory/changeQty with unitsByCategory + addUnit/removeUnit/setUnitNumber, per-unit manual number text inputs, checkout guard, widen category cards to full width",
+  "activeForm": "Reworking ticket-pos-screen cart UI",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

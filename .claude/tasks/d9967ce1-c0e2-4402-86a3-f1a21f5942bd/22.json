@@ -1,0 +1,9 @@
+{
+  "id": "22",
+  "subject": "Verifikasi lint/typecheck/test + browser E2E",
+  "description": "npm test, tsc, eslint, lalu uji alur daftar->app->CRUD->(AI kalau API key ada) di browser, pastikan akun business-owner biasa tidak terpengaruh.",
+  "activeForm": "Menjalankan verifikasi lint/typecheck/test + browser",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

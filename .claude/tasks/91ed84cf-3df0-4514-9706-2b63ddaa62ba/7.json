@@ -1,0 +1,9 @@
+{
+  "id": "7",
+  "subject": "Build admin: branches + users CRUD",
+  "description": "/admin/branches and /admin/users pages, including cashier account creation via Supabase Admin API service-role server action.",
+  "activeForm": "Building admin branches and users CRUD",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

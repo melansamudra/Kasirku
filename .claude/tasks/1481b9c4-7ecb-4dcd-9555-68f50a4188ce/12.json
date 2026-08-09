@@ -1,0 +1,8 @@
+{
+  "id": "12",
+  "subject": "Add admin_activate_subscription RPC migration",
+  "description": "Security-definer RPC callable from /admin to manually activate/extend a business's subscription, records a manual payment row",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

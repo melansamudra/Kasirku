@@ -1,0 +1,9 @@
+{
+  "id": "29",
+  "subject": "Route download file terproteksi token",
+  "description": "src/app/api/kalkulator-hpp-desktop/download/route.ts, verifikasi via RPC lalu stream file dari lokasi privat.",
+  "activeForm": "Membuat route download terproteksi",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

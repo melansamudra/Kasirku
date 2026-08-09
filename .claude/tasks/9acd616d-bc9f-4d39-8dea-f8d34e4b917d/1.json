@@ -1,0 +1,8 @@
+{
+  "id": "1",
+  "subject": "Build sidebar+topbar shell component",
+  "description": "Create a reusable dashboard shell (persistent left sidebar with grouped nav links + topbar) styled with KasirKu's existing green brand-600 palette, matching the structural layout of the AkunPro reference screenshot (grouped nav sections, active-state highlighting, business name header, logout).",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "9",
+  "subject": "Nav integration + verification",
+  "description": "Add new \"Akuntansi\" nav group to dashboard-shell.tsx with links to all 5 accounting pages (fnb/retail only, hidden for tiket). Run tsc + vitest. Verify end-to-end in browser preview: create a sale, confirm journal auto-posted, check Neraca balances, check Arus Kas, set a budget target and see variance.",
+  "activeForm": "Wiring nav and verifying end-to-end",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

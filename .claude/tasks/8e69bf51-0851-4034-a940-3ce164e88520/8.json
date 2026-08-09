@@ -1,0 +1,9 @@
+{
+  "id": "8",
+  "subject": "UI: Target vs Aktual (budget) page",
+  "description": "accounting/anggaran page.tsx: form to set monthly target per account, table comparing target vs actual (from journal_lines) per account with variance %.",
+  "activeForm": "Building Target vs Aktual page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

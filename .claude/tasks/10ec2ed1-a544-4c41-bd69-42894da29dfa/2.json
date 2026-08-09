@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "Wire onboarding + nav for tiket business type",
+  "description": "Add 'tiket' radio option to onboarding-form.tsx, update validation in onboarding/actions.ts, update dashboard-shell.tsx (businessType prop + 3-way nav branching), update (dashboard)/layout.tsx to pass businessType",
+  "activeForm": "Wiring onboarding and nav for tiket type",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "14",
+  "subject": "Migrasi schema hpp_ingredients/hpp_menu_items/hpp_recipe_lines",
+  "description": "Buat migrasi baru dengan 3 tabel scoped per-user (RLS auth.uid()), bukan per-business.",
+  "activeForm": "Membuat migrasi schema kalkulator HPP mandiri",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

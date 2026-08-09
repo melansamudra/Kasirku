@@ -1,0 +1,9 @@
+{
+  "id": "8",
+  "subject": "Verify end-to-end in browser preview (regression pass done; ticket flow blocked on migration)",
+  "description": "After user pastes migration SQL into Supabase, create a tiket business via onboarding, open cashier, sell tickets with/without member, check settings sections, members CRUD, and ticket reports all work",
+  "activeForm": "Verifying feature end-to-end",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "33",
+  "subject": "Tambah dependency xlsx + IPC import Excel di main.js/preload.js",
+  "description": "Tambah package xlsx, handler dialog:importExcel di main.js untuk baca file & parse jadi array bahan baku, expose lewat preload.js",
+  "activeForm": "Menambah IPC import Excel",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

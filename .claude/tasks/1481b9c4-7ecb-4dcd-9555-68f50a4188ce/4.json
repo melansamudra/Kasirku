@@ -1,0 +1,8 @@
+{
+  "id": "4",
+  "subject": "Build billing page (plan picker + pay button + actions)",
+  "description": "src/app/business/[businessId]/billing/{page.tsx,actions.ts,pay-button.tsx} calling Midtrans Snap API",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

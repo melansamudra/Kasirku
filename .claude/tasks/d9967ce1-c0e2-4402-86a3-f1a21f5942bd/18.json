@@ -1,0 +1,9 @@
+{
+  "id": "18",
+  "subject": "Percabangan redirect di dashboard/page.tsx",
+  "description": "Kalau user hpp_tool_only dan belum punya business, redirect ke /kalkulator-hpp/app bukan /onboarding.",
+  "activeForm": "Menambah percabangan redirect di dashboard",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

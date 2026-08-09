@@ -1,0 +1,9 @@
+{
+  "id": "11",
+  "subject": "Build packages/escpos shared byte-builder",
+  "description": "ESC/POS builder (init, bold, align, textSize, text, feed, cut) used by both print-agent and Bluetooth client.",
+  "activeForm": "Building ESC/POS byte-builder package",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

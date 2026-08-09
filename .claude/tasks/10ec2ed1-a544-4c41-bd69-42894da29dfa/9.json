@@ -1,0 +1,9 @@
+{
+  "id": "9",
+  "subject": "Build ticket transaction detail page",
+  "description": "Create ticket-reports/[transactionId]/page.tsx mirroring transactions/[transactionId]/page.tsx: shows invoice, date, cashier, member, day-type, list of ticket serials, payment info, void status/form",
+  "activeForm": "Building ticket transaction detail page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

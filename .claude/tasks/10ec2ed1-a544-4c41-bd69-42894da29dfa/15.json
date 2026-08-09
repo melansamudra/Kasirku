@@ -1,0 +1,9 @@
+{
+  "id": "15",
+  "subject": "Update ticket-actions.ts for manual numbers",
+  "description": "Change TicketCartItemInput shape, checkoutTicket mapping, add 23505 friendly error handling",
+  "activeForm": "Updating ticket-actions.ts",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

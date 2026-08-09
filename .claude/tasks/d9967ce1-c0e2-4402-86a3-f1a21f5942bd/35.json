@@ -1,0 +1,9 @@
+{
+  "id": "35",
+  "subject": "Rewrite style.css — warna brand hijau KasirKu, ikon SVG, layout dashboard",
+  "description": "Ganti palet ke hijau brand (#00A651 dst), sidebar terang, hbar chart kategori, bar chart margin kecil, styling tabel & expand row",
+  "activeForm": "Menulis ulang style.css",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "6",
+  "subject": "Wire offline mode ke ticket-pos-screen.tsx",
+  "description": "Pola sama seperti pos-screen.tsx tapi untuk checkout tiket, termasuk error-surfacing untuk konflik nomor tiket fisik saat sync.",
+  "activeForm": "Wiring offline mode ke ticket-pos-screen.tsx",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "Wire offline mode ke pos-screen.tsx",
+  "description": "Pakai useOfflineSync, effectiveProducts (stok dikurangi pendingStockDeltas), handleConfirmPayment fallback ke offline queue saat timeout/network error, offline-status badge di header.",
+  "activeForm": "Wiring offline mode ke pos-screen.tsx",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

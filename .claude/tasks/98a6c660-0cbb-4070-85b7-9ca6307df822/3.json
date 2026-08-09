@@ -1,0 +1,8 @@
+{
+  "id": "3",
+  "subject": "Fix unused var in pos-screen.tsx",
+  "description": "Line 172: 'subtotal' assigned but never used",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

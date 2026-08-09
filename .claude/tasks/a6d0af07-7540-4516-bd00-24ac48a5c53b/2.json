@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "E2E: signup, onboarding, billing activation on dev DB",
+  "description": "Fresh dev Supabase has no data — sign up a new test account in the browser, create a business via onboarding, activate its subscription via service-role, verify billing page and dashboard gate",
+  "activeForm": "Testing signup and onboarding flow",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

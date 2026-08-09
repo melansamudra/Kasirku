@@ -1,0 +1,9 @@
+{
+  "id": "19",
+  "subject": "Build CSV export for ticket reports + surface manual_number",
+  "description": "Create ticket-reports/export/route.ts (transactions/tickets/hourly types), wire 3 export buttons into ticket-reports/page.tsx, add manual_number display to ticket-reports list/detail/receipt",
+  "activeForm": "Building CSV export for ticket reports",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

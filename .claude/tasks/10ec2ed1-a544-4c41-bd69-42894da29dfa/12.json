@@ -1,0 +1,9 @@
+{
+  "id": "12",
+  "subject": "Wire report list rows to detail page, remove old inline void",
+  "description": "Update ticket-reports/page.tsx to link each row to the new detail page instead of inline void panel; delete now-unused void-ticket-button.tsx",
+  "activeForm": "Wiring report list to detail page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

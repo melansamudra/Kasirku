@@ -1,0 +1,9 @@
+{
+  "id": "11",
+  "subject": "Buat src/app/manifest.ts",
+  "description": "App Router manifest: nama KasirKu, start_url /dashboard, display standalone, icon pakai favicon.ico yang sudah ada.",
+  "activeForm": "Membuat src/app/manifest.ts",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "10",
+  "subject": "Registrasi SW di use-offline-sync.ts",
+  "description": "Tambah useEffect untuk navigator.serviceWorker.register('/sw.js', {scope:'/', updateViaCache:'none'}) saat mount, guard 'serviceWorker' in navigator.",
+  "activeForm": "Meregistrasi SW di use-offline-sync.ts",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

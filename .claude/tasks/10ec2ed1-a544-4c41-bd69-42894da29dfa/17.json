@@ -1,0 +1,9 @@
+{
+  "id": "17",
+  "subject": "Build member panel embedded in POS (browse/add/scan)",
+  "description": "Fetch full members list in pos/page.tsx tiket branch; build pos/member-panel.tsx with auto-focus/auto-submit code lookup, browsable/searchable member picker (mirroring customer picker), inline add-member form reusing existing AddMemberForm/addMember",
+  "activeForm": "Building member panel in POS",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "Phase 1: Scaffold Capacitor app, verify WebView loads live site",
+  "description": "Create android-app/ with Capacitor, server.url pointing at createimpact.id, build debug APK, install to emulator, confirm login works inside WebView.",
+  "activeForm": "Scaffolding Capacitor app",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

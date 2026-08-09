@@ -1,0 +1,9 @@
+{
+  "id": "20",
+  "subject": "Halaman utama kalkulator HPP mandiri (authed)",
+  "description": "src/app/kalkulator-hpp/app/page.tsx + client components: seksi bahan baku dan seksi menu dengan HPP/margin terhitung + tombol rekomendasi AI.",
+  "activeForm": "Membangun halaman utama kalkulator HPP mandiri",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

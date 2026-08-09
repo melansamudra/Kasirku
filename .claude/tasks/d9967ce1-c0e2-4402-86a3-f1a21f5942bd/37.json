@@ -1,0 +1,9 @@
+{
+  "id": "37",
+  "subject": "npm install xlsx di desktop-app dan verifikasi npm start jalan tanpa error",
+  "description": "Install dependency baru, jalankan app, cek console tidak ada error, coba tambah bahan/menu/bundle manual",
+  "activeForm": "Verifikasi aplikasi desktop berjalan",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

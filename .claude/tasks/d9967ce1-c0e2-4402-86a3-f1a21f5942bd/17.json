@@ -1,0 +1,9 @@
+{
+  "id": "17",
+  "subject": "Buat halaman daftar akun ringan (hpp_tool_only)",
+  "description": "src/app/kalkulator-hpp/daftar/page.tsx: signup dengan user_metadata hpp_tool_only=true, redirect ke /kalkulator-hpp/app.",
+  "activeForm": "Membuat halaman daftar akun ringan",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

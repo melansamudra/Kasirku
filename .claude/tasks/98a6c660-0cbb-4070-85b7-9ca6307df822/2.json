@@ -1,0 +1,8 @@
+{
+  "id": "2",
+  "subject": "Fix set-state-in-effect in 3 forms",
+  "description": "add-journal-form.tsx, add-purchase-form.tsx, add-receivable-form.tsx — reset local state via key prop or useActionState pattern instead of setState in useEffect after successful submit",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

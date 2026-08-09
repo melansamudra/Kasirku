@@ -1,0 +1,502 @@
+2:<html lang="id">
+5:<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+27:          modal: '0 24px 64px -12px rgba(28,25,23,.28)',
+40:  ::-webkit-scrollbar{width:5px;height:5px}
+45:  /* Tabular numerals for all prices/figures — signature financial-grade look */
+46:  .tnum, .price, .figure{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+50:  .nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:#0F4C3A;border-radius:0 3px 3px 0}
+54:  #bottom-nav .nav-item.active::before{left:50%;top:2px;transform:translateX(-50%);width:24px;height:3px;border-radius:3px}
+55:  #bottom-nav .nav-icon{width:17px;height:17px}
+72:  .modal-box{animation:modalIn .22s cubic-bezier(.16,1,.3,1)}
+73:  /* Bug fix: flex children default to min-height:auto, jadi area scroll di dalam modal
+74:     (flex-1 + overflow-y-auto) menolak menyusut dan malah mendorong modal melebihi max-h,
+75:     lalu overflow-hidden di modal-box memotong sisanya alih-alih bisa di-scroll. */
+76:  .modal-box .flex-1{min-height:0}
+77:  @keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+78:  .tab-badge{min-width:18px;height:18px;font-size:10px;line-height:18px;border-radius:9px}
+82:  .toggle{position:relative;display:inline-block;width:42px;height:24px}
+83:  .toggle input{opacity:0;width:0;height:0}
+84:  .slider{position:absolute;cursor:pointer;inset:0;background:#D6D3D1;border-radius:24px;transition:.25s}
+85:  .slider:before{position:absolute;content:'';height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(28,25,23,.25)}
+86:  input:checked+.slider{background:#0F4C3A}
+87:  input:checked+.slider:before{transform:translateX(18px)}
+89:  .page{display:none}.page.active{display:flex;flex-direction:column;height:100%}
+90:  .qty-btn{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;cursor:pointer;transition:background .15s ease}
+94:  .chip{border-radius:99px;padding:5px 14px;font-size:12.5px;font-weight:500;cursor:pointer;border:1.5px solid #E7E5E4;background:#fff;color:#78716C;transition:all .15s ease;letter-spacing:.01em}
+98:  .payment-method-btn{border:1.5px solid #E7E5E4;background:#fff;transition:all .15s ease;cursor:pointer;border-radius:12px;padding:12px;text-align:center}
+102:  /* Eyebrow label — small caps utility for section headers */
+105:  /* Premium card surface */
+106:  .surface-card{background:#fff;border:1px solid #E7E5E4;border-radius:14px}
+108:  /* Display numerals for hero prices/totals */
+111:  @media(max-width:767px){
+112:    #sidebar{display:none}
+116:  @media(min-width:768px){
+117:    #sidebar{display:flex}
+125:<body class="h-screen overflow-hidden flex flex-col">
+127:<!-- ===== BUSINESS TYPE SCREEN (muncul tiap kali app dibuka, sebelum PIN) ===== -->
+128:<div id="business-type-screen" class="hidden fixed inset-0 z-[110] bg-ink-900 flex flex-col items-center justify-center px-6">
+129:  <div class="w-full max-w-sm">
+130:    <div class="text-center mb-6">
+131:      <div class="w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center mx-auto mb-4">
+132:        <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-9-4h4"/></svg>
+134:      <h1 id="bts-title" class="text-white font-bold text-xl">Selamat datang di KasirKu</h1>
+135:      <p id="bts-subtitle" class="text-ink-400 text-sm mt-1.5">Jenis bisnis kamu apa? Ini menentukan fitur apa saja yang ditampilkan.</p>
+137:    <div id="bts-shift-banner"></div>
+138:    <div class="space-y-3">
+139:      <button onclick="selectBusinessType('fnb')" id="bts-btn-fnb" class="w-full text-left p-4 rounded-2xl border-2 border-ink-700 bg-ink-800 hover:border-brand-500 hover:bg-ink-800/80 transition-all group">
+140:        <div class="flex items-center gap-3">
+141:          <span class="text-2xl">🍽️</span>
+142:          <div class="flex-1">
+143:            <p class="text-white font-semibold text-sm">Restoran / Kafe / F&amp;B</p>
+144:            <p class="text-ink-400 text-xs mt-0.5">Open bill, printer dapur, pesan dari meja, split bill</p>
+148:      <button onclick="selectBusinessType('retail')" id="bts-btn-retail" class="w-full text-left p-4 rounded-2xl border-2 border-ink-700 bg-ink-800 hover:border-brand-500 hover:bg-ink-800/80 transition-all group">
+149:        <div class="flex items-center gap-3">
+150:          <span class="text-2xl">🛒</span>
+151:          <div class="flex-1">
+152:            <p class="text-white font-semibold text-sm">Retail / Toko</p>
+153:            <p class="text-ink-400 text-xs mt-0.5">Scan barcode, stok produk, kasir cepat</p>
+157:      <button onclick="selectBusinessType('all')" id="bts-btn-all" class="w-full text-left p-4 rounded-2xl border-2 border-ink-700 bg-ink-800 hover:border-brand-500 hover:bg-ink-800/80 transition-all group">
+158:        <div class="flex items-center gap-3">
+159:          <span class="text-2xl">⚙️</span>
+160:          <div class="flex-1">
+161:            <p class="text-white font-semibold text-sm">Tampilkan Semua Fitur</p>
+162:            <p class="text-ink-400 text-xs mt-0.5">Tidak yakin? Pilih ini — bisa diubah lagi nanti di Pengaturan</p>
+171:<!-- ===== PIN LOGIN SCREEN ===== -->
+172:<div id="pin-screen" class="fixed inset-0 z-[100] bg-ink-900 flex flex-col items-center justify-center px-6">
+173:  <div class="w-full max-w-xs">
+174:    <div class="text-center mb-8">
+175:      <div class="w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center mx-auto mb-4">
+176:        <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-9-4h4"/></svg>
+178:      <h1 id="pin-store-name" class="text-white font-bold text-xl">KasirKu</h1>
+179:      <p class="text-ink-400 text-sm mt-1">Masukkan PIN kasir untuk melanjutkan</p>
+181:    <!-- Kasir selector -->
+182:    <div class="mb-5">
+183:      <label class="text-xs font-medium text-ink-400 mb-2 block">Pilih Kasir</label>
+184:      <div id="cashier-list" class="space-y-2"></div>
+186:    <!-- PIN dots -->
+187:    <div class="flex justify-center gap-3 mb-6">
+188:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="pin-dot-0"></div>
+189:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="pin-dot-1"></div>
+190:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="pin-dot-2"></div>
+191:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="pin-dot-3"></div>
+193:    <p id="pin-error" class="text-red-400 text-xs text-center mb-3 hidden">PIN salah, coba lagi</p>
+194:    <p class="text-center mb-2"><button onclick="openForgotPin()" class="text-ink-400 hover:text-ink-300 text-xs underline">Lupa PIN?</button></p>
+195:    <!-- Numpad -->
+196:    <div class="grid grid-cols-3 gap-3">
+197:      <button onclick="pinKey('1')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">1</button>
+198:      <button onclick="pinKey('2')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">2</button>
+199:      <button onclick="pinKey('3')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">3</button>
+200:      <button onclick="pinKey('4')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">4</button>
+201:      <button onclick="pinKey('5')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">5</button>
+202:      <button onclick="pinKey('6')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">6</button>
+203:      <button onclick="pinKey('7')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">7</button>
+204:      <button onclick="pinKey('8')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">8</button>
+205:      <button onclick="pinKey('9')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">9</button>
+206:      <div class="opacity-0 pointer-events-none"></div>
+207:      <button onclick="pinKey('0')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">0</button>
+208:      <button onclick="pinKey('⌫')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">⌫</button>
+210:    <p class="text-center text-ink-500 text-xs mt-6">PIN default: <span class="text-ink-300 font-mono">1234</span></p>
+214:<!-- ===== AUTO-LOCK SCREEN ===== -->
+215:<div id="lock-screen" class="hidden fixed inset-0 z-[102] bg-ink-900/97 flex flex-col items-center justify-center px-6">
+216:  <div class="w-full max-w-xs">
+217:    <div class="text-center mb-6">
+218:      <div id="lock-avatar" class="w-16 h-16 rounded-full bg-brand-600 text-white flex items-center justify-center mx-auto mb-3 text-2xl font-bold">A</div>
+219:      <p class="text-ink-400 text-xs">🔒 Sesi terkunci karena tidak aktif</p>
+220:      <h1 id="lock-cashier-name" class="text-white font-bold text-lg mt-1">—</h1>
+221:      <p class="text-ink-400 text-sm mt-1">Masukkan PIN untuk melanjutkan</p>
+223:    <div class="flex justify-center gap-3 mb-6">
+224:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="lock-dot-0"></div>
+225:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="lock-dot-1"></div>
+226:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="lock-dot-2"></div>
+227:      <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-ink-500" id="lock-dot-3"></div>
+229:    <p id="lock-error" class="text-red-400 text-xs text-center mb-3 hidden">PIN salah, coba lagi</p>
+230:    <div class="grid grid-cols-3 gap-3">
+231:      <button onclick="lockKey('1')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">1</button>
+232:      <button onclick="lockKey('2')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">2</button>
+233:      <button onclick="lockKey('3')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">3</button>
+234:      <button onclick="lockKey('4')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">4</button>
+235:      <button onclick="lockKey('5')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">5</button>
+236:      <button onclick="lockKey('6')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">6</button>
+237:      <button onclick="lockKey('7')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">7</button>
+238:      <button onclick="lockKey('8')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">8</button>
+239:      <button onclick="lockKey('9')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">9</button>
+240:      <div class="opacity-0 pointer-events-none"></div>
+241:      <button onclick="lockKey('0')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">0</button>
+242:      <button onclick="lockKey('⌫')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">⌫</button>
+244:    <button onclick="logoutFromLock()" class="w-full mt-5 py-2.5 text-ink-400 hover:text-ink-300 text-xs font-medium transition-colors">Bukan Anda? Logout</button>
+248:<!-- ===== FORGOT PIN MODAL ===== -->
+249:<div id="forgot-pin-modal" class="hidden fixed inset-0 z-[103] flex items-center justify-center px-4">
+250:  <div class="absolute inset-0 bg-black/70" onclick="closeForgotPin()"></div>
+251:  <div class="modal-box relative z-10 bg-white w-full max-w-sm rounded-2xl overflow-hidden">
+252:    <div class="px-5 py-4 border-b border-surface-border">
+253:      <h2 class="font-bold text-ink-800 text-sm">🔑 Pemulihan PIN</h2>
+254:      <p class="text-xs text-ink-400 mt-1">Masukkan Kode Pemulihan yang diberikan manajer untuk reset PIN kasir.</p>
+256:    <div id="forgot-pin-step-code" class="p-5 space-y-3">
+258:        <label class="text-xs font-medium text-ink-500 mb-1 block">Kode Pemulihan</label>
+259:        <input id="forgot-pin-code-input" type="text" placeholder="mis. AB3X9K2P" class="input-field w-full text-center font-mono tracking-widest uppercase" />
+261:      <p id="forgot-pin-code-error" class="text-red-500 text-xs hidden">Kode pemulihan salah atau belum pernah dibuat. Hubungi manajer.</p>
+262:      <button onclick="verifyRecoveryCode()" class="btn-primary w-full py-2.5 rounded-xl font-bold text-sm">Verifikasi</button>
+264:    <div id="forgot-pin-step-reset" class="hidden p-5 space-y-3">
+266:        <label class="text-xs font-medium text-ink-500 mb-1 block">Pilih Kasir</label>
+267:        <select id="forgot-pin-cashier-select" class="input-field w-full text-sm"></select>
+270:        <label class="text-xs font-medium text-ink-500 mb-1 block">PIN Baru (4 digit)</label>
+271:        <input id="forgot-pin-new" type="password" maxlength="4" inputmode="numeric" placeholder="••••" class="input-field w-full text-center text-2xl font-bold tracking-widest" />
+274:        <label class="text-xs font-medium text-ink-500 mb-1 block">Ulangi PIN Baru</label>
+275:        <input id="forgot-pin-confirm" type="password" maxlength="4" inputmode="numeric" placeholder="••••" class="input-field w-full text-center text-2xl font-bold tracking-widest" />
+277:      <p id="forgot-pin-reset-error" class="text-red-500 text-xs hidden">PIN tidak cocok atau tidak valid (harus 4 digit angka).</p>
+278:      <button onclick="submitPinReset()" class="btn-primary w-full py-2.5 rounded-xl font-bold text-sm">Reset PIN</button>
+280:    <button onclick="closeForgotPin()" class="w-full py-3 text-ink-400 hover:text-ink-600 text-xs font-medium border-t border-surface-border transition-colors">Batal</button>
+284:<!-- ===== SIDEBAR (Desktop) ===== -->
+285:<aside id="sidebar" class="fixed left-0 top-0 h-full w-[224px] bg-white border-r border-surface-border flex-col z-30">
+286:  <div class="px-5 py-5 border-b border-surface-border">
+287:    <div class="flex items-center gap-2.5">
+288:      <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
+289:        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-9-4h4"/></svg>
+291:      <span id="store-name-sidebar" class="font-display font-semibold text-[16px] text-ink-900 truncate tracking-tight">KasirKu</span>
+294:  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+295:    <p class="eyebrow px-3 pt-1 pb-2">Operasional</p>
+296:    <button onclick="navigate('kasir')" data-page="kasir" class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+297:      <svg class="nav-icon w-4.5 h-4.5 w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+300:    <button onclick="navigate('inventory')" data-page="inventory" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+301:      <svg class="nav-icon w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/></svg>
+304:    <button onclick="navigate('bahanbaku')" data-page="bahanbaku" class="fnb-only nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+305:      <svg class="nav-icon w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76zM16 8L6 18"/></svg>
+306:      Bahan Baku <span class="mgr-lock-badge hidden text-[11px]">🔒</span>
+308:    <p class="eyebrow px-3 pt-4 pb-2">Wawasan</p>
+309:    <button onclick="navigate('laporan')" data-page="laporan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+310:      <svg class="nav-icon w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+311:      Laporan <span class="mgr-lock-badge hidden text-[11px]">🔒</span>
+313:    <button onclick="navigate('keuangan')" data-page="keuangan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+314:      <svg class="nav-icon w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm4-5a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+315:      Keuangan <span class="mgr-lock-badge hidden text-[11px]">🔒</span>
+317:    <button onclick="navigate('aktivitas')" data-page="aktivitas" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+318:      <svg class="nav-icon w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+321:    <p class="eyebrow px-3 pt-4 pb-2">Sistem</p>
+322:    <button onclick="navigate('pengaturan')" data-page="pengaturan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+323:[Omitted long matching line]
+324:      Pengaturan <span class="mgr-lock-badge hidden text-[11px]">🔒</span>
+327:  <div class="p-4 border-t border-surface-border space-y-2">
+328:    <div id="shift-badge-box" class="hidden bg-brand-50 border border-brand-200 rounded-xl px-3 py-2 flex items-center justify-between">
+329:      <div class="flex items-center gap-1.5">
+330:        <div class="w-1.5 h-1.5 rounded-full bg-brand-500 save-pulse"></div>
+331:        <span class="text-[11px] font-semibold text-brand-700">Shift Aktif</span>
+333:      <span id="shift-duration" class="text-[10px] text-brand-600 tnum"></span>
+335:    <div id="no-shift-banner" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+336:      <p class="text-[11px] font-semibold text-amber-700">⚠️ Belum ada shift aktif</p>
+337:      <p class="text-[10px] text-amber-600 mt-0.5">Dashboard tetap bisa diakses. Mulai shift saat siap bertransaksi.</p>
+339:    <button id="btn-close-shift" onclick="requestCloseShift()" class="hidden w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors">
+340:      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+343:    <button id="btn-open-shift" onclick="openShiftModal()" class="hidden w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-brand-300 text-brand-700 bg-brand-50 text-xs font-semibold hover:bg-brand-100 transition-colors">
+346:    <div class="flex items-center gap-2 px-1">
+347:      <div id="cashier-avatar" class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold shrink-0">A</div>
+348:      <div class="flex-1 min-w-0">
+349:        <p id="cashier-badge-sidebar" class="text-xs font-semibold text-ink-700 truncate">Admin</p>
+350:        <p id="cashier-role-sidebar" class="text-[10px] text-ink-400">Manajer</p>
+352:      <button onclick="logout()" class="text-xs text-ink-400 hover:text-red-500 transition-colors font-medium" title="Logout">⏏</button>
+354:    <div class="flex items-center justify-center gap-1.5">
+355:      <div id="autosave-dot" class="w-2 h-2 rounded-full bg-brand-400"></div>
+356:      <p id="autosave-label" class="text-xs text-ink-400">Tersimpan</p>
+359:</aside>
+361:<!-- ===== MAIN LAYOUT ===== -->
+362:<div id="main-layout" class="flex-1 flex flex-col h-full overflow-hidden transition-all">
+364:  <!-- ===== PAGE: KASIR ===== -->
+365:  <div id="page-kasir" class="page active flex-1 overflow-hidden">
+366:    <div class="flex h-full">
+367:      <!-- Catalog -->
+368:      <div class="flex-1 flex flex-col h-full overflow-hidden">
+369:        <!-- Header -->
+370:        <div class="bg-white border-b border-surface-border px-5 py-4 flex items-center gap-3">
+371:          <div class="relative flex-1">
+372:            <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+373:            <input id="search-input" oninput="renderProducts()" type="text" placeholder="Cari produk…" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-border bg-surface-muted text-[13.5px] text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-transparent focus:bg-white transition-colors" />
+375:          <!-- Scan barcode button -->
+376:          <button onclick="openBarcodeScanner()" id="scan-barcode-btn" class="flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-sm font-medium border border-surface-border text-ink-600 hover:bg-surface-muted transition-colors" title="Scan barcode produk">
+377:            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a1 1 0 011-1h2M4 17v2a1 1 0 001 1h2m10-14h2a1 1 0 011 1v2m-3 12h2a1 1 0 001-1v-2M7 8v8m3-8v8m4-8v8m3-8v8"/></svg>
+378:            <span class="hidden sm:inline">Scan</span>
+380:          <!-- Self-order incoming orders button -->
+381:          <button onclick="openSelfOrderInbox()" id="self-order-inbox-btn" class="fnb-only relative flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-sm font-medium border border-surface-border text-ink-600 hover:bg-surface-muted transition-colors">
+382:            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+383:            <span class="hidden sm:inline">Pesanan Meja</span>
+384:            <span id="self-order-badge" class="hidden absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center tnum">0</span>
+386:          <!-- Mobile cart badge button -->
+387:          <button onclick="toggleSheet()" class="md:hidden relative flex items-center gap-1.5 btn-primary rounded-xl px-3.5 py-2.5 text-sm font-medium">
+388:            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-9-4h4"/></svg>
+389:            <span id="cart-count-badge" class="tab-badge bg-white text-brand-700 font-bold px-1.5 tnum">0</span>
+392:        <!-- Category filter -->
+393:        <div class="bg-white border-b border-surface-border px-5 py-3 flex gap-2 overflow-x-auto scrollbar-hide" id="category-chips">
+395:        <!-- Product Grid -->
+396:        <div class="flex-1 overflow-y-auto p-5">
+397:          <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3.5"></div>
+401:      <!-- Cart Panel (desktop) -->
+402:      <div id="cart-panel" class="hidden w-[336px] bg-white border-l border-surface-border flex-col h-full">
+403:        <!-- Cart Header with tabs -->
+404:        <div class="border-b border-surface-border px-4 py-3.5 flex items-center justify-between">
+405:          <div class="flex gap-1 bg-surface-muted rounded-lg p-1">
+406:            <button onclick="showCartTab('active')" id="tab-active" class="text-[12.5px] font-semibold px-3 py-1.5 rounded-md bg-white text-brand-700 shadow-card transition-all">Pesanan Baru</button>
+407:            <button onclick="showCartTab('hold')" id="tab-hold" class="fnb-only text-[12.5px] font-semibold px-3 py-1.5 rounded-md text-ink-500 hover:text-ink-700 transition-all relative">
+409:              <span id="hold-badge" class="hidden absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-600 text-white text-[9.5px] font-bold rounded-full flex items-center justify-center tnum">0</span>
+412:          <button onclick="clearCart()" class="text-[11.5px] text-ink-400 hover:text-red-500 transition-colors font-medium">Kosongkan</button>
+415:        <!-- Active cart -->
+416:        <div id="cart-tab-active" class="flex-1 flex flex-col overflow-hidden">
+417:          <div id="cart-items-desktop" class="flex-1 overflow-y-auto px-4 py-2 space-y-2"></div>
+418:          <div id="cart-empty-desktop" class="flex-1 flex flex-col items-center justify-center text-ink-300 gap-2.5">
+419:            <svg class="w-11 h-11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-9-4h4"/></svg>
+420:            <p class="text-[13px] text-ink-400">Keranjang kosong</p>
+422:          <div class="p-4 border-t border-surface-border space-y-2.5">
+423:            <div id="summary-desktop" class="space-y-1.5 text-[13px] text-ink-600"></div>
+424:            <div class="flex gap-1.5 mt-1">
+425:              <button onclick="openBill()" id="hold-btn-desktop" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-brand-200 text-brand-700 bg-brand-50 text-[11.5px] font-semibold hover:bg-brand-100 transition-colors disabled:opacity-40" disabled>
+426:                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+429:              <button onclick="printBill()" id="bill-btn-desktop" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-ink-200 text-ink-600 bg-ink-50 text-[11.5px] font-semibold hover:bg-ink-100 transition-colors disabled:opacity-40" disabled>
+430:                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+433:              <button onclick="openCheckout()" id="checkout-btn-desktop" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-[12.5px] disabled:opacity-50" disabled>Bayar</button>
+438:        <!-- Open Bill list -->
+439:        <div id="cart-tab-hold" class="hidden flex-1 flex flex-col overflow-hidden">
+440:          <div id="hold-orders-desktop" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+441:          <div id="hold-empty-desktop" class="flex-1 flex flex-col items-center justify-center text-ink-300 gap-2">
+442:            <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+443:            <p class="text-sm">Belum ada open bill</p>
+444:            <p class="text-xs text-ink-300 text-center px-4">Tambah item lalu klik<br>"Open Bill" untuk simpan</p>
+450:    <!-- Mobile Bottom Sheet Overlay -->
+451:    <div id="sheet-overlay" class="overlay fixed inset-0 bg-black/40 z-40 md:hidden" onclick="closeSheet()"></div>
+453:    <!-- Mobile Bottom Sheet -->
+454:    <div id="bottom-sheet-wrapper" class="bottom-sheet closed fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white rounded-t-2xl" style="height:88dvh;max-height:88dvh">
+455:      <!-- Handle -->
+456:      <div class="flex justify-center pt-3 pb-2 cursor-pointer" onclick="toggleSheet()">
+457:        <div class="w-10 h-1 rounded-full bg-ink-300"></div>
+459:      <!-- Peek bar (when closed) -->
+460:      <div onclick="toggleSheet()" class="flex items-center justify-between px-4 pb-3 cursor-pointer">
+461:        <div class="flex items-center gap-2">
+462:          <svg class="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-9-4h4"/></svg>
+463:          <span id="sheet-item-count" class="text-sm font-semibold text-ink-700">0 item</span>
+465:        <span id="sheet-total-peek" class="text-sm font-bold text-brand-700">Rp 0</span>
+467:      <!-- Mobile tabs -->
+468:      <div class="border-t border-surface-border flex px-4 pt-2 gap-1">
+469:        <button onclick="showCartTab('active')" id="mob-tab-active" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600">Pesanan Baru</button>
+470:        <button onclick="showCartTab('hold')" id="mob-tab-hold" class="fnb-only text-xs font-semibold px-3 py-1.5 rounded-lg text-ink-500 hover:bg-surface-muted relative">
+472:          <span id="mob-hold-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"></span>
+475:      <!-- Active cart mobile -->
+476:      <div id="mob-cart-tab-active">
+477:        <div class="px-3 py-2 overflow-y-auto" id="cart-items-mobile" style="max-height:calc(88dvh - 295px)"></div>
+478:        <div class="p-3 border-t border-surface-border space-y-2">
+479:          <div id="summary-mobile" class="space-y-1.5 text-sm text-ink-600"></div>
+480:          <div class="flex gap-1.5 mt-1">
+481:            <button onclick="openBill()" id="hold-btn-mobile" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-brand-300 text-brand-700 bg-brand-50 text-xs font-semibold hover:bg-brand-100 transition-colors disabled:opacity-40" disabled>
+482:              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+485:            <button onclick="printBill()" id="bill-btn-mobile" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-ink-300 text-ink-600 bg-ink-50 text-xs font-semibold hover:bg-ink-100 transition-colors disabled:opacity-40" disabled>
+486:              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+489:            <button onclick="openCheckout()" id="checkout-btn-mobile" class="btn-primary flex-1 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50" disabled>Bayar</button>
+493:      <!-- Hold orders mobile -->
+494:      <div id="mob-cart-tab-hold" class="hidden">
+495:        <div id="hold-orders-mobile" class="px-3 py-2 space-y-2 overflow-y-auto" style="max-height:calc(88dvh - 200px)"></div>
+496:        <div id="mob-hold-empty" class="py-10 flex flex-col items-center text-ink-300 gap-2">
+497:          <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+498:          <p class="text-sm">Belum ada open bill</p>
+499:          <p class="text-xs text-ink-300 text-center">Tambah item lalu klik "Open Bill"</p>
+505:  <!-- ===== PAGE: INVENTORY ===== -->
+506:  <div id="page-inventory" class="page flex-col h-full overflow-hidden">
+507:    <div class="bg-white border-b border-surface-border px-5 py-4">
+508:      <h1 class="text-lg font-bold text-ink-800">Inventori Produk</h1>
+509:      <p class="text-sm text-ink-500 mt-0.5">Kelola produk yang tersedia di kasir</p>
+510:      <label class="flex items-center gap-2 mt-2.5 cursor-pointer select-none">
+511:        <input type="checkbox" id="inv-show-all-scopes" onchange="renderInventory()" class="w-3.5 h-3.5 rounded border-ink-300 text-brand-600 focus:ring-brand-400" />
+512:        <span class="text-xs text-ink-500">Tampilkan produk dari tipe bisnis lain juga</span>
+515:    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+516:      <!-- Add Product Form -->
+517:      <div class="bg-white rounded-xl border border-surface-border p-4 shadow-card">
+518:        <h2 class="font-semibold text-ink-700 mb-3 text-sm">Tambah Produk Baru</h2>
+519:        <div class="flex gap-3 mb-3 items-start">
+520:          <div id="new-prod-photo-preview" class="w-16 h-16 rounded-xl bg-surface-muted flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-surface-border">🛍️</div>
+521:          <div class="flex-1">
+522:            <label class="text-xs font-medium text-ink-500 mb-1 block">Foto Produk (opsional)</label>
+523:            <div class="flex gap-2 items-center">
+524:              <label class="px-3 py-2 rounded-lg border border-ink-200 text-xs font-semibold text-ink-600 hover:bg-surface-muted transition-colors cursor-pointer">
+526:                <input type="file" accept="image/*" class="hidden" onchange="handleNewProductImage(event)" />
+528:              <button type="button" id="new-prod-photo-clear" onclick="clearNewProductImage()" class="hidden text-xs text-red-400 hover:text-red-600 font-medium">Hapus</button>
+530:            <p class="text-[10.5px] text-ink-400 mt-1">Foto asli tampil lebih menarik di menu Self-Order daripada emoji.</p>
+533:        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+535:            <label class="text-xs font-medium text-ink-500 mb-1 block">Nama Produk</label>
+536:            <input id="inv-name" type="text" placeholder="Contoh: Es Kopi Susu" class="input-field w-full" />
+539:            <label class="text-xs font-medium text-ink-500 mb-1 block">Harga Jual (Rp)</label>
+540:            <input id="inv-price" type="number" placeholder="25000" class="input-field w-full" />
+543:            <label class="text-xs font-medium text-ink-500 mb-1 block">Harga Modal / HPP (Rp)</label>
+544:            <div class="flex gap-2">
+545:              <input id="inv-cost" type="number" placeholder="10000" class="input-field w-full" />
+546:              <button type="button" onclick="openHppCalculator(null)" class="fnb-only px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors shrink-0 text-xs font-semibold whitespace-nowrap" title="Hitung HPP dari resep bahan">🧮 Resep</button>
+550:            <label class="text-xs font-medium text-ink-500 mb-1 block">Kategori</label>
+551:            <input id="inv-category" type="text" placeholder="Minuman" class="input-field w-full" />
+554:            <label class="text-xs font-medium text-ink-500 mb-1 block">Stok</label>
+555:            <input id="inv-stock" type="number" placeholder="50" class="input-field w-full" />
+557:          <div class="sm:col-span-2">
+558:            <label class="text-xs font-medium text-ink-500 mb-1 block">Barcode (opsional)</label>
+559:            <div class="flex gap-2">
+560:              <input id="inv-barcode" type="text" placeholder="8991234567890" class="input-field w-full" />
+561:              <button type="button" onclick="openBarcodeScanner('inv-barcode')" class="px-3.5 py-2 rounded-lg border border-ink-200 text-ink-600 hover:bg-surface-muted transition-colors shrink-0" title="Scan barcode dengan kamera">📷</button>
+565:        <p class="text-[11px] text-ink-400 mt-2">Harga modal opsional, tapi dibutuhkan untuk laporan laba/margin. Kosongkan jika belum tahu.</p>
+566:        <button onclick="addProduct()" class="btn-primary mt-3 px-5 py-2 rounded-lg text-sm font-semibold">+ Tambah Produk</button>
+568:      <!-- Hidden file input dipakai untuk ganti foto produk yang sudah ada -->
+569:      <input type="file" id="product-photo-input" accept="image/*" class="hidden" onchange="handleExistingProductImageChange(event)" />
+570:      <!-- Product Table -->
+571:      <div class="bg-white rounded-xl border border-surface-border shadow-card overflow-hidden">
+572:        <div class="px-4 py-3 border-b border-surface-border flex items-center justify-between">
+573:          <h2 class="font-semibold text-ink-700 text-sm">Daftar Produk</h2>
+574:          <span id="inv-count" class="text-xs text-ink-400 font-medium">0 produk</span>
+576:        <div class="overflow-x-auto">
+577:          <table class="w-full text-sm">
+578:            <thead class="bg-surface-muted">
+580:                <th class="text-left px-4 py-2.5 text-xs font-semibold text-ink-500 uppercase tracking-wide">Produk</th>
+581:                <th class="text-left px-4 py-2.5 text-xs font-semibold text-ink-500 uppercase tracking-wide">Kategori</th>
+582:                <th class="text-right px-4 py-2.5 text-xs font-semibold text-ink-500 uppercase tracking-wide">Modal</th>
+583:                <th class="text-right px-4 py-2.5 text-xs font-semibold text-ink-500 uppercase tracking-wide">Harga</th>
+584:                <th class="text-right px-4 py-2.5 text-xs font-semibold text-ink-500 uppercase tracking-wide">Margin</th>
+585:                <th class="text-right px-4 py-2.5 text-xs font-semibold text-ink-500 uppercase tracking-wide">Stok</th>
+586:                <th class="px-4 py-2.5"></th>
+589:            <tbody id="inv-table-body"></tbody>
+590:          </table>
+596:  <!-- ===== PAGE: LAPORAN ===== -->
+597:  <div id="page-laporan" class="page flex-col h-full overflow-hidden">
+599:    <!-- Dashboard Header -->
+600:    <div class="bg-white border-b border-surface-border px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+602:        <h1 class="text-lg font-bold text-ink-800">Dashboard Penjualan</h1>
+603:        <p class="text-sm text-ink-400 mt-0.5" id="dash-period-label">Hari ini</p>
+605:      <!-- Period Chips -->
+606:      <div class="flex gap-1.5 flex-wrap">
+607:        <button onclick="setReportPeriod('today')"  id="rp-today"  class="chip active text-xs">Hari Ini</button>
+608:        <button onclick="setReportPeriod('week')"   id="rp-week"   class="chip text-xs">7 Hari</button>
+609:        <button onclick="setReportPeriod('month')"  id="rp-month"  class="chip text-xs">Bulan Ini</button>
+610:        <button onclick="setReportPeriod('all')"    id="rp-all"    class="chip text-xs">Semua</button>
+611:        <button onclick="setReportPeriod('custom')" id="rp-custom" class="chip text-xs">📅 Kustom</button>
+615:    <!-- Custom date range -->
+616:    <div id="custom-date-range" class="hidden bg-white border-b border-surface-border px-5 py-3 flex gap-3 flex-wrap items-center">
+617:      <div class="flex items-center gap-2">
+618:        <label class="text-xs font-medium text-ink-500">Dari</label>
+619:        <input type="date" id="date-from" onchange="renderReport()" class="input-field text-sm py-1.5" />
+621:      <div class="flex items-center gap-2">
+622:        <label class="text-xs font-medium text-ink-500">Sampai</label>
+623:        <input type="date" id="date-to" onchange="renderReport()" class="input-field text-sm py-1.5" />
+627:    <div class="flex-1 overflow-y-auto bg-surface p-4 sm:p-5 space-y-4">
+629:      <!-- ── KPI HERO CARDS ── -->
+630:      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+632:        <!-- Revenue Card — largest, accent bg -->
+633:        <div class="col-span-2 bg-brand-700 rounded-2xl p-5 relative overflow-hidden shadow-card-hover">
+634:          <div class="absolute inset-0 opacity-10" style="background:radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)"></div>
+635:          <p class="eyebrow text-brand-200 mb-2">Total Pendapatan</p>
+636:          <p id="report-revenue" class="display-num text-3xl font-bold text-white tnum mb-1">Rp 0</p>
+637:          <div class="flex items-center gap-2 mt-3">
+638:            <div id="revenue-trend" class="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-1">
+639:              <span id="revenue-trend-icon" class="text-xs">—</span>
+640:              <span id="report-revenue-sub" class="text-[11px] font-semibold text-white"></span>
+645:        <!-- Bill Count -->
+646:        <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card flex flex-col justify-between">
+647:          <div class="flex items-start justify-between">
+648:            <p class="eyebrow">Transaksi</p>
+649:            <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-base">🧾</div>
+651:          <div class="mt-3">
+652:            <p id="report-count" class="display-num text-2xl font-bold text-ink-800 tnum">0</p>
+653:            <p class="text-[11px] text-ink-400 mt-1">sukses · <span id="report-void-count" class="text-red-400">0 void</span></p>
+657:        <!-- Avg Bill -->
+658:        <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card flex flex-col justify-between">
+659:          <div class="flex items-start justify-between">
+660:            <p class="eyebrow">Rata-rata Bill</p>
+661:            <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-base">📊</div>
+663:          <div class="mt-3">
+664:            <p id="report-avg" class="display-num text-2xl font-bold text-ink-800 tnum">Rp 0</p>
+665:            <p class="text-[11px] text-ink-400 mt-1">per transaksi</p>
+671:      <!-- ── LABA KOTOR (HPP) ── -->
+672:      <div class="grid grid-cols-2 gap-3">
+673:        <div class="bg-brand-50 rounded-2xl border border-brand-200 p-4 shadow-card">
+674:          <div class="flex items-start justify-between">
+675:            <p class="eyebrow text-brand-700">Laba Kotor</p>
+676:            <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-base">📈</div>
+678:          <p id="report-profit" class="display-num text-2xl font-bold text-brand-700 tnum mt-2">Rp 0</p>
+679:          <p id="report-profit-sub" class="text-[11px] text-brand-600/80 mt-1">omzet dikurangi HPP</p>
+681:        <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card">
+682:          <div class="flex items-start justify-between">
+683:            <p class="eyebrow">Margin Rata-rata</p>
+684:            <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-base">🎯</div>
+686:          <p id="report-margin" class="display-num text-2xl font-bold text-ink-800 tnum mt-2">—</p>
+687:          <p id="report-margin-sub" class="text-[11px] text-ink-400 mt-1">laba ÷ omzet</p>
+691:      <!-- ── SECONDARY KPIs ── -->
+692:      <div class="grid grid-cols-3 gap-3">
+693:        <div class="bg-white rounded-xl border border-surface-border p-3.5 shadow-card">
+694:          <p class="eyebrow mb-2">Item Terjual</p>
+695:          <p id="report-items" class="text-xl font-bold text-ink-800 tnum">0</p>
+696:          <p class="text-[10.5px] text-ink-400 mt-0.5">total qty</p>
+698:        <div class="bg-white rounded-xl border border-surface-border p-3.5 shadow-card">
+699:          <p class="eyebrow mb-2">Pendapatan Tunai</p>
+700:          <p id="report-cash" class="text-xl font-bold text-ink-800 tnum">Rp 0</p>
+701:          <p class="text-[10.5px] text-ink-400 mt-0.5">dari tunai</p>
+703:        <div class="bg-white rounded-xl border border-surface-border p-3.5 shadow-card">
+704:          <p class="eyebrow mb-2">Non-Tunai</p>
+705:          <p id="report-noncash" class="text-xl font-bold text-ink-800 tnum">Rp 0</p>
+706:          <p class="text-[10.5px] text-ink-400 mt-0.5">transfer / kartu</p>
+710:      <!-- ── CHART: PENJUALAN PER JAM ── -->
+711:      <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card">
+712:        <div class="flex items-center justify-between mb-4">
+714:            <h2 class="text-sm font-bold text-ink-800">Penjualan per Jam</h2>
+715:            <p class="text-[11px] text-ink-400 mt-0.5">Distribusi pendapatan sepanjang hari</p>
+717:          <div class="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center">
+718:            <svg class="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+721:        <div id="hourly-chart" class="flex items-end gap-1 h-28 px-1"></div>
+722:        <div class="flex justify-between mt-2 px-1">
+723:          <span class="text-[10px] text-ink-300">00:00</span>
+724:          <span class="text-[10px] text-ink-300">06:00</span>
+725:          <span class="text-[10px] text-ink-300">12:00</span>
+726:          <span class="text-[10px] text-ink-300">18:00</span>
+727:          <span class="text-[10px] text-ink-300">23:00</span>
+731:      <!-- ── CHART: METODE PEMBAYARAN ── -->
+732:      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+734:        <!-- Payment method breakdown -->
+735:        <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card">
+736:          <h2 class="text-sm font-bold text-ink-800 mb-1">Metode Pembayaran</h2>
+737:          <p class="text-[11px] text-ink-400 mb-4">Komposisi penerimaan</p>
+738:          <div id="payment-donut-wrap" class="flex items-center gap-4">
+739:            <svg id="payment-donut" viewBox="0 0 80 80" width="80" height="80" class="shrink-0"></svg>
+740:            <div id="payment-legend" class="flex-1 space-y-1.5 text-xs min-w-0"></div>
+744:        <!-- Category breakdown -->
+745:        <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card">
+746:          <h2 class="text-sm font-bold text-ink-800 mb-1">Penjualan per Kategori</h2>
+747:          <p class="text-[11px] text-ink-400 mb-4">Kontribusi tiap kategori menu</p>
+748:          <div id="category-bars" class="space-y-2.5"></div>
+753:      <!-- ── TOP MENU ── -->
+754:      <div class="bg-white rounded-2xl border border-surface-border shadow-card overflow-hidden">
+755:        <div class="px-4 py-3.5 border-b border-surface-border flex items-center justify-between">
+756:          <div class="flex items-center gap-2">
+757:            <span class="text-base">🏆</span>
+758:            <h2 class="text-sm font-bold text-ink-800">Menu Terlaris</h2>
+760:          <span class="eyebrow">periode ini</span>
+762:        <div id="report-top-menu" class="divide-y divide-surface-border"></div>
+763:        <div id="report-top-empty" class="hidden py-10 text-center text-ink-300 text-sm">Belum ada data penjualan</div>
+766:      <!-- ── DOWNLOAD ── -->
+767:      <div class="bg-white rounded-2xl border border-surface-border p-4 shadow-card">
+768:        <div class="flex items-center gap-2 mb-3">
+769:          <svg class="w-4 h-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+770:          <h2 class="text-sm font-bold text-ink-800">Ekspor Data</h2>
+772:        <div class="grid grid-cols-2 gap-2">
+773:          <button onclick="downloadPenjMenu()" class="btn-primary py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+776:          <button onclick="downloadPenjTransaksi()" class="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-ink-800 hover:bg-ink-900 text-white transition-colors">
+782:      <!-- ── RIWAYAT TRANSAKSI ── -->
+783:      <div class="bg-white rounded-2xl border border-surface-border shadow-card overflow-hidden">
+784:        <div class="px-4 py-3.5 border-b border-surface-border flex items-center justify-between">
+785:          <h2 class="text-sm font-bold text-ink-800">Riwayat Transaksi</h2>
+786:          <span id="report-tx-count-label" class="eyebrow"></span>
+788:        <div id="report-history" class="divide-y divide-surface-border"></div>
+789:        <div id="report-empty" class="py-14 text-center text-ink-300">
+790:          <svg class="w-9 h-9 mx-auto mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+791:          <p class="text-sm">Belum ada transaksi</p>
+792:          <p class="text-xs mt-1 text-ink-200">Lakukan transaksi pertama untuk melihat laporan</p>
+799:  <!-- ===== PAGE: PENGATURAN ===== -->
+800:  <div id="page-pengaturan" class="page flex-col h-full overflow-hidden">
+801:    <div class="bg-white border-b border-surface-border px-5 py-4">
+802:      <h1 class="text-lg font-bold text-ink-800">Pengaturan</h1>
+803:      <p class="text-sm text-ink-500 mt-0.5">Konfigurasi toko dan sistem kasir</p>
+805:    <div class="flex-1 overflow-y-auto p-4 space-y-4 max-w-lg">
+807:      <!-- ===== TIPE BISNIS ===== -->
+808:      <div class="bg-white rounded-xl border border-surface-border p-4 shadow-card">
+809:        <h2 class="font-semibold text-ink-700 text-sm mb-1 flex items-center gap-2"><span class="w-6 h-6 rounded-md bg-brand-100 text-brand-700 flex items-center justify-center text-xs">🏪</span>Tipe Bisnis</h2>
+810:        <p class="text-xs text-ink-400 mb-3">Menentukan fitur mana yang ditampilkan di aplikasi.</p>
+811:        <div class="grid grid-cols-3 gap-2">
+812:          <button onclick="selectBusinessType('fnb')" id="bt-btn-fnb" class="py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-center">🍽️<br>F&amp;B</button>
+813:          <button onclick="selectBusinessType('retail')" id="bt-btn-retail" class="py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-center">🛒<br>Retail</button>
+
+[Showing results with pagination = limit: 500]

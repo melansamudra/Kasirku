@@ -1,0 +1,9 @@
+{
+  "id": "11",
+  "subject": "Build printable ticket receipt page",
+  "description": "Create ticket-reports/[transactionId]/receipt/page.tsx + print-button.tsx mirroring transactions receipt pattern, listing each ticket serial as a line",
+  "activeForm": "Building printable ticket receipt page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

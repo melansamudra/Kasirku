@@ -1,0 +1,9 @@
+{
+  "id": "27",
+  "subject": "Halaman selesai (polling status + link download)",
+  "description": "src/app/kalkulator-hpp/beli/selesai/page.tsx, client component polling get_hpp_order_status.",
+  "activeForm": "Membuat halaman selesai pembelian",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

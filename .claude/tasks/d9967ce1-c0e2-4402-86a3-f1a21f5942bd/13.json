@@ -1,0 +1,9 @@
+{
+  "id": "13",
+  "subject": "Verifikasi cold-start offline di browser",
+  "description": "npm test, lalu cek registrasi SW, isi Cache Storage, uji reload POS saat dev server dimatikan (harus tetap tampil), pastikan rute non-POS tidak ke-cache, pastikan checkout online masih normal.",
+  "activeForm": "Memverifikasi cold-start offline di browser",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

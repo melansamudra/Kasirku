@@ -1,0 +1,9 @@
+{
+  "id": "4",
+  "subject": "Phase 3: Bluetooth support (plugin + DB + settings UI)",
+  "description": "Remove LAN-only filter in kitchen-print.ts, add connectionType/device_label (migration + actions.ts + add-printer-form.tsx + settings/page.tsx), implement printBluetooth/listPairedBluetoothDevices/isBluetoothEnabled, manifest permissions, wire remaining dispatch-print-jobs.ts branch, update kitchen-print.test.ts.",
+  "activeForm": "Building Bluetooth support",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

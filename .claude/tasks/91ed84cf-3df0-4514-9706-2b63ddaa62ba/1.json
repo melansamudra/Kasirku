@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Scaffold monorepo (npm workspaces, apps/web, apps/print-agent, packages/escpos)",
+  "description": "Create root package.json with workspaces, Next.js app in apps/web (TypeScript, App Router, Tailwind, shadcn/ui, lucide-react, Zustand), apps/print-agent Node service skeleton, packages/escpos skeleton, and supabase/ directory for migrations.",
+  "activeForm": "Scaffolding monorepo structure",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

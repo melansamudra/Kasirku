@@ -1,0 +1,9 @@
+{
+  "id": "8",
+  "subject": "Verifikasi harga rombongan tiket E2E",
+  "description": "Login, set group pricing di Settings kategori tiket (Kolam Renang Test), lalu jual 10+ tiket di POS tiket untuk konfirmasi harga rombongan kepakai saat checkout, journal terposting benar.",
+  "activeForm": "Memverifikasi harga rombongan tiket E2E",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

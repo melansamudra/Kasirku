@@ -1,0 +1,9 @@
+{
+  "id": "7",
+  "subject": "Wire main dashboard KPI + business list badge for tiket",
+  "description": "Update (dashboard)/page.tsx to query ticket_transactions instead of transactions when business_type === 'tiket'; update src/app/dashboard/page.tsx badge + quick links for 3-way business_type",
+  "activeForm": "Wiring dashboard KPI and badges",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

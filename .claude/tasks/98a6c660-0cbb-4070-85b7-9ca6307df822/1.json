@@ -1,0 +1,8 @@
+{
+  "id": "1",
+  "subject": "Fix unescaped-quote lint errors (4 files)",
+  "description": "arus-kas/page.tsx, modal/page.tsx, neraca/page.tsx, transfer-kas/page.tsx — escape \" with &quot; in JSX text",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

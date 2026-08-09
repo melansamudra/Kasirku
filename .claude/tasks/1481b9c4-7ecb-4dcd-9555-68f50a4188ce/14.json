@@ -1,0 +1,8 @@
+{
+  "id": "14",
+  "subject": "Wire form into admin/page.tsx per business row",
+  "description": "Add plan picker + \"Tandai Sudah Bayar\" per row in the businesses table",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "4",
+  "subject": "Build ticket category & holiday settings sections",
+  "description": "Create ticket-categories-section.tsx and ticket-holidays-section.tsx, add addTicketCategory/updateTicketCategory/deleteTicketCategory/addTicketHoliday/deleteTicketHoliday to settings/actions.ts, wire into settings/page.tsx",
+  "activeForm": "Building ticket settings sections",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "24",
+  "subject": "Migrasi hpp_desktop_orders + RPC status",
+  "description": "Tabel hpp_desktop_orders (RLS tanpa policy publik) + RPC get_hpp_order_status security-definer.",
+  "activeForm": "Membuat migrasi hpp_desktop_orders",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

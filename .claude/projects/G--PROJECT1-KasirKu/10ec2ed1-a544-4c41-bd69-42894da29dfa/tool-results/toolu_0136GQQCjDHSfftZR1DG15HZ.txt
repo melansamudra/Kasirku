@@ -1,0 +1,302 @@
+139:      <button onclick="selectBusinessType('fnb')" id="bts-btn-fnb" class="w-full text-left p-4 rounded-2xl border-2 border-ink-700 bg-ink-800 hover:border-brand-500 hover:bg-ink-800/80 transition-all group">
+148:      <button onclick="selectBusinessType('retail')" id="bts-btn-retail" class="w-full text-left p-4 rounded-2xl border-2 border-ink-700 bg-ink-800 hover:border-brand-500 hover:bg-ink-800/80 transition-all group">
+157:      <button onclick="selectBusinessType('all')" id="bts-btn-all" class="w-full text-left p-4 rounded-2xl border-2 border-ink-700 bg-ink-800 hover:border-brand-500 hover:bg-ink-800/80 transition-all group">
+194:    <p class="text-center mb-2"><button onclick="openForgotPin()" class="text-ink-400 hover:text-ink-300 text-xs underline">Lupa PIN?</button></p>
+197:      <button onclick="pinKey('1')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">1</button>
+198:      <button onclick="pinKey('2')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">2</button>
+199:      <button onclick="pinKey('3')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">3</button>
+200:      <button onclick="pinKey('4')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">4</button>
+201:      <button onclick="pinKey('5')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">5</button>
+202:      <button onclick="pinKey('6')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">6</button>
+203:      <button onclick="pinKey('7')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">7</button>
+204:      <button onclick="pinKey('8')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">8</button>
+205:      <button onclick="pinKey('9')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">9</button>
+207:      <button onclick="pinKey('0')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">0</button>
+208:      <button onclick="pinKey('⌫')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">⌫</button>
+231:      <button onclick="lockKey('1')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">1</button>
+232:      <button onclick="lockKey('2')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">2</button>
+233:      <button onclick="lockKey('3')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">3</button>
+234:      <button onclick="lockKey('4')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">4</button>
+235:      <button onclick="lockKey('5')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">5</button>
+236:      <button onclick="lockKey('6')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">6</button>
+237:      <button onclick="lockKey('7')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">7</button>
+238:      <button onclick="lockKey('8')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">8</button>
+239:      <button onclick="lockKey('9')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">9</button>
+241:      <button onclick="lockKey('0')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">0</button>
+242:      <button onclick="lockKey('⌫')" class="h-14 rounded-xl text-white font-bold text-xl bg-ink-700 hover:bg-ink-600 active:bg-ink-500 transition-colors">⌫</button>
+244:    <button onclick="logoutFromLock()" class="w-full mt-5 py-2.5 text-ink-400 hover:text-ink-300 text-xs font-medium transition-colors">Bukan Anda? Logout</button>
+250:  <div class="absolute inset-0 bg-black/70" onclick="closeForgotPin()"></div>
+262:      <button onclick="verifyRecoveryCode()" class="btn-primary w-full py-2.5 rounded-xl font-bold text-sm">Verifikasi</button>
+278:      <button onclick="submitPinReset()" class="btn-primary w-full py-2.5 rounded-xl font-bold text-sm">Reset PIN</button>
+280:    <button onclick="closeForgotPin()" class="w-full py-3 text-ink-400 hover:text-ink-600 text-xs font-medium border-t border-surface-border transition-colors">Batal</button>
+296:    <button onclick="navigate('kasir')" data-page="kasir" class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+300:    <button onclick="navigate('inventory')" data-page="inventory" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+304:    <button onclick="navigate('bahanbaku')" data-page="bahanbaku" class="fnb-only nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+309:    <button onclick="navigate('laporan')" data-page="laporan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+313:    <button onclick="navigate('keuangan')" data-page="keuangan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+317:    <button onclick="navigate('aktivitas')" data-page="aktivitas" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+322:    <button onclick="navigate('pengaturan')" data-page="pengaturan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-ink-600 text-[13.5px] font-medium">
+339:    <button id="btn-close-shift" onclick="requestCloseShift()" class="hidden w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors">
+343:    <button id="btn-open-shift" onclick="openShiftModal()" class="hidden w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-brand-300 text-brand-700 bg-brand-50 text-xs font-semibold hover:bg-brand-100 transition-colors">
+352:      <button onclick="logout()" class="text-xs text-ink-400 hover:text-red-500 transition-colors font-medium" title="Logout">⏏</button>
+365:  <div id="page-kasir" class="page active flex-1 overflow-hidden">
+376:          <button onclick="openBarcodeScanner()" id="scan-barcode-btn" class="flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-sm font-medium border border-surface-border text-ink-600 hover:bg-surface-muted transition-colors" title="Scan barcode produk">
+381:          <button onclick="openSelfOrderInbox()" id="self-order-inbox-btn" class="fnb-only relative flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-sm font-medium border border-surface-border text-ink-600 hover:bg-surface-muted transition-colors">
+387:          <button onclick="toggleSheet()" class="md:hidden relative flex items-center gap-1.5 btn-primary rounded-xl px-3.5 py-2.5 text-sm font-medium">
+406:            <button onclick="showCartTab('active')" id="tab-active" class="text-[12.5px] font-semibold px-3 py-1.5 rounded-md bg-white text-brand-700 shadow-card transition-all">Pesanan Baru</button>
+407:            <button onclick="showCartTab('hold')" id="tab-hold" class="fnb-only text-[12.5px] font-semibold px-3 py-1.5 rounded-md text-ink-500 hover:text-ink-700 transition-all relative">
+412:          <button onclick="clearCart()" class="text-[11.5px] text-ink-400 hover:text-red-500 transition-colors font-medium">Kosongkan</button>
+425:              <button onclick="openBill()" id="hold-btn-desktop" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-brand-200 text-brand-700 bg-brand-50 text-[11.5px] font-semibold hover:bg-brand-100 transition-colors disabled:opacity-40" disabled>
+429:              <button onclick="printBill()" id="bill-btn-desktop" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-ink-200 text-ink-600 bg-ink-50 text-[11.5px] font-semibold hover:bg-ink-100 transition-colors disabled:opacity-40" disabled>
+433:              <button onclick="openCheckout()" id="checkout-btn-desktop" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-[12.5px] disabled:opacity-50" disabled>Bayar</button>
+451:    <div id="sheet-overlay" class="overlay fixed inset-0 bg-black/40 z-40 md:hidden" onclick="closeSheet()"></div>
+456:      <div class="flex justify-center pt-3 pb-2 cursor-pointer" onclick="toggleSheet()">
+460:      <div onclick="toggleSheet()" class="flex items-center justify-between px-4 pb-3 cursor-pointer">
+469:        <button onclick="showCartTab('active')" id="mob-tab-active" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600">Pesanan Baru</button>
+470:        <button onclick="showCartTab('hold')" id="mob-tab-hold" class="fnb-only text-xs font-semibold px-3 py-1.5 rounded-lg text-ink-500 hover:bg-surface-muted relative">
+481:            <button onclick="openBill()" id="hold-btn-mobile" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-brand-300 text-brand-700 bg-brand-50 text-xs font-semibold hover:bg-brand-100 transition-colors disabled:opacity-40" disabled>
+485:            <button onclick="printBill()" id="bill-btn-mobile" class="fnb-only flex-none flex items-center gap-1 px-2.5 py-2.5 rounded-xl border border-ink-300 text-ink-600 bg-ink-50 text-xs font-semibold hover:bg-ink-100 transition-colors disabled:opacity-40" disabled>
+489:            <button onclick="openCheckout()" id="checkout-btn-mobile" class="btn-primary flex-1 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50" disabled>Bayar</button>
+506:  <div id="page-inventory" class="page flex-col h-full overflow-hidden">
+528:              <button type="button" id="new-prod-photo-clear" onclick="clearNewProductImage()" class="hidden text-xs text-red-400 hover:text-red-600 font-medium">Hapus</button>
+546:              <button type="button" onclick="openHppCalculator(null)" class="fnb-only px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors shrink-0 text-xs font-semibold whitespace-nowrap" title="Hitung HPP dari resep bahan">🧮 Resep</button>
+561:              <button type="button" onclick="openBarcodeScanner('inv-barcode')" class="px-3.5 py-2 rounded-lg border border-ink-200 text-ink-600 hover:bg-surface-muted transition-colors shrink-0" title="Scan barcode dengan kamera">📷</button>
+566:        <button onclick="addProduct()" class="btn-primary mt-3 px-5 py-2 rounded-lg text-sm font-semibold">+ Tambah Produk</button>
+597:  <div id="page-laporan" class="page flex-col h-full overflow-hidden">
+607:        <button onclick="setReportPeriod('today')"  id="rp-today"  class="chip active text-xs">Hari Ini</button>
+608:        <button onclick="setReportPeriod('week')"   id="rp-week"   class="chip text-xs">7 Hari</button>
+609:        <button onclick="setReportPeriod('month')"  id="rp-month"  class="chip text-xs">Bulan Ini</button>
+610:        <button onclick="setReportPeriod('all')"    id="rp-all"    class="chip text-xs">Semua</button>
+611:        <button onclick="setReportPeriod('custom')" id="rp-custom" class="chip text-xs">📅 Kustom</button>
+773:          <button onclick="downloadPenjMenu()" class="btn-primary py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+776:          <button onclick="downloadPenjTransaksi()" class="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-ink-800 hover:bg-ink-900 text-white transition-colors">
+800:  <div id="page-pengaturan" class="page flex-col h-full overflow-hidden">
+812:          <button onclick="selectBusinessType('fnb')" id="bt-btn-fnb" class="py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-center">🍽️<br>F&amp;B</button>
+813:          <button onclick="selectBusinessType('retail')" id="bt-btn-retail" class="py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-center">🛒<br>Retail</button>
+814:          <button onclick="selectBusinessType('all')" id="bt-btn-all" class="py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-center">⚙️<br>Semua</button>
+853:            <button onclick="exportFullBackup()" class="btn-primary py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+857:            <button onclick="exportTransactionsOnly()" class="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-surface-border text-ink-600 hover:bg-surface-muted transition-colors">
+881:        <button id="btn-close-shift-mobile" onclick="requestCloseShift()" class="hidden mt-3 w-full py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 font-semibold text-sm hover:bg-red-100 transition-colors flex items-center justify-center gap-2 sm:hidden">
+885:        <button id="btn-open-shift-mobile" onclick="openShiftModal()" class="hidden mt-3 w-full py-2.5 rounded-xl bg-brand-50 border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-100 transition-colors flex items-center justify-center gap-2 sm:hidden">
+903:              <button type="button" id="store-logo-clear" onclick="clearStoreLogo()" class="hidden text-xs text-red-400 hover:text-red-600 font-medium">Hapus</button>
+967:          <button onclick="addTable()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap">+ Tambah</button>
+976:          <button onclick="addPaymentMethod()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap">+ Tambah</button>
+1002:            <button onclick="addCashier()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
+1041:        <button onclick="generateRecoveryCode()" class="w-full py-2.5 rounded-xl border border-rose-200 text-rose-600 font-semibold text-sm hover:bg-rose-50 transition-colors">🔄 Buat / Ganti Kode Pemulihan</button>
+1059:              <button onclick="setPrinterConn('bluetooth')" id="conn-bluetooth" class="printer-opt-btn selected flex items-center gap-2.5 p-3 rounded-xl border-2 border-brand-500 bg-brand-50 transition-all">
+1066:              <button onclick="setPrinterConn('lan')" id="conn-lan" class="printer-opt-btn flex items-center gap-2.5 p-3 rounded-xl border-2 border-surface-border bg-white transition-all hover:border-ink-300">
+1088:              <button onclick="scanBluetooth()" class="px-3 py-2 rounded-lg border border-ink-200 text-xs font-semibold text-ink-600 hover:bg-surface-muted transition-colors whitespace-nowrap">🔍 Scan</button>
+1100:              <button onclick="setPaperSize('80')" id="paper-80" class="printer-paper-btn selected flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-brand-500 bg-brand-50 transition-all">
+1107:              <button onclick="setPaperSize('57')" id="paper-57" class="printer-paper-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-surface-border bg-white transition-all hover:border-ink-300">
+1131:            <button onclick="testPrinter()" class="text-xs font-semibold text-brand-600 hover:text-brand-800 transition-colors">Cetak Test →</button>
+1153:        <button onclick="openKitchenPrinterModal()" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-surface-border text-ink-400 hover:border-amber-300 hover:text-amber-700 text-xs font-semibold transition-all">
+1162:  <div id="page-keuangan" class="page flex-col h-full overflow-hidden">
+1169:        <button onclick="setKeuanganPeriod('today')"  id="kg-today"  class="chip text-xs">Hari Ini</button>
+1170:        <button onclick="setKeuanganPeriod('week')"   id="kg-week"   class="chip text-xs">7 Hari</button>
+1171:        <button onclick="setKeuanganPeriod('month')"  id="kg-month"  class="chip active text-xs">Bulan Ini</button>
+1172:        <button onclick="setKeuanganPeriod('all')"    id="kg-all"    class="chip text-xs">Semua</button>
+1234:          <button onclick="addReconciliationEntry()" class="btn-primary w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold">+ Catat</button>
+1278:            <button onclick="setOpeningInventoryOverride()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap">Simpan</button>
+1351:        <button onclick="addExpense()" class="btn-primary w-full py-2.5 rounded-lg text-sm font-semibold">+ Tambah Pengeluaran</button>
+1370:  <div id="page-bahanbaku" class="page flex-col h-full overflow-hidden">
+1412:        <button onclick="addIngredientMaster()" class="btn-primary px-5 py-2 rounded-lg text-sm font-semibold">+ Tambah Bahan Baku</button>
+1442:  <div id="page-aktivitas" class="page flex-col h-full overflow-hidden">
+1448:      <button onclick="clearActivityLog()" class="text-xs text-red-400 hover:text-red-600 font-semibold transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50">Hapus Semua</button>
+1453:      <button onclick="filterActivity('semua')" id="act-filter-semua" class="chip active shrink-0">Semua</button>
+1454:      <button onclick="filterActivity('transaksi')" id="act-filter-transaksi" class="chip shrink-0">💳 Transaksi</button>
+1455:      <button onclick="filterActivity('produk')" id="act-filter-produk" class="chip shrink-0">📦 Produk</button>
+1456:      <button onclick="filterActivity('keranjang')" id="act-filter-keranjang" class="chip shrink-0">🛒 Keranjang</button>
+1457:      <button onclick="filterActivity('pengaturan')" id="act-filter-pengaturan" class="chip shrink-0">⚙️ Pengaturan</button>
+1458:      <button onclick="filterActivity('sistem')" id="act-filter-sistem" class="chip shrink-0">🖥️ Sistem</button>
+1508:    <button onclick="navigate('kasir')" data-page="kasir" class="nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1512:    <button onclick="navigate('inventory')" data-page="inventory" class="nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1516:    <button onclick="navigate('bahanbaku')" data-page="bahanbaku" class="fnb-only nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1520:    <button onclick="navigate('laporan')" data-page="laporan" class="nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1524:    <button onclick="navigate('keuangan')" data-page="keuangan" class="nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1528:    <button onclick="navigate('aktivitas')" data-page="aktivitas" class="nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1532:    <button onclick="navigate('pengaturan')" data-page="pengaturan" class="nav-item flex-1 shrink-0 min-w-[52px] flex flex-col items-center justify-center gap-1 text-ink-500">
+1541:  <div class="overlay absolute inset-0 bg-black/50 visible" onclick="closeCheckout()"></div>
+1547:      <button onclick="closeCheckout()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+1567:        <button onclick="toggleSplitMode()" id="split-toggle-btn" class="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg border-2 border-dashed border-brand-300 text-brand-600 text-xs font-semibold hover:bg-brand-100 transition-colors">
+1580:        <button onclick="addSplitPayment()" id="add-split-btn" class="w-full py-2 rounded-lg border-2 border-dashed border-ink-200 text-ink-400 text-xs font-semibold hover:border-brand-300 hover:text-brand-600 transition-colors flex items-center justify-center gap-1.5">
+1607:      <button onclick="processPayment()" id="confirm-pay-btn" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm" disabled>Konfirmasi Pembayaran</button>
+1624:        <button onclick="shareReceiptWhatsApp()" class="py-2.5 rounded-xl bg-[#25D366] text-white font-semibold text-sm hover:brightness-95 transition-all flex items-center justify-center gap-1.5">
+1628:        <button onclick="shareReceiptEmail()" class="py-2.5 rounded-xl border border-ink-200 text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors flex items-center justify-center gap-1.5">
+1633:      <button onclick="printCurrentReceipt()" class="w-full py-2.5 rounded-xl border border-ink-200 text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors flex items-center justify-center gap-2">
+1638:        <button id="void-btn" onclick="voidCurrentReceipt()" class="flex-1 py-2.5 rounded-xl border border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors">Void Transaksi</button>
+1639:        <button onclick="closeReceipt()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Tutup</button>
+1647:  <div class="absolute inset-0 bg-black/50" onclick="closeShareEmailModal()"></div>
+1657:      <button onclick="closeShareEmailModal()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors">Batal</button>
+1658:      <button onclick="confirmShareEmail()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Kirim</button>
+1665:  <div class="absolute inset-0 bg-black/50" onclick="closeShareWaModal()"></div>
+1676:      <button onclick="closeShareWaModal()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors">Batal</button>
+1677:      <button onclick="confirmShareWa()" class="flex-1 py-2.5 rounded-xl font-bold text-sm bg-[#25D366] text-white hover:brightness-95 transition-all">Kirim</button>
+1685:  <div class="overlay absolute inset-0 bg-black/60 visible" onclick="closeHppCalculator()"></div>
+1692:      <button onclick="closeHppCalculator()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors shrink-0">
+1703:            <button onclick="closeHppCalculator(); navigate('bahanbaku')" class="text-xs font-semibold text-ink-500 hover:text-ink-700">📦 Kelola Bahan</button>
+1704:            <button onclick="addHppRow()" class="text-xs font-semibold text-brand-700 hover:text-brand-800">+ Tambah Bahan</button>
+1741:      <button onclick="closeHppCalculator()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors">Batal</button>
+1742:      <button onclick="applyHppToProduct()" class="flex-1 btn-primary py-2.5 rounded-xl font-bold text-sm">Terapkan ke Produk</button>
+1749:  <div class="absolute inset-0 bg-black/60" onclick="closeBarcodeScanner()"></div>
+1753:      <button onclick="closeBarcodeScanner()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+1767:  <div class="overlay absolute inset-0 bg-black/60 visible" onclick="closeBillModal()"></div>
+1774:      <button onclick="closeBillModal()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+1783:        <button onclick="saveBillAsHTML()" class="py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-colors flex items-center justify-center gap-1.5">
+1787:        <button onclick="printBillDirect()" class="py-3 rounded-xl bg-ink-800 text-white font-bold text-sm hover:bg-ink-700 transition-colors flex items-center justify-center gap-1.5">
+1792:      <button onclick="closeBillModal()" class="w-full py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors">Tutup</button>
+1799:  <div class="absolute inset-0 bg-black/50" onclick="closeItemDiscModal()"></div>
+1806:      <button onclick="closeItemDiscModal()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200">
+1813:        <button onclick="setItemDiscType('pct')" id="item-disc-pct-btn" class="flex-1 py-2 rounded-lg text-xs font-bold bg-white text-brand-600 shadow-card transition-all">Persen (%)</button>
+1814:        <button onclick="setItemDiscType('nominal')" id="item-disc-nom-btn" class="flex-1 py-2 rounded-lg text-xs font-bold text-ink-500 transition-all">Nominal (Rp)</button>
+1827:      <button onclick="clearItemDisc()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors">Hapus Diskon</button>
+1828:      <button onclick="saveItemDisc()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Simpan</button>
+1835:  <div class="absolute inset-0 bg-black/50" onclick="closeOrderDiscModal()"></div>
+1842:      <button onclick="closeOrderDiscModal()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200">
+1848:        <button onclick="setOrderDiscType('pct')" id="order-disc-pct-btn" class="flex-1 py-2 rounded-lg text-xs font-bold bg-white text-brand-600 shadow-card transition-all">Persen (%)</button>
+1849:        <button onclick="setOrderDiscType('nominal')" id="order-disc-nom-btn" class="flex-1 py-2 rounded-lg text-xs font-bold text-ink-500 transition-all">Nominal (Rp)</button>
+1853:        <button onclick="setOrderDiscPreset(5)"  class="chip text-xs flex-1 text-center">5%</button>
+1854:        <button onclick="setOrderDiscPreset(10)" class="chip text-xs flex-1 text-center">10%</button>
+1855:        <button onclick="setOrderDiscPreset(15)" class="chip text-xs flex-1 text-center">15%</button>
+1856:        <button onclick="setOrderDiscPreset(20)" class="chip text-xs flex-1 text-center">20%</button>
+1869:      <button onclick="clearOrderDisc()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors">Hapus Diskon</button>
+1870:      <button onclick="saveOrderDisc()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Terapkan</button>
+1893:          <button onclick="setOpeningCashQuick(0)" class="text-xs px-3 py-1 rounded-full bg-ink-700 text-ink-300 hover:bg-ink-600">Rp 0</button>
+1894:          <button onclick="setOpeningCashQuick(200000)" class="text-xs px-3 py-1 rounded-full bg-ink-700 text-ink-300 hover:bg-ink-600">200rb</button>
+1895:          <button onclick="setOpeningCashQuick(500000)" class="text-xs px-3 py-1 rounded-full bg-ink-700 text-ink-300 hover:bg-ink-600">500rb</button>
+1896:          <button onclick="setOpeningCashQuick(1000000)" class="text-xs px-3 py-1 rounded-full bg-ink-700 text-ink-300 hover:bg-ink-600">1jt</button>
+1904:    <button onclick="confirmOpenShift()" class="w-full mt-5 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm transition-colors">
+1907:    <button onclick="cancelOpenShift()" class="w-full mt-2 py-2.5 rounded-xl text-ink-400 hover:text-ink-300 font-medium text-xs transition-colors">
+1956:    <button onclick="confirmCloseShift()" class="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-colors">
+1959:    <button onclick="cancelCloseShift()" class="w-full mt-2 py-2.5 rounded-xl text-ink-400 hover:text-ink-300 font-medium text-xs transition-colors">
+1977:      <button onclick="printShiftReport()" class="w-full py-2.5 rounded-xl border border-ink-200 text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors flex items-center justify-center gap-2">
+1981:      <button onclick="finishShiftReport()" class="btn-primary w-full py-2.5 rounded-xl font-bold text-sm">Selesai — Kembali ke Login</button>
+1988:<div id="page-access-pin-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4">
+1989:  <div class="absolute inset-0 bg-black/60" onclick="closePageAccessPin()"></div>
+1998:        <input id="page-access-pin-input" type="password" maxlength="4" placeholder="••••" class="input-field w-full text-center text-2xl font-bold tracking-widest" inputmode="numeric" onkeydown="if(event.key==='Enter')confirmPageAccessPin()" />
+2000:      <p id="page-access-pin-error" class="text-red-500 text-xs hidden">PIN salah atau bukan PIN manajer.</p>
+2003:      <button onclick="closePageAccessPin()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm">Batal</button>
+2004:      <button onclick="confirmPageAccessPin()" class="flex-1 py-2.5 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-colors">Buka</button>
+2010:  <div class="absolute inset-0 bg-black/60" onclick="closeVoidPin()"></div>
+2035:      <button onclick="closeVoidPin()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm">Batal</button>
+2036:      <button onclick="confirmVoid()" class="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors">Void Sekarang</button>
+2043:  <div class="absolute inset-0 bg-black/50" onclick="closeKitchenPrinterModal()"></div>
+2047:      <button onclick="closeKitchenPrinterModal()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+2062:          <button onclick="setKpConn('bluetooth')" id="kp-conn-bluetooth" class="printer-opt-btn selected flex items-center gap-2.5 p-3 rounded-xl border-2 border-brand-500 bg-brand-50 transition-all">
+2069:          <button onclick="setKpConn('lan')" id="kp-conn-lan" class="printer-opt-btn flex items-center gap-2.5 p-3 rounded-xl border-2 border-surface-border bg-white transition-all hover:border-ink-300">
+2090:          <button onclick="scanKpBluetooth()" class="px-3 py-2 rounded-lg border border-ink-200 text-xs font-semibold text-ink-600 hover:bg-surface-muted transition-colors whitespace-nowrap">🔍 Scan</button>
+2102:          <button onclick="setKpPaper('80')" id="kp-paper-80" class="printer-paper-btn selected flex-1 py-2 rounded-lg border-2 border-brand-500 bg-brand-50 text-xs font-bold text-ink-800 transition-all">80mm</button>
+2103:          <button onclick="setKpPaper('57')" id="kp-paper-57" class="printer-paper-btn flex-1 py-2 rounded-lg border-2 border-surface-border bg-white text-xs font-bold text-ink-800 transition-all hover:border-ink-300">57mm</button>
+2115:      <button id="kp-delete-btn" onclick="deleteKitchenPrinter()" class="hidden flex-1 py-2.5 rounded-xl border border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors">Hapus</button>
+2116:      <button onclick="saveKitchenPrinter()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Simpan Printer</button>
+2123:  <div class="absolute inset-0 bg-black/60" onclick="closeQrTableModal()"></div>
+2127:      <button onclick="closeQrTableModal()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+2137:      <button onclick="copyQrTableLink()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors">Salin Tautan</button>
+2138:      <button onclick="openTableMenuPreview()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Lihat Pratinjau</button>
+2145:  <div class="absolute inset-0 bg-black/50" onclick="closeSelfOrderInbox()"></div>
+2152:      <button onclick="closeSelfOrderInbox()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+2171:    <button onclick="closeTableMenuPreview()" class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-colors">
+2183:    <button onclick="submitTableOrder()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-between px-5">
+2192:  <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('open-bill-modal').classList.add('hidden')"></div>
+2202:      <button onclick="document.getElementById('open-bill-modal').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-600 font-semibold text-sm hover:bg-surface-muted transition-colors">Batal</button>
+2203:      <button onclick="confirmOpenBill()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Simpan Bill</button>
+2210:  <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('import-success-modal').classList.add('hidden')"></div>
+2221:      <button onclick="document.getElementById('import-success-modal').classList.add('hidden')" class="btn-primary w-full py-2.5 rounded-xl font-bold text-sm">Selesai</button>
+2228:  <div class="overlay absolute inset-0 bg-black/50 visible" onclick="closeNoteModal()"></div>
+2235:      <button onclick="closeNoteModal()" class="w-7 h-7 rounded-full bg-surface-muted text-ink-500 flex items-center justify-center hover:bg-ink-200 transition-colors">
+2244:      <button onclick="clearNote()" class="flex-1 py-2.5 rounded-xl border border-surface-border text-ink-500 font-semibold text-sm hover:bg-surface-muted transition-colors">Hapus Catatan</button>
+2245:      <button onclick="saveNote()" class="btn-primary flex-1 py-2.5 rounded-xl font-bold text-sm">Simpan</button>
+2382:  document.querySelectorAll(`[data-page="${page}"]`).forEach(n => n.classList.add('active'));
+2442:    `<button onclick="filterCategory('${cat}')" class="chip ${state.activeCategory===cat?'active':''} shrink-0">${cat}</button>`
+2470:    return `<div class="product-card bg-white rounded-2xl border border-surface-border overflow-hidden cursor-pointer shadow-card ${p.stock === 0 ? 'opacity-50 pointer-events-none' : ''}" onclick="addToCart(${p.id})">
+2490:function addToCart(id) {
+2568:        <button class="qty-btn bg-surface-muted text-ink-600 hover:bg-ink-200" onclick="changeQty(${item.id},-1)">−</button>
+2570:        <button class="qty-btn bg-brand-50 text-brand-600 hover:bg-brand-100" onclick="changeQty(${item.id},1)">+</button>
+2574:      <button onclick="openNoteModal(${item.id})" class="flex items-center gap-1 text-xs ${hasNote ? 'text-amber-600 bg-amber-50 border border-amber-200' : 'text-ink-400 bg-surface-muted border border-surface-border'} rounded-full px-2 py-0.5 hover:border-brand-300 hover:text-brand-600 transition-all">
+2578:      <button onclick="openItemDiscModal(${item.id})" class="flex items-center gap-1 text-xs ${hasDisc ? 'text-brand-700 bg-brand-50 border border-brand-200' : 'text-ink-400 bg-surface-muted border border-surface-border'} rounded-full px-2 py-0.5 hover:border-brand-400 hover:text-brand-700 transition-all">
+2603:    <button onclick="openOrderDiscModal()" class="mt-1.5 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed ${hasOrderDisc?'border-brand-400 bg-brand-50 text-brand-700':'border-ink-300 text-ink-400 hover:border-brand-400 hover:text-brand-600'} text-xs font-semibold transition-all">
+2649:function openBill() {
+2730:function addItemToBill(billId) {
+2741:function deleteBill(billId) {
+2803:        <button onclick="addItemToBill(${bill.id})" class="py-1.5 rounded-lg bg-brand-50 text-brand-700 text-[11px] font-bold hover:bg-brand-100 transition-colors">
+2806:        <button onclick="checkoutBill(${bill.id})" class="py-1.5 rounded-lg bg-brand-600 text-white text-[11px] font-bold hover:bg-brand-700 transition-colors">
+2809:        <button onclick="deleteBill(${bill.id})" class="py-1.5 rounded-lg bg-red-50 text-red-500 text-[11px] font-bold hover:bg-red-100 transition-colors">
+2820:function showCartTab(tab) {
+2856:function toggleSheet() {
+2875:function openCheckout() {
+2922:    `<button onclick="selectPayment('${m.id}')" id="pm-${m.id}" class="payment-method-btn text-center">
+2949:    `<button onclick="setQuickAmount(${a})" class="chip text-sm">${fmt(a)}</button>`
+2968:function toggleSplitMode() {
+2991:function addSplitPayment() {
+3023:        ${splitPayments.length > 1 ? `<button onclick="removeSplitPayment(${p.id})" class="text-xs text-red-400 hover:text-red-600 transition-colors font-medium">Hapus</button>` : ''}
+3027:        ${methods.map(m => `<button onclick="setSplitMethod(${p.id},'${m.id}')" class="split-method-btn rounded-lg py-1.5 px-1 text-center border-2 ${p.method===m.id?'border-brand-500 bg-brand-50':'border-surface-border bg-white'} transition-all">
+3266:function showReceipt(tx) {
+3419:        <button onclick="removeHppRow(${r.id})" class="w-7 h-7 rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 flex items-center justify-center shrink-0 text-sm">✕</button>
+3444:function addIngredientMaster() {
+3464:function updateIngredientMasterField(id, field, value) {
+3473:function deleteIngredientMaster(id) {
+3513:      <td class="px-4 py-2.5 text-right"><button onclick="deleteIngredientMaster(${ing.id})" class="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">Hapus</button></td>
+3554:function openHppCalculator(productId) {
+3579:function addHppRow() {
+3592:function updateHppRow(id, field, value) {
+3687:function updateProductScope(id, scope) {
+3698:function addProduct() {
+3734:function deleteProduct(id) {
+3764:        <div onclick="triggerProductPhotoUpload(${p.id})" title="Klik untuk ganti foto" class="relative w-9 h-9 rounded-lg text-lg flex items-center justify-center shrink-0 overflow-hidden cursor-pointer group" style="background:${p.image ? 'transparent' : (productColorMap[p.id]||'#D1FAE5')}">
+3773:          ${p.image ? `<button onclick="removeProductPhoto(${p.id})" class="block text-[10px] text-red-400 hover:text-red-600 mt-0.5">Hapus foto</button>` : ''}
+3789:        <button onclick="openHppCalculator(${p.id})" class="fnb-only text-xs text-amber-600 hover:text-amber-800 font-medium mr-2">🧮 HPP</button>
+3790:        <button onclick="deleteProduct(${p.id})" class="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">Hapus</button>
+3808:function openBarcodeScanner(targetInputId) {
+4065:        <div class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onclick="showReceipt(state.transactions.find(t=>t.id===${tx.id}))">
+4080:        <button onclick="event.stopPropagation();reprintTransaction(${tx.id})" title="Cetak ulang" class="shrink-0 w-8 h-8 rounded-lg bg-surface-muted hover:bg-brand-50 hover:text-brand-600 text-ink-400 flex items-center justify-center transition-colors">
+4184:function toggleExpenseCategoryCustom() {
+4196:function addExpense() {
+4260:function deleteExpense(id) {
+4295:      <button onclick="deleteExpense(${e.id})" class="shrink-0 w-7 h-7 rounded-lg text-ink-300 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors" title="Hapus">
+4312:function updateReconciliationLockState() {
+4326:function addReconciliationEntry() {
+4732:function updateStoreName() {
+4767:function updateSettings() {
+4776:function addPaymentMethod() {
+4799:          <button onclick="removePaymentMethod('${m}')" class="text-brand-400 hover:text-red-500 ml-0.5 transition-colors font-bold">×</button>
+4807:function updatePrinterSettings() {
+4842:      `<button onclick="selectBtDevice('${d}')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white border border-surface-border hover:border-brand-300 hover:bg-brand-50 transition-all text-left">
+4861:function updatePrinterStatus(status) {
+4922:function openKitchenPrinterModal(id) {
+4979:      `<button onclick="selectKpBtDevice('${d}')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white border border-surface-border hover:border-brand-300 hover:bg-brand-50 transition-all text-left">
+5004:    return `<button onclick="toggleKpCategory('${cat}')" class="chip text-xs ${checked ? 'active' : ''}">${checked ? '✓ ' : ''}${cat}</button>`;
+5008:function toggleKpCategory(cat) {
+5046:function deleteKitchenPrinter() {
+5089:        <button onclick="openKitchenPrinterModal(${kp.id})" class="flex-1 py-1.5 rounded-lg border border-surface-border text-xs font-semibold text-ink-600 hover:bg-surface-muted transition-colors">Edit</button>
+5090:        <button onclick="testKitchenPrinter(${kp.id})" class="flex-1 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors">Test Cetak</button>
+5444:function showImportSuccessModal(data, isFullBackup) {
+5467:function updateSelfOrderSettings() {
+5472:function addTable() {
+5486:function deleteTable(id) {
+5512:        <button onclick="showTableQR(${t.id})" class="px-3 py-1.5 rounded-lg bg-violet-100 text-violet-700 text-[11px] font-bold hover:bg-violet-200 transition-colors">QR Code</button>
+5513:        <button onclick="openTableMenuPreview(${t.id})" class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-[11px] font-bold hover:bg-brand-100 transition-colors">Pratinjau</button>
+5514:        ${state.tables.length > 1 ? `<button onclick="deleteTable(${t.id})" class="px-2 py-1.5 rounded-lg bg-red-50 text-red-500 text-[11px] font-bold hover:bg-red-100 transition-colors">×</button>` : ''}
+5528:function showTableQR(tableId) {
+5575:function openTableMenuPreview(tableId) {
+5600:    `<button onclick="setTmCategory('${c}')" class="chip shrink-0 text-xs ${_tmCategory===c?'active':''}">${c}</button>`
+5618:    return `<div class="bg-white rounded-2xl border border-surface-border overflow-hidden shadow-card cursor-pointer" onclick="tmAddItem(${p.id})">
+5642:function updateTmCartBar() {
+5684:function showNewOrderNotification(order) {
+5689:  t.onclick = () => { openSelfOrderInbox(); t.classList.add('hidden'); };
+5695:function updateSelfOrderBadge() {
+5706:function openSelfOrderInbox() {
+5759:            <button onclick="updateSelfOrderStatus(${o.id},'diproses')" class="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-[11px] font-bold hover:bg-brand-700 transition-colors">Proses</button>
+5760:            <button onclick="addSelfOrderToCart(${o.id})" class="px-3 py-1.5 rounded-lg bg-ink-800 text-white text-[11px] font-bold hover:bg-ink-900 transition-colors">+ Ke Kasir</button>
+5763:            <button onclick="updateSelfOrderStatus(${o.id},'selesai')" class="px-3 py-1.5 rounded-lg bg-brand-100 text-brand-700 text-[11px] font-bold hover:bg-brand-200 transition-colors">✓ Selesai</button>
+5774:function updateSelfOrderStatus(orderId, newStatus) {
+5785:function addSelfOrderToCart(orderId) {
+5848:function openItemDiscModal(id) {
+5919:function openOrderDiscModal() {
+5994:function openNoteModal(id) {
+6002:    `<button onclick="applyNoteSuggestion('${s}')" class="chip text-xs py-1 px-3">${s}</button>`
+6055:function addLog(category, status, title, detail) {
+6141:function showToast(msg) {
+6236:    <button onclick="selectCashier(${c.id})" id="cashier-btn-${c.id}"
+6270:function updatePinDots() {
+6315:function updateManagerLockBadges() {
+
+[Showing results with pagination = limit: 300]

@@ -1,0 +1,9 @@
+{
+  "id": "4",
+  "subject": "Write create_order RPC migration",
+  "description": "supabase/migrations/0003_create_order_rpc.sql implementing the atomic order+order_items creation with server-side print_station resolution and tax calc.",
+  "activeForm": "Writing create_order RPC",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

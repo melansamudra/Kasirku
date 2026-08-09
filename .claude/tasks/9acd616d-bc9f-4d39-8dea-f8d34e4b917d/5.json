@@ -1,0 +1,8 @@
+{
+  "id": "5",
+  "subject": "Verify full app in browser after redesign",
+  "description": "Type-check, run vitest, then click through every migrated page in the browser preview (sidebar nav, dashboard charts, a sampling of back-office pages, and confirm POS still works unaffected/mobile-only) before reporting done.",
+  "status": "in_progress",
+  "blocks": [],
+  "blockedBy": []
+}

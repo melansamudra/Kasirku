@@ -1,0 +1,9 @@
+{
+  "id": "12",
+  "subject": "Build LAN print agent service + admin printers CRUD",
+  "description": "apps/print-agent Node HTTP server (POST /print, GET /health) bound to 127.0.0.1 with CORS allow-list; /admin/printers CRUD; lib/pos/printer-discovery.ts and lib/print/agent-client.ts; POS integration to print kitchen/bar tickets.",
+  "activeForm": "Building LAN print agent and printers CRUD",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

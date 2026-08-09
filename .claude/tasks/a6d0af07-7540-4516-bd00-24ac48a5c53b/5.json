@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "E2E: public pages and report of findings",
+  "description": "Check /, /sistem-akuntansi, /kalkulator-hpp, /blog, /rekomendasi-alat, forgot-password render; then summarize all findings/bugs to the user",
+  "activeForm": "Testing public pages",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

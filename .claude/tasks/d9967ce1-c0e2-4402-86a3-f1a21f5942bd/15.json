@@ -1,0 +1,9 @@
+{
+  "id": "15",
+  "subject": "Install @anthropic-ai/sdk",
+  "description": "npm install @anthropic-ai/sdk sebagai satu-satunya dependency baru untuk fitur AI.",
+  "activeForm": "Menginstall @anthropic-ai/sdk",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

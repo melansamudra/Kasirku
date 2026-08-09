@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Write ticket_venue migration SQL file",
+  "description": "Create supabase/migrations/20260706200000_ticket_venue.sql with the business_type constraint change, 5 new tables (ticket_categories, ticket_holidays, members, ticket_transactions, ticket_serials), RLS policies, and 2 RPCs (checkout_ticket_transaction, void_ticket_transaction)",
+  "activeForm": "Writing ticket_venue migration SQL",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,9 @@
+{
+  "id": "10",
+  "subject": "Build printable receipt fallback (window.print + @media print)",
+  "description": "pos/receipt/[orderId]/page.tsx and styles/print.css supporting 58mm/80mm paper sizes.",
+  "activeForm": "Building printable receipt fallback",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

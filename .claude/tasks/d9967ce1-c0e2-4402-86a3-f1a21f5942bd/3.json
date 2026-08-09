@@ -1,0 +1,9 @@
+{
+  "id": "3",
+  "subject": "Hook useOfflineSync",
+  "description": "src/hooks/use-offline-sync.ts: isOnline tracking, load pending dari IndexedDB, syncNow() sequential retry ke checkout()/checkoutTicket(), auto-run saat online/interval.",
+  "activeForm": "Membuat hook useOfflineSync",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

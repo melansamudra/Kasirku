@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Phase 0: Install JDK + Android SDK cmdline-tools",
+  "description": "Install JDK 21 and Android SDK command-line tools on this Windows machine (currently zero Android tooling). Set ANDROID_HOME/JAVA_HOME. Verify sdkmanager/gradlew work.",
+  "activeForm": "Installing JDK + Android SDK tooling",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

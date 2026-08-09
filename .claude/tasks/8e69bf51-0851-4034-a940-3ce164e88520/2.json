@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "Auto-post journal entries from checkout_transaction and void RPCs",
+  "description": "Redefine checkout_transaction to call private.post_journal() for sales (debit kas/bank, credit pendapatan) and COGS (debit HPP beban, credit persediaan) when total_cost > 0. Redefine void_transaction_rpc to post a reversing entry referencing the original transaction's journal entry.",
+  "activeForm": "Wiring sales/void auto-posting into checkout and void RPCs",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

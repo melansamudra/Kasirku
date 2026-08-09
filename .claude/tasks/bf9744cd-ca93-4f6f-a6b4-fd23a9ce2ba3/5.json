@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "Phase 4: Packaging & distribution",
+  "description": "Generate release keystore (self-signed), assembleRelease, write install docs for shop owners (mirroring print-agent/README.md tone).",
+  "activeForm": "Packaging release APK",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

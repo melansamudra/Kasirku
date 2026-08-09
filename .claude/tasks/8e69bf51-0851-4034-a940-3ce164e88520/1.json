@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Schema: accounts + journal_entries + journal_lines + seed COA",
+  "description": "New migration: public.accounts (COA), public.journal_entries, public.journal_lines tables with RLS via private.owns_business(). Seed default Indonesian F&B/retail chart of accounts for new businesses (trigger on businesses insert) and backfill for existing businesses. Add private.post_journal(business_id, date, description, source, source_id, lines jsonb) plpgsql helper that validates debit=credit balance and inserts entry+lines atomically, plus a public.post_journal_entry(...) RPC wrapping it for manual entries from the client.",
+  "activeForm": "Building accounts/journal schema and seeding",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

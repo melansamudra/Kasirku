@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "UI: Daftar Akun + Jurnal Transaksi pages",
+  "description": "New route group src/app/business/[businessId]/(dashboard)/accounting/ with daftar-akun (list COA, add custom account) and jurnal (list journal entries with drill-down to lines, manual entry form posting via post_journal_entry RPC).",
+  "activeForm": "Building Daftar Akun and Jurnal pages",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

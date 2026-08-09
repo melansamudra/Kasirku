@@ -1,0 +1,9 @@
+{
+  "id": "10",
+  "subject": "Build ticket void form for detail page",
+  "description": "Create ticket-reports/[transactionId]/void-ticket-transaction-form.tsx mirroring void-transaction-form.tsx, using existing voidTicketTransaction action",
+  "activeForm": "Building ticket void form",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

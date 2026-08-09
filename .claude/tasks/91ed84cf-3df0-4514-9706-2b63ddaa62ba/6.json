@@ -1,0 +1,9 @@
+{
+  "id": "6",
+  "subject": "Build login page + auth flow",
+  "description": "(auth)/login page using Supabase Auth email/password sign-in.",
+  "activeForm": "Building login page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

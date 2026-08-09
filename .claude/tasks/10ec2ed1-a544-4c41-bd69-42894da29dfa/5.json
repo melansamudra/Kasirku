@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "Build members CRUD pages",
+  "description": "Create members/page.tsx, members/actions.ts, add-member-form.tsx, members/[memberId]/page.tsx + edit-member-form.tsx + delete-member-button.tsx mirroring customers/ pattern",
+  "activeForm": "Building members CRUD pages",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

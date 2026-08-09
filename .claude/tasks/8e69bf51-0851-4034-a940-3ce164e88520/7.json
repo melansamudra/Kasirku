@@ -1,0 +1,9 @@
+{
+  "id": "7",
+  "subject": "UI: Laporan Arus Kas page",
+  "description": "accounting/arus-kas page.tsx: sum journal_lines touching Kas/Bank accounts within a period, grouped by journal_entries.source (penjualan=operasional in, pembelian/beban=operasional out, manual=lain-lain) into simplified operasional/investasi/pendanaan cash flow buckets.",
+  "activeForm": "Building Laporan Arus Kas page",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

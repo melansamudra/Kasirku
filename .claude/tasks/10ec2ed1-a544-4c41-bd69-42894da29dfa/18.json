@@ -1,0 +1,9 @@
+{
+  "id": "18",
+  "subject": "Add barcode generation + printable member card",
+  "description": "npm install jsbarcode; build members/[memberId]/member-barcode.tsx, members/[memberId]/card/page.tsx + print-button.tsx, wire link from member detail page",
+  "activeForm": "Building barcode member card",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

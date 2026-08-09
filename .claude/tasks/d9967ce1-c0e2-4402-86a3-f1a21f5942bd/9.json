@@ -1,0 +1,9 @@
+{
+  "id": "9",
+  "subject": "Buat public/sw.js",
+  "description": "Service worker manual: network-first + fallback cache untuk rute POS & aset statis, passthrough untuk selainnya, versioned cache cleanup di activate.",
+  "activeForm": "Membuat public/sw.js",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

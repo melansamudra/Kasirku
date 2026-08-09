@@ -1,0 +1,8 @@
+{
+  "id": "4",
+  "subject": "Re-run lint and tests to confirm clean",
+  "description": "npm run lint && npm run test should be 0 errors after fixes",
+  "status": "in_progress",
+  "blocks": [],
+  "blockedBy": []
+}

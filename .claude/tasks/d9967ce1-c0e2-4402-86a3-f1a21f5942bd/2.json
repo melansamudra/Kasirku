@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "Library offline-db & offline-queue",
+  "description": "src/lib/offline-db.ts (wrapper IndexedDB) dan src/lib/offline-queue.ts (PendingSale type + enqueue/list/mark helpers + pendingStockDeltas).",
+  "activeForm": "Membuat library offline-db & offline-queue",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

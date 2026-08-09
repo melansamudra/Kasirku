@@ -1,0 +1,9 @@
+{
+  "id": "16",
+  "subject": "Buat src/lib/ai/price-recommendation.ts",
+  "description": "Server-only module memanggil Claude (claude-opus-4-8, adaptive thinking, structured JSON output) untuk rekomendasi harga.",
+  "activeForm": "Membuat modul price-recommendation.ts",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

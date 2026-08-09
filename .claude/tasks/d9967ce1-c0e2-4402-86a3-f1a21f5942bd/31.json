@@ -1,0 +1,9 @@
+{
+  "id": "31",
+  "subject": "Coba build installer .exe & laporkan hasilnya",
+  "description": "npm install + npm run dist di desktop-app/, laporkan sukses/gagal apa adanya.",
+  "activeForm": "Mencoba build installer .exe",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

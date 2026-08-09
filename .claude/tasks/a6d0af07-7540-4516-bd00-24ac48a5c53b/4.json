@@ -1,0 +1,9 @@
+{
+  "id": "4",
+  "subject": "E2E: accounting, SDM, and new Finance pages",
+  "description": "Click through Jurnal/Neraca/Laba Rugi/Arus Kas/Kas Harian/Invoices/Notifikasi/Karyawan/Payroll/Absensi + rekap, verify no crashes and numbers consistent after the POS sale",
+  "activeForm": "Testing accounting and SDM pages",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

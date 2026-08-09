@@ -1,0 +1,9 @@
+{
+  "id": "14",
+  "subject": "Build admin reports dashboard",
+  "description": "/admin/reports with real per-branch/date sales totals from orders/order_items, no adjustment controls.",
+  "activeForm": "Building admin reports dashboard",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

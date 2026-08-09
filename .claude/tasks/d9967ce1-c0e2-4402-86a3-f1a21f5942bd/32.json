@@ -1,0 +1,9 @@
+{
+  "id": "32",
+  "subject": "Verifikasi lint/typecheck/test + alur beli di browser",
+  "description": "npm test, tsc, eslint, uji halaman beli (mode manual), simulasi webhook settlement, cek link download & regresi webhook KK-.",
+  "activeForm": "Menjalankan verifikasi menyeluruh",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

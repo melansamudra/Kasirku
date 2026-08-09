@@ -1,0 +1,9 @@
+{
+  "id": "3",
+  "subject": "Write RLS policies + helper functions + auth hook migration",
+  "description": "supabase/migrations/0002_rls_policies.sql with security definer helpers (auth_role, auth_branch_id, is_super_admin), RLS policies per table, and custom_access_token_hook.",
+  "activeForm": "Writing RLS policies and auth hook",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

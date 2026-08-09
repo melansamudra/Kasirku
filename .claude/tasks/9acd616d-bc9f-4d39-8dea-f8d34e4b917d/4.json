@@ -1,0 +1,8 @@
+{
+  "id": "4",
+  "subject": "Retrofit existing back-office pages to fit the shell",
+  "description": "Update each moved page's outer wrapper (currently a narrow centered mobile card, max-w-sm/max-w-lg, with a redundant \"← Kembali ke dashboard\" link) to fit inside the new wide sidebar shell: remove the now-redundant back link, widen the content container, and adjust grids to use available desktop width where sensible. Covers: reports, laba-rugi, finance, products, ingredients, customers, cashiers, payroll, attendance, shifts, transactions, settings, activity, tables.",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

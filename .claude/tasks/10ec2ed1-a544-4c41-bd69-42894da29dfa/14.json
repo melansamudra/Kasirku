@@ -1,0 +1,9 @@
+{
+  "id": "14",
+  "subject": "Write manual ticket number migration + RPC update",
+  "description": "Create supabase/migrations/20260706300000_ticket_manual_number.sql: add manual_number column with backfill, unique constraint per category, update checkout_ticket_transaction RPC to accept manual_numbers arrays",
+  "activeForm": "Writing manual ticket number migration",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

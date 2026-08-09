@@ -1,0 +1,8 @@
+{
+  "id": "5",
+  "subject": "Wire enforcement: dashboard layout + new pos layout",
+  "description": "Modify (dashboard)/layout.tsx to redirect when locked + past_due banner; add pos/layout.tsx with same redirect",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}
