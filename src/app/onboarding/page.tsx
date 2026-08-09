@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import OnboardingForm from "./onboarding-form";
+import LogoutButton from "@/app/dashboard/logout-button";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -52,11 +53,19 @@ export default async function OnboardingPage() {
   const hasExistingBusinesses = Boolean(businesses && businesses.length > 0);
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-      <OnboardingForm
-        hasExistingBusinesses={hasExistingBusinesses}
-        otherBusinesses={businesses ?? []}
-      />
+    <div className="flex flex-1 flex-col bg-zinc-50">
+      {user && (
+        <div className="flex items-center justify-end gap-3 px-4 py-3">
+          <span className="text-xs text-zinc-400">{user.email}</span>
+          <LogoutButton variant="inline" />
+        </div>
+      )}
+      <div className="flex flex-1 items-center justify-center px-4">
+        <OnboardingForm
+          hasExistingBusinesses={hasExistingBusinesses}
+          otherBusinesses={businesses ?? []}
+        />
+      </div>
     </div>
   );
 }
