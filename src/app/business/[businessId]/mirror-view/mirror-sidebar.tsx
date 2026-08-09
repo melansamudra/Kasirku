@@ -64,6 +64,9 @@ export default function MirrorSidebar({
         ...(perms.show_transactions
           ? [{ href: `${base}/laporan-jam`, label: "Laporan per Jam", icon: Clock }]
           : []),
+        ...(perms.show_transactions
+          ? [{ href: `${base}/laporan-transaksi`, label: "Laporan per Transaksi", icon: Receipt }]
+          : []),
       ],
     },
     ...(perms.show_purchases
