@@ -27,6 +27,7 @@ export default async function MirrorPage({
     supabase.from("businesses").select("id, name, owner_id, mirroring_enabled").eq("id", businessId).single(),
     supabase.auth.getUser(),
   ]);
+  const ownerEmail = userData.user?.email ?? "";
 
   if (!business) notFound();
   if (business.owner_id !== userData.user?.id) redirect(`/business/${businessId}`);
@@ -91,6 +92,7 @@ export default async function MirrorPage({
                   businessId={businessId}
                   mirrorAccountId={acc.id}
                   email={acc.invited_email}
+                  ownerEmail={ownerEmail}
                 />
               </div>
 
