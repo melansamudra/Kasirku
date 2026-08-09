@@ -732,7 +732,16 @@ export default function PosScreen({
       alert(`Gagal cetak: ${result.error}`);
       return;
     }
-    if (result.jobs.length > 0) void dispatchPrintJobs(businessId, result.jobs);
+    if (result.jobs.length > 0) {
+      dispatchPrintJobs(businessId, result.jobs).then((results) => {
+        const failed = results.filter((r) => !r.result.ok);
+        setInboxNotice(
+          failed.length === 0
+            ? "🖨️ Bill berhasil dikirim ke printer."
+            : `⚠️ Bill gagal: ${failed.map((r) => r.job.printerName).join(", ")} — cek antrian cetak.`,
+        );
+      }).catch(() => {});
+    }
   }
 
   async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
@@ -1091,7 +1100,19 @@ export default function PosScreen({
       return;
     }
 
-    void dispatchReceiptThenKitchenJobs(businessId, result.receiptPrintJobs, result.printJobs);
+    // Struk dikirim dulu (prioritas), dapur menyusul. Await hasil struk supaya
+    // kasir dapat notifikasi; dapur tetap fire-and-forget (masuk retry queue kalau gagal).
+    if (result.receiptPrintJobs.length > 0) {
+      dispatchPrintJobs(businessId, result.receiptPrintJobs).then((results) => {
+        const failed = results.filter((r) => !r.result.ok);
+        setInboxNotice(
+          failed.length === 0
+            ? "🖨️ Struk berhasil dikirim ke printer."
+            : `⚠️ Struk gagal: ${failed.map((r) => r.job.printerName).join(", ")} — cek antrian cetak.`,
+        );
+      }).catch(() => {});
+    }
+    void dispatchPrintJobs(businessId, result.printJobs);
 
     // Bon yang dimuat sudah dibayar — bereskan dari daftar. Fire-and-forget
     // supaya tidak menahan layar sukses; bon hilang saat refreshCatalog
