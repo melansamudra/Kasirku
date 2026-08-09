@@ -60,7 +60,7 @@ export default function MirrorSidebar({
         ...(perms.show_items
           ? [{ href: `${base}/laporan-kategori`, label: "Kategori Menu", icon: Tag }]
           : []),
-        { href: base, label: "Ringkasan", icon: BarChart3 },
+        { href: base, label: "Laporan Harian", icon: BarChart3 },
         ...(perms.show_transactions
           ? [{ href: `${base}/laporan-transaksi`, label: "Laporan per Transaksi", icon: Receipt }]
           : []),
