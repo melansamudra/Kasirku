@@ -184,12 +184,30 @@ export async function saveTransactionSelections(
 }
 
 export async function revokeMirrorAccess(businessId: string, mirrorAccountId: string) {
-  const { supabase } = await assertIsOwner(businessId);
-  await supabase
+  await assertIsOwner(businessId);
+
+  const service = createServiceClient();
+
+  // Ambil user_id dulu sebelum row dihapus
+  const { data: account } = await service
+    .from("mirror_accounts")
+    .select("user_id")
+    .eq("id", mirrorAccountId)
+    .eq("business_id", businessId)
+    .single();
+
+  // Hapus mirror_accounts — mirror_selections ikut terhapus via CASCADE
+  await service
     .from("mirror_accounts")
     .delete()
     .eq("id", mirrorAccountId)
     .eq("business_id", businessId);
+
+  // Hapus auth user sehingga user tidak bisa login sama sekali
+  if (account?.user_id) {
+    await service.auth.admin.deleteUser(account.user_id);
+  }
+
   revalidatePath(`/business/${businessId}/mirror`);
 }
 
