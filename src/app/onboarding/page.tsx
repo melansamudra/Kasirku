@@ -9,15 +9,12 @@ export default async function OnboardingPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Jika user punya akses mirror → jangan tampilkan onboarding, langsung ke laporan
-  let debugInfo: string | null = null;
   if (user) {
-    const { data: mirrorRows, error: mirrorError } = await supabase
+    const { data: mirrorRows } = await supabase
       .from("mirror_accounts")
-      .select("business_id, status")
+      .select("business_id")
       .in("status", ["active", "pending"])
-      .limit(5);
-
-    debugInfo = `uid=${user.id} | rows=${JSON.stringify(mirrorRows)} | err=${mirrorError?.message ?? "none"} | anonKey=${(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").substring(0, 20)}`;
+      .limit(1);
 
     if (mirrorRows && mirrorRows.length > 0) {
       redirect(`/business/${mirrorRows[0].business_id}/laporan`);
@@ -40,11 +37,6 @@ export default async function OnboardingPage() {
           <span className="text-xs text-zinc-400">{user.email}</span>
           <LogoutButton variant="inline" />
         </div>
-      )}
-      {debugInfo && (
-        <pre className="mx-4 rounded bg-zinc-800 p-3 text-[10px] text-green-400 break-all whitespace-pre-wrap">
-          {debugInfo}
-        </pre>
       )}
       <div className="flex flex-1 items-center justify-center px-4">
         <OnboardingForm
