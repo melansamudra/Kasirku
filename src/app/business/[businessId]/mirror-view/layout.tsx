@@ -54,8 +54,6 @@ export default async function MirrorViewLayout({
 
   const perms: MirrorPerms = {
     show_transactions: p.show_transactions ?? false,
-    show_purchases: p.show_purchases ?? false,
-    show_kas_harian: p.show_kas_harian ?? false,
     show_items: p.show_items ?? false,
     show_payment_method: p.show_payment_method ?? false,
   };

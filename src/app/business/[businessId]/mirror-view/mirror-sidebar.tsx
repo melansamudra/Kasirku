@@ -6,8 +6,6 @@ import { useState } from "react";
 import {
   BarChart3,
   Receipt,
-  Wallet,
-  ShoppingBag,
   UtensilsCrossed,
   Clock,
   CreditCard,
@@ -29,8 +27,6 @@ type NavGroup = { title: string; items: NavItem[] };
 
 export type MirrorPerms = {
   show_transactions: boolean;
-  show_purchases: boolean;
-  show_kas_harian: boolean;
   show_items: boolean;
   show_payment_method: boolean;
 };
@@ -59,9 +55,6 @@ export default function MirrorSidebar({
         ...(perms.show_transactions
           ? [{ href: `${base}/transaksi`, label: "Riwayat Transaksi", icon: Receipt }]
           : []),
-        ...(perms.show_kas_harian
-          ? [{ href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet }]
-          : []),
         ...(perms.show_items
           ? [{ href: `${base}/laporan-menu`, label: "Laporan per Menu", icon: UtensilsCrossed }]
           : []),
@@ -82,14 +75,6 @@ export default function MirrorSidebar({
           : []),
       ],
     },
-    ...(perms.show_purchases
-      ? [
-          {
-            title: "Fitur Lanjutan",
-            items: [{ href: `${base}/pembelian`, label: "Pembelian & Hutang", icon: ShoppingBag }],
-          },
-        ]
-      : []),
   ].filter((g) => g.items.length > 0);
 
   const [openGroup, setOpenGroup] = useState<string | null>(navGroups[0]?.title ?? null);
