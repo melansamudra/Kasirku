@@ -8,6 +8,7 @@ import {
   Receipt,
   Wallet,
   ShoppingBag,
+  UtensilsCrossed,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ export type MirrorPerms = {
   show_transactions: boolean;
   show_purchases: boolean;
   show_kas_harian: boolean;
+  show_items: boolean;
 };
 
 export default function MirrorSidebar({
@@ -54,6 +56,9 @@ export default function MirrorSidebar({
           : []),
         ...(perms.show_kas_harian
           ? [{ href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet }]
+          : []),
+        ...(perms.show_items
+          ? [{ href: `${base}/laporan-menu`, label: "Laporan per Menu", icon: UtensilsCrossed }]
           : []),
       ],
     },

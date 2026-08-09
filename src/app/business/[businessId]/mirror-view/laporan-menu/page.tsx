@@ -1,0 +1,140 @@
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+
+function formatRupiah(v: number) {
+  return `Rp${Math.round(v).toLocaleString("id-ID")}`;
+}
+
+export default async function MirrorLaporanMenuPage({
+  params,
+}: {
+  params: Promise<{ businessId: string }>;
+}) {
+  const { businessId } = await params;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const service = createServiceClient();
+
+  const { data: mirrorAccount } = await service
+    .from("mirror_accounts")
+    .select("id, permissions")
+    .eq("business_id", businessId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!mirrorAccount) notFound();
+
+  const p = (mirrorAccount.permissions ?? {}) as {
+    show_items?: boolean;
+    show_amount?: boolean;
+  };
+
+  if (!p.show_items) notFound();
+
+  // Ambil semua item dari transaksi yang sudah dipilih owner
+  const { data: rows } = await service
+    .from("mirror_visible_transactions")
+    .select(
+      `transactions!mirror_visible_transactions_transaction_id_fkey(
+        transaction_items(name, qty, price)
+      )`,
+    )
+    .eq("business_id", businessId);
+
+  // Agregasi per nama menu
+  const menuMap = new Map<string, { qty: number; revenue: number }>();
+
+  for (const row of rows ?? []) {
+    const tx = row.transactions as unknown as {
+      transaction_items: { name: string; qty: number; price: number }[] | null;
+    } | null;
+    if (!tx) continue;
+    for (const item of tx.transaction_items ?? []) {
+      const name = item.name ?? "—";
+      const qty = Number(item.qty);
+      const revenue = qty * Number(item.price);
+      const existing = menuMap.get(name);
+      if (existing) {
+        existing.qty += qty;
+        existing.revenue += revenue;
+      } else {
+        menuMap.set(name, { qty, revenue });
+      }
+    }
+  }
+
+  const menuList = Array.from(menuMap.entries())
+    .map(([name, { qty, revenue }]) => ({ name, qty, revenue }))
+    .sort((a, b) => b.qty - a.qty);
+
+  const totalQty = menuList.reduce((s, m) => s + m.qty, 0);
+  const totalRevenue = menuList.reduce((s, m) => s + m.revenue, 0);
+
+  return (
+    <div className="w-full">
+      <h1 className="text-lg font-bold text-zinc-900">Laporan Penjualan per Menu</h1>
+      <p className="mt-1 text-sm text-zinc-500">
+        Rekap item dari transaksi yang dibagikan oleh pemilik toko
+      </p>
+
+      {menuList.length === 0 ? (
+        <div className="mt-6 rounded-xl border border-zinc-200 bg-white px-5 py-8 text-center text-sm text-zinc-400">
+          Belum ada data item dari transaksi yang dibagikan.
+        </div>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-zinc-100 bg-zinc-50">
+                <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
+                  <th className="px-4 py-3">Menu</th>
+                  <th className="px-4 py-3 text-right">Qty Terjual</th>
+                  {p.show_amount && (
+                    <th className="px-4 py-3 text-right">Pendapatan</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {menuList.map((m, i) => (
+                  <tr
+                    key={m.name}
+                    className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}
+                  >
+                    <td className="px-4 py-3 text-xs font-medium text-zinc-800">{m.name}</td>
+                    <td className="px-4 py-3 text-right text-xs text-zinc-700">
+                      {m.qty % 1 === 0 ? m.qty : m.qty.toFixed(2)}
+                    </td>
+                    {p.show_amount && (
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-900">
+                        {formatRupiah(m.revenue)}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-zinc-200 bg-zinc-50">
+                <tr>
+                  <td className="px-4 py-3 text-xs font-semibold text-zinc-500">Total</td>
+                  <td className="px-4 py-3 text-right text-xs font-bold text-zinc-900">
+                    {totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2)}
+                  </td>
+                  {p.show_amount && (
+                    <td className="px-4 py-3 text-right text-sm font-bold text-zinc-900">
+                      {formatRupiah(totalRevenue)}
+                    </td>
+                  )}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
