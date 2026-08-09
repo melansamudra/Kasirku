@@ -21,12 +21,13 @@ export default async function MirrorViewLayout({
 
   const service = createServiceClient();
 
-  const [{ data: mirrorAccountRaw }, { data: business }] = await Promise.all([
-    service
+  // Mirror account: pakai regular client (RLS "mirror user reads own row")
+  // Business: tetap service client karena mirror user tidak punya akses RLS ke businesses
+  const [{ data: mirrorAccount }, { data: business }] = await Promise.all([
+    supabase
       .from("mirror_accounts")
       .select("id, status, permissions")
       .eq("business_id", businessId)
-      .eq("user_id", user.id)
       .maybeSingle(),
     service
       .from("businesses")
@@ -34,21 +35,6 @@ export default async function MirrorViewLayout({
       .eq("id", businessId)
       .single(),
   ]);
-
-  // Fallback: cari by email jika user_id tidak cocok (terjadi setelah revoke+invite ulang)
-  let mirrorAccount = mirrorAccountRaw;
-  if (!mirrorAccount && user.email) {
-    const { data: byEmail } = await service
-      .from("mirror_accounts")
-      .select("id, status, permissions")
-      .eq("business_id", businessId)
-      .eq("invited_email", user.email.toLowerCase())
-      .maybeSingle();
-    if (byEmail) {
-      await service.from("mirror_accounts").update({ user_id: user.id }).eq("id", byEmail.id);
-      mirrorAccount = byEmail;
-    }
-  }
 
   if (!business) notFound();
   const isOwner = business.owner_id === user.id;

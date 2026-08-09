@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/service";
 import OnboardingForm from "./onboarding-form";
 import LogoutButton from "@/app/dashboard/logout-button";
 
@@ -12,31 +11,12 @@ export default async function OnboardingPage() {
 
   // Jika user punya akses mirror → jangan tampilkan onboarding, langsung ke laporan
   if (user) {
-    let mirrorRows = (
-      await service
-        .from("mirror_accounts")
-        .select("id, business_id")
-        .eq("user_id", user.id)
-        .in("status", ["active", "pending"])
-        .limit(1)
-    ).data;
-
-    // Fallback: cari by email jika user_id tidak cocok
-    if ((!mirrorRows || mirrorRows.length === 0) && user.email) {
-      const { data: byEmail } = await service
-        .from("mirror_accounts")
-        .select("id, business_id")
-        .eq("invited_email", user.email.toLowerCase())
-        .in("status", ["active", "pending"])
-        .limit(1);
-      if (byEmail && byEmail.length > 0) {
-        await service
-          .from("mirror_accounts")
-          .update({ user_id: user.id })
-          .eq("id", byEmail[0].id);
-        mirrorRows = byEmail;
-      }
-    }
+    // Pakai regular client — RLS policy "mirror user reads own row" cukup untuk ini
+    const { data: mirrorRows } = await supabase
+      .from("mirror_accounts")
+      .select("business_id")
+      .in("status", ["active", "pending"])
+      .limit(1);
 
     if (mirrorRows && mirrorRows.length > 0) {
       redirect(`/business/${mirrorRows[0].business_id}/laporan`);
