@@ -61,12 +61,10 @@ export default async function DashboardPage({
 
   const isOwner = Boolean(businesses && businesses.length > 0);
 
-  // Cek mirror accounts — pakai service client dengan explicit user_id filter
-  // agar tidak bergantung pada auth.uid() di RLS (lebih reliabel di production)
-  const { data: myMirrorRows } = await service
+  // Cek mirror accounts — regular client, RLS "mirror user reads own row" handle filter
+  const { data: myMirrorRows } = await supabase
     .from("mirror_accounts")
     .select("id, business_id, status")
-    .eq("user_id", user?.id ?? "")
     .in("status", ["active", "pending"]);
 
   const mirrorBusinessIds = (myMirrorRows ?? []).map((m) => m.business_id as string);
