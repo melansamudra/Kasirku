@@ -58,11 +58,29 @@ export default async function DashboardPage({
     .order("created_at", { ascending: true });
 
   // Cek mirror accounts untuk user ini (active + pending — pending diaktifkan di mirror-view)
-  const { data: myMirrorRows } = await service
-    .from("mirror_accounts")
-    .select("id, business_id, status")
-    .eq("user_id", user?.id ?? "")
-    .in("status", ["active", "pending"]);
+  let myMirrorRows = (
+    await service
+      .from("mirror_accounts")
+      .select("id, business_id, status")
+      .eq("user_id", user?.id ?? "")
+      .in("status", ["active", "pending"])
+  ).data;
+
+  // Fallback: cari by email jika user_id tidak cocok (terjadi setelah revoke+invite ulang)
+  if ((!myMirrorRows || myMirrorRows.length === 0) && user?.email) {
+    const { data: byEmail } = await service
+      .from("mirror_accounts")
+      .select("id, business_id, status")
+      .eq("invited_email", user.email.toLowerCase())
+      .in("status", ["active", "pending"]);
+    if (byEmail && byEmail.length > 0 && user?.id) {
+      await service
+        .from("mirror_accounts")
+        .update({ user_id: user.id })
+        .in("id", byEmail.map((r) => r.id));
+      myMirrorRows = byEmail;
+    }
+  }
 
   const mirrorBusinessIds = (myMirrorRows ?? []).map((m) => m.business_id as string);
   const { data: mirrorBusinessRows } =

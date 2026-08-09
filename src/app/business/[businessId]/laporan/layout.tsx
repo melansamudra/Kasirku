@@ -21,7 +21,7 @@ export default async function MirrorViewLayout({
 
   const service = createServiceClient();
 
-  const [{ data: mirrorAccount }, { data: business }] = await Promise.all([
+  const [{ data: mirrorAccountRaw }, { data: business }] = await Promise.all([
     service
       .from("mirror_accounts")
       .select("id, status, permissions")
@@ -34,6 +34,21 @@ export default async function MirrorViewLayout({
       .eq("id", businessId)
       .single(),
   ]);
+
+  // Fallback: cari by email jika user_id tidak cocok (terjadi setelah revoke+invite ulang)
+  let mirrorAccount = mirrorAccountRaw;
+  if (!mirrorAccount && user.email) {
+    const { data: byEmail } = await service
+      .from("mirror_accounts")
+      .select("id, status, permissions")
+      .eq("business_id", businessId)
+      .eq("invited_email", user.email.toLowerCase())
+      .maybeSingle();
+    if (byEmail) {
+      await service.from("mirror_accounts").update({ user_id: user.id }).eq("id", byEmail.id);
+      mirrorAccount = byEmail;
+    }
+  }
 
   if (!business) notFound();
   const isOwner = business.owner_id === user.id;
