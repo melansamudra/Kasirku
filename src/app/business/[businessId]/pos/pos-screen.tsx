@@ -2155,7 +2155,7 @@ export default function PosScreen({
         fixed sm:relative inset-x-0 bottom-0 sm:inset-auto z-50 sm:z-auto
         flex flex-col
         w-full sm:w-72
-        max-h-[85dvh] sm:max-h-none sm:h-auto
+        max-h-[92dvh] sm:max-h-none sm:h-auto
         rounded-t-2xl sm:rounded-none
         border-t sm:border-t-0 sm:border-l border-zinc-200
         bg-white shrink-0
