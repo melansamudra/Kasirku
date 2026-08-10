@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCashierSession } from "@/lib/cashier-session";
+import { todayWibDateString } from "@/lib/wib";
 import PinScreen from "./pin-screen";
 import OpenShiftScreen from "./open-shift-screen";
 import PosScreen from "./pos-screen";
@@ -65,6 +66,11 @@ export default async function PosPage({
     );
   }
 
+  const today = todayWibDateString();
+  const shiftDate = new Date(activeShift.opened_at)
+    .toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" }); // "2026-08-09"
+  const isStaleShift = shiftDate < today;
+
   const isFnb = business.business_type === "fnb";
 
   // Katalog (produk/open bill/customer/metode bayar) dan self_orders sengaja
@@ -82,6 +88,8 @@ export default async function PosPage({
       cashierId={session.cashierId}
       cashierName={session.name}
       shiftId={activeShift.id}
+      shiftOpenedAt={activeShift.opened_at}
+      isStaleShift={isStaleShift}
       taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
       serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
       isFnb={isFnb}

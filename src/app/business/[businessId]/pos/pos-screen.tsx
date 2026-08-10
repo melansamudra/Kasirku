@@ -142,6 +142,8 @@ export default function PosScreen({
   cashierId,
   cashierName,
   shiftId,
+  shiftOpenedAt,
+  isStaleShift,
   taxRate,
   serviceRate,
   isFnb,
@@ -151,11 +153,15 @@ export default function PosScreen({
   cashierId: string;
   cashierName: string;
   shiftId: string;
+  shiftOpenedAt: string;
+  isStaleShift: boolean;
   taxRate: number;
   serviceRate: number;
   isFnb: boolean;
 }) {
   const router = useRouter();
+
+  const [staleBannerDismissed, setStaleBannerDismissed] = useState(false);
 
   // Katalog (produk/open bill/customer/metode bayar) tidak lagi datang dari
   // props server — render instan dari cache IndexedDB dulu (pembukaan
@@ -1668,6 +1674,30 @@ export default function PosScreen({
 
   return (
     <div className="flex h-dvh flex-col sm:flex-row overflow-hidden bg-zinc-50">
+      {isStaleShift && !staleBannerDismissed && (
+        <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-3 bg-amber-500 px-4 py-2 text-sm text-white shadow-md">
+          <span className="text-base">⚠️</span>
+          <span className="flex-1">
+            Shift ini dibuka pada{" "}
+            <strong>
+              {new Date(shiftOpenedAt).toLocaleDateString("id-ID", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                timeZone: "Asia/Jakarta",
+              })}
+            </strong>
+            {" "}— belum ditutup. Tutup shift lama sebelum mulai hari baru.
+          </span>
+          <button
+            onClick={() => setStaleBannerDismissed(true)}
+            className="shrink-0 rounded px-2 py-0.5 text-xs font-medium hover:bg-amber-600"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+
       {/* Catalog */}
       <div className="flex flex-1 flex-col overflow-hidden min-h-0">
         <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3">
