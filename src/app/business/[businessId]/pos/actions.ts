@@ -159,6 +159,7 @@ export async function checkout(
       p_customer_id: customerId,
       p_self_order_ids: selfOrderIds.length > 0 ? selfOrderIds : null,
       p_client_ref: clientRef,
+      p_order_type: orderType ?? null,
     })
     .single();
 
@@ -263,7 +264,7 @@ async function buildReceiptPrintJobsForTransaction(
       .single(),
     supabase
       .from("transactions")
-      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)")
+      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, order_label, customer_name, order_type, cashiers!transactions_cashier_id_fkey(name)")
       .eq("id", transactionId)
       .eq("business_id", businessId)
       .single(),
@@ -309,6 +310,7 @@ async function buildReceiptPrintJobsForTransaction(
       date,
       cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
       orderLabel: orderLabel ?? (transaction as unknown as { order_label?: string | null }).order_label,
+      orderType: (transaction as unknown as { order_type?: string | null }).order_type ?? null,
       customerName: customerName ?? (transaction as unknown as { customer_name?: string | null }).customer_name,
       voided: transaction.voided,
       items: receiptItems,

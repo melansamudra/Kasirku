@@ -158,6 +158,7 @@ export type ReceiptTicketInput = {
   cashierName: string;
   customerName?: string | null;
   orderLabel?: string | null;
+  orderType?: string | null;
   voided: boolean;
   preCheck?: boolean;
   items: ReceiptItem[];
@@ -244,6 +245,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
     }
   }
   if (cfg.showCashier && input.cashierName) text(pl("Kasir", input.cashierName));
+  if (input.orderType) text(pl("Tipe", input.orderType));
   if (cfg.showOrderLabel && input.orderLabel) text(pl("Meja/Order", tr(input.orderLabel, W - 11)));
   if (cfg.showCustomerName && input.customerName) text(pl("Pelanggan", tr(input.customerName, W - 10)));
 
