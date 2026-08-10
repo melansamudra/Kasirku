@@ -2451,14 +2451,20 @@ export default function PosScreen({
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="number"
-                      min="0"
-                      value={t.amount || ""}
-                      onChange={(e) => updateTender(t.id, { amount: Number(e.target.value) || 0 })}
-                      className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-right focus:border-brand-600 focus:outline-none"
-                      placeholder="0"
-                    />
+                    {t.method === "Tunai" ? (
+                      <input
+                        type="number"
+                        min="0"
+                        value={t.amount || ""}
+                        onChange={(e) => updateTender(t.id, { amount: Number(e.target.value) || 0 })}
+                        className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-right focus:border-brand-600 focus:outline-none"
+                        placeholder="0"
+                      />
+                    ) : (
+                      <div className="flex-1 min-w-0 rounded-lg bg-zinc-100 px-2 py-1.5 text-xs text-right font-medium text-zinc-700 tabular-nums">
+                        {formatRupiah(t.amount)}
+                      </div>
+                    )}
                     {tenders.length > 1 && (
                       <button
                         onClick={() => removeTender(t.id)}
@@ -2548,13 +2554,19 @@ export default function PosScreen({
                             <option key={m} value={m}>{m}</option>
                           ))}
                         </select>
-                        <input
-                          type="number"
-                          min="0"
-                          value={t.amount || ""}
-                          onChange={(e) => updatePisahTender(t.id, { amount: Number(e.target.value) || 0 })}
-                          className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
-                        />
+                        {t.method === "Tunai" ? (
+                          <input
+                            type="number"
+                            min="0"
+                            value={t.amount || ""}
+                            onChange={(e) => updatePisahTender(t.id, { amount: Number(e.target.value) || 0 })}
+                            className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
+                          />
+                        ) : (
+                          <div className="w-full rounded-lg bg-zinc-100 px-2 py-1.5 text-xs font-medium text-zinc-700 tabular-nums">
+                            {formatRupiah(t.amount)}
+                          </div>
+                        )}
                       </div>
                       {t.method === "Tunai" && (
                         <input
