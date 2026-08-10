@@ -544,7 +544,9 @@ export async function buildTestPrintJob(
   };
 }
 
-export type OpenShiftResult = { success: true } | { success: false; error: string };
+export type OpenShiftResult =
+  | { success: true; shiftId: string; openedAt: string }
+  | { success: false; error: string };
 
 export async function openShift(
   businessId: string,
@@ -553,7 +555,7 @@ export async function openShift(
   notes: string,
 ): Promise<OpenShiftResult> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("open_shift", {
+  const { data: shiftId, error } = await supabase.rpc("open_shift", {
     p_business_id: businessId,
     p_cashier_id: cashierId,
     p_opening_cash: openingCash,
@@ -564,6 +566,12 @@ export async function openShift(
     return { success: false, error: error.message };
   }
 
+  const { data: shiftRow } = await supabase
+    .from("shifts")
+    .select("opened_at")
+    .eq("id", shiftId)
+    .single();
+
   await logActivity(
     supabase,
     businessId,
@@ -572,7 +580,7 @@ export async function openShift(
     "Shift dibuka",
     `Kas awal Rp${openingCash.toLocaleString("id-ID")}`,
   );
-  return { success: true };
+  return { success: true, shiftId, openedAt: shiftRow?.opened_at ?? new Date().toISOString() };
 }
 
 export type CloseShiftSummary = {

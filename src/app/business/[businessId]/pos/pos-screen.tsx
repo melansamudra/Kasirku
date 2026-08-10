@@ -7,6 +7,7 @@ import {
   addShiftCashMovement,
   checkout,
   closeShift,
+  openShift,
   deleteOpenBill,
   printOpenBillToReceipt,
   getPosCatalog,
@@ -157,8 +158,8 @@ export default function PosScreen({
   cashierId: string;
   cashierName: string;
   cashierRole: "kasir" | "manajer" | "pelayan";
-  shiftId: string;
-  shiftOpenedAt: string;
+  shiftId: string | null;
+  shiftOpenedAt: string | null;
   isStaleShift: boolean;
   taxRate: number;
   serviceRate: number;
@@ -394,6 +395,19 @@ export default function PosScreen({
       setOrderDiscType("pct");
     }
   }, [selectedPromo]);
+
+  const [currentShiftId, setCurrentShiftId] = useState<string | null>(shiftId);
+  const [currentShiftOpenedAt, setCurrentShiftOpenedAt] = useState<string | null>(shiftOpenedAt);
+
+  // Sync state saat server refresh (router.refresh) menghasilkan prop baru
+  useEffect(() => { setCurrentShiftId(shiftId); }, [shiftId]);
+  useEffect(() => { setCurrentShiftOpenedAt(shiftOpenedAt); }, [shiftOpenedAt]);
+
+  const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false);
+  const [openingCashInput, setOpeningCashInput] = useState("");
+  const [openShiftNotes, setOpenShiftNotes] = useState("");
+  const [openShiftSubmitting, setOpenShiftSubmitting] = useState(false);
+  const [openShiftError, setOpenShiftError] = useState<string | null>(null);
 
   const [closingShift, setClosingShift] = useState(false);
   const [closingCash, setClosingCash] = useState("");
@@ -644,7 +658,7 @@ export default function PosScreen({
     setVoidError(null);
     setVoidSuccess(null);
     setVoidLoading(true);
-    const txs = await getShiftTransactions(businessId, shiftId);
+    const txs = await getShiftTransactions(businessId, currentShiftId ?? "");
     setVoidTxs(txs);
     setVoidLoading(false);
   }
@@ -1088,6 +1102,10 @@ export default function PosScreen({
 
   async function handlePisahConfirmPayment() {
     setError(null);
+    if (!currentShiftId) {
+      setOpenShiftModalOpen(true);
+      return;
+    }
     if (pisahRemaining > 0) {
       setError("Pembayaran kurang dari total tagihan ini.");
       return;
@@ -1224,6 +1242,11 @@ export default function PosScreen({
 
   async function handleConfirmPayment() {
     setError(null);
+
+    if (!currentShiftId) {
+      setOpenShiftModalOpen(true);
+      return;
+    }
 
     if (remaining > 0) {
       setError("Pembayaran kurang dari total belanja.");
@@ -1375,7 +1398,7 @@ export default function PosScreen({
     }
 
     setCloseSubmitting(true);
-    const result = await closeShift(businessId, shiftId, amount, closeNotes);
+    const result = await closeShift(businessId, currentShiftId ?? "", amount, closeNotes);
     setCloseSubmitting(false);
 
     if (!result.success) {
@@ -1396,6 +1419,32 @@ export default function PosScreen({
     setClosedSummary(result.summary);
   }
 
+  async function handleOpenShiftSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setOpenShiftError(null);
+
+    const amount = Number(openingCashInput);
+    if (!openingCashInput || Number.isNaN(amount) || amount < 0) {
+      setOpenShiftError("Modal awal harus angka dan tidak boleh negatif.");
+      return;
+    }
+
+    setOpenShiftSubmitting(true);
+    const result = await openShift(businessId, cashierId, amount, openShiftNotes);
+    setOpenShiftSubmitting(false);
+
+    if (!result.success) {
+      setOpenShiftError(result.error);
+      return;
+    }
+
+    setCurrentShiftId(result.shiftId);
+    setCurrentShiftOpenedAt(result.openedAt);
+    setOpeningCashInput("");
+    setOpenShiftNotes("");
+    setOpenShiftModalOpen(false);
+  }
+
   async function handleConfirmCashMove() {
     setCashMoveError(null);
 
@@ -1412,7 +1461,7 @@ export default function PosScreen({
     setCashMoveSubmitting(true);
     const result = await addShiftCashMovement(
       businessId,
-      shiftId,
+      currentShiftId ?? "",
       cashMoveDirection,
       amount,
       cashMoveDesc.trim(),
@@ -1757,13 +1806,25 @@ export default function PosScreen({
 
   return (
     <div className="flex h-dvh flex-col sm:flex-row overflow-hidden bg-zinc-50">
+      {!currentShiftId && (
+        <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-3 bg-zinc-700 px-4 py-2 text-sm text-white shadow-md">
+          <span className="text-base">🔓</span>
+          <span className="flex-1">Shift belum dibuka. Tekan <strong>Bayar</strong> saat siap berjualan.</span>
+          <button
+            onClick={() => setOpenShiftModalOpen(true)}
+            className="shrink-0 rounded bg-white px-3 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
+          >
+            Buka Shift
+          </button>
+        </div>
+      )}
       {isStaleShift && !staleBannerDismissed && (
         <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-3 bg-amber-500 px-4 py-2 text-sm text-white shadow-md">
           <span className="text-base">⚠️</span>
           <span className="flex-1">
             Shift dari{" "}
             <strong>
-              {new Date(shiftOpenedAt).toLocaleDateString("id-ID", {
+              {new Date(currentShiftOpenedAt!).toLocaleDateString("id-ID", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
@@ -2943,15 +3004,27 @@ export default function PosScreen({
                 >
                   ↩️ Void Transaksi
                 </button>
-                <button
-                  onClick={() => {
-                    setPosMenuOpen(false);
-                    setClosingShift(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-red-200 px-3.5 py-3 text-left text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
-                >
-                  🔒 Tutup Shift
-                </button>
+                {currentShiftId ? (
+                  <button
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      setClosingShift(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-red-200 px-3.5 py-3 text-left text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
+                  >
+                    🔒 Tutup Shift
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      setOpenShiftModalOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-brand-200 px-3.5 py-3 text-left text-sm font-medium text-brand-600 transition-colors hover:bg-brand-50"
+                  >
+                    🟢 Buka Shift
+                  </button>
+                )}
                 <SwitchCashierButton
                   className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                   onBeforeSwitch={() => setPosMenuOpen(false)}
@@ -3509,6 +3582,82 @@ export default function PosScreen({
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Buka Shift */}
+      {openShiftModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => { if (!openShiftSubmitting) setOpenShiftModalOpen(false); }}
+          />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-5 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600">
+                <span className="text-lg font-bold text-white">🟢</span>
+              </div>
+              <h2 className="text-lg font-bold text-zinc-900">Buka Shift</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                {cashierName} — {businessName}
+              </p>
+              <p className="mt-1 text-xs text-zinc-400">
+                Catat modal awal di laci sebelum mulai jualan.
+              </p>
+            </div>
+
+            <form onSubmit={(e) => void handleOpenShiftSubmit(e)} className="space-y-4">
+              <div>
+                <label htmlFor="openingCashModal" className="mb-1 block text-xs font-medium text-zinc-600">
+                  Modal Awal (Rp)
+                </label>
+                <input
+                  id="openingCashModal"
+                  type="number"
+                  min="0"
+                  value={openingCashInput}
+                  onChange={(e) => setOpeningCashInput(e.target.value)}
+                  required
+                  autoFocus
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  placeholder="mis. 300000"
+                />
+              </div>
+              <div>
+                <label htmlFor="openShiftNotesModal" className="mb-1 block text-xs font-medium text-zinc-600">
+                  Catatan (opsional)
+                </label>
+                <input
+                  id="openShiftNotesModal"
+                  type="text"
+                  value={openShiftNotes}
+                  onChange={(e) => setOpenShiftNotes(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  placeholder="mis. Shift pagi"
+                />
+              </div>
+
+              {openShiftError && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{openShiftError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={openShiftSubmitting}
+                className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {openShiftSubmitting ? "Memproses…" : "Mulai Shift"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpenShiftModalOpen(false)}
+                disabled={openShiftSubmitting}
+                className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
+              >
+                Nanti dulu
+              </button>
+            </form>
           </div>
         </div>
       )}

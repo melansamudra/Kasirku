@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCashierSession } from "@/lib/cashier-session";
 import { todayWibDateString } from "@/lib/wib";
 import PinScreen from "./pin-screen";
-import OpenShiftScreen from "./open-shift-screen";
 import PosScreen from "./pos-screen";
 
 export default async function PosPage({
@@ -55,21 +54,11 @@ export default async function PosPage({
     .is("closed_at", null)
     .maybeSingle();
 
-  if (!activeShift) {
-    return (
-      <OpenShiftScreen
-        businessId={businessId}
-        businessName={business.name}
-        cashierId={session.cashierId}
-        cashierName={session.name}
-      />
-    );
-  }
-
   const today = todayWibDateString();
-  const shiftDate = new Date(activeShift.opened_at)
-    .toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" }); // "2026-08-09"
-  const isStaleShift = shiftDate < today;
+  const shiftDate = activeShift
+    ? new Date(activeShift.opened_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" })
+    : null;
+  const isStaleShift = shiftDate !== null && shiftDate < today;
 
   const isFnb = business.business_type === "fnb";
 
@@ -88,8 +77,8 @@ export default async function PosPage({
       cashierId={session.cashierId}
       cashierName={session.name}
       cashierRole={session.role}
-      shiftId={activeShift.id}
-      shiftOpenedAt={activeShift.opened_at}
+      shiftId={activeShift?.id ?? null}
+      shiftOpenedAt={activeShift?.opened_at ?? null}
       isStaleShift={isStaleShift}
       taxRate={business.tax_enabled ? Number(business.tax_rate) : 0}
       serviceRate={business.service_enabled ? Number(business.service_rate) : 0}
