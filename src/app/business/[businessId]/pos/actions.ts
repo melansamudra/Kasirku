@@ -618,6 +618,50 @@ export async function closeShift(
   return { success: true, summary };
 }
 
+export type TodayShiftRow = {
+  id: string;
+  cashierName: string;
+  openedAt: string;
+  closedAt: string | null;
+  openingCash: number;
+  closingCash: number | null;
+  cashSales: number;
+  nonCashSales: number;
+  totalSales: number;
+  expectedCash: number | null;
+  difference: number | null;
+  txCount: number;
+  notes: string | null;
+  closeNotes: string | null;
+};
+
+export async function getTodayShifts(businessId: string): Promise<TodayShiftRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("shifts")
+    .select("id, opened_at, closed_at, opening_cash, closing_cash, cash_sales, non_cash_sales, total_sales, expected_cash, difference, tx_count, notes, close_notes, cashiers(name)")
+    .eq("business_id", businessId)
+    .gte("opened_at", new Date(new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" }) + "T00:00:00+07:00").toISOString())
+    .order("opened_at", { ascending: true });
+
+  return (data ?? []).map((s) => ({
+    id: s.id as string,
+    cashierName: (s.cashiers as unknown as { name: string } | null)?.name ?? "Kasir",
+    openedAt: s.opened_at as string,
+    closedAt: s.closed_at as string | null,
+    openingCash: Number(s.opening_cash),
+    closingCash: s.closing_cash !== null ? Number(s.closing_cash) : null,
+    cashSales: Number(s.cash_sales),
+    nonCashSales: Number(s.non_cash_sales),
+    totalSales: Number(s.total_sales),
+    expectedCash: s.expected_cash !== null ? Number(s.expected_cash) : null,
+    difference: s.difference !== null ? Number(s.difference) : null,
+    txCount: Number(s.tx_count),
+    notes: s.notes as string | null,
+    closeNotes: s.close_notes as string | null,
+  }));
+}
+
 export type CashMovementResult = { success: true } | { success: false; error: string };
 
 export async function addShiftCashMovement(

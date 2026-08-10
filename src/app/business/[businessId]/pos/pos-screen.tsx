@@ -12,6 +12,7 @@ import {
   getPosCatalog,
   getSelfOrders,
   getShiftTransactions,
+  getTodayShifts,
   saveOpenBill,
   setSelfOrderEnabled,
   toggleSelfOrderVisibility,
@@ -26,6 +27,7 @@ import {
   type PosOptionGroup,
   type ShiftTransaction,
   type TenderInput,
+  type TodayShiftRow,
 } from "./actions";
 import SwitchCashierButton from "./switch-cashier-button";
 import OfflineStatus from "./offline-status";
@@ -396,6 +398,7 @@ export default function PosScreen({
   const [closeError, setCloseError] = useState<string | null>(null);
   const [closeSubmitting, setCloseSubmitting] = useState(false);
   const [closedSummary, setClosedSummary] = useState<CloseShiftSummary | null>(null);
+  const [todayShifts, setTodayShifts] = useState<TodayShiftRow[]>([]);
 
   const [cashMoveOpen, setCashMoveOpen] = useState(false);
   const [cashMoveDirection, setCashMoveDirection] = useState<"in" | "out">("out");
@@ -1375,6 +1378,8 @@ export default function PosScreen({
       return;
     }
 
+    const [shifts] = await Promise.all([getTodayShifts(businessId)]);
+    setTodayShifts(shifts);
     setClosedSummary(result.summary);
   }
 
@@ -1454,51 +1459,116 @@ export default function PosScreen({
 
   if (closedSummary) {
     const diff = closedSummary.difference;
+    const fmtTime = (iso: string) =>
+      new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+    const totalHariIni = todayShifts.reduce(
+      (acc, s) => ({
+        sales: acc.sales + s.totalSales,
+        tx: acc.tx + s.txCount,
+      }),
+      { sales: 0, tx: 0 },
+    );
     return (
-      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
-          <h1 className="text-center text-lg font-bold text-zinc-900">Shift Ditutup</h1>
-          <div className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between text-zinc-600">
-              <span>Total Penjualan</span>
-              <span className="font-medium text-zinc-900">
-                {formatRupiah(closedSummary.total_sales)}
-              </span>
-            </div>
-            <div className="flex justify-between text-zinc-600">
-              <span>Penjualan Tunai</span>
-              <span className="font-medium text-zinc-900">
-                {formatRupiah(closedSummary.cash_sales)}
-              </span>
-            </div>
-            <div className="flex justify-between text-zinc-600">
-              <span>Penjualan Non-Tunai</span>
-              <span className="font-medium text-zinc-900">
-                {formatRupiah(closedSummary.non_cash_sales)}
-              </span>
-            </div>
-            <div className="flex justify-between text-zinc-600">
-              <span>Jumlah Transaksi</span>
-              <span className="font-medium text-zinc-900">{closedSummary.tx_count}</span>
-            </div>
-            <div className="flex justify-between border-t border-zinc-100 pt-2 text-zinc-600">
-              <span>Kas Diharapkan</span>
-              <span className="font-medium text-zinc-900">
-                {formatRupiah(closedSummary.expected_cash)}
-              </span>
-            </div>
-            <div className="flex justify-between font-semibold">
-              <span className={diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}>
-                Selisih
-              </span>
-              <span className={diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}>
-                {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
-              </span>
+      <div className="flex flex-1 items-center justify-center overflow-y-auto bg-zinc-50 px-4 py-6">
+        <div className="w-full max-w-sm space-y-4">
+          {/* Ringkasan shift yang baru ditutup */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+            <h1 className="text-center text-lg font-bold text-zinc-900">Shift Ditutup</h1>
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between text-zinc-600">
+                <span>Total Penjualan</span>
+                <span className="font-medium text-zinc-900">
+                  {formatRupiah(closedSummary.total_sales)}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-600">
+                <span>Penjualan Tunai</span>
+                <span className="font-medium text-zinc-900">
+                  {formatRupiah(closedSummary.cash_sales)}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-600">
+                <span>Penjualan Non-Tunai</span>
+                <span className="font-medium text-zinc-900">
+                  {formatRupiah(closedSummary.non_cash_sales)}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-600">
+                <span>Jumlah Transaksi</span>
+                <span className="font-medium text-zinc-900">{closedSummary.tx_count}</span>
+              </div>
+              <div className="flex justify-between border-t border-zinc-100 pt-2 text-zinc-600">
+                <span>Kas Diharapkan</span>
+                <span className="font-medium text-zinc-900">
+                  {formatRupiah(closedSummary.expected_cash)}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span className={diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}>
+                  Selisih
+                </span>
+                <span className={diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}>
+                  {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="mt-4 border-t border-zinc-100 pt-4">
+
+          {/* Ringkasan semua shift hari ini */}
+          {todayShifts.length > 0 && (
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-zinc-900">Shift Hari Ini</h2>
+                <span className="text-xs text-zinc-400">{todayShifts.length} shift</span>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {todayShifts.map((s, i) => {
+                  const d = s.difference;
+                  return (
+                    <div key={s.id} className="rounded-xl bg-zinc-50 px-3 py-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-zinc-800">
+                          Shift {i + 1} — {s.cashierName}
+                        </span>
+                        <span className="text-zinc-500">
+                          {fmtTime(s.openedAt)}
+                          {s.closedAt ? ` – ${fmtTime(s.closedAt)}` : " (aktif)"}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex gap-4 text-zinc-600">
+                        <span>Penjualan <strong className="text-zinc-900">{formatRupiah(s.totalSales)}</strong></span>
+                        <span>Transaksi <strong className="text-zinc-900">{s.txCount}</strong></span>
+                        {d !== null && (
+                          <span>
+                            Selisih{" "}
+                            <strong className={d === 0 ? "text-zinc-900" : d > 0 ? "text-brand-700" : "text-red-600"}>
+                              {d === 0 ? "Pas" : `${d > 0 ? "+" : ""}${formatRupiah(d)}`}
+                            </strong>
+                          </span>
+                        )}
+                      </div>
+                      {s.closeNotes && (
+                        <p className="mt-1 text-zinc-400">Catatan: {s.closeNotes}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {todayShifts.length > 1 && (
+                <div className="mt-3 flex justify-between border-t border-zinc-100 pt-3 text-xs font-semibold text-zinc-900">
+                  <span>Total Semua Shift</span>
+                  <span>{formatRupiah(totalHariIni.sales)} · {totalHariIni.tx} transaksi</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cetak & selesai */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6">
             <p className="mb-2 text-xs font-medium text-zinc-500">
-              Cetak laporan hari ini (semua shift, bukan cuma yang baru ditutup):
+              Cetak laporan hari ini (semua shift):
             </p>
             <ReportPrintButtons
               businessId={businessId}
@@ -1506,13 +1576,13 @@ export default function PosScreen({
               toIsoExclusive={todayRange.toIsoExclusive}
               periodLabel="Hari Ini"
             />
+            <button
+              onClick={() => router.refresh()}
+              className="mt-3 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            >
+              Selesai
+            </button>
           </div>
-          <button
-            onClick={() => router.refresh()}
-            className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-          >
-            Selesai
-          </button>
         </div>
       </div>
     );
