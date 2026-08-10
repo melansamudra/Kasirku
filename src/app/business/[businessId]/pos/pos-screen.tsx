@@ -343,7 +343,6 @@ export default function PosScreen({
   }, [selfOrders, isFnb]);
   const [paying, setPaying] = useState(false);
   const [tenders, setTenders] = useState<Tender[]>([]);
-  const [splitCount, setSplitCount] = useState("");
   const [orderType, setOrderType] = useState<"DINE IN" | "TAKEAWAY" | null>(null);
   const [pisahBillMode, setPisahBillMode] = useState(false);
   const [pisahSelected, setPisahSelected] = useState<Set<string>>(new Set());
@@ -1038,7 +1037,6 @@ export default function PosScreen({
 
   function handleOpenPayment() {
     setTenders([{ id: crypto.randomUUID(), method: BUILTIN_PAYMENT_METHODS[0], amount: total, received: "" }]);
-    setSplitCount("");
     setPaying(true);
   }
 
@@ -1058,19 +1056,6 @@ export default function PosScreen({
     ]);
   }
 
-  function handleSplit() {
-    const n = parseInt(splitCount, 10);
-    if (!n || n < 2 || n > 20) return;
-    const perPerson = Math.ceil(total / n);
-    setTenders(
-      Array.from({ length: n }, (_, i) => ({
-        id: crypto.randomUUID(),
-        method: BUILTIN_PAYMENT_METHODS[0],
-        amount: i < n - 1 ? perPerson : total - perPerson * (n - 1),
-        received: "",
-      })),
-    );
-  }
 
   function handleEnterPisahBill() {
     setPisahBillMode(true);
@@ -1346,7 +1331,6 @@ export default function PosScreen({
       setActiveBill(null);
       setPaying(false);
       setTenders([]);
-      setSplitCount("");
       setEditingNoteId(null);
       setSelectedCustomer(null);
       setCustomerPickerOpen(false);
@@ -1391,7 +1375,6 @@ export default function PosScreen({
     setCartOrderIds([]);
     setPaying(false);
     setTenders([]);
-    setSplitCount("");
     setEditingNoteId(null);
     setSelectedCustomer(null);
     setCustomerPickerOpen(false);
@@ -2614,32 +2597,6 @@ export default function PosScreen({
         {/* Payment tenders — scrollable */}
         {paying && (
           <div className="px-4 pb-4 space-y-3">
-            {/* Split bill helper */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 shrink-0">Split:</span>
-              <input
-                type="number"
-                min="2"
-                max="20"
-                value={splitCount}
-                onChange={(e) => setSplitCount(e.target.value)}
-                placeholder="2 org"
-                className="w-16 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-center focus:border-brand-600 focus:outline-none"
-              />
-              <button
-                onClick={handleSplit}
-                disabled={!splitCount || parseInt(splitCount) < 2}
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40"
-              >
-                Bagi
-              </button>
-              {splitCount && parseInt(splitCount) >= 2 && (
-                <span className="text-[11px] text-zinc-400">
-                  {formatRupiah(Math.ceil(total / parseInt(splitCount)))}/org
-                </span>
-              )}
-            </div>
-
             {/* Tender rows */}
             <div className="space-y-2">
               {tenders.map((t) => (
@@ -2962,8 +2919,7 @@ export default function PosScreen({
                   onClick={() => {
                     setPaying(false);
                     setTenders([]);
-                    setSplitCount("");
-                    setError(null);
+                                  setError(null);
                   }}
                   className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
                 >
