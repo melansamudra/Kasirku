@@ -520,7 +520,7 @@ export async function buildTestPrintJob(
     });
   } else {
     const now = new Date();
-    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
     buffer = buildKitchenTicket({
       station: printer.name,
       source: "Tes Cetak",
