@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { assertBusinessAccess } from "@/lib/route-auth";
 import { REPORT_TIMEZONE, getPeriodRange, parsePeriod } from "../period";
 
 function csvEscape(v: string | number | null | undefined) {
@@ -44,17 +45,17 @@ export async function GET(
     url.searchParams.get("to") ?? undefined,
   );
 
+  if (!await assertBusinessAccess(businessId)) return new Response("Forbidden", { status: 403 });
+
   const supabase = await createClient();
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, tax_enabled, tax_rate, service_enabled, service_rate")
+    .select("tax_enabled, tax_rate, service_enabled, service_rate")
     .eq("id", businessId)
     .single();
 
-  if (!business) {
-    return new Response("Not found", { status: 404 });
-  }
+  if (!business) return new Response("Forbidden", { status: 403 });
 
   let txQuery = supabase
     .from("transactions")

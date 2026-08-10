@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { assertBusinessAccess } from "@/lib/route-auth";
 import { REPORT_TIMEZONE, getPeriodRange, parsePeriod } from "../../reports/period";
 
 function csvEscape(v: string | number | null | undefined) {
@@ -75,17 +76,9 @@ export async function GET(
   const serialFrom = url.searchParams.get("serialFrom") ?? undefined;
   const serialTo = url.searchParams.get("serialTo") ?? undefined;
 
+  if (!await assertBusinessAccess(businessId)) return new Response("Forbidden", { status: 403 });
+
   const supabase = await createClient();
-
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id")
-    .eq("id", businessId)
-    .single();
-
-  if (!business) {
-    return new Response("Not found", { status: 404 });
-  }
 
   let txQuery = supabase
     .from("ticket_transactions")

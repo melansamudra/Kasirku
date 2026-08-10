@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { assertBusinessAccess } from "@/lib/route-auth";
 import QRCode from "qrcode";
 import { SITE_URL } from "@/lib/site";
 
@@ -8,17 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ businessId: string }> },
 ) {
   const { businessId } = await params;
+  const business = await assertBusinessAccess(businessId);
+  if (!business) return new NextResponse("Forbidden", { status: 403 });
+
   const supabase = await createClient();
-
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
-
-  if (!business) {
-    return new NextResponse("Not found", { status: 404 });
-  }
 
   const { data: tables } = await supabase
     .from("tables")

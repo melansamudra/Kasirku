@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
+import { assertBusinessAccess } from "@/lib/route-auth";
 
 const HEADERS = [
   { header: "Nama", key: "name", width: 30 },
@@ -19,17 +20,10 @@ export async function GET(
   { params }: { params: Promise<{ businessId: string }> },
 ) {
   const { businessId } = await params;
+  const business = await assertBusinessAccess(businessId);
+  if (!business) return new Response("Forbidden", { status: 403 });
+
   const supabase = await createClient();
-
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
-
-  if (!business) {
-    return new Response("Toko tidak ditemukan.", { status: 404 });
-  }
 
   const { data: products } = await supabase
     .from("products")
