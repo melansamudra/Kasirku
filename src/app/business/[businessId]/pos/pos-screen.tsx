@@ -1757,7 +1757,7 @@ export default function PosScreen({
         <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-3 bg-amber-500 px-4 py-2 text-sm text-white shadow-md">
           <span className="text-base">⚠️</span>
           <span className="flex-1">
-            Shift ini dibuka pada{" "}
+            Shift dari{" "}
             <strong>
               {new Date(shiftOpenedAt).toLocaleDateString("id-ID", {
                 weekday: "long",
@@ -1766,13 +1766,22 @@ export default function PosScreen({
                 timeZone: "Asia/Jakarta",
               })}
             </strong>
-            {" "}— belum ditutup. Tutup shift lama sebelum mulai hari baru.
+            {" "}belum ditutup.
           </span>
           <button
-            onClick={() => setStaleBannerDismissed(true)}
-            className="shrink-0 rounded px-2 py-0.5 text-xs font-medium hover:bg-amber-600"
+            onClick={() => {
+              setStaleBannerDismissed(true);
+              setClosingShift(true);
+            }}
+            className="shrink-0 rounded bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50"
           >
-            Tutup
+            Tutup Shift Lama
+          </button>
+          <button
+            onClick={() => setStaleBannerDismissed(true)}
+            className="shrink-0 text-xs text-amber-200 hover:text-white"
+          >
+            Abaikan
           </button>
         </div>
       )}
