@@ -342,6 +342,7 @@ export type SettlementTicketInput = {
   periodLabel: string;
   byMethod: SettlementByMethod[];
   totalSales: number;
+  totalDiscount: number;
   txCount: number;
   voidCount: number;
   shifts?: SettlementShiftRow[];
@@ -375,6 +376,9 @@ export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
     for (const m of input.byMethod) {
       text(padLine(m.method, formatRp(m.amount)));
     }
+  }
+  if (input.totalDiscount > 0) {
+    text(padLine("Diskon", `-${formatRp(input.totalDiscount)}`));
   }
   push([ESC, 0x45, 0x01]);
   text(padLine("TOTAL", formatRp(input.totalSales)));

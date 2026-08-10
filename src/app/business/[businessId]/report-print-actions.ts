@@ -68,7 +68,7 @@ export async function buildSettlementPrintJobs(
     (() => {
       let q = supabase
         .from("transactions")
-        .select("id, voided")
+        .select("id, voided, total_item_disc, order_disc_amt")
         .eq("business_id", businessId);
       if (fromIso) q = q.gte("date", fromIso);
       if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
@@ -103,8 +103,13 @@ export async function buildSettlementPrintJobs(
   const totalSales = byMethod.reduce((s, m) => s + m.amount, 0);
 
   const txRows = allTx ?? [];
-  const txCount = txRows.filter((t) => !t.voided).length;
+  const nonVoided = txRows.filter((t) => !t.voided);
+  const txCount = nonVoided.length;
   const voidCount = txRows.length - txCount;
+  const totalDiscount = nonVoided.reduce(
+    (s, t) => s + Number(t.total_item_disc ?? 0) + Number(t.order_disc_amt ?? 0),
+    0,
+  );
 
   const shifts: SettlementShiftRow[] = (shiftRows ?? []).map((s) => ({
     cashierName: (s.cashiers as unknown as { name: string } | null)?.name ?? "Kasir",
@@ -124,6 +129,7 @@ export async function buildSettlementPrintJobs(
     periodLabel,
     byMethod,
     totalSales,
+    totalDiscount,
     txCount,
     voidCount,
     shifts,
