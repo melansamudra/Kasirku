@@ -202,7 +202,7 @@ begin
 
     update public.products
     set stock = greatest(0, stock - v_qty)
-    where id = v_product_id and track_stock;
+    where id = v_product_id;
 
     v_subtotal_raw   := v_subtotal_raw + v_line_gross;
     v_total_item_disc := v_total_item_disc + v_item_disc;

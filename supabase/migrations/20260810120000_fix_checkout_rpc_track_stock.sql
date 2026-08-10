@@ -1,7 +1,6 @@
--- Hotfix: perbaiki referensi tabel yang salah pada migrasi 20260810100000.
--- Migrasi sebelumnya memakai public.recipe_items (tidak ada) dan kolom
--- qty_per_unit (tidak ada). Tabel yang benar adalah public.product_recipes
--- dengan kolom qty.
+-- Hotfix: hapus kondisi track_stock yang tidak ada di tabel products.
+-- Referensi yang benar dari 20260807130000_fix_checkout_rpc.sql:
+-- update public.products set stock = ... where id = v_product_id; (tanpa kondisi tambahan)
 
 create or replace function public.checkout_transaction(
   p_business_id     uuid,
@@ -179,7 +178,7 @@ begin
       v_batch
     );
 
-    -- Recipe consumption (product_recipes.qty = jumlah bahan per 1 porsi produk)
+    -- Recipe consumption
     for v_recipe in
       select pr.ingredient_id, pr.qty
       from public.product_recipes pr
