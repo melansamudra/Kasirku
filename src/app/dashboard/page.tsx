@@ -102,10 +102,6 @@ export default async function DashboardPage({
     redirect("/onboarding");
   }
 
-  if (!isOwner && businesses.length === 1) {
-    redirect(`/business/${businesses[0].id}/pos`);
-  }
-
   const ownedIds = new Set(
     businesses.filter((b) => b.owner_id === user?.id).map((b) => b.id),
   );
