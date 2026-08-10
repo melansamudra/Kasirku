@@ -1639,7 +1639,13 @@ export default function PosScreen({
               periodLabel="Hari Ini"
             />
             <button
-              onClick={() => router.refresh()}
+              onClick={() => {
+                setClosedSummary(null);
+                setClosingShift(false);
+                setCurrentShiftId(null);
+                setCurrentShiftOpenedAt(null);
+                router.refresh();
+              }}
               className="mt-3 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
             >
               Selesai
