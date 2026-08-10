@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { buildReceiptPrintJob } from "../../actions";
 import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
+import { buildWhatsAppReceiptText } from "@/app/business/[businessId]/wa-receipt-actions";
 
 type Printer = { id: string; name: string };
 
@@ -40,6 +41,18 @@ export default function PrintButton({
   // dengan pesan yang jelas, daripada tersembunyi sama sekali.
   const hasPrinterButtons = printers.length > 0;
   const [state, setState] = useState<Record<string, NativeState>>({});
+  const [waLoading, setWaLoading] = useState(false);
+
+  async function handleSendWA() {
+    setWaLoading(true);
+    try {
+      const text = await buildWhatsAppReceiptText(businessId, transactionId);
+      if (!text) return;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    } finally {
+      setWaLoading(false);
+    }
+  }
 
   async function handlePrintToPrinter(printer: Printer) {
     setState((s) => ({ ...s, [printer.id]: { status: "sending" } }));
@@ -85,6 +98,14 @@ export default function PrintButton({
           🖨️ Cetak
         </button>
       </div>
+      <button
+        type="button"
+        onClick={() => void handleSendWA()}
+        disabled={waLoading}
+        className="w-full rounded-xl border border-green-200 bg-white py-2.5 text-sm font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
+      >
+        {waLoading ? "Menyiapkan…" : "📱 Kirim via WhatsApp"}
+      </button>
 
       {hasPrinterButtons && (
         <div className="rounded-xl border border-zinc-200 bg-white p-3">

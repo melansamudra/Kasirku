@@ -41,6 +41,7 @@ import { withTimeout } from "@/lib/with-timeout";
 import { dispatchPrintJobs, dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
 import { getCachedPosCatalog, setCachedPosCatalog } from "@/lib/pos-cache";
 import ReportPrintButtons from "../report-print-buttons";
+import { buildWhatsAppReceiptText } from "../wa-receipt-actions";
 import { buildSettlementPrintJobs } from "../report-print-actions";
 import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
@@ -354,6 +355,7 @@ export default function PosScreen({
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
   const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
   const [successOffline, setSuccessOffline] = useState(false);
+  const [waLoading, setWaLoading] = useState(false);
 
   // Dihitung langsung tiap render (fungsi murni, murah) — bukan useMemo
   // dengan deps kosong, supaya kalau layar ini dibiarkan terbuka lewat
@@ -1496,6 +1498,24 @@ export default function PosScreen({
             >
               🖨️ Cetak Struk
             </Link>
+          )}
+          {successTransactionId && (
+            <button
+              type="button"
+              disabled={waLoading}
+              onClick={async () => {
+                setWaLoading(true);
+                try {
+                  const text = await buildWhatsAppReceiptText(businessId, successTransactionId);
+                  if (text) window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                } finally {
+                  setWaLoading(false);
+                }
+              }}
+              className="mt-2 block w-full rounded-xl border border-green-200 py-2.5 text-sm font-semibold text-green-600 transition-colors hover:bg-green-50 disabled:opacity-50"
+            >
+              {waLoading ? "Menyiapkan…" : "📱 Kirim via WhatsApp"}
+            </button>
           )}
           <button
             onClick={() => {
