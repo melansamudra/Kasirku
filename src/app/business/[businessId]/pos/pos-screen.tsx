@@ -321,6 +321,11 @@ export default function PosScreen({
   const [paying, setPaying] = useState(false);
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [splitCount, setSplitCount] = useState("");
+  const [pisahBillMode, setPisahBillMode] = useState(false);
+  const [pisahSelected, setPisahSelected] = useState<Set<string>>(new Set());
+  const [pisahPaying, setPisahPaying] = useState(false);
+  const [pisahTenders, setPisahTenders] = useState<Tender[]>([]);
+  const [pisahBillCount, setPisahBillCount] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInvoice, setSuccessInvoice] = useState<string | null>(null);
@@ -522,6 +527,22 @@ export default function PosScreen({
   const tenderedTotal = tenders.reduce((s, t) => s + t.amount, 0);
   const remaining = total - tenderedTotal;
   const totalChange = tenders.reduce((s, t) => {
+    if (t.method !== "Tunai") return s;
+    const rcv = Number(t.received) || 0;
+    return s + Math.max(0, rcv - t.amount);
+  }, 0);
+
+  const pisahCart = pisahBillMode ? cart.filter((i) => pisahSelected.has(i.cartKey)) : [];
+  const pisahTotals = calculateCheckoutTotals({
+    items: pisahCart,
+    orderDisc: 0,
+    orderDiscType: "pct",
+    serviceRate,
+    taxRate,
+  });
+  const pisahTenderedTotal = pisahTenders.reduce((s, t) => s + t.amount, 0);
+  const pisahRemaining = pisahTotals.total - pisahTenderedTotal;
+  const pisahTotalChange = pisahTenders.reduce((s, t) => {
     if (t.method !== "Tunai") return s;
     const rcv = Number(t.received) || 0;
     return s + Math.max(0, rcv - t.amount);
@@ -1009,6 +1030,179 @@ export default function PosScreen({
         received: "",
       })),
     );
+  }
+
+  function handleEnterPisahBill() {
+    setPisahBillMode(true);
+    setPisahSelected(new Set());
+    setPisahBillCount(1);
+    setPaying(false);
+    setTenders([]);
+  }
+
+  function handleExitPisahBill() {
+    setPisahBillMode(false);
+    setPisahSelected(new Set());
+    setPisahPaying(false);
+    setPisahTenders([]);
+  }
+
+  function togglePisahItem(cartKey: string) {
+    setPisahSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(cartKey)) next.delete(cartKey);
+      else next.add(cartKey);
+      return next;
+    });
+  }
+
+  function handlePisahOpenPayment() {
+    if (pisahSelected.size === 0) return;
+    setPisahTenders([{
+      id: crypto.randomUUID(),
+      method: BUILTIN_PAYMENT_METHODS[0],
+      amount: pisahTotals.total,
+      received: "",
+    }]);
+    setPisahPaying(true);
+  }
+
+  function updatePisahTender(id: string, patch: Partial<Omit<Tender, "id">>) {
+    setPisahTenders((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }
+
+  async function handlePisahConfirmPayment() {
+    setError(null);
+    if (pisahRemaining > 0) {
+      setError("Pembayaran kurang dari total tagihan ini.");
+      return;
+    }
+    for (const t of pisahTenders) {
+      if (t.method === "Tunai" && t.amount > 0 && (Number(t.received) || 0) < t.amount) {
+        setError("Uang diterima untuk pembayaran tunai kurang.");
+        return;
+      }
+    }
+    setSubmitting(true);
+
+    const itemsPayload = pisahCart.map((i) => ({
+      productId: i.productId,
+      qty: i.qty,
+      disc: i.disc,
+      discType: i.discType,
+      note: i.note,
+      unitPrice: i.price !== i.basePrice ? i.price : undefined,
+      optionNames: i.selectedOptions.length > 0 ? i.selectedOptions.map((o) => o.optionName) : undefined,
+      batch: i.batch,
+    }));
+    const paymentsPayload: TenderInput[] = pisahTenders.map((t) => ({
+      method: t.method,
+      amount: t.amount,
+      received: t.method === "Tunai" ? (Number(t.received) || t.amount) : t.amount,
+    }));
+    const clientRef = crypto.randomUUID();
+    const billLabel = activeBill?.label
+      ? `${activeBill.label} - T${pisahBillCount}`
+      : `Tagihan ${pisahBillCount}`;
+    const paidKeys = new Set(pisahCart.map((i) => i.cartKey));
+
+    let result: CheckoutResult;
+    try {
+      result = await withTimeout(
+        checkout(
+          businessId,
+          cashierId,
+          itemsPayload,
+          paymentsPayload,
+          0,
+          "pct",
+          selectedCustomer?.id ?? null,
+          [],
+          clientRef,
+          false,
+          hasReceiptPrinters && autoReceiptPrint,
+          billLabel,
+          selectedCustomer?.name ?? null,
+          null,
+        ),
+        10000,
+      );
+    } catch {
+      await enqueueSale({
+        clientRef,
+        businessId,
+        kind: "retail",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+        payload: {
+          cashierId,
+          items: itemsPayload,
+          payments: paymentsPayload,
+          orderDisc: 0,
+          orderDiscType: "pct",
+          customerId: selectedCustomer?.id ?? null,
+          selfOrderIds: [],
+          orderLabel: billLabel,
+          customerName: selectedCustomer?.name ?? null,
+          orderDiscName: null,
+        },
+      });
+      setSubmitting(false);
+      const newCart = cart.filter((i) => !paidKeys.has(i.cartKey));
+      setCart(newCart);
+      setPisahSelected(new Set());
+      setPisahPaying(false);
+      setPisahTenders([]);
+      setPisahBillCount((prev) => prev + 1);
+      if (newCart.length === 0) {
+        setPisahBillMode(false);
+        setSuccessOffline(true);
+        setSuccessInvoice(`OFFLINE-${clientRef.slice(0, 8).toUpperCase()}`);
+        setSuccessTransactionId(null);
+      }
+      void syncNow();
+      return;
+    }
+
+    setSubmitting(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+
+    if (result.receiptPrintJobs.length > 0) {
+      dispatchPrintJobs(businessId, result.receiptPrintJobs).then((results) => {
+        const failed = results.filter((r) => !r.result.ok);
+        setInboxNotice(
+          failed.length === 0
+            ? "🖨️ Struk berhasil dikirim ke printer."
+            : `⚠️ Struk gagal: ${failed.map((r) => r.job.printerName).join(", ")} — cek antrian cetak.`,
+        );
+      }).catch(() => {});
+    }
+    void dispatchPrintJobs(businessId, result.printJobs);
+
+    const newCart = cart.filter((i) => !paidKeys.has(i.cartKey));
+    setCart(newCart);
+    setPisahSelected(new Set());
+    setPisahPaying(false);
+    setPisahTenders([]);
+    setPisahBillCount((prev) => prev + 1);
+
+    if (newCart.length === 0) {
+      setPisahBillMode(false);
+      setSuccessOffline(false);
+      setSuccessInvoice(result.invoiceNumber);
+      setSuccessTransactionId(result.transactionId);
+      if (activeBill && isOnline) {
+        void deleteOpenBill(businessId, activeBill.id);
+        setActiveBill(null);
+      }
+      setSelectedCustomer(null);
+      setCustomerPickerOpen(false);
+      setCustomerSearch("");
+      setSelectedPromoId(null);
+    }
   }
 
   async function handleConfirmPayment() {
@@ -1889,9 +2083,27 @@ export default function PosScreen({
                       <div className="h-px flex-1 bg-zinc-200" />
                     </div>
                   )}
-                  <div className="rounded-xl border border-zinc-100 p-2.5">
+                  <div
+                    className={`rounded-xl border p-2.5 transition-colors ${
+                      pisahBillMode
+                        ? pisahSelected.has(item.cartKey)
+                          ? "border-brand-400 bg-brand-50 cursor-pointer"
+                          : "border-zinc-200 bg-white cursor-pointer opacity-60"
+                        : "border-zinc-100"
+                    }`}
+                    onClick={pisahBillMode ? () => togglePisahItem(item.cartKey) : undefined}
+                  >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
+                      {pisahBillMode && (
+                        <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 text-[10px] font-bold ${
+                          pisahSelected.has(item.cartKey)
+                            ? "border-brand-600 bg-brand-600 text-white"
+                            : "border-zinc-300 bg-white"
+                        }`}>
+                          {pisahSelected.has(item.cartKey) && "✓"}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-zinc-900">{item.name}</p>
                         {item.selectedOptions.length > 0 && (
                           <div className="mt-0.5 flex flex-wrap gap-1">
@@ -1903,12 +2115,14 @@ export default function PosScreen({
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => removeFromCart(item.cartKey)}
-                        className="text-xs text-zinc-400 hover:text-red-500"
-                      >
-                        ✕
-                      </button>
+                      {!pisahBillMode && (
+                        <button
+                          onClick={() => removeFromCart(item.cartKey)}
+                          className="text-xs text-zinc-400 hover:text-red-500"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                     <div className="mt-1.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -2288,31 +2502,135 @@ export default function PosScreen({
             <span className="text-sm font-bold text-zinc-900 tabular-nums">{formatRupiah(total)}</span>
           </div>
 
-          {!paying ? (
+          {pisahBillMode ? (
+            /* ── Mode Pisah Bill ── */
+            pisahPaying ? (
+              /* Layar bayar tagihan ini */
+              <div className="space-y-2">
+                <p className="text-center text-xs font-semibold text-brand-700">
+                  Tagihan {pisahBillCount} — {pisahCart.length} item
+                </p>
+                <div className="space-y-2">
+                  {pisahTenders.map((t) => (
+                    <div key={t.id} className="rounded-xl border border-zinc-200 p-2.5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={t.method}
+                          onChange={(e) => updatePisahTender(t.id, { method: e.target.value })}
+                          className="rounded-lg border border-zinc-200 px-2 py-1.5 text-xs shrink-0 focus:border-brand-600 focus:outline-none bg-white"
+                        >
+                          {paymentMethods.map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          value={t.amount || ""}
+                          onChange={(e) => updatePisahTender(t.id, { amount: Number(e.target.value) || 0 })}
+                          className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
+                        />
+                      </div>
+                      {t.method === "Tunai" && (
+                        <input
+                          type="number"
+                          min="0"
+                          value={t.received || ""}
+                          onChange={(e) => updatePisahTender(t.id, { received: e.target.value })}
+                          placeholder="Uang diterima"
+                          className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {pisahTotalChange > 0 && (
+                  <p className="text-center text-xs font-semibold text-brand-700">
+                    Kembalian {formatRupiah(pisahTotalChange)}
+                  </p>
+                )}
+                {error && (
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setPisahPaying(false); setPisahTenders([]); setError(null); }}
+                    className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handlePisahConfirmPayment}
+                    disabled={submitting || pisahRemaining > 0}
+                    className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? "Memproses…" : pisahRemaining > 0 ? `Kurang ${formatRupiah(pisahRemaining)}` : "Konfirmasi"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Pilih item */
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-500">
+                    Tagihan {pisahBillCount} · {pisahSelected.size} item dipilih
+                  </span>
+                  {pisahTotals.total > 0 && (
+                    <span className="font-bold text-zinc-900">{formatRupiah(pisahTotals.total)}</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExitPisahBill}
+                    className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+                  >
+                    Batal Pisah
+                  </button>
+                  <button
+                    onClick={handlePisahOpenPayment}
+                    disabled={pisahSelected.size === 0}
+                    className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Bayar {pisahSelected.size > 0 ? formatRupiah(pisahTotals.total) : ""}
+                  </button>
+                </div>
+              </div>
+            )
+          ) : !paying ? (
             !saveBonOpen ? (
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => {
-                    const activeBillFull = activeBill?.id
-                      ? openBills.find((b) => b.id === activeBill.id)
-                      : null;
-                    setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
-                    setBonCustomerName(activeBillFull?.customer_name ?? "");
-                    setBonError(null);
-                    setSaveBonOpen(true);
-                  }}
-                  disabled={cart.length === 0}
-                  className="rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  🧾 Simpan Bon
-                </button>
-                <button
-                  onClick={handleOpenPayment}
-                  disabled={cart.length === 0}
-                  className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Bayar
-                </button>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      const activeBillFull = activeBill?.id
+                        ? openBills.find((b) => b.id === activeBill.id)
+                        : null;
+                      setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
+                      setBonCustomerName(activeBillFull?.customer_name ?? "");
+                      setBonError(null);
+                      setSaveBonOpen(true);
+                    }}
+                    disabled={cart.length === 0}
+                    className="rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    🧾 Simpan Bon
+                  </button>
+                  <button
+                    onClick={handleOpenPayment}
+                    disabled={cart.length === 0}
+                    className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Bayar
+                  </button>
+                </div>
+                {cart.length >= 2 && (
+                  <button
+                    onClick={handleEnterPisahBill}
+                    className="w-full rounded-xl border border-zinc-200 py-2 text-xs font-semibold text-zinc-500 hover:border-brand-300 hover:text-brand-600 transition-colors"
+                  >
+                    ✂️ Pisah Bill
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
