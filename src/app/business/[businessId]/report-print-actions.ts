@@ -138,6 +138,90 @@ export async function buildSettlementPrintJobs(
   return { success: true, jobs: toJobs(printers, buffer) };
 }
 
+// Cetak settlement untuk satu shift spesifik (dari halaman Riwayat Shift).
+// Filter by shift_id agar akurat meskipun ada transaksi di luar rentang waktu.
+export async function buildSingleShiftPrintJobs(
+  businessId: string,
+  shiftId: string,
+): Promise<BuildReportPrintResult> {
+  const supabase = await createClient();
+
+  const [{ data: business }, printers, { data: shift }, { data: payments }, { data: txRows }] =
+    await Promise.all([
+      supabase.from("businesses").select("name").eq("id", businessId).single(),
+      getReceiptPrinters(supabase, businessId),
+      supabase
+        .from("shifts")
+        .select(
+          "opened_at, closed_at, opening_cash, cash_sales, non_cash_sales, total_sales, tx_count, void_count, difference, cashiers(name)",
+        )
+        .eq("id", shiftId)
+        .single(),
+      supabase
+        .from("transaction_payments")
+        .select("method, amount, transactions!inner(shift_id, voided)")
+        .eq("transactions.shift_id", shiftId)
+        .eq("transactions.voided", false),
+      supabase
+        .from("transactions")
+        .select("id, voided, total_item_disc, order_disc_amt")
+        .eq("shift_id", shiftId),
+    ]);
+
+  if (!business || !shift) return { success: false, error: "Data tidak ditemukan." };
+  if (printers.length === 0) return { success: true, jobs: [] };
+
+  const byMethodMap = new Map<string, number>();
+  for (const p of payments ?? []) {
+    byMethodMap.set(p.method, (byMethodMap.get(p.method) ?? 0) + Number(p.amount));
+  }
+  const byMethod = Array.from(byMethodMap.entries())
+    .map(([method, amount]) => ({ method, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const nonVoided = (txRows ?? []).filter((t) => !t.voided);
+  const txCount = nonVoided.length;
+  const voidCount = (txRows ?? []).length - txCount;
+  const totalDiscount = nonVoided.reduce(
+    (s, t) => s + Number(t.total_item_disc ?? 0) + Number(t.order_disc_amt ?? 0),
+    0,
+  );
+
+  const openedAt = new Date(shift.opened_at).toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const shiftSummary: SettlementShiftRow = {
+    cashierName: (shift.cashiers as unknown as { name: string } | null)?.name ?? "Kasir",
+    openedAt: shift.opened_at,
+    closedAt: shift.closed_at ?? null,
+    openingCash: Number(shift.opening_cash),
+    totalSales: Number(shift.total_sales),
+    cashSales: Number(shift.cash_sales),
+    nonCashSales: Number(shift.non_cash_sales),
+    txCount: shift.tx_count,
+    voidCount: shift.void_count,
+    difference: shift.difference !== null ? Number(shift.difference) : null,
+  };
+
+  const buffer = buildSettlementTicket({
+    businessName: business.name,
+    periodLabel: openedAt,
+    byMethod,
+    totalSales: Number(shift.total_sales),
+    totalDiscount,
+    txCount,
+    voidCount,
+    shifts: [shiftSummary],
+  });
+
+  return { success: true, jobs: toJobs(printers, buffer) };
+}
+
 // Rekap menu terjual (nama/qty/omzet) untuk satu rentang tanggal — sama
 // pola dengan buildSettlementPrintJobs di atas, urut by omzet desc seperti
 // "Menu Terlaris" di Halaman Laporan.

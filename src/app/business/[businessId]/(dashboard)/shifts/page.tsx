@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import DeleteShiftButton from "./delete-shift-button";
+import PrintShiftButton from "./print-shift-button";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -98,6 +99,7 @@ export default async function ShiftsPage({
                       <p className="text-sm font-semibold text-zinc-900">
                         {formatRupiah(Number(s.total_sales))}
                       </p>
+                      <PrintShiftButton businessId={businessId} shiftId={s.id} />
                       {isOwner && (
                         <DeleteShiftButton
                           businessId={businessId}
@@ -111,31 +113,29 @@ export default async function ShiftsPage({
                     {formatDateTime(s.opened_at)} – {formatDateTime(s.closed_at)}
                   </p>
 
-                  <div className="mt-2 grid grid-cols-3 gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-center">
-                    <div>
-                      <p className="text-[10px] text-zinc-400">Transaksi</p>
-                      <p className="text-xs font-semibold text-zinc-900">{s.tx_count}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-400">Kas Diharapkan</p>
-                      <p className="text-xs font-semibold text-zinc-900">
-                        {formatRupiah(Number(s.expected_cash))}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-400">Selisih</p>
-                      <p
-                        className={`text-xs font-semibold ${
-                          diff === 0
-                            ? "text-zinc-900"
-                            : diff > 0
-                              ? "text-brand-700"
-                              : "text-red-600"
-                        }`}
-                      >
-                        {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
-                      </p>
-                    </div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                    <span>Modal Awal</span>
+                    <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.opening_cash))}</span>
+                    {Number(s.cash_sales) > 0 && (
+                      <>
+                        <span>Tunai</span>
+                        <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.cash_sales))}</span>
+                      </>
+                    )}
+                    {Number(s.non_cash_sales) > 0 && (
+                      <>
+                        <span>Non-Tunai</span>
+                        <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.non_cash_sales))}</span>
+                      </>
+                    )}
+                    <span>Transaksi</span>
+                    <span className="text-right font-medium text-zinc-900">{s.tx_count}</span>
+                    <span>Kas Diharapkan</span>
+                    <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.expected_cash))}</span>
+                    <span>Selisih</span>
+                    <span className={`text-right font-semibold ${diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}`}>
+                      {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
+                    </span>
                   </div>
 
                   {isOwner && s.void_count > 0 && (
