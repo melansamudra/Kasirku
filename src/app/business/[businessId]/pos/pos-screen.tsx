@@ -140,6 +140,17 @@ function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
 }
 
+function getCashSuggestions(amount: number): number[] {
+  const steps = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000];
+  const seen = new Set<number>();
+  for (const step of steps) {
+    const rounded = Math.ceil(amount / step) * step;
+    if (rounded >= amount) seen.add(rounded);
+    if (seen.size >= 4) break;
+  }
+  return Array.from(seen).sort((a, b) => a - b).slice(0, 4);
+}
+
 export default function PosScreen({
   businessId,
   businessName,
@@ -2667,21 +2678,35 @@ export default function PosScreen({
                     )}
                   </div>
                   {t.method === "Tunai" && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-zinc-500 shrink-0">Terima:</span>
-                      <input
-                        type="number"
-                        min={t.amount}
-                        value={t.received}
-                        onChange={(e) => updateTender(t.id, { received: e.target.value })}
-                        className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1 text-xs text-right focus:border-brand-600 focus:outline-none"
-                        placeholder={String(t.amount || total)}
-                      />
-                      {Number(t.received) >= t.amount && t.received !== "" && (
-                        <span className="text-[11px] text-zinc-500 shrink-0">
-                          ↩ <b>{formatRupiah(Number(t.received) - t.amount)}</b>
-                        </span>
-                      )}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {getCashSuggestions(t.amount || total).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => updateTender(t.id, { received: String(v) })}
+                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium border transition-colors ${String(v) === t.received ? "bg-brand-600 text-white border-brand-600" : "border-zinc-300 text-zinc-600 hover:border-brand-400 hover:text-brand-600"}`}
+                          >
+                            {formatRupiah(v)}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-zinc-500 shrink-0">Terima:</span>
+                        <input
+                          type="number"
+                          min={t.amount}
+                          value={t.received}
+                          onChange={(e) => updateTender(t.id, { received: e.target.value })}
+                          className="flex-1 min-w-0 rounded-lg border border-zinc-200 px-2 py-1 text-xs text-right focus:border-brand-600 focus:outline-none"
+                          placeholder={String(t.amount || total)}
+                        />
+                        {Number(t.received) >= t.amount && t.received !== "" && (
+                          <span className="text-[11px] text-zinc-500 shrink-0">
+                            ↩ <b>{formatRupiah(Number(t.received) - t.amount)}</b>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2761,14 +2786,30 @@ export default function PosScreen({
                         )}
                       </div>
                       {t.method === "Tunai" && (
-                        <input
-                          type="number"
-                          min="0"
-                          value={t.received || ""}
-                          onChange={(e) => updatePisahTender(t.id, { received: e.target.value })}
-                          placeholder="Uang diterima"
-                          className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
-                        />
+                        <div className="space-y-1.5">
+                          {t.amount > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {getCashSuggestions(t.amount).map((v) => (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  onClick={() => updatePisahTender(t.id, { received: String(v) })}
+                                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium border transition-colors ${String(v) === String(t.received) ? "bg-brand-600 text-white border-brand-600" : "border-zinc-300 text-zinc-600 hover:border-brand-400 hover:text-brand-600"}`}
+                                >
+                                  {formatRupiah(v)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <input
+                            type="number"
+                            min="0"
+                            value={t.received || ""}
+                            onChange={(e) => updatePisahTender(t.id, { received: e.target.value })}
+                            placeholder="Uang diterima"
+                            className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
+                          />
+                        </div>
                       )}
                     </div>
                   ))}
