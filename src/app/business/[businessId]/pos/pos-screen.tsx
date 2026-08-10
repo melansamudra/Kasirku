@@ -1858,7 +1858,7 @@ export default function PosScreen({
       )}
 
       {/* Catalog + Cart wrapper */}
-      <div className="flex flex-1 sm:flex-row overflow-hidden min-h-0">
+      <div className="flex flex-1 flex-col sm:flex-row overflow-hidden min-h-0">
 
       {/* Catalog */}
       <div className="flex flex-1 flex-col overflow-hidden min-h-0">
