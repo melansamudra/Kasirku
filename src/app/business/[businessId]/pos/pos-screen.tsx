@@ -40,6 +40,7 @@ import { withTimeout } from "@/lib/with-timeout";
 import { dispatchPrintJobs, dispatchReceiptThenKitchenJobs } from "@/lib/dispatch-print-jobs";
 import { getCachedPosCatalog, setCachedPosCatalog } from "@/lib/pos-cache";
 import ReportPrintButtons from "../report-print-buttons";
+import { buildSettlementPrintJobs } from "../report-print-actions";
 import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 import { todayWibDateString } from "@/lib/wib";
@@ -1378,8 +1379,16 @@ export default function PosScreen({
       return;
     }
 
-    const [shifts] = await Promise.all([getTodayShifts(businessId)]);
+    const [shifts, settlementJobs] = await Promise.all([
+      getTodayShifts(businessId),
+      buildSettlementPrintJobs(businessId, todayRange.fromIso, todayRange.toIsoExclusive, "Hari Ini"),
+    ]);
     setTodayShifts(shifts);
+
+    if (settlementJobs.success && settlementJobs.jobs.length > 0) {
+      void dispatchPrintJobs(businessId, settlementJobs.jobs);
+    }
+
     setClosedSummary(result.summary);
   }
 
