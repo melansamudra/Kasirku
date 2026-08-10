@@ -65,8 +65,8 @@ export function buildKitchenTicket(input: KitchenTicketInput): Buffer {
   // Header info — 2 kolom seperti format Moka
   text("-".repeat(W));
   const now = new Date();
-  const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-  const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
+  const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Jakarta" });
   const tableLabel = input.orderLabel || input.label;
   text(col2(input.source, tableLabel));
   text(col2(dateStr, timeStr));
