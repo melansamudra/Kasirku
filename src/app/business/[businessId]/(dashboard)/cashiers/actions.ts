@@ -19,7 +19,7 @@ export async function addCashier(
   if (!name) {
     return { error: "Nama kasir wajib diisi." };
   }
-  if (role !== "kasir" && role !== "manajer") {
+  if (role !== "kasir" && role !== "manajer" && role !== "pelayan") {
     return { error: "Pilih peran kasir dulu." };
   }
   if (!/^\d{4}$/.test(pin)) {
@@ -67,7 +67,7 @@ export async function editCashier(
   if (!name) {
     return { error: "Nama kasir wajib diisi." };
   }
-  if (role !== "kasir" && role !== "manajer") {
+  if (role !== "kasir" && role !== "manajer" && role !== "pelayan") {
     return { error: "Pilih peran kasir dulu." };
   }
 
