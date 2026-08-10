@@ -1811,9 +1811,9 @@ export default function PosScreen({
   }
 
   return (
-    <div className="flex h-dvh flex-col sm:flex-row overflow-hidden bg-zinc-50">
+    <div className="flex h-dvh flex-col overflow-hidden bg-zinc-50">
       {!currentShiftId && (
-        <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-3 bg-zinc-700 px-4 py-2 text-sm text-white shadow-md">
+        <div className="shrink-0 flex items-center gap-3 bg-zinc-700 px-4 py-2 text-sm text-white shadow-md">
           <span className="text-base">🔓</span>
           <span className="flex-1">Shift belum dibuka. Tekan <strong>Bayar</strong> saat siap berjualan.</span>
           <button
@@ -1825,7 +1825,7 @@ export default function PosScreen({
         </div>
       )}
       {isStaleShift && !staleBannerDismissed && (
-        <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-3 bg-amber-500 px-4 py-2 text-sm text-white shadow-md">
+        <div className="shrink-0 flex items-center gap-3 bg-amber-500 px-4 py-2 text-sm text-white shadow-md">
           <span className="text-base">⚠️</span>
           <span className="flex-1">
             Shift dari{" "}
@@ -1856,6 +1856,9 @@ export default function PosScreen({
           </button>
         </div>
       )}
+
+      {/* Catalog + Cart wrapper */}
+      <div className="flex flex-1 sm:flex-row overflow-hidden min-h-0">
 
       {/* Catalog */}
       <div className="flex flex-1 flex-col overflow-hidden min-h-0">
@@ -2937,6 +2940,8 @@ export default function PosScreen({
           )}
         </div>
       </div>
+
+      </div>{/* end Catalog + Cart wrapper */}
 
       {/* Open bills */}
       {posMenuOpen && (
