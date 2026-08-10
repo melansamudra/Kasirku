@@ -601,19 +601,18 @@ export default function PosScreen({
     });
   }
 
-  function setItemNote(cartKey: string, note: string | null) {
+  function setItemNote(cartKey: string, batch: number, note: string | null) {
     setCart((prev) =>
-      prev.map((i) => (i.cartKey === cartKey ? { ...i, note: note || null } : i)),
+      prev.map((i) => (i.cartKey === cartKey && i.batch === batch ? { ...i, note: note || null } : i)),
     );
   }
 
-  function toggleFreeItem(cartKey: string) {
+  function toggleFreeItem(cartKey: string, batch: number) {
     setCart((prev) =>
       prev.map((i) => {
-        if (i.cartKey !== cartKey) return i;
+        if (i.cartKey !== cartKey || i.batch !== batch) return i;
         const isAlreadyFree = i.disc === 100 && i.discType === "pct";
         if (isAlreadyFree) {
-          // Kembalikan ke diskon rule bawaan, atau 0 jika tidak ada rule
           const rule = discountRules.find(
             (r) => r.type === "per_product" && r.product_id === i.productId && r.active,
           );
@@ -624,16 +623,16 @@ export default function PosScreen({
     );
   }
 
-  function changeQty(cartKey: string, delta: number) {
+  function changeQty(cartKey: string, batch: number, delta: number) {
     setCart((prev) =>
       prev
-        .map((i) => (i.cartKey === cartKey ? { ...i, qty: Math.max(0, i.qty + delta) } : i))
+        .map((i) => (i.cartKey === cartKey && i.batch === batch ? { ...i, qty: Math.max(0, i.qty + delta) } : i))
         .filter((i) => i.qty > 0),
     );
   }
 
-  function removeFromCart(cartKey: string) {
-    setCart((prev) => prev.filter((i) => i.cartKey !== cartKey));
+  function removeFromCart(cartKey: string, batch: number) {
+    setCart((prev) => prev.filter((i) => !(i.cartKey === cartKey && i.batch === batch)));
   }
 
   async function handleOpenVoid() {
@@ -2265,7 +2264,7 @@ export default function PosScreen({
                       </div>
                       {!pisahBillMode && (
                         <button
-                          onClick={() => removeFromCart(item.cartKey)}
+                          onClick={() => removeFromCart(item.cartKey, item.batch)}
                           className="text-xs text-zinc-400 hover:text-red-500"
                         >
                           ✕
@@ -2275,14 +2274,14 @@ export default function PosScreen({
                     <div className="mt-1.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => changeQty(item.cartKey, -1)}
+                          onClick={() => changeQty(item.cartKey, item.batch, -1)}
                           className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
                         >
                           −
                         </button>
                         <span className="w-4 text-center text-xs tabular-nums">{item.qty}</span>
                         <button
-                          onClick={() => changeQty(item.cartKey, 1)}
+                          onClick={() => changeQty(item.cartKey, item.batch, 1)}
                           className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200"
                         >
                           +
@@ -2310,7 +2309,7 @@ export default function PosScreen({
                         </span>
                       )}
                       <button
-                        onClick={() => toggleFreeItem(item.cartKey)}
+                        onClick={() => toggleFreeItem(item.cartKey, item.batch)}
                         className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
                           item.disc === 100 && item.discType === "pct"
                             ? "border-pink-300 bg-pink-50 text-pink-700 hover:bg-pink-100"
@@ -2337,7 +2336,7 @@ export default function PosScreen({
                         <input
                           type="text"
                           value={item.note ?? ""}
-                          onChange={(e) => setItemNote(item.cartKey, e.target.value)}
+                          onChange={(e) => setItemNote(item.cartKey, item.batch, e.target.value)}
                           placeholder="mis. pedas level 3, tanpa es"
                           className="flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none"
                         />
