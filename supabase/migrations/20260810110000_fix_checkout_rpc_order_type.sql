@@ -1,12 +1,7 @@
--- Tambah kolom order_type (Dine In / Take Away / dll) ke tabel transactions.
--- Nullable tanpa DEFAULT: semua baris lama otomatis NULL, tidak ada update massal,
--- tidak ada gangguan pada shift/struk yang sedang berjalan.
-
-alter table public.transactions add column order_type text;
-
--- Perbarui checkout_transaction untuk menerima dan menyimpan order_type.
--- Parameter baru menggunakan `default null` sehingga pemanggil lama yang
--- tidak meneruskan parameter ini tetap berjalan tanpa perubahan.
+-- Hotfix: perbaiki referensi tabel yang salah pada migrasi 20260810100000.
+-- Migrasi sebelumnya memakai public.recipe_items (tidak ada) dan kolom
+-- qty_per_unit (tidak ada). Tabel yang benar adalah public.product_recipes
+-- dengan kolom qty.
 
 create or replace function public.checkout_transaction(
   p_business_id     uuid,
@@ -184,7 +179,7 @@ begin
       v_batch
     );
 
-    -- Recipe consumption
+    -- Recipe consumption (product_recipes.qty = jumlah bahan per 1 porsi produk)
     for v_recipe in
       select pr.ingredient_id, pr.qty
       from public.product_recipes pr
@@ -204,9 +199,9 @@ begin
     set stock = greatest(0, stock - v_qty)
     where id = v_product_id and track_stock;
 
-    v_subtotal_raw   := v_subtotal_raw + v_line_gross;
+    v_subtotal_raw    := v_subtotal_raw + v_line_gross;
     v_total_item_disc := v_total_item_disc + v_item_disc;
-    v_total_cost     := v_total_cost + v_product.cost * v_qty;
+    v_total_cost      := v_total_cost + v_product.cost * v_qty;
   end loop;
 
   -- Order-level discount
@@ -226,15 +221,15 @@ begin
   v_total := v_subtotal + v_service + v_tax;
 
   update public.transactions
-  set subtotal_raw   = v_subtotal_raw,
-      subtotal       = v_subtotal,
-      service        = v_service,
-      tax            = v_tax,
-      total          = v_total,
+  set subtotal_raw    = v_subtotal_raw,
+      subtotal        = v_subtotal,
+      service         = v_service,
+      tax             = v_tax,
+      total           = v_total,
       total_item_disc = v_total_item_disc,
       order_disc_amt  = v_order_disc_amt,
-      total_cost     = v_total_cost,
-      gross_profit   = v_total - v_total_cost
+      total_cost      = v_total_cost,
+      gross_profit    = v_total - v_total_cost
   where id = v_transaction_id;
 
   -- Payments
