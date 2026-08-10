@@ -569,9 +569,12 @@ export default function PosScreen({
       : product.id;
 
     setCart((prev) => {
-      const existing = prev.find((i) => i.cartKey === cartKey);
+      // Kalau ada bon aktif, hanya merge dengan item batch 1 (tambahan baru).
+      // Item bon lama (batch 0) tidak boleh dimerge — harus jadi baris baru di batch 1.
+      const mergeBatch = activeBill ? 1 : 0;
+      const existing = prev.find((i) => i.cartKey === cartKey && i.batch === mergeBatch);
       if (existing) {
-        return prev.map((i) => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i);
+        return prev.map((i) => (i.cartKey === cartKey && i.batch === mergeBatch) ? { ...i, qty: i.qty + 1 } : i);
       }
       const rule = discountRules.find(
         (r) => r.type === "per_product" && r.product_id === product.id && r.active,
