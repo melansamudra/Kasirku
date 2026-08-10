@@ -49,7 +49,7 @@ export default async function CashiersPage({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-zinc-900">{c.name}</p>
-                  <p className="text-xs text-zinc-500">{c.role === "manajer" ? "Manajer" : "Kasir"}</p>
+                  <p className="text-xs text-zinc-500">{c.role === "manajer" ? "Manajer" : c.role === "pelayan" ? "Pelayan" : "Kasir"}</p>
                 </div>
                 {!c.active && (
                   <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
