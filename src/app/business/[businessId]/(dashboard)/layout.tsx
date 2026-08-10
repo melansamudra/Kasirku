@@ -28,7 +28,9 @@ export default async function BusinessDashboardLayout({
     notFound();
   }
 
-  const isOwner = business.owner_id === userData.user?.id;
+  if (!userData.user) redirect("/login");
+
+  const isOwner = business.owner_id === userData.user.id;
   let permissions: string[] = [];
 
   if (!isOwner) {
@@ -36,7 +38,7 @@ export default async function BusinessDashboardLayout({
       .from("business_staff")
       .select("permissions, active")
       .eq("business_id", businessId)
-      .eq("user_id", userData.user!.id)
+      .eq("user_id", userData.user.id)
       .maybeSingle();
 
     if (!staff || !staff.active) {
