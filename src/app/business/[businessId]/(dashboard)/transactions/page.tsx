@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import { importTransactions } from "./actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
@@ -44,6 +45,11 @@ export default async function TransactionsPage({
   const isOwner = business.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 
+  const today = todayWibDateString();
+  const todayStart = `${today}T00:00:00+07:00`;
+  const nextDay = new Date(new Date(`${today}T00:00:00+07:00`).getTime() + 86400000);
+  const tomorrowStart = nextDay.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) + "T00:00:00+07:00";
+
   const query = supabase
     .from("transactions")
     .select(
@@ -53,8 +59,10 @@ export default async function TransactionsPage({
     .order("date", { ascending: false })
     .limit(50);
 
-  // Non-owner tidak perlu lihat transaksi yang dibatalkan
-  if (!isOwner) query.eq("voided", false);
+  // Staf hanya melihat transaksi hari ini dan tidak melihat yang dibatalkan
+  if (!isOwner) {
+    query.gte("date", todayStart).lt("date", tomorrowStart).eq("voided", false);
+  }
 
   const [{ data: transactions }, { data: visibleRows }] = await Promise.all([
     query,
@@ -77,7 +85,9 @@ export default async function TransactionsPage({
           <h1 className="text-lg font-bold text-zinc-900">
             Riwayat Transaksi — {business.name}
           </h1>
-          {isOwner && <p className="mt-1 text-sm text-zinc-500">50 transaksi terbaru.</p>}
+          <p className="mt-1 text-sm text-zinc-500">
+            {isOwner ? "50 transaksi terbaru." : "Transaksi hari ini."}
+          </p>
         </div>
         {isOwner && (
           <TransactionActions businessId={businessId} importAction={boundImportTransactions} />

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { todayWibDateString } from "@/lib/wib";
 import DeleteShiftButton from "./delete-shift-button";
 
 function formatRupiah(value: number) {
@@ -51,7 +52,10 @@ export default async function ShiftsPage({
 
   const isOwner = business.owner_id === userData.user?.id;
 
-  const { data: shiftRows } = await supabase
+  const today = todayWibDateString();
+  const todayStart = `${today}T00:00:00+07:00`;
+
+  let shiftQuery = supabase
     .from("shifts")
     .select(
       "id, opened_at, closed_at, opening_cash, closing_cash, cash_sales, non_cash_sales, total_sales, expected_cash, difference, tx_count, void_count, close_notes, cashiers(name)",
@@ -61,6 +65,11 @@ export default async function ShiftsPage({
     .order("closed_at", { ascending: false })
     .limit(50);
 
+  // Staf hanya melihat shift hari ini
+  if (!isOwner) shiftQuery = shiftQuery.gte("opened_at", todayStart);
+
+  const { data: shiftRows } = await shiftQuery;
+
   const shifts = (shiftRows ?? []) as unknown as ShiftRow[];
 
   return (
@@ -68,7 +77,9 @@ export default async function ShiftsPage({
         <h1 className="text-lg font-bold text-zinc-900">
           Riwayat Shift — {business.name}
         </h1>
-        {isOwner && <p className="mt-1 text-sm text-zinc-500">50 shift terakhir yang sudah ditutup.</p>}
+        <p className="mt-1 text-sm text-zinc-500">
+          {isOwner ? "50 shift terakhir yang sudah ditutup." : "Shift hari ini."}
+        </p>
 
         <div className="mt-6 space-y-2">
           {shifts.length > 0 ? (

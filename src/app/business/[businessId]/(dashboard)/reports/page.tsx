@@ -74,13 +74,20 @@ export default async function ReportsPage({
   const { businessId } = await params;
   const { period: periodParam, from, to } = await searchParams;
   const cookieStore = await cookies();
-  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
-  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
-  const { data: business } = await supabase
-    .from("businesses").select("id, name").eq("id", businessId).single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
   if (!business) notFound();
+
+  const isOwner = business.owner_id === userData.user?.id;
+  // Staf hanya bisa melihat laporan hari ini — paksa periode terlepas dari URL/cookie
+  const period = isOwner
+    ? parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value)
+    : "today";
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   let txQuery = supabase
     .from("transactions")
@@ -168,7 +175,12 @@ export default async function ReportsPage({
           <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Laporan Penjualan</p>
           <h1 className="text-xl font-bold text-zinc-900">{business.name}</h1>
         </div>
-        <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />
+        {isOwner && <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />}
+        {!isOwner && (
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
+            Hari Ini
+          </span>
+        )}
       </div>
 
       {period === "custom" && (
@@ -370,6 +382,7 @@ export default async function ReportsPage({
           )}
 
           {/* Export */}
+          {isOwner && (
           <div className="overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-5 py-3.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Ekspor & Cetak</p>
@@ -389,6 +402,7 @@ export default async function ReportsPage({
               <ReportPrintButtons businessId={businessId} fromIso={fromIso} toIsoExclusive={toIsoExclusive} periodLabel={PERIOD_DESCRIPTIONS[period]} />
             </div>
           </div>
+          )}
         </div>
       )}
     </div>
