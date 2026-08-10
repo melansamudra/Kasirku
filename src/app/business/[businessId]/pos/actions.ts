@@ -133,6 +133,7 @@ export async function checkout(
   orderLabel: string | null = null,
   customerName: string | null = null,
   orderDiscName: string | null = null,
+  orderType: string | null = null,
 ): Promise<CheckoutResult> {
   if (items.length === 0) {
     return { success: false, error: "Keranjang masih kosong." };
@@ -204,7 +205,7 @@ export async function checkout(
                 i.note ?? null,
               ].filter((x): x is string => !!x).join(" | ") || null,
             })),
-            undefined,
+            orderType ?? undefined,
             cashierId,
             "NEW ORDER",
             customerName,

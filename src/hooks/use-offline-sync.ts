@@ -67,6 +67,8 @@ export function useOfflineSync(businessId: string) {
                   true,
                   sale.payload.orderLabel ?? null,
                   sale.payload.customerName ?? null,
+                  sale.payload.orderDiscName ?? null,
+                  sale.payload.orderType ?? null,
                 )
               : await checkoutTicket(
                   sale.businessId,

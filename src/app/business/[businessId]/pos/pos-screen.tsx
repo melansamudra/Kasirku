@@ -321,6 +321,7 @@ export default function PosScreen({
   const [paying, setPaying] = useState(false);
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [splitCount, setSplitCount] = useState("");
+  const [orderType, setOrderType] = useState<"DINE IN" | "TAKEAWAY" | null>(null);
   const [pisahBillMode, setPisahBillMode] = useState(false);
   const [pisahSelected, setPisahSelected] = useState<Set<string>>(new Set());
   const [pisahPaying, setPisahPaying] = useState(false);
@@ -1124,6 +1125,7 @@ export default function PosScreen({
           billLabel,
           selectedCustomer?.name ?? null,
           null,
+          orderType ?? null,
         ),
         10000,
       );
@@ -1145,6 +1147,7 @@ export default function PosScreen({
           orderLabel: billLabel,
           customerName: selectedCustomer?.name ?? null,
           orderDiscName: null,
+          orderType: orderType ?? null,
         },
       });
       setSubmitting(false);
@@ -1256,6 +1259,7 @@ export default function PosScreen({
           activeBill?.label || bonLabel || null,
           selectedCustomer?.name || null,
           selectedPromo?.name ?? null,
+          orderType ?? null,
         ),
         10000,
       );
@@ -1281,6 +1285,7 @@ export default function PosScreen({
           orderLabel: activeBill?.label || bonLabel || null,
           customerName: selectedCustomer?.name || null,
           orderDiscName: selectedPromo?.name ?? null,
+          orderType: orderType ?? null,
         },
       });
 
@@ -2053,6 +2058,26 @@ export default function PosScreen({
               </span>
             )}
           </div>
+
+          {isFnb && (
+            <div className="mb-3 flex gap-1.5">
+              {(["DINE IN", "TAKEAWAY"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setOrderType(orderType === t ? null : t)}
+                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${
+                    orderType === t
+                      ? t === "DINE IN"
+                        ? "bg-brand-600 text-white"
+                        : "bg-amber-500 text-white"
+                      : "border border-zinc-200 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600"
+                  }`}
+                >
+                  {t === "DINE IN" ? "🍽️ Dine In" : "🛍️ Takeaway"}
+                </button>
+              ))}
+            </div>
+          )}
           {inboxNotice && (
             <div className="mb-3 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
               <span>{inboxNotice}</span>

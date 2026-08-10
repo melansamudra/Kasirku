@@ -22,6 +22,7 @@ export type PendingRetailSale = {
     orderLabel: string | null;
     customerName: string | null;
     orderDiscName: string | null;
+    orderType?: string | null;
   };
 };
 
