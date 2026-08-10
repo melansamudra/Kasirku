@@ -8,7 +8,7 @@ export type CashierSession = {
   cashierId: string;
   businessId: string;
   name: string;
-  role: "kasir" | "manajer";
+  role: "kasir" | "manajer" | "pelayan";
 };
 
 const COOKIE_NAME = "kasirku_cashier_session";

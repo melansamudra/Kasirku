@@ -28,7 +28,7 @@ type VerifyCashierPinRow = {
   id: string;
   business_id: string;
   name: string;
-  role: "kasir" | "manajer";
+  role: "kasir" | "manajer" | "pelayan";
 };
 
 export async function verifyPin(

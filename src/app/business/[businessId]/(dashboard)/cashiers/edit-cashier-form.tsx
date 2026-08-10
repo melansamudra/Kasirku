@@ -86,6 +86,19 @@ export default function EditCashierForm({
           />
           Manajer
         </label>
+        <label
+          className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border py-2 text-xs ${
+            values.role === "pelayan" ? "border-brand-600 bg-brand-50" : "border-zinc-200"
+          }`}
+        >
+          <input
+            type="radio"
+            checked={values.role === "pelayan"}
+            onChange={() => setValues((v) => ({ ...v, role: "pelayan" }))}
+            className="accent-brand-600"
+          />
+          Pelayan
+        </label>
       </div>
       {error && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-600">{error}</p>}
 

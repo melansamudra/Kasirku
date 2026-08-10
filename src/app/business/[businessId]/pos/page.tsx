@@ -87,6 +87,7 @@ export default async function PosPage({
       businessName={business.name}
       cashierId={session.cashierId}
       cashierName={session.name}
+      cashierRole={session.role}
       shiftId={activeShift.id}
       shiftOpenedAt={activeShift.opened_at}
       isStaleShift={isStaleShift}

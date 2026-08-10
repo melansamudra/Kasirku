@@ -144,6 +144,7 @@ export default function PosScreen({
   businessName,
   cashierId,
   cashierName,
+  cashierRole,
   shiftId,
   shiftOpenedAt,
   isStaleShift,
@@ -155,6 +156,7 @@ export default function PosScreen({
   businessName: string;
   cashierId: string;
   cashierName: string;
+  cashierRole: "kasir" | "manajer" | "pelayan";
   shiftId: string;
   shiftOpenedAt: string;
   isStaleShift: boolean;
@@ -2754,7 +2756,7 @@ export default function PosScreen({
           ) : !paying ? (
             !saveBonOpen ? (
               <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid gap-2 ${cashierRole === "pelayan" ? "grid-cols-1" : "grid-cols-2"}`}>
                   <button
                     onClick={() => {
                       const activeBillFull = activeBill?.id
@@ -2770,15 +2772,17 @@ export default function PosScreen({
                   >
                     🧾 Simpan Bon
                   </button>
-                  <button
-                    onClick={handleOpenPayment}
-                    disabled={cart.length === 0}
-                    className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Bayar
-                  </button>
+                  {cashierRole !== "pelayan" && (
+                    <button
+                      onClick={handleOpenPayment}
+                      disabled={cart.length === 0}
+                      className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Bayar
+                    </button>
+                  )}
                 </div>
-                {cart.length >= 2 && (
+                {cashierRole !== "pelayan" && cart.length >= 2 && (
                   <button
                     onClick={handleEnterPisahBill}
                     className="w-full rounded-xl border border-zinc-200 py-2 text-xs font-semibold text-zinc-500 hover:border-brand-300 hover:text-brand-600 transition-colors"

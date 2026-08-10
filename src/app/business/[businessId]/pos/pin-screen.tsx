@@ -77,7 +77,7 @@ export default function PinScreen({
                   <div>
                     <p className="text-sm font-medium text-white">{c.name}</p>
                     <p className="text-xs text-zinc-400">
-                      {c.role === "manajer" ? "Manajer" : "Kasir"}
+                      {c.role === "manajer" ? "Manajer" : c.role === "pelayan" ? "Pelayan" : "Kasir"}
                     </p>
                   </div>
                 </button>

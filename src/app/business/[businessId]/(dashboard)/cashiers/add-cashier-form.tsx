@@ -46,6 +46,10 @@ export default function AddCashierForm({
             <input type="radio" name="role" value="manajer" required className="accent-brand-600" />
             Manajer
           </label>
+          <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-zinc-200 py-2.5 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
+            <input type="radio" name="role" value="pelayan" required className="accent-brand-600" />
+            Pelayan
+          </label>
         </div>
       </fieldset>
 
