@@ -85,7 +85,22 @@ export default async function DashboardPage({
       : { data: [] };
   const mirrorBusinesses = mirrorBusinessRows ?? [];
 
-  if (!businesses || businesses.length === 0) redirect("/onboarding");
+  if (!businesses || businesses.length === 0) {
+    // Cek apakah user adalah staff/admin bisnis orang lain
+    const { data: staffRow } = await supabase
+      .from("business_staff")
+      .select("business_id")
+      .eq("user_id", user?.id ?? "")
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (staffRow) {
+      redirect(`/business/${staffRow.business_id}`);
+    }
+
+    redirect("/onboarding");
+  }
 
   if (!isOwner && businesses.length === 1) {
     redirect(`/business/${businesses[0].id}/pos`);
