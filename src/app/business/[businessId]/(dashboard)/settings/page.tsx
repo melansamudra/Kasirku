@@ -21,7 +21,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner")
+    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner")
     .eq("id", businessId)
     .single();
 
@@ -29,6 +29,8 @@ export default async function SettingsPage({
     notFound();
   }
 
+  const { data: userData } = await supabase.auth.getUser();
+  const isOwner = business.owner_id === (userData.user?.id ?? "");
   const isFnb = business.business_type === "fnb";
 
   const { data: paymentMethods } = await supabase
@@ -106,6 +108,48 @@ export default async function SettingsPage({
 
   const boundAddKitchenPrinter = addKitchenPrinter.bind(null, businessId);
   const boundSaveSelfOrderBanner = saveSelfOrderBanner.bind(null, businessId);
+
+  // Staf (non-owner) hanya bisa akses seksi Printer — sembunyikan pengaturan
+  // sensitif bisnis (profil, pajak, diskon, dll) dari kasir.
+  if (!isOwner) {
+    return (
+      <div className="w-full max-w-2xl">
+        <h1 className="text-lg font-bold text-zinc-900">Pengaturan — {business.name}</h1>
+        {isFnb ? (
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-zinc-900">Printer Dapur &amp; Bar</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Cetak order otomatis ke printer dapur/bar sesuai kategori menu — bukan ke kasir.
+            </p>
+            <div className="mt-4 space-y-2">
+              {printers.length > 0 ? (
+                printers.map((p) => (
+                  <PrinterCard
+                    key={p.id}
+                    printer={p}
+                    businessId={businessId}
+                    updateAction={updateKitchenPrinter.bind(null, businessId, p.id)}
+                    productCategories={productCategories}
+                  />
+                ))
+              ) : (
+                <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-4 text-center text-xs text-zinc-400">
+                  Belum ada printer dapur/bar. Order akan tetap dicetak di kasir saja.
+                </p>
+              )}
+            </div>
+            <div className="mt-4 border-t border-zinc-100 pt-4">
+              <AddPrinterForm action={boundAddKitchenPrinter} categories={productCategories} />
+            </div>
+          </div>
+        ) : (
+          <p className="mt-6 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-400">
+            Tidak ada pengaturan yang tersedia untuk akun ini.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-2xl">
