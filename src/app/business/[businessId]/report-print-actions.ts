@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { buildSettlementTicket, buildMenuSalesTicket } from "@/lib/escpos";
+import { buildSettlementTicket, buildMenuSalesTicket, type SettlementShiftRow } from "@/lib/escpos";
 import type { KitchenPrintJobPayload } from "@/lib/kitchen-print";
 
 export type BuildReportPrintResult =
@@ -52,7 +52,7 @@ export async function buildSettlementPrintJobs(
 ): Promise<BuildReportPrintResult> {
   const supabase = await createClient();
 
-  const [{ data: business }, printers, { data: payments }, { data: allTx }] = await Promise.all([
+  const [{ data: business }, printers, { data: payments }, { data: allTx }, { data: shiftRows }] = await Promise.all([
     supabase.from("businesses").select("name").eq("id", businessId).single(),
     getReceiptPrinters(supabase, businessId),
     (() => {
@@ -72,6 +72,16 @@ export async function buildSettlementPrintJobs(
         .eq("business_id", businessId);
       if (fromIso) q = q.gte("date", fromIso);
       if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+      return q;
+    })(),
+    (() => {
+      let q = supabase
+        .from("shifts")
+        .select("opened_at, closed_at, opening_cash, cash_sales, non_cash_sales, total_sales, tx_count, void_count, difference, cashiers(name)")
+        .eq("business_id", businessId)
+        .order("opened_at", { ascending: true });
+      if (fromIso) q = q.gte("opened_at", fromIso);
+      if (toIsoExclusive) q = q.lt("opened_at", toIsoExclusive);
       return q;
     })(),
   ]);
@@ -96,6 +106,19 @@ export async function buildSettlementPrintJobs(
   const txCount = txRows.filter((t) => !t.voided).length;
   const voidCount = txRows.length - txCount;
 
+  const shifts: SettlementShiftRow[] = (shiftRows ?? []).map((s) => ({
+    cashierName: (s.cashiers as unknown as { name: string } | null)?.name ?? "Kasir",
+    openedAt: s.opened_at,
+    closedAt: s.closed_at ?? null,
+    openingCash: Number(s.opening_cash),
+    totalSales: Number(s.total_sales),
+    cashSales: Number(s.cash_sales),
+    nonCashSales: Number(s.non_cash_sales),
+    txCount: s.tx_count,
+    voidCount: s.void_count,
+    difference: s.difference !== null ? Number(s.difference) : null,
+  }));
+
   const buffer = buildSettlementTicket({
     businessName: business.name,
     periodLabel,
@@ -103,6 +126,7 @@ export async function buildSettlementPrintJobs(
     totalSales,
     txCount,
     voidCount,
+    shifts,
   });
 
   return { success: true, jobs: toJobs(printers, buffer) };

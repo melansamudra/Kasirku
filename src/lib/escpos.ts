@@ -324,6 +324,19 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
 
 export type SettlementByMethod = { method: string; amount: number };
 
+export type SettlementShiftRow = {
+  cashierName: string;
+  openedAt: string;
+  closedAt: string | null;
+  openingCash: number;
+  totalSales: number;
+  cashSales: number;
+  nonCashSales: number;
+  txCount: number;
+  voidCount: number;
+  difference: number | null;
+};
+
 export type SettlementTicketInput = {
   businessName: string;
   periodLabel: string;
@@ -331,6 +344,7 @@ export type SettlementTicketInput = {
   totalSales: number;
   txCount: number;
   voidCount: number;
+  shifts?: SettlementShiftRow[];
 };
 
 // Ringkasan penjualan per metode bayar (Tunai/QRIS/EDC/dst) — dicetak dari
@@ -369,6 +383,41 @@ export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
   divider();
   text(padLine("Jumlah Transaksi", String(input.txCount)));
   if (input.voidCount > 0) text(padLine("Dibatalkan", String(input.voidCount)));
+
+  if (input.shifts && input.shifts.length > 0) {
+    const fmtTime = (iso: string) =>
+      new Date(iso).toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Jakarta",
+      });
+
+    divider();
+    push([ESC, 0x61, 0x01]); // center
+    text("RINGKASAN SHIFT");
+    push([ESC, 0x61, 0x00]); // left
+
+    for (const s of input.shifts) {
+      divider();
+      const jam = s.closedAt
+        ? `${fmtTime(s.openedAt)}-${fmtTime(s.closedAt)}`
+        : `${fmtTime(s.openedAt)}-skrg`;
+      text(`${s.cashierName} (${jam})`);
+      text(padLine("Modal Awal", formatRp(s.openingCash)));
+      if (s.cashSales > 0) text(padLine("Tunai", formatRp(s.cashSales)));
+      if (s.nonCashSales > 0) text(padLine("Non-Tunai", formatRp(s.nonCashSales)));
+      push([ESC, 0x45, 0x01]);
+      text(padLine("Total", formatRp(s.totalSales)));
+      push([ESC, 0x45, 0x00]);
+      text(padLine("Transaksi", String(s.txCount)));
+      if (s.voidCount > 0) text(padLine("Void", String(s.voidCount)));
+      if (s.difference !== null) {
+        const diff = s.difference;
+        const diffStr = diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRp(diff)}`;
+        text(padLine("Selisih Kas", diffStr));
+      }
+    }
+  }
 
   text("");
   text("");
