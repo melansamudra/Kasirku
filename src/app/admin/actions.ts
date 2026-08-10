@@ -7,7 +7,18 @@ import { getPlan } from "@/lib/billing/plans";
 
 export async function toggleMirroring(businessId: string, enabled: boolean) {
   const supabase = await createClient();
-  await supabase.rpc("admin_toggle_mirroring", {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  const { data: adminRow } = await service
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!adminRow) return;
+
+  await service.rpc("admin_toggle_mirroring", {
     p_business_id: businessId,
     p_enabled: enabled,
   });
