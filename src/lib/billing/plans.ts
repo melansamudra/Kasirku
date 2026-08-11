@@ -24,7 +24,7 @@ export const PLANS: Plan[] = [
   { code: "finance_monthly", name: "Finance Only — Bulanan", kind: "subscription", periodDays: 30, price: 149000, family: "finance" },
   { code: "finance_yearly", name: "Finance Only — Tahunan", kind: "subscription", periodDays: 365, price: 1299000, family: "finance" },
   { code: "starter_monthly", name: "Starter — Bulanan", kind: "subscription", periodDays: 30, price: 88000, family: "starter" },
-  { code: "starter_yearly", name: "Starter — Tahunan", kind: "subscription", periodDays: 365, price: 799000, family: "starter" },
+  { code: "starter_yearly", name: "Starter — Tahunan", kind: "subscription", periodDays: 365, price: 1799000, family: "starter" },
 ];
 
 export function getPlan(code: string): Plan | undefined {

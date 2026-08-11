@@ -182,7 +182,7 @@ export default async function KasirkuPage() {
           <p className="mt-4 text-center text-xs text-zinc-400">
             Mulai dari{" "}
             <Link href="#harga" className="font-semibold text-brand-700 hover:underline">
-              Rp799.000/tahun
+              Rp1.799.000/tahun
             </Link>{" "}
             — tanpa kartu kredit untuk mendaftar.
           </p>
