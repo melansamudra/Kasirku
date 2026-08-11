@@ -64,7 +64,7 @@ export default async function TransactionsPage({
     query.gte("date", todayStart).lt("date", tomorrowStart).eq("voided", false);
   }
 
-  const [{ data: transactions }, { data: visibleRows }] = await Promise.all([
+  const [{ data: transactions }, { data: visibleRows }, { data: lockRows }] = await Promise.all([
     query,
     showMirrorToggle
       ? supabase
@@ -72,9 +72,25 @@ export default async function TransactionsPage({
           .select("transaction_id")
           .eq("business_id", businessId)
       : Promise.resolve({ data: null }),
+    showMirrorToggle
+      ? supabase
+          .from("mirror_month_locks")
+          .select("month_year")
+          .eq("business_id", businessId)
+      : Promise.resolve({ data: null }),
   ]);
 
   const visibleIds = new Set((visibleRows ?? []).map((r) => r.transaction_id as string));
+  const lockedMonths = new Set((lockRows ?? []).map((r) => r.month_year as string));
+
+  function txLockedMonth(dateStr: string): boolean {
+    const monthKey = new Date(dateStr).toLocaleDateString("en-CA", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+    }).slice(0, 7) + "-01";
+    return lockedMonths.has(monthKey);
+  }
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
 
@@ -142,6 +158,7 @@ export default async function TransactionsPage({
                   businessId={businessId}
                   transactionId={t.id}
                   visible={visibleIds.has(t.id)}
+                  locked={txLockedMonth(t.date)}
                 />
               )}
             </div>

@@ -7,18 +7,23 @@ export async function toggleTransactionMirrorVisibility(
   businessId: string,
   transactionId: string,
   visible: boolean,
-) {
+): Promise<{ error?: string }> {
   const supabase = await createClient();
+
+  let error;
   if (visible) {
-    await supabase
+    ({ error } = await supabase
       .from("mirror_visible_transactions")
-      .insert({ business_id: businessId, transaction_id: transactionId });
+      .insert({ business_id: businessId, transaction_id: transactionId }));
   } else {
-    await supabase
+    ({ error } = await supabase
       .from("mirror_visible_transactions")
       .delete()
       .eq("business_id", businessId)
-      .eq("transaction_id", transactionId);
+      .eq("transaction_id", transactionId));
   }
+
+  if (error) return { error: error.message };
   revalidatePath(`/business/${businessId}/transactions`);
+  return {};
 }

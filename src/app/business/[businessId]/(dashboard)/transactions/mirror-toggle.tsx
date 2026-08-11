@@ -8,16 +8,29 @@ export default function MirrorToggle({
   businessId,
   transactionId,
   visible: initialVisible,
+  locked = false,
 }: {
   businessId: string;
   transactionId: string;
   visible: boolean;
+  locked?: boolean;
 }) {
   const [visible, setVisible] = useState(initialVisible);
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (Capacitor.isNativePlatform()) return null;
+
+  if (locked) {
+    return (
+      <div
+        className="flex items-center border-l border-zinc-100 px-3"
+        title="Bulan ini sudah dikunci"
+      >
+        <span className="text-base leading-none text-zinc-300">🔒</span>
+      </div>
+    );
+  }
 
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -26,8 +39,9 @@ export default function MirrorToggle({
       setConfirming(true);
     } else {
       setVisible(true);
-      startTransition(() => {
-        toggleTransactionMirrorVisibility(businessId, transactionId, true);
+      startTransition(async () => {
+        const result = await toggleTransactionMirrorVisibility(businessId, transactionId, true);
+        if (result.error) setVisible(false);
       });
     }
   }
@@ -37,8 +51,9 @@ export default function MirrorToggle({
     e.stopPropagation();
     setConfirming(false);
     setVisible(false);
-    startTransition(() => {
-      toggleTransactionMirrorVisibility(businessId, transactionId, false);
+    startTransition(async () => {
+      const result = await toggleTransactionMirrorVisibility(businessId, transactionId, false);
+      if (result.error) setVisible(true);
     });
   }
 
@@ -54,7 +69,7 @@ export default function MirrorToggle({
         className="flex flex-col items-end gap-1 border-l border-zinc-100 px-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-[10px] font-medium text-zinc-500 whitespace-nowrap">Matikan?</p>
+        <p className="whitespace-nowrap text-[10px] font-medium text-zinc-500">Matikan?</p>
         <div className="flex gap-1">
           <button
             onClick={handleConfirmOff}

@@ -180,6 +180,51 @@ export async function saveTransactionSelections(
   return { error: null };
 }
 
+export async function lockMirrorMonth(
+  businessId: string,
+  monthYear: string,
+): Promise<{ error: string | null }> {
+  let supabase;
+  try {
+    ({ supabase } = await assertIsOwner(businessId));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Tidak diizinkan." };
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from("mirror_month_locks").insert({
+    business_id: businessId,
+    month_year: monthYear,
+    locked_by: user!.id,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath(`/business/${businessId}/mirror`);
+  return { error: null };
+}
+
+export async function unlockMirrorMonth(
+  businessId: string,
+  monthYear: string,
+): Promise<{ error: string | null }> {
+  let supabase;
+  try {
+    ({ supabase } = await assertIsOwner(businessId));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Tidak diizinkan." };
+  }
+
+  const { error } = await supabase
+    .from("mirror_month_locks")
+    .delete()
+    .eq("business_id", businessId)
+    .eq("month_year", monthYear);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/business/${businessId}/mirror`);
+  return { error: null };
+}
+
 export async function revokeMirrorAccess(businessId: string, mirrorAccountId: string) {
   await assertIsOwner(businessId);
 
