@@ -100,8 +100,8 @@ function formatRupiah(value: number) {
 const playfairStyle = { fontFamily: "var(--font-playfair), Georgia, serif" };
 
 export default async function KasirkuPage() {
-  const fullPlans = PLANS.filter((p) => p.family === "full");
-  const starterPlans = PLANS.filter((p) => p.family === "starter");
+  const fullPlans = PLANS.filter((p) => p.code === "yearly");
+  const starterPlans = PLANS.filter((p) => p.code === "starter_yearly");
   const supabase = await createClient();
   const {
     data: { session },
@@ -182,7 +182,7 @@ export default async function KasirkuPage() {
           <p className="mt-4 text-center text-xs text-zinc-400">
             Mulai dari{" "}
             <Link href="#harga" className="font-semibold text-brand-700 hover:underline">
-              Rp299.000/bulan
+              Rp799.000/tahun
             </Link>{" "}
             — tanpa kartu kredit untuk mendaftar.
           </p>
@@ -300,154 +300,101 @@ export default async function KasirkuPage() {
               Harga Transparan, Tanpa Biaya Tersembunyi
             </h2>
             <p className="mt-3 text-sm text-zinc-500">
-              Mulai dari yang kamu butuhkan sekarang — upgrade kapan saja.
+              Pilih paket tahunan yang sesuai kebutuhan usahamu.
             </p>
           </div>
 
-          {/* Paket Starter */}
-          <div className="mt-12">
-            <div className="mb-4 flex items-center gap-3">
-              <p className="text-sm font-bold text-zinc-900">Paket Starter</p>
-              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">Low Budget</span>
-            </div>
-            <p className="mb-5 text-xs text-zinc-500">
-              Kasir + pantau bahan baku (COGS) + laporan penjualan. Cukup untuk mulai berjualan rapi.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:max-w-2xl">
-              {starterPlans.map((plan) => {
-                const isYearly = plan.code === "starter_yearly";
-                return (
-                  <div
-                    key={plan.code}
-                    className={`relative rounded-2xl border p-5 text-left ${
-                      isYearly
-                        ? "border-amber-400 bg-white shadow-md shadow-amber-400/10"
-                        : "border-zinc-200 bg-white"
-                    }`}
-                  >
-                    {isYearly && (
-                      <span className="absolute -top-3 left-5 rounded-full bg-amber-500 px-3 py-1 text-[10px] font-semibold text-white">
-                        Hemat ~24%
-                      </span>
-                    )}
-                    <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
-                    <p className="mt-1 text-2xl font-bold text-amber-600">{formatRupiah(plan.price)}</p>
-                    <p className="text-xs text-zinc-400">
-                      {isYearly ? "Setiap 365 hari" : "Setiap 30 hari"}
-                    </p>
-                    <ul className="mt-3 space-y-1 text-xs text-zinc-600">
-                      <li>✓ POS & kasir</li>
-                      <li>✓ Bahan baku & resep (COGS)</li>
-                      <li>✓ Laporan penjualan</li>
-                      <li>✓ Kalkulator HPP</li>
-                      <li className="text-zinc-400">✗ Akuntansi & SDM</li>
-                    </ul>
-                    <Link
-                      href="/signup"
-                      className={`mt-4 block rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${
-                        isYearly
-                          ? "bg-amber-500 text-white hover:bg-amber-600"
-                          : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                      }`}
-                    >
-                      Pilih Paket Ini →
-                    </Link>
-                    <a
-                      href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
-                        `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1.5 block rounded-xl py-2 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
-                    >
-                      💬 Tanya via WhatsApp
-                    </a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="my-12 flex items-center gap-4">
-            <div className="h-px flex-1 bg-zinc-100" />
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">atau pilih paket lengkap</p>
-            <div className="h-px flex-1 bg-zinc-100" />
-          </div>
-
-          {/* Paket Lengkap */}
-          <div className="mb-4">
-            <p className="text-sm font-bold text-zinc-900">Paket Lengkap</p>
-            <p className="mt-1 text-xs text-zinc-500">POS + Akuntansi + SDM — semua dalam satu aplikasi.</p>
-          </div>
-          <div className="mt-5 grid gap-5 sm:grid-cols-3">
-            {fullPlans.map((plan) => {
-              const isYearly = plan.code === "yearly";
-              return (
-                <div
-                  key={plan.code}
-                  className={`relative rounded-2xl border p-6 text-left ${
-                    isYearly
-                      ? "border-brand-500 bg-white shadow-lg shadow-brand-600/10"
-                      : "border-zinc-200 bg-white"
-                  }`}
+          <div className="mx-auto mt-12 grid max-w-2xl gap-5 sm:grid-cols-2">
+            {/* Paket Starter Tahunan */}
+            {starterPlans.map((plan) => (
+              <div
+                key={plan.code}
+                className="rounded-2xl border border-amber-400 bg-white p-6 text-left shadow-md shadow-amber-400/10"
+              >
+                <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                  Starter
+                </span>
+                <p className="mt-3 text-sm font-bold text-zinc-900">{plan.name}</p>
+                <p className="mt-1 text-3xl font-bold text-amber-600">{formatRupiah(plan.price)}</p>
+                <p className="text-xs text-zinc-400">Per tahun</p>
+                <ul className="mt-4 space-y-1.5 text-xs text-zinc-600">
+                  <li>✓ POS &amp; kasir</li>
+                  <li>✓ Bahan baku &amp; resep (COGS)</li>
+                  <li>✓ Laporan penjualan</li>
+                  <li>✓ Kalkulator HPP</li>
+                  <li className="text-zinc-400">✗ Akuntansi &amp; SDM</li>
+                </ul>
+                <Link
+                  href="/signup"
+                  className="mt-5 block rounded-xl bg-amber-500 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-amber-600"
                 >
-                  {isYearly && (
-                    <span className="absolute -top-3 left-6 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-semibold text-white">
-                      Paling Hemat — ~31%
-                    </span>
-                  )}
-                  <p className="text-sm font-bold text-zinc-900">{plan.name}</p>
-                  {plan.kind === "lifetime" ? (
-                    <p className="mt-1 text-xl font-bold text-brand-700">Harga Spesial</p>
-                  ) : (
-                    <p className="mt-1 text-3xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
-                  )}
-                  <p className="text-xs text-zinc-400">
-                    {plan.kind === "lifetime"
-                      ? "Sekali bayar, seterusnya — hubungi kami"
-                      : `Setiap ${plan.periodDays} hari`}
-                  </p>
-                  {plan.kind === "lifetime" ? (
-                    <a
-                      href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
-                        `Halo, saya ingin tahu harga paket Sekali Bayar (Lifetime) KasirKu. Bisa dibantu?`,
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-5 block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-                    >
-                      💬 Hubungi Kami
-                    </a>
-                  ) : (
-                    <>
-                      <Link
-                        href="/signup"
-                        className={`mt-5 block rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${
-                          isYearly
-                            ? "bg-brand-600 text-white hover:bg-brand-700"
-                            : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                        }`}
-                      >
-                        Pilih Paket Ini →
-                      </Link>
-                      <a
-                        href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
-                          `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 block rounded-xl py-2.5 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
-                      >
-                        💬 Tanya dulu via WhatsApp
-                      </a>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                  Pilih Paket Ini →
+                </Link>
+                <a
+                  href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
+                    `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block rounded-xl py-2 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
+                >
+                  💬 Tanya via WhatsApp
+                </a>
+              </div>
+            ))}
+
+            {/* Paket Lengkap Tahunan */}
+            {fullPlans.map((plan) => (
+              <div
+                key={plan.code}
+                className="rounded-2xl border border-brand-500 bg-white p-6 text-left shadow-lg shadow-brand-600/10"
+              >
+                <span className="inline-block rounded-full bg-brand-100 px-2.5 py-0.5 text-[10px] font-semibold text-brand-700">
+                  Lengkap
+                </span>
+                <p className="mt-3 text-sm font-bold text-zinc-900">{plan.name}</p>
+                <p className="mt-1 text-3xl font-bold text-brand-700">{formatRupiah(plan.price)}</p>
+                <p className="text-xs text-zinc-400">Per tahun · POS + Akuntansi + SDM</p>
+                <ul className="mt-4 space-y-1.5 text-xs text-zinc-600">
+                  <li>✓ POS &amp; kasir</li>
+                  <li>✓ Akuntansi lengkap</li>
+                  <li>✓ SDM &amp; penggajian</li>
+                  <li>✓ Laporan keuangan</li>
+                  <li>✓ Multi-outlet &amp; shift</li>
+                </ul>
+                <Link
+                  href="/signup"
+                  className="mt-5 block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+                >
+                  Pilih Paket Ini →
+                </Link>
+                <a
+                  href={`https://wa.me/${BILLING_CONTACT.whatsapp}?text=${encodeURIComponent(
+                    `Halo, saya tertarik paket ${plan.name} KasirKu (${formatRupiah(plan.price)}). Bisa dibantu?`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block rounded-xl py-2 text-center text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100"
+                >
+                  💬 Tanya via WhatsApp
+                </a>
+              </div>
+            ))}
           </div>
-          <p className="mt-6 text-center text-xs text-zinc-400">
+
+          <p className="mt-8 text-center text-sm text-zinc-500">
+            Butuh pilihan lain atau paket khusus?{" "}
+            <a
+              href={`https://wa.me/${BILLING_CONTACT.whatsapp}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand-600 hover:underline"
+            >
+              Info lebih lanjut, hubungi nomor tertera →
+            </a>
+          </p>
+
+          <p className="mt-3 text-center text-xs text-zinc-400">
             Cuma butuh akuntansi &amp; SDM tanpa kasir? Lihat{" "}
             <Link href="/sistem-akuntansi#harga" className="font-medium text-brand-600 hover:underline">
               harga Finance Only
