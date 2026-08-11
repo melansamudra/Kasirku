@@ -63,6 +63,7 @@ class KitchenPrinterPlugin : Plugin() {
                     val bytes = Base64.decode(bytesBase64, Base64.DEFAULT)
                     Socket().use { socket ->
                         socket.connect(InetSocketAddress(ip, port), timeoutMs)
+                        socket.tcpNoDelay = true
                         socket.getOutputStream().apply {
                             write(bytes)
                             flush()

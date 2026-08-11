@@ -7,8 +7,8 @@ export function sendToPrinter(ip: string, port: number, bytes: Buffer, timeoutMs
     const socket = net.createConnection({ host: ip, port, timeout: timeoutMs })
 
     socket.on('connect', () => {
-      socket.write(bytes)
-      socket.end()
+      socket.setNoDelay(true)
+      socket.write(bytes, () => socket.end())
     })
     socket.on('close', () => resolve({ ok: true }))
     socket.on('error', (err) => resolve({ ok: false, error: err.message }))

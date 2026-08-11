@@ -11,17 +11,22 @@ export async function printViaAgent(address: string, bytesBase64: string): Promi
   const [ip, portStr] = address.split(":");
   const port = portStr ? Number(portStr) : 9100;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(`${AGENT_URL}/print`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ip, port, bytes: bytesBase64 }),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
     const data = (await res.json()) as { ok: boolean; error?: string };
     if (data.ok) return { ok: true };
     return { ok: false, reason: "printer_unreachable", error: data.error ?? "unknown_error" };
   } catch {
-    // fetch throws on network failure — the agent isn't running or isn't reachable at all.
+    clearTimeout(timer);
+    // fetch throws on network failure or abort — the agent isn't running or isn't reachable.
     return { ok: false, reason: "agent_unreachable", error: "print_agent_not_running" };
   }
 }
