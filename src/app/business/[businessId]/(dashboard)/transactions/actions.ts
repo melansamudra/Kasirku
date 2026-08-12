@@ -286,18 +286,17 @@ export async function importTransactions(
 type MokaTxParsed = {
   reference: string;
   date: string;
-  items: { productName: string; qty: number }[];
+  catatan: string;
   paymentMethod: string;
-  customerName: string;
+  total: number;
 };
 
 export type MokaPreviewState = {
   error: string | null;
   preview: {
-    matched: string[];
-    unmatched: string[];
     willImport: number;
     willSkip: number;
+    skipReasons: string[];
     txJson: string;
   } | null;
 };
@@ -309,29 +308,14 @@ export type MokaImportState = {
 
 function parseMokaFile(text: string): string[][] {
   const s = text.startsWith(String.fromCharCode(0xfeff)) ? text.slice(1) : text;
-  // Deteksi TSV vs CSV dari baris pertama
   const firstLine = s.split(/\r?\n/)[0] ?? "";
   if (firstLine.includes("\t")) {
-    // TSV — tab-separated, tidak ada quoting
     return s
       .split(/\r?\n/)
       .filter((line) => line.trim().length > 0)
       .map((line) => line.split("\t").map((c) => c.trim()));
   }
-  // CSV — pakai parser yang sudah ada
   return parseCsv(s);
-}
-
-function parseMokaItems(itemsStr: string): { productName: string; qty: number }[] {
-  if (!itemsStr.trim()) return [];
-  return itemsStr
-    .split(", ")
-    .map((part) => {
-      const m = part.match(/^(.+?)\s+x\s+(\d+)$/);
-      if (m) return { productName: m[1].trim(), qty: Number(m[2]) };
-      return { productName: part.trim(), qty: 1 };
-    })
-    .filter((i) => i.productName.length > 0);
 }
 
 export async function previewMokaImport(
@@ -354,17 +338,15 @@ export async function previewMokaImport(
   const COL_DATE = col("Date");
   const COL_TIME = col("Time");
   const COL_RECEIPT = col("Receipt Number");
-  const COL_CUSTOMER = col("Customer");
   const COL_ITEMS = col("Items");
   const COL_PAYMENT = col("Payment Method");
   const COL_EVENT = col("Event Type");
+  const COL_TOTAL = col("Total Collected");
 
   if ([COL_DATE, COL_RECEIPT, COL_ITEMS, COL_PAYMENT, COL_EVENT].some((i) => i === -1)) {
     return fail("Format tidak dikenali. Pastikan ini file ekspor Moka POS.");
   }
 
-  // Terima semua baris yang bukan refund/void — toleran terhadap
-  // variasi bahasa dan kapitalisasi Moka POS.
   const REFUND_KEYWORDS = ["refund", "retur", "void", "batal"];
   const allDataRows = rows.slice(1).filter((r) => r.some((c) => c.trim() !== ""));
   const dataRows = allDataRows.filter((r) => {
@@ -379,68 +361,46 @@ export async function previewMokaImport(
   }
 
   const transactions: MokaTxParsed[] = [];
+  const skipReasons: string[] = [];
 
   for (const row of dataRows) {
     const reference = row[COL_RECEIPT]?.trim();
     const dateStr = row[COL_DATE]?.trim();
     const timeStr = row[COL_TIME]?.trim() || "12:00:00";
-    const itemsStr = row[COL_ITEMS]?.trim();
+    const itemsStr = row[COL_ITEMS]?.trim() || "";
     const paymentMethod = row[COL_PAYMENT]?.trim() || "Tunai";
-    const customerName = row[COL_CUSTOMER]?.trim() || "";
+    const totalRaw = COL_TOTAL !== -1 ? row[COL_TOTAL]?.trim() : undefined;
+    const total = totalRaw ? Number(totalRaw) : 0;
 
-    if (!reference || !dateStr || !itemsStr) continue;
+    if (!reference || !dateStr) {
+      skipReasons.push(`Receipt/tanggal kosong`);
+      continue;
+    }
 
     const parts = dateStr.split(/[\/\-]/);
-    if (parts.length !== 3) continue;
-    // Support DD/MM/YYYY, DD-MM-YYYY, dan YYYY-MM-DD
+    if (parts.length !== 3) {
+      skipReasons.push(`"${reference}": format tanggal tidak dikenali (${dateStr})`);
+      continue;
+    }
     const [a, b, c] = parts;
     const [day, month, year] = a.length === 4 ? [c, b, a] : [a, b, c];
     const dateIso = `${year.padStart(4, "20")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     const date = new Date(`${dateIso}T${timeStr}+07:00`).toISOString();
 
-    const items = parseMokaItems(itemsStr);
-    if (items.length === 0) continue;
+    if (Number.isNaN(total) || total < 0) {
+      skipReasons.push(`"${reference}": nominal tidak valid`);
+      continue;
+    }
 
-    transactions.push({ reference, date, items, paymentMethod, customerName });
-  }
-
-  const allNames = new Set<string>();
-  for (const tx of transactions) {
-    for (const item of tx.items) allNames.add(item.productName);
-  }
-
-  const supabase = await createClient();
-  const { data: products } = await supabase
-    .from("products")
-    .select("name")
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
-
-  const productNames = new Set((products ?? []).map((p) => p.name.trim().toLowerCase()));
-
-  const matched: string[] = [];
-  const unmatched: string[] = [];
-  for (const name of allNames) {
-    if (productNames.has(name.toLowerCase())) matched.push(name);
-    else unmatched.push(name);
-  }
-
-  const unmatchedSet = new Set(unmatched.map((n) => n.toLowerCase()));
-  let willImport = 0;
-  let willSkip = 0;
-  for (const tx of transactions) {
-    const hasUnmatched = tx.items.some((i) => unmatchedSet.has(i.productName.toLowerCase()));
-    if (hasUnmatched) willSkip++;
-    else willImport++;
+    transactions.push({ reference, date, catatan: itemsStr, paymentMethod, total });
   }
 
   return {
     error: null,
     preview: {
-      matched,
-      unmatched,
-      willImport,
-      willSkip,
+      willImport: transactions.length,
+      willSkip: skipReasons.length,
+      skipReasons,
       txJson: JSON.stringify(transactions),
     },
   };
@@ -464,54 +424,17 @@ export async function importFromMoka(
   }
 
   const supabase = await createClient();
-  const [{ data: products }, { data: customers }] = await Promise.all([
-    supabase.from("products").select("id, name").eq("business_id", businessId).is("deleted_at", null),
-    supabase.from("customers").select("id, name").eq("business_id", businessId).is("deleted_at", null),
-  ]);
-
-  const productIdByName = new Map((products ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
-  const customerIdByName = new Map((customers ?? []).map((c) => [c.name.trim().toLowerCase(), c.id]));
-
   let created = 0;
   let skipped = 0;
   const errors: string[] = [];
 
   for (const tx of transactions) {
-    const items: { product_id: string; qty: number }[] = [];
-    let missing = false;
-
-    for (const item of tx.items) {
-      const productId = productIdByName.get(item.productName.toLowerCase());
-      if (!productId) {
-        errors.push(`"${tx.reference}": produk "${item.productName}" tidak ditemukan`);
-        missing = true;
-        break;
-      }
-      items.push({ product_id: productId, qty: item.qty });
-    }
-
-    if (missing || items.length === 0) {
-      skipped++;
-      continue;
-    }
-
-    let customerId: string | null = null;
-    if (tx.customerName) {
-      customerId = customerIdByName.get(tx.customerName.toLowerCase()) ?? null;
-    }
-
-    const catatan = tx.items
-      .map((i) => (i.qty > 1 ? `${i.productName} x${i.qty}` : i.productName))
-      .join(", ");
-
-    const { error } = await supabase.rpc("create_manual_transaction", {
+    const { error } = await supabase.rpc("create_historical_transaction", {
       p_business_id: businessId,
       p_date: tx.date,
-      p_items: items,
       p_payment_method: tx.paymentMethod,
-      p_received: null,
-      p_customer_id: customerId,
-      p_catatan: catatan,
+      p_total: tx.total,
+      p_catatan: tx.catatan || null,
     });
 
     if (error) {
