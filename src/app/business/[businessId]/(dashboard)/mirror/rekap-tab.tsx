@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import LockMonthButton from "./lock-month-button";
+import DownloadRekapButton from "./download-rekap-button";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -229,9 +230,15 @@ export default async function RekapTab({
 
       {/* Daftar transaksi */}
       <section>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Daftar Transaksi Ditandai{bulan ? ` — ${monthLabel(bulan)}` : ""}
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+            Daftar Transaksi Ditandai{bulan ? ` — ${monthLabel(bulan)}` : ""}
+          </p>
+          <DownloadRekapButton
+            txs={activeTxs}
+            label={bulan ? monthLabel(bulan).replace(/\s/g, "-") : "semua"}
+          />
+        </div>
         <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
           <table className="w-full text-xs">
             <thead>
