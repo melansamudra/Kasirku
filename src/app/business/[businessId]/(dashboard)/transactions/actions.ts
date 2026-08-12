@@ -390,10 +390,13 @@ export async function previewMokaImport(
 
     if (!reference || !dateStr || !itemsStr) continue;
 
-    const parts = dateStr.split("/");
+    const parts = dateStr.split(/[\/\-]/);
     if (parts.length !== 3) continue;
-    const [day, month, year] = parts;
-    const date = new Date(`${year}-${month}-${day}T${timeStr}+07:00`).toISOString();
+    // Support DD/MM/YYYY, DD-MM-YYYY, dan YYYY-MM-DD
+    const [a, b, c] = parts;
+    const [day, month, year] = a.length === 4 ? [c, b, a] : [a, b, c];
+    const dateIso = `${year.padStart(4, "20")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const date = new Date(`${dateIso}T${timeStr}+07:00`).toISOString();
 
     const items = parseMokaItems(itemsStr);
     if (items.length === 0) continue;
