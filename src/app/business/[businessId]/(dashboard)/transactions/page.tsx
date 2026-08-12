@@ -6,6 +6,7 @@ import { importTransactions } from "./actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
 import MirrorHint from "./mirror-hint";
+import DateFilter from "./date-filter";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -23,10 +24,13 @@ function formatDateTime(iso: string) {
 
 export default async function TransactionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const { businessId } = await params;
+  const { date: dateParam } = await searchParams;
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }] = await Promise.all([
@@ -46,9 +50,10 @@ export default async function TransactionsPage({
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 
   const today = todayWibDateString();
-  const todayStart = `${today}T00:00:00+07:00`;
-  const nextDay = new Date(new Date(`${today}T00:00:00+07:00`).getTime() + 86400000);
-  const tomorrowStart = nextDay.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) + "T00:00:00+07:00";
+  const selectedDate = isOwner ? (dateParam ?? today) : today;
+  const dayStart = `${selectedDate}T00:00:00+07:00`;
+  const nextDay = new Date(new Date(dayStart).getTime() + 86400000);
+  const dayEnd = nextDay.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) + "T00:00:00+07:00";
 
   const query = supabase
     .from("transactions")
@@ -56,12 +61,13 @@ export default async function TransactionsPage({
       "id, invoice_number, date, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name), transaction_payments(method)",
     )
     .eq("business_id", businessId)
-    .order("date", { ascending: false })
-    .limit(50);
+    .gte("date", dayStart)
+    .lt("date", dayEnd)
+    .order("date", { ascending: false });
 
-  // Staf hanya melihat transaksi hari ini dan tidak melihat yang dibatalkan
+  // Staf tidak melihat transaksi yang dibatalkan
   if (!isOwner) {
-    query.gte("date", todayStart).lt("date", tomorrowStart).eq("voided", false);
+    query.eq("voided", false);
   }
 
   const [{ data: transactions }, { data: visibleRows }, { data: lockRows }] = await Promise.all([
@@ -102,12 +108,15 @@ export default async function TransactionsPage({
             Riwayat Transaksi — {business.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            {isOwner ? "50 transaksi terbaru." : "Transaksi hari ini."}
+            {isOwner ? `Transaksi tanggal ${new Date(dayStart).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}.` : "Transaksi hari ini."}
           </p>
         </div>
-        {isOwner && (
-          <TransactionActions businessId={businessId} importAction={boundImportTransactions} />
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {isOwner && <DateFilter currentDate={selectedDate} />}
+          {isOwner && (
+            <TransactionActions businessId={businessId} importAction={boundImportTransactions} />
+          )}
+        </div>
       </div>
 
       {showMirrorToggle && <MirrorHint />}
