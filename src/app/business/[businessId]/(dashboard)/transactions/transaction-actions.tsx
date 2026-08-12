@@ -69,9 +69,31 @@ export function TransactionActions({
             <p className="text-xs text-zinc-500">
               Kolom: Referensi, Tanggal (YYYY-MM-DD), Nama Produk, Qty, Metode Bayar, Pelanggan
               (opsional). Baris dengan Referensi yang sama digabung jadi satu transaksi — pakai
-              ini untuk transaksi dengan lebih dari satu produk. Produk & pelanggan harus sudah
+              ini untuk transaksi dengan lebih dari satu produk. Produk &amp; pelanggan harus sudah
               ada di data toko ini.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                const rows = [
+                  ["Referensi", "Tanggal", "Nama Produk", "Qty", "Metode Bayar", "Pelanggan"],
+                  ["TRX-001", "2026-08-12", "Nasi Goreng", "2", "Tunai", ""],
+                  ["TRX-001", "2026-08-12", "Es Teh", "1", "Tunai", ""],
+                  ["TRX-002", "2026-08-12", "Ayam Bakar", "1", "EDC", "Budi"],
+                ];
+                const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "template-impor-transaksi.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+            >
+              ⬇ Download Template CSV
+            </button>
             <div className="mt-4">
               <ImportTransactionsForm action={importAction} />
             </div>
