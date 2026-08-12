@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Capacitor } from "@capacitor/core";
 import ImportTransactionsForm from "./import-transactions-form";
+import ImportMokaForm from "./import-moka-form";
 import type { ImportTransactionsState } from "./actions";
 
 // Export/import/manual-add are backoffice bulk-data tools, not something a
@@ -20,6 +21,7 @@ export function TransactionActions({
   ) => Promise<ImportTransactionsState>;
 }) {
   const [importOpen, setImportOpen] = useState(false);
+  const [mokaOpen, setMokaOpen] = useState(false);
 
   if (Capacitor.isNativePlatform()) return null;
 
@@ -45,6 +47,13 @@ export function TransactionActions({
         >
           📥 Impor CSV
         </button>
+        <button
+          type="button"
+          onClick={() => setMokaOpen(true)}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+        >
+          📥 Impor Moka POS
+        </button>
         <Link
           href={`/business/${businessId}/transactions/new`}
           className="rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
@@ -52,6 +61,24 @@ export function TransactionActions({
           + Tambah Transaksi Manual
         </Link>
       </div>
+
+      {mokaOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMokaOpen(false)} />
+          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-900">Impor dari Moka POS</h2>
+              <button
+                onClick={() => setMokaOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+            <ImportMokaForm businessId={businessId} onClose={() => setMokaOpen(false)} />
+          </div>
+        </div>
+      )}
 
       {importOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">

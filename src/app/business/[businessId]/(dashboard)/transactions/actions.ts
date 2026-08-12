@@ -280,3 +280,226 @@ export async function importTransactions(
 
   return { error: null, result: { created, skipped, errors } };
 }
+
+// ─── Moka POS Import ────────────────────────────────────────────────────────
+
+type MokaTxParsed = {
+  reference: string;
+  date: string;
+  items: { productName: string; qty: number }[];
+  paymentMethod: string;
+  customerName: string;
+};
+
+export type MokaPreviewState = {
+  error: string | null;
+  preview: {
+    matched: string[];
+    unmatched: string[];
+    willImport: number;
+    willSkip: number;
+    txJson: string;
+  } | null;
+};
+
+export type MokaImportState = {
+  error: string | null;
+  result: { created: number; skipped: number; errors: string[] } | null;
+};
+
+function parseTsv(text: string): string[][] {
+  const s = text.startsWith(String.fromCharCode(0xfeff)) ? text.slice(1) : text;
+  return s
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.split("\t"));
+}
+
+function parseMokaItems(itemsStr: string): { productName: string; qty: number }[] {
+  if (!itemsStr.trim()) return [];
+  return itemsStr
+    .split(", ")
+    .map((part) => {
+      const m = part.match(/^(.+?)\s+x\s+(\d+)$/);
+      if (m) return { productName: m[1].trim(), qty: Number(m[2]) };
+      return { productName: part.trim(), qty: 1 };
+    })
+    .filter((i) => i.productName.length > 0);
+}
+
+export async function previewMokaImport(
+  businessId: string,
+  _prevState: MokaPreviewState,
+  formData: FormData,
+): Promise<MokaPreviewState> {
+  const fail = (msg: string): MokaPreviewState => ({ error: msg, preview: null });
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return fail("Pilih file dulu.");
+
+  const text = await file.text();
+  const rows = parseTsv(text);
+  if (rows.length < 2) return fail("File kosong atau tidak valid.");
+
+  const headers = rows[0].map((h) => h.trim());
+  const col = (name: string) => headers.indexOf(name);
+
+  const COL_DATE = col("Date");
+  const COL_TIME = col("Time");
+  const COL_RECEIPT = col("Receipt Number");
+  const COL_CUSTOMER = col("Customer");
+  const COL_ITEMS = col("Items");
+  const COL_PAYMENT = col("Payment Method");
+  const COL_EVENT = col("Event Type");
+
+  if ([COL_DATE, COL_RECEIPT, COL_ITEMS, COL_PAYMENT, COL_EVENT].some((i) => i === -1)) {
+    return fail("Format tidak dikenali. Pastikan ini file ekspor Moka POS.");
+  }
+
+  const dataRows = rows.slice(1).filter((r) => r[COL_EVENT]?.trim() === "Payment");
+  if (dataRows.length === 0) return fail("Tidak ada data transaksi ditemukan di file ini.");
+
+  const transactions: MokaTxParsed[] = [];
+
+  for (const row of dataRows) {
+    const reference = row[COL_RECEIPT]?.trim();
+    const dateStr = row[COL_DATE]?.trim();
+    const timeStr = row[COL_TIME]?.trim() || "12:00:00";
+    const itemsStr = row[COL_ITEMS]?.trim();
+    const paymentMethod = row[COL_PAYMENT]?.trim() || "Tunai";
+    const customerName = row[COL_CUSTOMER]?.trim() || "";
+
+    if (!reference || !dateStr || !itemsStr) continue;
+
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) continue;
+    const [day, month, year] = parts;
+    const date = new Date(`${year}-${month}-${day}T${timeStr}+07:00`).toISOString();
+
+    const items = parseMokaItems(itemsStr);
+    if (items.length === 0) continue;
+
+    transactions.push({ reference, date, items, paymentMethod, customerName });
+  }
+
+  const allNames = new Set<string>();
+  for (const tx of transactions) {
+    for (const item of tx.items) allNames.add(item.productName);
+  }
+
+  const supabase = await createClient();
+  const { data: products } = await supabase
+    .from("products")
+    .select("name")
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
+
+  const productNames = new Set((products ?? []).map((p) => p.name.trim().toLowerCase()));
+
+  const matched: string[] = [];
+  const unmatched: string[] = [];
+  for (const name of allNames) {
+    if (productNames.has(name.toLowerCase())) matched.push(name);
+    else unmatched.push(name);
+  }
+
+  const unmatchedSet = new Set(unmatched.map((n) => n.toLowerCase()));
+  let willImport = 0;
+  let willSkip = 0;
+  for (const tx of transactions) {
+    const hasUnmatched = tx.items.some((i) => unmatchedSet.has(i.productName.toLowerCase()));
+    if (hasUnmatched) willSkip++;
+    else willImport++;
+  }
+
+  return {
+    error: null,
+    preview: {
+      matched,
+      unmatched,
+      willImport,
+      willSkip,
+      txJson: JSON.stringify(transactions),
+    },
+  };
+}
+
+export async function importFromMoka(
+  businessId: string,
+  _prevState: MokaImportState,
+  formData: FormData,
+): Promise<MokaImportState> {
+  const fail = (msg: string): MokaImportState => ({ error: msg, result: null });
+
+  const txJson = formData.get("txJson") as string;
+  if (!txJson) return fail("Data tidak valid.");
+
+  let transactions: MokaTxParsed[];
+  try {
+    transactions = JSON.parse(txJson) as MokaTxParsed[];
+  } catch {
+    return fail("Data tidak valid.");
+  }
+
+  const supabase = await createClient();
+  const [{ data: products }, { data: customers }] = await Promise.all([
+    supabase.from("products").select("id, name").eq("business_id", businessId).is("deleted_at", null),
+    supabase.from("customers").select("id, name").eq("business_id", businessId).is("deleted_at", null),
+  ]);
+
+  const productIdByName = new Map((products ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
+  const customerIdByName = new Map((customers ?? []).map((c) => [c.name.trim().toLowerCase(), c.id]));
+
+  let created = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const tx of transactions) {
+    const items: { product_id: string; qty: number }[] = [];
+    let missing = false;
+
+    for (const item of tx.items) {
+      const productId = productIdByName.get(item.productName.toLowerCase());
+      if (!productId) {
+        errors.push(`"${tx.reference}": produk "${item.productName}" tidak ditemukan`);
+        missing = true;
+        break;
+      }
+      items.push({ product_id: productId, qty: item.qty });
+    }
+
+    if (missing || items.length === 0) {
+      skipped++;
+      continue;
+    }
+
+    let customerId: string | null = null;
+    if (tx.customerName) {
+      customerId = customerIdByName.get(tx.customerName.toLowerCase()) ?? null;
+    }
+
+    const { error } = await supabase.rpc("create_manual_transaction", {
+      p_business_id: businessId,
+      p_date: tx.date,
+      p_items: items,
+      p_payment_method: tx.paymentMethod,
+      p_received: null,
+      p_customer_id: customerId,
+    });
+
+    if (error) {
+      skipped++;
+      errors.push(`"${tx.reference}": ${error.message}`);
+    } else {
+      created++;
+    }
+  }
+
+  if (created > 0) {
+    await logActivity(supabase, businessId, "transaksi", "sukses",
+      `Impor Moka POS: ${created} transaksi`, skipped > 0 ? `${skipped} dilewati` : undefined);
+    revalidatePath(`/business/${businessId}/transactions`);
+  }
+
+  return { error: null, result: { created, skipped, errors } };
+}
