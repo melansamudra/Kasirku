@@ -43,7 +43,7 @@ export default async function PosPrintersPage({
 
   const { data: printerRows } = await supabase
     .from("kitchen_printers")
-    .select("id, name, categories, connection_type, address, device_label")
+    .select("id, name, categories, connection_type, address, device_label, paper_width")
     .eq("business_id", businessId)
     .order("name", { ascending: true });
 

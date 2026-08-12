@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Capacitor } from "@capacitor/core";
 import { buildTestPrintJob } from "../actions";
 import { dispatchPrintJobs } from "@/lib/dispatch-print-jobs";
 
@@ -12,6 +13,14 @@ type Printer = {
   connection_type: string;
   address: string | null;
   device_label: string | null;
+  paper_width: number | null;
+};
+
+type LocalPrinterConfig = {
+  address: string;
+  name: string;
+  paperWidth: number;
+  connectionType: "lan" | "bluetooth";
 };
 
 type TestState =
@@ -55,6 +64,31 @@ export default function PrinterTestScreen({
   printers: Printer[];
 }) {
   const [testState, setTestState] = useState<Record<string, TestState>>({});
+  const isNative = Capacitor.isNativePlatform();
+  const [localPrinter, setLocalPrinterState] = useState<LocalPrinterConfig | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("pos_local_printer_v1");
+      if (raw) setLocalPrinterState(JSON.parse(raw) as LocalPrinterConfig);
+    } catch {}
+  }, []);
+
+  function setLocalPrinter(p: Printer | null) {
+    if (!p) {
+      localStorage.removeItem("pos_local_printer_v1");
+      setLocalPrinterState(null);
+      return;
+    }
+    const cfg: LocalPrinterConfig = {
+      address: p.address!,
+      name: p.name,
+      paperWidth: p.paper_width ?? 58,
+      connectionType: p.connection_type as "lan" | "bluetooth",
+    };
+    localStorage.setItem("pos_local_printer_v1", JSON.stringify(cfg));
+    setLocalPrinterState(cfg);
+  }
 
   async function handleTestPrint(printer: Printer) {
     setTestState((s) => ({ ...s, [printer.id]: { status: "sending" } }));
@@ -148,6 +182,29 @@ export default function PrinterTestScreen({
                     </div>
                   );
                 })()}
+                {/* Tombol printer lokal — hanya di app Android */}
+                {isNative && p.address && (
+                  <div className="mt-2 border-t border-zinc-100 pt-2">
+                    {localPrinter?.address === p.address ? (
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-brand-600">✓ Printer bill device ini</p>
+                        <button
+                          onClick={() => setLocalPrinter(null)}
+                          className="text-[11px] font-semibold text-red-500"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setLocalPrinter(p)}
+                        className="text-[11px] font-semibold text-zinc-500 hover:text-brand-600"
+                      >
+                        📌 Pakai di device ini untuk cetak bill
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })

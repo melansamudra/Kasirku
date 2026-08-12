@@ -203,6 +203,17 @@ export default function PosScreen({
     localStorage.setItem("pos_auto_receipt", val ? "on" : "off");
   }
 
+  // Printer lokal device ini — waiter bisa cetak bill ke BT printer mereka sendiri
+  // Diset dari halaman Uji Cetak Printer, disimpan di localStorage per device
+  type LocalPrinterConfig = { address: string; name: string; paperWidth: number; connectionType: "lan" | "bluetooth" };
+  const [localPrinterConfig, setLocalPrinterConfig] = useState<LocalPrinterConfig | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("pos_local_printer_v1");
+      if (raw) setLocalPrinterConfig(JSON.parse(raw) as LocalPrinterConfig);
+    } catch {}
+  }, []);
+
   const refreshCatalog = useCallback(async () => {
     const fresh = await getPosCatalog(businessId).catch(() => null);
     if (!fresh) return;
@@ -803,7 +814,7 @@ export default function PosScreen({
 
   async function handlePrintBill(bill: OpenBill) {
     setBillPrintingId(bill.id);
-    const result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate, cashierName, selectedCustomer?.name ?? undefined);
+    const result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate, cashierName, selectedCustomer?.name ?? undefined, localPrinterConfig);
     setBillPrintingId(null);
     if (!result.success) {
       alert(`Gagal cetak: ${result.error}`);
@@ -3104,6 +3115,30 @@ export default function PosScreen({
                     </label>
                   </div>
                 )}
+                {/* Printer lokal — hanya relevan di app Android (native) */}
+                {isNative && (
+                  <div className="rounded-xl border border-zinc-200 px-3.5 py-3">
+                    <p className="text-sm font-medium text-zinc-700">📶 Printer Bill Device Ini</p>
+                    {localPrinterConfig ? (
+                      <p className="mt-0.5 text-[11px] text-zinc-500">
+                        ✓ {localPrinterConfig.name}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-zinc-400">
+                        Belum diatur — cetak bill ke printer kasir.
+                      </p>
+                    )}
+                    <a
+                      href={`/business/${businessId}/pos/printers`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setPosMenuOpen(false)}
+                      className="mt-1.5 inline-block text-[11px] font-semibold text-brand-600"
+                    >
+                      {localPrinterConfig ? "Ubah →" : "Set di halaman Uji Cetak →"}
+                    </a>
+                  </div>
+                )}
                 <a
                   href={`/business/${businessId}/pos/printers`}
                   target="_blank"
@@ -3211,7 +3246,7 @@ export default function PosScreen({
                         >
                           Hapus
                         </button>
-                        {hasReceiptPrinters && (
+                        {(hasReceiptPrinters || !!localPrinterConfig) && (
                           <button
                             onClick={() => void handlePrintBill(bill)}
                             disabled={busy || billPrintingId === bill.id}

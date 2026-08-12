@@ -843,20 +843,33 @@ export async function printOpenBillToReceipt(
   taxRate: number,
   cashierName?: string,
   customerName?: string,
+  localPrinter?: { address: string; name: string; paperWidth: number; connectionType: "lan" | "bluetooth" } | null,
 ): Promise<PrintOpenBillResult> {
   const supabase = await createClient();
-  const [{ data: business }, { data: printers }] = await Promise.all([
+
+  // Kalau waiter punya printer lokal di device-nya, skip DB printer dan cetak ke sana
+  const printerFetch = localPrinter
+    ? Promise.resolve({ data: null as null })
+    : supabase
+        .from("kitchen_printers")
+        .select("name, connection_type, address, paper_width")
+        .eq("business_id", businessId)
+        .eq("prints_receipt", true)
+        .not("address", "is", null);
+
+  const [{ data: business }, { data: printerRows }] = await Promise.all([
     supabase.from("businesses").select("name, address, phone, receipt_settings").eq("id", businessId).single(),
-    supabase
-      .from("kitchen_printers")
-      .select("name, connection_type, address, paper_width")
-      .eq("business_id", businessId)
-      .eq("prints_receipt", true)
-      .not("address", "is", null),
+    printerFetch,
   ]);
 
   if (!business) return { success: false, error: "Data bisnis tidak ditemukan." };
-  if (!printers || printers.length === 0) return { success: false, error: "Tidak ada printer struk yang dikonfigurasi." };
+
+  type PrinterRow = { name: string; connection_type: string; address: string | null; paper_width?: number };
+  const printers: PrinterRow[] = localPrinter
+    ? [{ name: localPrinter.name, connection_type: localPrinter.connectionType, address: localPrinter.address, paper_width: localPrinter.paperWidth }]
+    : (printerRows ?? []);
+
+  if (printers.length === 0) return { success: false, error: "Tidak ada printer struk yang dikonfigurasi." };
 
   const subtotal = bill.items.reduce((sum, i) => {
     const gross = i.price * i.qty;
