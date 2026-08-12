@@ -477,7 +477,7 @@ export default function DashboardShell({
   const isNativeCheck = Capacitor.isNativePlatform();
   useEffect(() => {
     if (isNativeCheck && pathname === `/business/${businessId}`) {
-      router.replace(`/business/${businessId}/pos`);
+      router.replace(`/business/${businessId}/transactions`);
     }
   }, [isNativeCheck, pathname, businessId, router]);
 
