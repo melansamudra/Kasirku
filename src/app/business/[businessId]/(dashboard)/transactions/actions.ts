@@ -363,8 +363,20 @@ export async function previewMokaImport(
     return fail("Format tidak dikenali. Pastikan ini file ekspor Moka POS.");
   }
 
-  const dataRows = rows.slice(1).filter((r) => r[COL_EVENT]?.trim() === "Payment");
-  if (dataRows.length === 0) return fail("Tidak ada data transaksi ditemukan di file ini.");
+  // Terima semua baris yang bukan refund/void — toleran terhadap
+  // variasi bahasa dan kapitalisasi Moka POS.
+  const REFUND_KEYWORDS = ["refund", "retur", "void", "batal"];
+  const allDataRows = rows.slice(1).filter((r) => r.some((c) => c.trim() !== ""));
+  const dataRows = allDataRows.filter((r) => {
+    const ev = (r[COL_EVENT] ?? "").trim().toLowerCase();
+    return ev === "" || !REFUND_KEYWORDS.some((k) => ev.includes(k));
+  });
+
+  if (dataRows.length === 0) {
+    const eventTypes = [...new Set(allDataRows.map((r) => r[COL_EVENT]?.trim()).filter(Boolean))];
+    const hint = eventTypes.length > 0 ? ` Event Type ditemukan: ${eventTypes.join(", ")}` : "";
+    return fail(`Tidak ada data transaksi ditemukan.${hint}`);
+  }
 
   const transactions: MokaTxParsed[] = [];
 
