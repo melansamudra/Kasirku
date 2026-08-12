@@ -31,7 +31,7 @@ export async function GET(
     const reference = t.invoice_number;
     const date = new Date(t.date).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     const paymentMethod = (t.transaction_payments as { method: string }[])?.[0]?.method ?? "";
-    const customerName = (t.customers as { name: string } | null)?.name ?? "";
+    const customerName = (t.customers as unknown as { name: string } | null)?.name ?? "";
     const items = (t.transaction_items as { name: string; qty: number }[]) ?? [];
 
     for (const item of items) {
