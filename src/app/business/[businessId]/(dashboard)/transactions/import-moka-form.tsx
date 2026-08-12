@@ -1,31 +1,22 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  previewMokaImport,
-  importFromMoka,
-  type MokaPreviewState,
-  type MokaImportState,
-} from "./actions";
+import type { MokaPreviewState, MokaImportState } from "./actions";
 
 const initPreview: MokaPreviewState = { error: null, preview: null };
 const initImport: MokaImportState = { error: null, result: null };
 
 export default function ImportMokaForm({
-  businessId,
+  previewAction: previewMokaAction,
+  importAction: importMokaAction,
   onClose,
 }: {
-  businessId: string;
+  previewAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
+  importAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
   onClose: () => void;
 }) {
-  const [previewState, previewAction, isPreviewing] = useActionState(
-    previewMokaImport.bind(null, businessId),
-    initPreview,
-  );
-  const [importState, importAction, isImporting] = useActionState(
-    importFromMoka.bind(null, businessId),
-    initImport,
-  );
+  const [previewState, previewAction, isPreviewing] = useActionState(previewMokaAction, initPreview);
+  const [importState, importAction, isImporting] = useActionState(importMokaAction, initImport);
 
   // Langkah 3: Selesai
   if (importState.result) {

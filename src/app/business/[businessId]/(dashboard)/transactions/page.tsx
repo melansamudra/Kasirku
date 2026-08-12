@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
-import { importTransactions } from "./actions";
+import { importTransactions, previewMokaImport, importFromMoka } from "./actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
 import MirrorHint from "./mirror-hint";
@@ -99,6 +99,8 @@ export default async function TransactionsPage({
   }
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
+  const boundPreviewMoka = previewMokaImport.bind(null, businessId);
+  const boundImportMoka = importFromMoka.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
@@ -114,7 +116,7 @@ export default async function TransactionsPage({
         <div className="flex flex-wrap items-center gap-2">
           {isOwner && <DateFilter currentDate={selectedDate} />}
           {isOwner && (
-            <TransactionActions businessId={businessId} importAction={boundImportTransactions} />
+            <TransactionActions businessId={businessId} importAction={boundImportTransactions} previewMokaAction={boundPreviewMoka} importMokaAction={boundImportMoka} />
           )}
         </div>
       </div>

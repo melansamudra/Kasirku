@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Capacitor } from "@capacitor/core";
 import ImportTransactionsForm from "./import-transactions-form";
 import ImportMokaForm from "./import-moka-form";
-import type { ImportTransactionsState } from "./actions";
+import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from "./actions";
 
 // Export/import/manual-add are backoffice bulk-data tools, not something a
 // cashier needs from the Android app — only the transaction list itself
@@ -13,12 +13,13 @@ import type { ImportTransactionsState } from "./actions";
 export function TransactionActions({
   businessId,
   importAction,
+  previewMokaAction,
+  importMokaAction,
 }: {
   businessId: string;
-  importAction: (
-    state: ImportTransactionsState,
-    formData: FormData,
-  ) => Promise<ImportTransactionsState>;
+  importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
+  previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
+  importMokaAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
 }) {
   const [importOpen, setImportOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
@@ -75,7 +76,7 @@ export function TransactionActions({
                 ✕
               </button>
             </div>
-            <ImportMokaForm businessId={businessId} onClose={() => setMokaOpen(false)} />
+            <ImportMokaForm previewAction={previewMokaAction} importAction={importMokaAction} onClose={() => setMokaOpen(false)} />
           </div>
         </div>
       )}
