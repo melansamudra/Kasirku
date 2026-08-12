@@ -424,26 +424,18 @@ export async function importFromMoka(
   }
 
   const supabase = await createClient();
-  let created = 0;
-  let skipped = 0;
-  const errors: string[] = [];
 
-  for (const tx of transactions) {
-    const { error } = await supabase.rpc("create_historical_transaction", {
-      p_business_id: businessId,
-      p_date: tx.date,
-      p_payment_method: tx.paymentMethod,
-      p_total: tx.total,
-      p_catatan: tx.catatan || null,
-    });
+  // Kirim semua transaksi sekaligus ke database dalam satu panggilan
+  // agar tidak timeout di Vercel free plan (limit 10 detik per request).
+  const { data, error } = await supabase.rpc("import_historical_transactions_bulk", {
+    p_business_id: businessId,
+    p_transactions: transactions as unknown as Record<string, unknown>[],
+  });
 
-    if (error) {
-      skipped++;
-      errors.push(`"${tx.reference}": ${error.message}`);
-    } else {
-      created++;
-    }
-  }
+  if (error) return fail(`Error: ${error.message}`);
+
+  const created = (data as { created: number; skipped: number }[])?.[0]?.created ?? 0;
+  const skipped = (data as { created: number; skipped: number }[])?.[0]?.skipped ?? 0;
 
   if (created > 0) {
     await logActivity(supabase, businessId, "transaksi", "sukses",
@@ -451,5 +443,5 @@ export async function importFromMoka(
     revalidatePath(`/business/${businessId}/transactions`);
   }
 
-  return { error: null, result: { created, skipped, errors } };
+  return { error: null, result: { created, skipped, errors: [] } };
 }
