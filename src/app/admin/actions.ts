@@ -18,10 +18,10 @@ export async function toggleMirroring(businessId: string, enabled: boolean) {
     .maybeSingle();
   if (!adminRow) return;
 
-  await service.rpc("admin_toggle_mirroring", {
-    p_business_id: businessId,
-    p_enabled: enabled,
-  });
+  await service
+    .from("businesses")
+    .update({ mirroring_enabled: enabled })
+    .eq("id", businessId);
   revalidatePath("/admin");
 }
 
