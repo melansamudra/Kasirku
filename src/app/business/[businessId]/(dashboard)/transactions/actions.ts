@@ -307,12 +307,19 @@ export type MokaImportState = {
   result: { created: number; skipped: number; errors: string[] } | null;
 };
 
-function parseTsv(text: string): string[][] {
+function parseMokaFile(text: string): string[][] {
   const s = text.startsWith(String.fromCharCode(0xfeff)) ? text.slice(1) : text;
-  return s
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0)
-    .map((line) => line.split("\t"));
+  // Deteksi TSV vs CSV dari baris pertama
+  const firstLine = s.split(/\r?\n/)[0] ?? "";
+  if (firstLine.includes("\t")) {
+    // TSV — tab-separated, tidak ada quoting
+    return s
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0)
+      .map((line) => line.split("\t").map((c) => c.trim()));
+  }
+  // CSV — pakai parser yang sudah ada
+  return parseCsv(s);
 }
 
 function parseMokaItems(itemsStr: string): { productName: string; qty: number }[] {
@@ -338,7 +345,7 @@ export async function previewMokaImport(
   if (!file || file.size === 0) return fail("Pilih file dulu.");
 
   const text = await file.text();
-  const rows = parseTsv(text);
+  const rows = parseMokaFile(text);
   if (rows.length < 2) return fail("File kosong atau tidak valid.");
 
   const headers = rows[0].map((h) => h.trim());
