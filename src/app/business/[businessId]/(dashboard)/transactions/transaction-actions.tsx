@@ -32,6 +32,12 @@ export function TransactionActions({
         >
           ⬇️ Ekspor CSV
         </a>
+        <a
+          href={`/business/${businessId}/transactions/export-full`}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+        >
+          ⬇️ Ekspor Lengkap
+        </a>
         <button
           type="button"
           onClick={() => setImportOpen(true)}
