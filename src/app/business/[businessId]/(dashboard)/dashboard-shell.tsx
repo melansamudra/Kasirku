@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
   LayoutDashboard,
@@ -469,7 +469,17 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Android app bukan backoffice — kalau user landing di dashboard root, langsung
+  // redirect ke POS supaya kasir/waiter tidak perlu klik lagi.
+  const isNativeCheck = Capacitor.isNativePlatform();
+  useEffect(() => {
+    if (isNativeCheck && pathname === `/business/${businessId}`) {
+      router.replace(`/business/${businessId}/pos`);
+    }
+  }, [isNativeCheck, pathname, businessId, router]);
 
   // The Android app (android-app/) is a cashier tool, not a backoffice one —
   // mirrors Moka's own "Cashier: App Only" vs "Administrator: App & Back-
