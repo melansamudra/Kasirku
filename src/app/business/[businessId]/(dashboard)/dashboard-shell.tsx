@@ -472,14 +472,16 @@ export default function DashboardShell({
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Android app bukan backoffice — kalau user landing di dashboard root, langsung
-  // redirect ke POS supaya kasir/waiter tidak perlu klik lagi.
-  const isNativeCheck = Capacitor.isNativePlatform();
+  // null = belum tahu (SSR), false = web, true = Android native
+  // Pakai state supaya tidak ada hydration mismatch antara SSR dan client.
+  const [isNativeState, setIsNativeState] = useState<boolean | null>(null);
   useEffect(() => {
-    if (isNativeCheck && pathname === `/business/${businessId}`) {
+    const native = Capacitor.isNativePlatform();
+    setIsNativeState(native);
+    if (native && pathname === `/business/${businessId}`) {
       router.replace(`/business/${businessId}/transactions`);
     }
-  }, [isNativeCheck, pathname, businessId, router]);
+  }, [pathname, businessId, router]);
 
   // The Android app (android-app/) is a cashier tool, not a backoffice one —
   // mirrors Moka's own "Cashier: App Only" vs "Administrator: App & Back-
@@ -490,7 +492,7 @@ export default function DashboardShell({
   // (pos/printers is view+test only, adding/editing a printer still needs
   // the full Settings form) — bypassOwnerOnly is what lets a normally
   // owner-only item through despite navIsOwner being forced false.
-  const isNative = Capacitor.isNativePlatform();
+  const isNative = isNativeState ?? Capacitor.isNativePlatform();
   const navIsOwner = isNative ? false : isOwner;
   const nativeBase = ["transactions", "shifts", "settings"];
   const navPermissions = isNative
@@ -609,7 +611,11 @@ export default function DashboardShell({
 
         <main className="w-full px-4 py-8 md:px-8 md:py-10 print:p-0">
           <div className="mx-auto w-full max-w-6xl print:max-w-none">
-            {isAllowed ? children : isStarter ? <UpgradeRequiredPanel businessId={businessId} /> : <AccessDeniedPanel />}
+            {isNativeState && pathname === `/business/${businessId}` ? (
+              <div className="flex h-40 items-center justify-center">
+                <div className="h-7 w-7 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+              </div>
+            ) : isAllowed ? children : isStarter ? <UpgradeRequiredPanel businessId={businessId} /> : <AccessDeniedPanel />}
           </div>
         </main>
       </div>
