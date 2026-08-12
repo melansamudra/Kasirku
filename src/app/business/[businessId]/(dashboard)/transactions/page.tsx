@@ -58,7 +58,7 @@ export default async function TransactionsPage({
   const query = supabase
     .from("transactions")
     .select(
-      "id, invoice_number, date, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name), transaction_payments(method)",
+      "id, invoice_number, date, total, voided, order_label, customer_name, catatan, cashiers!transactions_cashier_id_fkey(name), transaction_payments(method)",
     )
     .eq("business_id", businessId)
     .gte("date", dayStart)
@@ -163,6 +163,11 @@ export default async function TransactionsPage({
                     <> · {(t as unknown as { customer_name: string }).customer_name}</>
                   )}
                 </p>
+                {(t as unknown as { catatan?: string | null }).catatan && (
+                  <p className="mt-0.5 text-[11px] text-zinc-400 line-clamp-1">
+                    {(t as unknown as { catatan: string }).catatan}
+                  </p>
+                )}
               </Link>
               {showMirrorToggle && (
                 <MirrorToggle

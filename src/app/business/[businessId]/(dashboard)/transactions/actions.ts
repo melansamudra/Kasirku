@@ -497,6 +497,10 @@ export async function importFromMoka(
       customerId = customerIdByName.get(tx.customerName.toLowerCase()) ?? null;
     }
 
+    const catatan = tx.items
+      .map((i) => (i.qty > 1 ? `${i.productName} x${i.qty}` : i.productName))
+      .join(", ");
+
     const { error } = await supabase.rpc("create_manual_transaction", {
       p_business_id: businessId,
       p_date: tx.date,
@@ -504,6 +508,7 @@ export async function importFromMoka(
       p_payment_method: tx.paymentMethod,
       p_received: null,
       p_customer_id: customerId,
+      p_catatan: catatan,
     });
 
     if (error) {
