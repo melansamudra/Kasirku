@@ -92,7 +92,9 @@ export default async function RekapTab({
     txQuery = txQuery.gte("date", start).lt("date", end);
   }
 
-  const { data: rawTxs } = await txQuery;
+  const { data: rawTxs, error: txError } = await txQuery;
+  if (txError) console.error("[rekap-tab] tx query error:", txError);
+  console.log("[rekap-tab] markedIds:", markedIds.length, "rawTxs:", rawTxs?.length ?? "null");
   const txs = (rawTxs ?? []) as unknown as TxRow[];
   const activeTxs = txs.filter((t) => !t.voided);
 
