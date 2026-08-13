@@ -71,31 +71,42 @@ export default async function RekapTab({
     );
   }
 
-  // Fetch transaction details
-  let txQuery = supabase
-    .from("transactions")
-    .select(
-      "id, date, invoice_number, total, voided, transaction_payments(method, amount), transaction_items(name, category, qty, price)",
-    )
-    .in("id", markedIds)
-    .eq("business_id", businessId)
-    .order("date", { ascending: false })
-    .limit(500);
+  // Fetch transaction details in chunks to avoid HTTP URL length limit
+  // (Supabase .in() puts all IDs in the URL; 1000+ UUIDs = ~37KB, exceeds server limits)
+  const CHUNK_SIZE = 100;
+  const chunks: string[][] = [];
+  for (let i = 0; i < markedIds.length; i += CHUNK_SIZE) {
+    chunks.push(markedIds.slice(i, i + CHUNK_SIZE));
+  }
 
-  if (bulan) {
+  const dateRange = bulan ? (() => {
     const start = `${bulan}-01T00:00:00+07:00`;
     const nextMonth = new Date(bulan + "-02T00:00:00");
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     const end =
       nextMonth.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }).slice(0, 7) +
       "-01T00:00:00+07:00";
-    txQuery = txQuery.gte("date", start).lt("date", end);
-  }
+    return { start, end };
+  })() : null;
 
-  const { data: rawTxs, error: txError } = await txQuery;
-  if (txError) console.error("[rekap-tab] tx query error:", txError);
-  console.log("[rekap-tab] markedIds:", markedIds.length, "rawTxs:", rawTxs?.length ?? "null");
-  const txs = (rawTxs ?? []) as unknown as TxRow[];
+  const chunkResults = await Promise.all(
+    chunks.map((chunk) => {
+      let q = supabase
+        .from("transactions")
+        .select(
+          "id, date, invoice_number, total, voided, transaction_payments(method, amount), transaction_items(name, category, qty, price)",
+        )
+        .in("id", chunk)
+        .eq("business_id", businessId)
+        .order("date", { ascending: false });
+      if (dateRange) q = q.gte("date", dateRange.start).lt("date", dateRange.end);
+      return q;
+    }),
+  );
+
+  const txs = chunkResults
+    .flatMap((r) => (r.data ?? []) as unknown as TxRow[])
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const activeTxs = txs.filter((t) => !t.voided);
 
   // --- Agregasi per bulan ---
