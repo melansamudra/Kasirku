@@ -190,12 +190,23 @@ export default function PosScreen({
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const { products, openBills, customers, customPaymentMethods, discountRules, hasKitchenPrinters, hasReceiptPrinters, selfOrderEnabled: catalogSelfOrderEnabled } = catalog;
   const [selfOrderEnabled, setSelfOrderEnabledLocal] = useState(catalogSelfOrderEnabled);
-  // Sync ketika catalog refresh
-  useEffect(() => { setSelfOrderEnabledLocal(catalogSelfOrderEnabled); }, [catalogSelfOrderEnabled]);
+  // Sync ketika catalog refresh — di-adjust saat render (bukan effect) supaya
+  // tidak ada render tambahan tiap kali catalog berubah. selfOrderEnabled
+  // tetap bisa diubah manual lewat toggle (lihat setSelfOrderEnabledLocal di
+  // handler settings), jadi tak bisa cuma diganti useMemo.
+  const [prevCatalogSelfOrderEnabled, setPrevCatalogSelfOrderEnabled] = useState(catalogSelfOrderEnabled);
+  if (catalogSelfOrderEnabled !== prevCatalogSelfOrderEnabled) {
+    setPrevCatalogSelfOrderEnabled(catalogSelfOrderEnabled);
+    setSelfOrderEnabledLocal(catalogSelfOrderEnabled);
+  }
 
   // Toggle cetak struk otomatis — disimpan di localStorage, per-device
   const [autoReceiptPrint, setAutoReceiptPrintState] = useState(true);
+  // localStorage tidak ada di server (SSR) — baca harus lewat effect
+  // post-mount supaya render pertama tetap cocok dengan HTML dari server
+  // (hindari hydration mismatch).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAutoReceiptPrintState(localStorage.getItem("pos_auto_receipt") !== "off");
   }, []);
   function setAutoReceiptPrint(val: boolean) {
@@ -207,9 +218,12 @@ export default function PosScreen({
   // Diset dari halaman Uji Cetak Printer, disimpan di localStorage per device
   type LocalPrinterConfig = { address: string; name: string; paperWidth: number; connectionType: "lan" | "bluetooth" };
   const [localPrinterConfig, setLocalPrinterConfig] = useState<LocalPrinterConfig | null>(null);
+  // Sama seperti auto-receipt-print di atas — baca localStorage cuma aman
+  // setelah mount.
   useEffect(() => {
     try {
       const raw = localStorage.getItem("pos_local_printer_v1");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setLocalPrinterConfig(JSON.parse(raw) as LocalPrinterConfig);
     } catch {}
   }, []);
@@ -229,6 +243,9 @@ export default function PosScreen({
       setCatalog(cached);
       setCatalogLoaded(true);
     });
+    // Fetch data terbaru dari server di background — pola effect standar
+    // untuk sinkronisasi dengan sistem eksternal (network), lihat refreshCatalog().
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshCatalog();
     return () => {
       cancelled = true;
@@ -408,8 +425,13 @@ export default function PosScreen({
     [availablePromos, selectedPromoId],
   );
 
-  // Sinkronkan orderDisc/orderDiscType dengan promo yang dipilih kasir.
-  useEffect(() => {
+  // Sinkronkan orderDisc/orderDiscType dengan promo yang dipilih kasir —
+  // di-adjust saat render (bukan effect). orderDisc/orderDiscType juga
+  // di-reset manual di tempat lain (reset order), jadi tetap state biasa,
+  // bukan nilai turunan murni.
+  const [prevSelectedPromo, setPrevSelectedPromo] = useState(selectedPromo);
+  if (selectedPromo !== prevSelectedPromo) {
+    setPrevSelectedPromo(selectedPromo);
     if (selectedPromo) {
       setOrderDisc(selectedPromo.value);
       setOrderDiscType(selectedPromo.value_type);
@@ -417,14 +439,24 @@ export default function PosScreen({
       setOrderDisc(0);
       setOrderDiscType("pct");
     }
-  }, [selectedPromo]);
+  }
 
   const [currentShiftId, setCurrentShiftId] = useState<string | null>(shiftId);
   const [currentShiftOpenedAt, setCurrentShiftOpenedAt] = useState<string | null>(shiftOpenedAt);
 
-  // Sync state saat server refresh (router.refresh) menghasilkan prop baru
-  useEffect(() => { setCurrentShiftId(shiftId); }, [shiftId]);
-  useEffect(() => { setCurrentShiftOpenedAt(shiftOpenedAt); }, [shiftOpenedAt]);
+  // Sync state saat server refresh (router.refresh) menghasilkan prop baru —
+  // di-adjust saat render (bukan effect) supaya tidak ada render tambahan.
+  // Keduanya tetap bisa diset manual saat buka/tutup shift (optimistic update).
+  const [prevShiftIdProp, setPrevShiftIdProp] = useState(shiftId);
+  if (shiftId !== prevShiftIdProp) {
+    setPrevShiftIdProp(shiftId);
+    setCurrentShiftId(shiftId);
+  }
+  const [prevShiftOpenedAtProp, setPrevShiftOpenedAtProp] = useState(shiftOpenedAt);
+  if (shiftOpenedAt !== prevShiftOpenedAtProp) {
+    setPrevShiftOpenedAtProp(shiftOpenedAt);
+    setCurrentShiftOpenedAt(shiftOpenedAt);
+  }
 
   const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false);
   const [openingCashInput, setOpeningCashInput] = useState("");
