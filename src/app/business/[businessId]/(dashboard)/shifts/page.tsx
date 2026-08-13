@@ -56,6 +56,38 @@ export default async function ShiftsPage({
   const today = todayWibDateString();
   const todayStart = `${today}T00:00:00+07:00`;
 
+  // Shift aktif (belum ditutup)
+  const { data: activeShiftRaw } = await supabase
+    .from("shifts")
+    .select("id, opened_at, opening_cash, cashiers(name)")
+    .eq("business_id", businessId)
+    .is("closed_at", null)
+    .maybeSingle();
+
+  // Live stats & transaksi terbaru dalam shift aktif
+  const activeShiftTx = activeShiftRaw
+    ? await supabase
+        .from("transactions")
+        .select("id, invoice_number, total, date, voided, transaction_payments(method, amount)")
+        .eq("shift_id", activeShiftRaw.id)
+        .order("date", { ascending: false })
+        .limit(20)
+        .then((r) => (r.data ?? []))
+    : [];
+
+  const activeNonVoided = activeShiftTx.filter((t) => !t.voided);
+  const activeTotalSales = activeNonVoided.reduce((s, t) => s + Number(t.total), 0);
+  const activeTxCount = activeNonVoided.length;
+  const activeCashSales = activeNonVoided.reduce(
+    (s, t) => s + t.transaction_payments.filter((p) => p.method === "Tunai").reduce((a, p) => a + Number(p.amount), 0),
+    0,
+  );
+  const activeNonCashSales = activeNonVoided.reduce(
+    (s, t) => s + t.transaction_payments.filter((p) => p.method !== "Tunai").reduce((a, p) => a + Number(p.amount), 0),
+    0,
+  );
+  const activeExpectedCash = Number(activeShiftRaw?.opening_cash ?? 0) + activeCashSales;
+
   let shiftQuery = supabase
     .from("shifts")
     .select(
@@ -82,7 +114,82 @@ export default async function ShiftsPage({
           {isOwner ? "50 shift terakhir yang sudah ditutup." : "Shift hari ini."}
         </p>
 
-        <div className="mt-6 space-y-2">
+        {/* ── Shift aktif ── */}
+        {activeShiftRaw && (
+          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  Shift berjalan
+                </span>
+                <p className="mt-1 text-sm font-medium text-zinc-900">
+                  {(activeShiftRaw.cashiers as unknown as { name: string } | null)?.name ?? "Kasir"}{" "}
+                  <span className="font-normal text-zinc-500">· buka {formatDateTime(activeShiftRaw.opened_at)}</span>
+                </p>
+              </div>
+              <PrintShiftButton businessId={businessId} shiftId={activeShiftRaw.id} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { label: "Total penjualan", value: formatRupiah(activeTotalSales), accent: true },
+                { label: "Transaksi", value: String(activeTxCount) },
+                { label: "Tunai", value: formatRupiah(activeCashSales) },
+                { label: "Non-tunai", value: formatRupiah(activeNonCashSales) },
+              ].map((card) => (
+                <div key={card.label} className="rounded-lg bg-white px-3 py-2.5 shadow-sm">
+                  <p className="text-[11px] text-zinc-500">{card.label}</p>
+                  <p className={`mt-0.5 text-base font-semibold ${card.accent ? "text-emerald-600" : "text-zinc-900"}`}>
+                    {card.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm">
+                <p className="text-[11px] text-zinc-500">Modal awal</p>
+                <p className="mt-0.5 text-sm font-semibold text-zinc-900">{formatRupiah(Number(activeShiftRaw.opening_cash))}</p>
+              </div>
+              <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm">
+                <p className="text-[11px] text-zinc-500">Kas diharapkan di laci</p>
+                <p className="mt-0.5 text-sm font-semibold text-zinc-900">{formatRupiah(activeExpectedCash)}</p>
+              </div>
+            </div>
+
+            {activeNonVoided.length > 0 && (
+              <div className="mt-3 overflow-hidden rounded-lg border border-emerald-100 bg-white">
+                <p className="border-b border-zinc-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                  Transaksi terbaru
+                </p>
+                {activeNonVoided.slice(0, 10).map((tx) => {
+                  const method = tx.transaction_payments[0]?.method ?? "—";
+                  return (
+                    <div key={tx.id} className="flex items-center gap-2 border-b border-zinc-50 px-3 py-2 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-xs font-medium text-zinc-800">{tx.invoice_number}</p>
+                        <p className="text-[11px] text-zinc-400">{formatDateTime(tx.date)}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">{method}</span>
+                      <p className="shrink-0 text-xs font-semibold text-zinc-900">{formatRupiah(Number(tx.total))}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeNonVoided.length === 0 && (
+              <p className="mt-3 text-center text-xs text-emerald-600/70">Belum ada transaksi dalam shift ini.</p>
+            )}
+          </div>
+        )}
+
+        {/* ── Shift sudah ditutup ── */}
+        <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          {activeShiftRaw ? "Shift sebelumnya" : (isOwner ? "50 shift terakhir" : "Shift hari ini")}
+        </p>
+        <div className="mt-2 space-y-2">
           {shifts.length > 0 ? (
             shifts.map((s) => {
               const diff = Number(s.difference);
