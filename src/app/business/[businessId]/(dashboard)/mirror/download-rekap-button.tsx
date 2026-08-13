@@ -8,16 +8,13 @@ type TxRow = {
   transaction_items: { name: string; category: string | null; qty: number; price: number }[];
 };
 
-function formatRupiah(value: number) {
-  return `Rp${value.toLocaleString("id-ID")}`;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
+// Returns YYYY-MM-DD in WIB timezone — required by importTransactions action
+function toWibDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", {
     timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
 }
 
@@ -37,17 +34,24 @@ export default function DownloadRekapButton({
   label: string;
 }) {
   function handleDownload() {
-    const header = ["No", "Invoice", "Tanggal", "Metode Bayar", "Total", "Items"];
-    const dataRows = txs.map((t, i) => [
-      String(i + 1),
-      t.invoice_number,
-      formatDate(t.date),
-      t.transaction_payments.map((p) => p.method).join(" + ") || "—",
-      formatRupiah(Number(t.total)),
-      t.transaction_items
-        .map((it) => `${it.name} x${it.qty}`)
-        .join("; "),
-    ]);
+    // Format matches importTransactions: one row per item, grouped by reference
+    const header = ["reference", "date", "productName", "qty", "paymentMethod", "customerName"];
+    const dataRows: string[][] = [];
+
+    for (const t of txs) {
+      const date = toWibDate(t.date);
+      const paymentMethod = t.transaction_payments.map((p) => p.method).join(" + ") || "";
+      for (const item of t.transaction_items) {
+        dataRows.push([
+          t.invoice_number,
+          date,
+          item.name,
+          String(item.qty),
+          paymentMethod,
+          "",
+        ]);
+      }
+    }
 
     const csv = toCSV([header, ...dataRows]);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });

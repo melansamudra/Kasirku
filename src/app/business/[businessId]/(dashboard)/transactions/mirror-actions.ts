@@ -25,5 +25,6 @@ export async function toggleTransactionMirrorVisibility(
 
   if (error) return { error: error.message };
   revalidatePath(`/business/${businessId}/transactions`);
+  revalidatePath(`/business/${businessId}/mirror`);
   return {};
 }
