@@ -13,7 +13,7 @@ import {
 } from "../../reports/period";
 import PeriodTabs from "../../reports/period-tabs";
 import { addJournalEntry } from "./actions";
-import AddJournalForm from "./add-journal-form";
+import AddJournalForm, { type Account } from "./add-journal-form";
 import ReverseJournalButton from "./reverse-journal-button";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -176,7 +176,18 @@ export default async function JurnalPage({
           — klik &quot;↩ Koreksi&quot; pada jurnal tersebut untuk membalikkannya secara otomatis,
           lalu posting jurnal baru yang benar.
         </p>
-        <AddJournalForm action={boundAddJournalEntry} today={today} accounts={accounts ?? []} />
+        <AddJournalForm
+          action={boundAddJournalEntry}
+          today={today}
+          accounts={(accounts ?? []).map((a) => ({
+            ...a,
+            // CHECK constraints, bukan enum Postgres asli — database.ts sengaja
+            // mengetik ini sebagai `string` (lihat catatan di lib/types/database.ts).
+            // Cast di sini aman karena constraint DB menjamin salah satu nilai ini.
+            type: a.type as Account["type"],
+            normal_balance: a.normal_balance as Account["normal_balance"],
+          }))}
+        />
       </div>
 
       <div className="mt-4 space-y-3">

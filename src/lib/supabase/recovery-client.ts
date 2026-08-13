@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/types/database";
 
 // @supabase/ssr's createBrowserClient hardcodes flowType: "pkce" (no way to
 // override it — see node_modules/@supabase/ssr/dist/main/createBrowserClient.js).
@@ -13,7 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 // no code_verifier needed on either end. Not shared with the rest of the
 // app's cookie-based session (login/signup/dashboard) on purpose.
 export function createRecoveryClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { flowType: "implicit", persistSession: false } },

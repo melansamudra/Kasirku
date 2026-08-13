@@ -1245,21 +1245,26 @@ export async function getShiftTransactions(
   shiftId: string,
 ): Promise<ShiftTransaction[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("transactions")
-    .select("id, invoice_number, created_at, total, transaction_items(name, qty)")
+    .select("id, invoice_number, date, total, transaction_items(name, qty)")
     .eq("business_id", businessId)
     .eq("shift_id", shiftId)
     .eq("voided", false)
-    .order("created_at", { ascending: false })
+    .order("date", { ascending: false })
     .limit(30);
 
+  if (error) {
+    console.error("getShiftTransactions error:", error);
+    return [];
+  }
+
   return (data ?? []).map((t) => ({
-    id: t.id as string,
-    invoice_number: t.invoice_number as string,
-    created_at: t.created_at as string,
-    total: t.total as number,
-    items: (t.transaction_items as { name: string; qty: number }[]) ?? [],
+    id: t.id,
+    invoice_number: t.invoice_number,
+    created_at: t.date,
+    total: t.total,
+    items: t.transaction_items ?? [],
   }));
 }
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import type { Json } from "@/lib/types/database";
 
 export type BannerState = { error: string | null; saved?: boolean };
 
@@ -586,7 +587,7 @@ export async function saveReceiptSettings(
   const supabase = await createClient();
   await supabase
     .from("businesses")
-    .update({ receipt_settings: settings })
+    .update({ receipt_settings: settings as unknown as Json })
     .eq("id", businessId);
   revalidatePath(`/business/${businessId}/settings`);
 }

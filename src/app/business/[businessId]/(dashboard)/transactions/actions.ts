@@ -6,6 +6,7 @@ import { parseCsv } from "@/lib/csv";
 import { logActivity } from "@/lib/activity-log";
 import { buildReceiptBuffer } from "@/lib/receipt-print";
 import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
+import type { Json } from "@/lib/types/database";
 
 export type BuildReceiptPrintJobResult =
   | { success: true; job: KitchenPrintJobPayload }
@@ -429,7 +430,7 @@ export async function importFromMoka(
   // agar tidak timeout di Vercel free plan (limit 10 detik per request).
   const { data, error } = await supabase.rpc("import_historical_transactions_bulk", {
     p_business_id: businessId,
-    p_transactions: transactions as unknown as Record<string, unknown>[],
+    p_transactions: transactions as unknown as Json,
   });
 
   if (error) return fail(`Error: ${error.message}`);

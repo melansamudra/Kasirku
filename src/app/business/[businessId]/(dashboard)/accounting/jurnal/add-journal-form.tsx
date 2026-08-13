@@ -5,7 +5,7 @@ import type { JournalState } from "./actions";
 
 const initialState: JournalState = { error: null, resetToken: 0 };
 
-type Account = {
+export type Account = {
   code: string;
   name: string;
   type: "aset" | "kewajiban" | "modal" | "pendapatan" | "beban";
