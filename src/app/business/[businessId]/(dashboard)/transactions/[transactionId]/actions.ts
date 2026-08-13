@@ -47,35 +47,27 @@ export async function voidTransactionItem(
 ): Promise<VoidResult> {
   const supabase = await createClient();
 
-  // Verify item belongs to this business's transaction
-  const { data: item } = await supabase
-    .from("transaction_items")
-    .select("id, voided")
-    .eq("id", itemId)
-    .eq("transaction_id", transactionId)
-    .single();
-
-  if (!item) return { success: false, error: "Item tidak ditemukan." };
-  if (item.voided) return { success: false, error: "Item sudah di-void." };
-
-  // Try to get cashier session for audit trail
+  // Resolve cashier id for audit trail (optional)
   const session = await getCashierSession(businessId);
   const cashierQuery = session
     ? await supabase.from("cashiers").select("id").eq("business_id", businessId).eq("name", session.name).maybeSingle()
     : null;
   const cashierId = cashierQuery?.data?.id ?? null;
 
-  const { error } = await supabase
-    .from("transaction_items")
-    .update({
-      voided: true,
-      void_reason: reason || null,
-      voided_at: new Date().toISOString(),
-      ...(cashierId ? { voided_by: cashierId } : {}),
-    })
-    .eq("id", itemId);
+  const { error } = await supabase.rpc("void_transaction_item", {
+    p_business_id:    businessId,
+    p_transaction_id: transactionId,
+    p_item_id:        itemId,
+    p_reason:         reason || null,
+    ...(cashierId ? { p_cashier_id: cashierId } : {}),
+  });
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("item sudah di-void")) return { success: false, error: "Item sudah di-void." };
+    if (msg.includes("item tidak ditemukan")) return { success: false, error: "Item tidak ditemukan." };
+    return { success: false, error: msg || "Gagal membatalkan item." };
+  }
 
   await logActivity(
     supabase,
@@ -86,6 +78,7 @@ export async function voidTransactionItem(
     `Alasan: ${reason || "—"}`,
   );
   revalidatePath(`/business/${businessId}/transactions/${transactionId}`);
+  revalidatePath(`/business/${businessId}/transactions`);
   return { success: true };
 }
 

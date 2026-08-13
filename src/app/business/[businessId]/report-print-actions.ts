@@ -68,7 +68,7 @@ export async function buildSettlementPrintJobs(
     (() => {
       let q = supabase
         .from("transactions")
-        .select("id, voided, total_item_disc, order_disc_amt")
+        .select("id, voided, total, total_item_disc, order_disc_amt")
         .eq("business_id", businessId);
       if (fromIso) q = q.gte("date", fromIso);
       if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
@@ -100,10 +100,13 @@ export async function buildSettlementPrintJobs(
   const byMethod = Array.from(byMethodMap.entries())
     .map(([method, amount]) => ({ method, amount }))
     .sort((a, b) => b.amount - a.amount);
-  const totalSales = byMethod.reduce((s, m) => s + m.amount, 0);
 
   const txRows = allTx ?? [];
   const nonVoided = txRows.filter((t) => !t.voided);
+  // Gunakan transactions.total (sudah dipotong void item) bukan jumlah payments
+  const totalSales = nonVoided.reduce((s, t) => s + Number(t.total), 0);
+  const grossFromPayments = byMethod.reduce((s, m) => s + m.amount, 0);
+  const voidItemsTotal = Math.max(0, grossFromPayments - totalSales);
   const txCount = nonVoided.length;
   const voidCount = txRows.length - txCount;
   const totalDiscount = nonVoided.reduce(
@@ -130,6 +133,7 @@ export async function buildSettlementPrintJobs(
     byMethod,
     totalSales,
     totalDiscount,
+    voidItemsTotal,
     txCount,
     voidCount,
     shifts,
@@ -164,7 +168,7 @@ export async function buildSingleShiftPrintJobs(
         .eq("transactions.voided", false),
       supabase
         .from("transactions")
-        .select("id, voided, total_item_disc, order_disc_amt")
+        .select("id, voided, total, total_item_disc, order_disc_amt")
         .eq("shift_id", shiftId),
     ]);
 
@@ -186,6 +190,10 @@ export async function buildSingleShiftPrintJobs(
     (s, t) => s + Number(t.total_item_disc ?? 0) + Number(t.order_disc_amt ?? 0),
     0,
   );
+  // Gunakan transactions.total (sudah dipotong void item) bukan shift.total_sales
+  const totalSalesLive = nonVoided.reduce((s, t) => s + Number(t.total), 0);
+  const grossFromPaymentsSingle = byMethod.reduce((s, m) => s + m.amount, 0);
+  const voidItemsTotalSingle = Math.max(0, grossFromPaymentsSingle - totalSalesLive);
 
   const openedAt = new Date(shift.opened_at).toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
@@ -200,7 +208,7 @@ export async function buildSingleShiftPrintJobs(
     openedAt: shift.opened_at,
     closedAt: shift.closed_at ?? null,
     openingCash: Number(shift.opening_cash),
-    totalSales: Number(shift.total_sales),
+    totalSales: totalSalesLive,
     cashSales: Number(shift.cash_sales),
     nonCashSales: Number(shift.non_cash_sales),
     txCount: shift.tx_count,
@@ -212,8 +220,9 @@ export async function buildSingleShiftPrintJobs(
     businessName: business.name,
     periodLabel: openedAt,
     byMethod,
-    totalSales: Number(shift.total_sales),
+    totalSales: totalSalesLive,
     totalDiscount,
+    voidItemsTotal: voidItemsTotalSingle,
     txCount,
     voidCount,
     shifts: [shiftSummary],

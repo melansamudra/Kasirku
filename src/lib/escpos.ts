@@ -343,6 +343,7 @@ export type SettlementTicketInput = {
   byMethod: SettlementByMethod[];
   totalSales: number;
   totalDiscount: number;
+  voidItemsTotal?: number;
   txCount: number;
   voidCount: number;
   shifts?: SettlementShiftRow[];
@@ -379,6 +380,9 @@ export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
   }
   if (input.totalDiscount > 0) {
     text(padLine("Diskon", `-${formatRp(input.totalDiscount)}`));
+  }
+  if (input.voidItemsTotal && input.voidItemsTotal > 0) {
+    text(padLine("Void Item", `-${formatRp(input.voidItemsTotal)}`));
   }
   push([ESC, 0x45, 0x01]);
   text(padLine("TOTAL", formatRp(input.totalSales)));
