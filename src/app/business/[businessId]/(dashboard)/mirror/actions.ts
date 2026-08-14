@@ -303,11 +303,26 @@ export async function resendMirrorInvite(
     { auth: { autoRefreshToken: false, persistSession: false, flowType: "implicit" } },
   );
 
-  const { error } = await inviteClient.auth.admin.inviteUserByEmail(
+  const { data, error } = await inviteClient.auth.admin.inviteUserByEmail(
     account.invited_email,
     { redirectTo: `${origin}/set-password` },
   );
 
-  if (error) return { error: error.message, success: false };
+  if (error || !data?.user) {
+    return { error: error?.message ?? "Gagal mengundang ulang.", success: false };
+  }
+
+  // Kalau user auth lama sudah dihapus (mis. dihapus manual di Supabase
+  // Dashboard), inviteUserByEmail membuat auth.users.id BARU untuk email
+  // yang sama. Baris mirror_accounts masih menyimpan id lama, jadi RLS
+  // "user_id = auth.uid()" nanti tidak match dan user dilempar ke
+  // /onboarding. Selaraskan user_id ke id baru supaya login berikutnya
+  // langsung ketemu.
+  await service
+    .from("mirror_accounts")
+    .update({ user_id: data.user.id })
+    .eq("id", mirrorAccountId)
+    .eq("business_id", businessId);
+
   return { error: null, success: true };
 }
