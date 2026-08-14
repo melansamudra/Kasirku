@@ -5,7 +5,7 @@ const MIRROR_PERMISSIONS = [
   { key: "show_items", label: "Detail Item / Menu" },
   { key: "show_payment_method", label: "Metode Bayar" },
   { key: "show_amount", label: "Lihat Nominal Angka" },
-  { key: "show_invoice_number", label: "Lihat Nomor Invoice" },
+  { key: "show_invoice_number", label: "Lihat No. Struk (kode acak)" },
   { key: "show_customer", label: "Lihat Nama Pelanggan" },
   { key: "show_cashier", label: "Lihat Nama Kasir" },
 ];

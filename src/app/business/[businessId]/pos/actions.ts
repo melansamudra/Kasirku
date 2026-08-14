@@ -273,7 +273,7 @@ async function buildReceiptPrintJobsForTransaction(
       .single(),
     supabase
       .from("transactions")
-      .select("invoice_number, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, order_label, customer_name, order_type, cashiers!transactions_cashier_id_fkey(name)")
+      .select("invoice_number, receipt_code, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, order_label, customer_name, order_type, cashiers!transactions_cashier_id_fkey(name)")
       .eq("id", transactionId)
       .eq("business_id", businessId)
       .single(),
@@ -316,6 +316,7 @@ async function buildReceiptPrintJobsForTransaction(
       businessAddress: (business as unknown as { address?: string | null }).address,
       businessPhone: (business as unknown as { phone?: string | null }).phone,
       invoiceNumber: transaction.invoice_number,
+      receiptCode: (transaction as unknown as { receipt_code?: string | null }).receipt_code,
       date,
       cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
       orderLabel: orderLabel ?? (transaction as unknown as { order_label?: string | null }).order_label,
@@ -928,6 +929,7 @@ export async function printOpenBillToReceipt(
         show_payment_detail: false,
         footer_text: "PRE-CHECK - Belum dibayar",
         show_invoice: false,
+        show_receipt_code: false,
         show_order_label: true,
         show_customer_name: true,
       },

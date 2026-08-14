@@ -20,6 +20,7 @@ const DEFAULTS: Required<ReceiptSettings> = {
   show_payment_detail: true,
   show_order_label: true,
   show_customer_name: true,
+  show_receipt_code: false,
   footer_text: "Terima kasih!",
   font_large: false,
 };
@@ -33,6 +34,11 @@ const TOGGLES: {
   { key: "show_address", label: "Alamat toko" },
   { key: "show_phone", label: "Nomor telepon toko" },
   { key: "show_invoice", label: "Nomor invoice" },
+  {
+    key: "show_receipt_code",
+    label: "Kode struk (acak)",
+    desc: "Kode unik acak per transaksi, aman ditampilkan ke akun mirror karena tidak berurutan seperti nomor invoice",
+  },
   { key: "show_datetime", label: "Tanggal & jam" },
   { key: "show_cashier", label: "Nama kasir" },
   { key: "show_order_label", label: "Meja / Order" },
@@ -117,6 +123,12 @@ function ReceiptPreview({
           <div className="flex justify-between gap-1">
             <span>No.</span>
             <span>#INV-001</span>
+          </div>
+        )}
+        {s.show_receipt_code && (
+          <div className="flex justify-between gap-1">
+            <span>No. Struk</span>
+            <span>6MT4QM</span>
           </div>
         )}
         {s.show_datetime && (

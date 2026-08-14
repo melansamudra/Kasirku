@@ -30,7 +30,7 @@ export default async function ReceiptPage({
       supabase
         .from("transactions")
         .select(
-          "id, invoice_number, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)",
+          "id, invoice_number, receipt_code, date, subtotal_raw, subtotal, service, tax, total_item_disc, order_disc_amt, total, voided, order_label, customer_name, cashiers!transactions_cashier_id_fkey(name)",
         )
         .eq("id", transactionId)
         .eq("business_id", businessId)
@@ -62,6 +62,7 @@ export default async function ReceiptPage({
     showAddress: (rs.show_address ?? false) as boolean,
     showPhone: (rs.show_phone ?? false) as boolean,
     showInvoice: (rs.show_invoice ?? true) as boolean,
+    showReceiptCode: (rs.show_receipt_code ?? false) as boolean,
     showDatetime: (rs.show_datetime ?? true) as boolean,
     showCashier: (rs.show_cashier ?? true) as boolean,
     showItemNote: (rs.show_item_note ?? false) as boolean,
@@ -107,6 +108,12 @@ export default async function ReceiptPage({
               <div className="flex justify-between">
                 <span>No.</span>
                 <span>{transaction.invoice_number}</span>
+              </div>
+            )}
+            {cfg.showReceiptCode && (transaction as unknown as { receipt_code?: string | null }).receipt_code && (
+              <div className="flex justify-between">
+                <span>No. Struk</span>
+                <span>{(transaction as unknown as { receipt_code: string }).receipt_code}</span>
               </div>
             )}
             {cfg.showDatetime && (

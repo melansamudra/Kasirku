@@ -10,6 +10,7 @@ function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
     day: "2-digit",
     month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "Asia/Jakarta",
@@ -57,7 +58,7 @@ export default async function MirrorTransaksiPage({
     .select(
       `transaction_id,
       transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, invoice_number, date, total, subtotal_raw, total_item_disc, order_disc_amt, service, tax,
+        id, receipt_code, date, total, subtotal_raw, total_item_disc, order_disc_amt, service, tax,
         order_label, customer_name,
         cashiers!transactions_cashier_id_fkey(name),
         customers!transactions_customer_id_fkey(name),
@@ -70,7 +71,7 @@ export default async function MirrorTransaksiPage({
 
   type TxRow = {
     id: string;
-    invoice_number: string;
+    receipt_code: string | null;
     date: string;
     total: number;
     subtotal_raw: number;
@@ -90,7 +91,7 @@ export default async function MirrorTransaksiPage({
     .map((row) => {
       const t = row.transactions as unknown as {
         id: string;
-        invoice_number: string;
+        receipt_code: string | null;
         date: string;
         total: number;
         subtotal_raw: number;
@@ -108,7 +109,7 @@ export default async function MirrorTransaksiPage({
       if (!t) return null;
       return {
         id: t.id,
-        invoice_number: t.invoice_number,
+        receipt_code: t.receipt_code,
         date: t.date,
         total: Number(t.total),
         subtotal_raw: Number(t.subtotal_raw ?? 0),
@@ -161,7 +162,7 @@ export default async function MirrorTransaksiPage({
               <thead className="border-b border-zinc-100 bg-zinc-50">
                 <tr className="text-left text-[10px] font-semibold uppercase text-zinc-400">
                   <th className="px-4 py-3">Tanggal</th>
-                  {p.show_invoice_number && <th className="px-4 py-3">Invoice</th>}
+                  {p.show_invoice_number && <th className="px-4 py-3">No. Struk</th>}
                   {p.show_cashier && <th className="px-4 py-3">Kasir</th>}
                   {p.show_customer && <th className="px-4 py-3">Bon / Pelanggan</th>}
                   {p.show_payment_method && <th className="px-4 py-3">Metode Bayar</th>}
@@ -184,7 +185,7 @@ export default async function MirrorTransaksiPage({
                         <td className="px-4 py-3 text-xs text-zinc-500">{formatDateTime(t.date)}</td>
                         {p.show_invoice_number && (
                           <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
-                            {t.invoice_number}
+                            {t.receipt_code ?? "—"}
                           </td>
                         )}
                         {p.show_cashier && (

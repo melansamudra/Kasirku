@@ -138,6 +138,7 @@ export type ReceiptSettings = {
   show_payment_detail?: boolean;
   show_order_label?: boolean;
   show_customer_name?: boolean;
+  show_receipt_code?: boolean;
   footer_text?: string;
   font_large?: boolean; // GS ! 0x10 — double-height, karakter 2× lebih tinggi, cocok untuk 80mm
 };
@@ -154,6 +155,7 @@ export type ReceiptTicketInput = {
   businessAddress?: string | null;
   businessPhone?: string | null;
   invoiceNumber: string;
+  receiptCode?: string | null;
   date: string;
   cashierName: string;
   customerName?: string | null;
@@ -200,6 +202,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
     showPaymentDetail: s.show_payment_detail ?? true,
     showOrderLabel: s.show_order_label ?? true,
     showCustomerName: s.show_customer_name ?? true,
+    showReceiptCode: s.show_receipt_code ?? false,
     footerText: s.footer_text ?? "Terima kasih!",
     fontLarge: s.font_large ?? false,
   };
@@ -235,6 +238,7 @@ export function buildReceiptTicket(input: ReceiptTicketInput): Buffer {
 
   divider();
   if (cfg.showInvoice) text(pl("No.", input.invoiceNumber));
+  if (cfg.showReceiptCode && input.receiptCode) text(pl("No. Struk", input.receiptCode));
   if (cfg.showDatetime) {
     const sepIdx = input.date.lastIndexOf(", ");
     if (sepIdx !== -1) {

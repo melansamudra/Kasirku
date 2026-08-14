@@ -2322,6 +2322,7 @@ export type Database = {
           order_disc_name: string | null;
           order_type: string | null;
           catatan: string | null;
+          receipt_code: string | null;
         };
         Insert: {
           id?: string;
@@ -2352,6 +2353,7 @@ export type Database = {
           order_disc_name?: string | null;
           order_type?: string | null;
           catatan?: string | null;
+          receipt_code?: string | null;
         };
         Update: {
           id?: string;
@@ -2382,6 +2384,7 @@ export type Database = {
           order_disc_name?: string | null;
           order_type?: string | null;
           catatan?: string | null;
+          receipt_code?: string | null;
         };
         Relationships: [
           {
