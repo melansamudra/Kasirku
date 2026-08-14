@@ -53,7 +53,7 @@ export default async function MirrorLaporanKategoriPage({
     transactions: {
       date: string;
       voided: boolean;
-      transaction_items: { name: string; category: string | null; qty: number; price: number }[] | null;
+      transaction_items: { name: string; category: string | null; qty: number; price: number; voided: boolean }[] | null;
     } | null;
   };
 
@@ -63,7 +63,7 @@ export default async function MirrorLaporanKategoriPage({
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
           date, voided,
-          transaction_items(name, category, qty, price)
+          transaction_items(name, category, qty, price, voided)
         )`,
       )
       .eq("business_id", businessId)
@@ -83,6 +83,7 @@ export default async function MirrorLaporanKategoriPage({
     if (toIsoExclusive && t.date >= toIsoExclusive) continue;
 
     for (const item of t.transaction_items ?? []) {
+      if (item.voided) continue;
       const kat = item.category?.trim() || "Tanpa Kategori";
       const qty = Number(item.qty);
       const revenue = qty * Number(item.price);

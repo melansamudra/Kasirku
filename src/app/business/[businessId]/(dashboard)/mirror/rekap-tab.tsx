@@ -38,7 +38,7 @@ type TxRow = {
   total: number;
   voided: boolean;
   transaction_payments: { method: string; amount: number }[];
-  transaction_items: { name: string; category: string | null; qty: number; price: number }[];
+  transaction_items: { name: string; category: string | null; qty: number; price: number; voided: boolean }[];
 };
 
 export default async function RekapTab({
@@ -98,7 +98,7 @@ export default async function RekapTab({
       let q = supabase
         .from("transactions")
         .select(
-          "id, date, invoice_number, total, voided, transaction_payments(method, amount), transaction_items(name, category, qty, price)",
+          "id, date, invoice_number, total, voided, transaction_payments(method, amount), transaction_items(name, category, qty, price, voided)",
         )
         .in("id", chunk)
         .eq("business_id", businessId)
@@ -111,7 +111,15 @@ export default async function RekapTab({
   const txs = chunkResults
     .flatMap((r) => (r.data ?? []) as unknown as TxRow[])
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const activeTxs = txs.filter((t) => !t.voided);
+  // Item yang di-void sebagian (transaksinya sendiri tidak voided) dibuang di
+  // sini — satu titik filter ini otomatis membenarkan rekap kategori/menu DAN
+  // CSV export (DownloadRekapButton) sekaligus, tanpa perlu filter berulang.
+  const activeTxs = txs
+    .filter((t) => !t.voided)
+    .map((t) => ({
+      ...t,
+      transaction_items: t.transaction_items.filter((i) => !i.voided),
+    }));
 
   // --- Agregasi per bulan ---
   const monthMap = new Map<

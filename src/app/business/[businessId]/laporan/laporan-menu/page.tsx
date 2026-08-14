@@ -42,7 +42,7 @@ export default async function MirrorLaporanMenuPage({
     transactions: {
       date: string;
       voided: boolean;
-      transaction_items: { name: string; qty: number; price: number }[] | null;
+      transaction_items: { name: string; qty: number; price: number; voided: boolean }[] | null;
     } | null;
   };
 
@@ -52,7 +52,7 @@ export default async function MirrorLaporanMenuPage({
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
           date, voided,
-          transaction_items(name, qty, price)
+          transaction_items(name, qty, price, voided)
         )`,
       )
       .eq("business_id", businessId);
@@ -73,6 +73,7 @@ export default async function MirrorLaporanMenuPage({
     if (to && tx.date > `${to}T23:59:59`) continue;
 
     for (const item of tx.transaction_items ?? []) {
+      if (item.voided) continue;
       const name = item.name ?? "—";
       const qty = Number(item.qty);
       const revenue = qty * Number(item.price);
