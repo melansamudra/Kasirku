@@ -17,6 +17,7 @@ export default function MirrorToggle({
 }) {
   const [visible, setVisible] = useState(initialVisible);
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (Capacitor.isNativePlatform()) return null;
@@ -38,10 +39,19 @@ export default function MirrorToggle({
     if (visible) {
       setConfirming(true);
     } else {
+      setError(null);
       setVisible(true);
       startTransition(async () => {
-        const result = await toggleTransactionMirrorVisibility(businessId, transactionId, true);
-        if (result.error) setVisible(false);
+        try {
+          const result = await toggleTransactionMirrorVisibility(businessId, transactionId, true);
+          if (result.error) {
+            setVisible(false);
+            setError(result.error);
+          }
+        } catch (e) {
+          setVisible(false);
+          setError(e instanceof Error ? e.message : "Gagal menyimpan (unknown error).");
+        }
       });
     }
   }
@@ -50,10 +60,19 @@ export default function MirrorToggle({
     e.preventDefault();
     e.stopPropagation();
     setConfirming(false);
+    setError(null);
     setVisible(false);
     startTransition(async () => {
-      const result = await toggleTransactionMirrorVisibility(businessId, transactionId, false);
-      if (result.error) setVisible(true);
+      try {
+        const result = await toggleTransactionMirrorVisibility(businessId, transactionId, false);
+        if (result.error) {
+          setVisible(true);
+          setError(result.error);
+        }
+      } catch (e) {
+        setVisible(true);
+        setError(e instanceof Error ? e.message : "Gagal menyimpan (unknown error).");
+      }
     });
   }
 
@@ -89,7 +108,10 @@ export default function MirrorToggle({
   }
 
   return (
-    <div className="flex items-center border-l border-zinc-100 px-3">
+    <div className="flex items-center gap-2 border-l border-zinc-100 px-3">
+      {error && (
+        <p className="max-w-[140px] text-right text-[10px] font-medium text-red-500">{error}</p>
+      )}
       <button
         onClick={handleClick}
         disabled={pending}
