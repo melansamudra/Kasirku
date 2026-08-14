@@ -176,48 +176,57 @@ export async function checkout(
   if (!result.already_existed) {
     const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
-    const [, , printJobsResult, receiptJobsResult] = await Promise.all([
-      logActivity(
-        supabase,
-        businessId,
-        "transaksi",
-        "sukses",
-        `Transaksi ${result.invoice_number}`,
-        `${itemCount} item · ${payments.map((p) => p.method).join(", ")}`,
-      ),
-      orderLabel || customerName || orderDiscName
-        ? supabase.from("transactions").update({
-            ...(orderLabel ? { order_label: orderLabel } : {}),
-            ...(customerName ? { customer_name: customerName } : {}),
-            ...(orderDiscName ? { order_disc_name: orderDiscName } : {}),
-          }).eq("id", result.transaction_id)
-        : Promise.resolve(null),
-      hasPrinters
-        ? buildKitchenPrintJobsForItems(
-            supabase,
-            businessId,
-            "Kasir",
-            orderLabel || result.invoice_number,
-            items.map((i) => ({
-              productId: i.productId,
-              qty: i.qty,
-              note: [
-                ...(i.optionNames ?? []),
-                i.note ?? null,
-              ].filter((x): x is string => !!x).join(" | ") || null,
-            })),
-            orderType ?? undefined,
-            cashierId,
-            "NEW ORDER",
-            customerName,
-          )
-        : Promise.resolve([]),
-      hasReceiptPrinters
-        ? buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id, orderLabel, customerName)
-        : Promise.resolve([]),
-    ]);
-    printJobs = printJobsResult;
-    receiptPrintJobs = receiptJobsResult;
+    // checkout_transaction sudah sukses di titik ini — transaksinya sungguh
+    // tercatat. Kerjaan di bawah (log aktivitas, siapkan print job) bersifat
+    // sekunder; kalau salah satunya gagal, jangan sampai bikin checkout()
+    // terlihat gagal ke kasir padahal duitnya sudah masuk. Log errornya,
+    // tapi tetap balas success: true.
+    try {
+      const [, , printJobsResult, receiptJobsResult] = await Promise.all([
+        logActivity(
+          supabase,
+          businessId,
+          "transaksi",
+          "sukses",
+          `Transaksi ${result.invoice_number}`,
+          `${itemCount} item · ${payments.map((p) => p.method).join(", ")}`,
+        ),
+        orderLabel || customerName || orderDiscName
+          ? supabase.from("transactions").update({
+              ...(orderLabel ? { order_label: orderLabel } : {}),
+              ...(customerName ? { customer_name: customerName } : {}),
+              ...(orderDiscName ? { order_disc_name: orderDiscName } : {}),
+            }).eq("id", result.transaction_id)
+          : Promise.resolve(null),
+        hasPrinters
+          ? buildKitchenPrintJobsForItems(
+              supabase,
+              businessId,
+              "Kasir",
+              orderLabel || result.invoice_number,
+              items.map((i) => ({
+                productId: i.productId,
+                qty: i.qty,
+                note: [
+                  ...(i.optionNames ?? []),
+                  i.note ?? null,
+                ].filter((x): x is string => !!x).join(" | ") || null,
+              })),
+              orderType ?? undefined,
+              cashierId,
+              "NEW ORDER",
+              customerName,
+            )
+          : Promise.resolve([]),
+        hasReceiptPrinters
+          ? buildReceiptPrintJobsForTransaction(supabase, businessId, result.transaction_id, orderLabel, customerName)
+          : Promise.resolve([]),
+      ]);
+      printJobs = printJobsResult;
+      receiptPrintJobs = receiptJobsResult;
+    } catch (err) {
+      console.error(`checkout: transaksi ${result.invoice_number} sukses tapi post-processing gagal:`, err);
+    }
   }
 
   return {
@@ -617,14 +626,21 @@ export async function closeShift(
   }
 
   const summary = data as CloseShiftSummary;
-  await logActivity(
-    supabase,
-    businessId,
-    "sistem",
-    summary.difference === 0 ? "info" : "warning",
-    "Shift ditutup",
-    `Penjualan Rp${summary.total_sales.toLocaleString("id-ID")} · ${summary.tx_count} transaksi · selisih Rp${summary.difference.toLocaleString("id-ID")}`,
-  );
+  // close_shift sudah sukses di titik ini — shift-nya sungguh tertutup.
+  // Jangan sampai kegagalan logActivity (kerjaan sekunder) bikin fungsi ini
+  // throw dan membuat kasir mengira tutup shift gagal padahal sudah tercatat.
+  try {
+    await logActivity(
+      supabase,
+      businessId,
+      "sistem",
+      summary.difference === 0 ? "info" : "warning",
+      "Shift ditutup",
+      `Penjualan Rp${summary.total_sales.toLocaleString("id-ID")} · ${summary.tx_count} transaksi · selisih Rp${summary.difference.toLocaleString("id-ID")}`,
+    );
+  } catch (err) {
+    console.error(`closeShift: shift ${shiftId} sukses ditutup tapi log aktivitas gagal:`, err);
+  }
   return { success: true, summary };
 }
 
