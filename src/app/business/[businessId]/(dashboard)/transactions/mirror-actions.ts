@@ -12,9 +12,15 @@ export async function toggleTransactionMirrorVisibility(
 
   let error;
   if (visible) {
+    // upsert + ignoreDuplicates: kalau baris sudah ada (mis. state client basi
+    // karena tab lain / cache), jangan gagal dengan duplicate-key error yang
+    // bikin toggle keliatan "kembali" padahal datanya sudah benar di DB.
     ({ error } = await supabase
       .from("mirror_visible_transactions")
-      .insert({ business_id: businessId, transaction_id: transactionId }));
+      .upsert(
+        { business_id: businessId, transaction_id: transactionId },
+        { onConflict: "business_id,transaction_id", ignoreDuplicates: true },
+      ));
   } else {
     ({ error } = await supabase
       .from("mirror_visible_transactions")

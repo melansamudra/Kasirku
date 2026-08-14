@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Capacitor } from "@capacitor/core";
 import { toggleKasMirrorVisibility } from "./mirror-actions";
 
@@ -17,6 +17,13 @@ export default function MirrorKasToggle({
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  // Kalau server ngirim data terbaru (mis. setelah revalidate dari toggle
+  // lain / tab lain), samakan state lokal — kalau tidak, toggle ini
+  // kelihatan "nyangkut" di nilai lama sampai halaman di-reload manual.
+  useEffect(() => {
+    if (!pending) setVisible(initialVisible);
+  }, [initialVisible, pending]);
+
   if (Capacitor.isNativePlatform()) return null;
 
   function handleClick(e: React.MouseEvent) {
@@ -26,8 +33,9 @@ export default function MirrorKasToggle({
       setConfirming(true);
     } else {
       setVisible(true);
-      startTransition(() => {
-        toggleKasMirrorVisibility(businessId, journalLineId, true);
+      startTransition(async () => {
+        const result = await toggleKasMirrorVisibility(businessId, journalLineId, true);
+        if (result.error) setVisible(false);
       });
     }
   }
@@ -37,8 +45,9 @@ export default function MirrorKasToggle({
     e.stopPropagation();
     setConfirming(false);
     setVisible(false);
-    startTransition(() => {
-      toggleKasMirrorVisibility(businessId, journalLineId, false);
+    startTransition(async () => {
+      const result = await toggleKasMirrorVisibility(businessId, journalLineId, false);
+      if (result.error) setVisible(true);
     });
   }
 
