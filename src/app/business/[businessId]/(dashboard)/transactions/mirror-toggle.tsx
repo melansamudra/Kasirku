@@ -16,7 +16,6 @@ export default function MirrorToggle({
   locked?: boolean;
 }) {
   const [visible, setVisible] = useState(initialVisible);
-  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -36,75 +35,35 @@ export default function MirrorToggle({
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (visible) {
-      setConfirming(true);
-    } else {
-      setError(null);
-      setVisible(true);
-      startTransition(async () => {
-        try {
-          const result = await toggleTransactionMirrorVisibility(businessId, transactionId, true);
-          if (result.error) {
-            setVisible(false);
-            setError(result.error);
-          }
-        } catch (e) {
-          setVisible(false);
-          setError(e instanceof Error ? e.message : "Gagal menyimpan (unknown error).");
-        }
-      });
-    }
-  }
 
-  function handleConfirmOff(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setConfirming(false);
+    const nextVisible = !visible;
+
+    // Mematikan butuh popup konfirmasi asli (window.confirm) — bukan UI
+    // inline yang menggantikan tombol di posisi yang sama, karena itu bikin
+    // klik kedua (mis. klik ganda tanpa sengaja) gampang kena tombol "Ya"
+    // dan mematikan toggle tanpa benar-benar dimaksud.
+    if (!nextVisible) {
+      if (!window.confirm("Matikan visibilitas mirror untuk transaksi ini?")) return;
+    }
+
     setError(null);
-    setVisible(false);
+    setVisible(nextVisible);
     startTransition(async () => {
       try {
-        const result = await toggleTransactionMirrorVisibility(businessId, transactionId, false);
+        const result = await toggleTransactionMirrorVisibility(
+          businessId,
+          transactionId,
+          nextVisible,
+        );
         if (result.error) {
-          setVisible(true);
+          setVisible(!nextVisible);
           setError(result.error);
         }
       } catch (e) {
-        setVisible(true);
+        setVisible(!nextVisible);
         setError(e instanceof Error ? e.message : "Gagal menyimpan (unknown error).");
       }
     });
-  }
-
-  function handleCancel(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setConfirming(false);
-  }
-
-  if (confirming) {
-    return (
-      <div
-        className="flex flex-col items-end gap-1 border-l border-zinc-100 px-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="whitespace-nowrap text-[10px] font-medium text-zinc-500">Matikan?</p>
-        <div className="flex gap-1">
-          <button
-            onClick={handleConfirmOff}
-            className="rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-red-600"
-          >
-            Ya
-          </button>
-          <button
-            onClick={handleCancel}
-            className="rounded-md border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50"
-          >
-            Batal
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
