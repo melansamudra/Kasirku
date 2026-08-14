@@ -184,7 +184,7 @@ export default async function MirrorTransaksiPage({
                       >
                         <td className="px-4 py-3 text-xs text-zinc-500">{formatDateTime(t.date)}</td>
                         {p.show_invoice_number && (
-                          <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
+                          <td className="px-4 py-3 text-xs text-zinc-500">
                             {t.receipt_code ?? "—"}
                           </td>
                         )}
