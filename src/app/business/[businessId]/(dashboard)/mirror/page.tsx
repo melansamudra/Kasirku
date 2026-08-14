@@ -111,13 +111,6 @@ export default async function MirrorPage({
                     />
                   </div>
 
-                  <Link
-                    href={`/business/${businessId}/mirror/${acc.id}`}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
-                  >
-                    📋 Pilih Transaksi
-                  </Link>
-
                   <form
                     action={updateMirrorPermissions.bind(null, businessId, acc.id)}
                     className="mt-3"
