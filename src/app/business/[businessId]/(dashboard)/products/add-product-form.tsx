@@ -30,7 +30,11 @@ export default function AddProductForm({
 
   useEffect(() => {
     if (!pending && !state.error) {
+      // formRef.current?.reset() adalah DOM mutation lewat ref — harus di
+      // effect, tidak bisa "adjust during render". setState di bawah ikut
+      // di sini karena triggernya sama (submit sukses).
       formRef.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setImagePreview(null);
       setImageUrl("");
       setUploadError(null);

@@ -41,6 +41,9 @@ export function usePrintRetry(businessId: string) {
   );
 
   useEffect(() => {
+    // Fetch data dari IndexedDB di background — pola effect standar untuk
+    // sinkronisasi dengan sistem eksternal (storage), lihat refresh() di atas.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
 

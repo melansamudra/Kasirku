@@ -476,7 +476,11 @@ export default function DashboardShell({
   // Pakai state supaya tidak ada hydration mismatch antara SSR dan client.
   const [isNativeState, setIsNativeState] = useState<boolean | null>(null);
   useEffect(() => {
+    // Capacitor.isNativePlatform() cuma bisa dibaca di client (beda hasil
+    // dari SSR) — harus lewat effect post-mount supaya render pertama tetap
+    // cocok dengan HTML server (hindari hydration mismatch).
     const native = Capacitor.isNativePlatform();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsNativeState(native);
     if (native && pathname === `/business/${businessId}`) {
       router.replace(`/business/${businessId}/transactions`);

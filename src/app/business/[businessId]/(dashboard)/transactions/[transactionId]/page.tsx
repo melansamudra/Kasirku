@@ -97,7 +97,7 @@ export default async function TransactionDetailPage({
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-900">Item</h2>
             {!transaction.voided && (
-              <span className="text-[11px] text-zinc-400">Tekan "Batalkan item" untuk void per item</span>
+              <span className="text-[11px] text-zinc-400">Tekan &quot;Batalkan item&quot; untuk void per item</span>
             )}
           </div>
           <div className="space-y-2">

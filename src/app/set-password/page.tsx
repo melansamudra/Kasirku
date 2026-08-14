@@ -91,6 +91,10 @@ export default function SetPasswordPage() {
   }, [supabase]);
 
   useEffect(() => {
+    // startChecking men-subscribe ke onAuthStateChange dan mulai polling
+    // getSession() — pola effect standar untuk sinkronisasi dengan sistem
+    // eksternal (auth state), termasuk setChecking/setTimedOut di awalnya.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     const cleanup = startChecking();
     return cleanup;
   // eslint-disable-next-line react-hooks/exhaustive-deps

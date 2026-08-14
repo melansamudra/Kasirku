@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate Node/Electron projects (own package.json, own CommonJS
+    // conventions) — not part of the Next.js app these rules target.
+    "desktop-app/**",
+    "print-agent/**",
   ]),
 ]);
 

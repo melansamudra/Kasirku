@@ -29,7 +29,11 @@ export default function InviteAdminForm({
 
   useEffect(() => {
     if (!pending && !state.error) {
+      // formRef.current?.reset() adalah DOM mutation lewat ref — harus di
+      // effect, tidak bisa "adjust during render". setRole ikut di sini
+      // karena triggernya sama (submit sukses).
       formRef.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRole("kasir");
     }
   }, [pending, state.error]);
