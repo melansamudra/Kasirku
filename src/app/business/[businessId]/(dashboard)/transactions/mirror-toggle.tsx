@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Capacitor } from "@capacitor/core";
 import { toggleTransactionMirrorVisibility } from "./mirror-actions";
 
@@ -18,13 +18,6 @@ export default function MirrorToggle({
   const [visible, setVisible] = useState(initialVisible);
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
-
-  // Kalau server ngirim data terbaru (mis. setelah revalidate dari toggle
-  // lain / kunci bulan / tab lain), samakan state lokal — kalau tidak, toggle
-  // ini kelihatan "nyangkut" di nilai lama sampai halaman di-reload manual.
-  useEffect(() => {
-    if (!pending) setVisible(initialVisible);
-  }, [initialVisible, pending]);
 
   if (Capacitor.isNativePlatform()) return null;
 
