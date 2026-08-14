@@ -53,8 +53,13 @@ export default async function MirrorLaporanTransaksiPage({
   const service = createServiceClient();
 
   const p = isOwner
-    ? { show_transactions: true, show_amount: true, show_items: true }
-    : (mirrorAccount!.permissions ?? {}) as { show_transactions?: boolean; show_amount?: boolean; show_items?: boolean };
+    ? { show_transactions: true, show_amount: true, show_items: true, show_invoice_number: true }
+    : (mirrorAccount!.permissions ?? {}) as {
+        show_transactions?: boolean;
+        show_amount?: boolean;
+        show_items?: boolean;
+        show_invoice_number?: boolean;
+      };
 
   if (!p.show_transactions) notFound();
 
@@ -64,7 +69,7 @@ export default async function MirrorLaporanTransaksiPage({
     .from("mirror_visible_transactions")
     .select(
       `transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, date, invoice_number, total, subtotal_raw, subtotal,
+        id, date, invoice_number, receipt_code, total, subtotal_raw, subtotal,
         total_item_disc, order_disc_amt, service, tax, voided,
         transaction_items(qty)
       )`,
@@ -75,6 +80,7 @@ export default async function MirrorLaporanTransaksiPage({
     id: string;
     date: string;
     invoice_number: string;
+    receipt_code: string | null;
     total: number;
     subtotal_raw: number;
     subtotal: number;
@@ -91,6 +97,7 @@ export default async function MirrorLaporanTransaksiPage({
         id: string;
         date: string;
         invoice_number: string;
+        receipt_code: string | null;
         total: number;
         subtotal_raw: number;
         subtotal: number;
@@ -108,6 +115,7 @@ export default async function MirrorLaporanTransaksiPage({
         id: t.id,
         date: t.date,
         invoice_number: t.invoice_number,
+        receipt_code: t.receipt_code,
         total: Number(t.total),
         subtotal_raw: Number(t.subtotal_raw),
         subtotal: Number(t.subtotal),
@@ -183,6 +191,7 @@ export default async function MirrorLaporanTransaksiPage({
               <thead className="border-b border-zinc-100 bg-zinc-50">
                 <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                   <th className="px-4 py-3">Tanggal</th>
+                  {p.show_invoice_number && <th className="px-4 py-3">No. Struk</th>}
                   {p.show_amount && (
                     <>
                       <th className="px-4 py-3 text-right">Nilai Menu</th>
@@ -209,6 +218,11 @@ export default async function MirrorLaporanTransaksiPage({
                       <td className="px-4 py-3 text-xs text-zinc-700 whitespace-nowrap">
                         {formatDateTime(t.date)}
                       </td>
+                      {p.show_invoice_number && (
+                        <td className="px-4 py-3 text-xs text-zinc-500">
+                          {t.receipt_code ?? "—"}
+                        </td>
+                      )}
                       {p.show_amount && (
                         <>
                           <td className="px-4 py-3 text-right text-xs text-zinc-700">
@@ -245,6 +259,7 @@ export default async function MirrorLaporanTransaksiPage({
                   <td className="px-4 py-3 text-xs font-bold text-zinc-700">
                     Total ({txList.length} transaksi)
                   </td>
+                  {p.show_invoice_number && <td className="px-4 py-3" />}
                   {p.show_amount && (
                     <>
                       <td className="px-4 py-3 text-right text-xs font-bold text-zinc-700">
