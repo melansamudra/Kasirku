@@ -28,6 +28,18 @@ function formatDateLabel(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
+}
+
+// Label sumbu grafik butuh versi pendek tanpa tahun — ruang antar titik
+// sempit (fontSize 8, ~40px/titik) sehingga menambah tahun bikin label
+// bertabrakan.
+function formatDateLabelShort(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
     timeZone: "Asia/Jakarta",
   });
 }
@@ -249,7 +261,7 @@ export default async function MirrorLaporanTrenPage({
                         {/* Label tanggal di bawah */}
                         <text x={pt.x} y={H + 16}
                           textAnchor="middle" fontSize={8} fill="#a1a1aa">
-                          {formatDateLabel(pt.d.date)}
+                          {formatDateLabelShort(pt.d.date)}
                         </text>
                       </g>
                     );
