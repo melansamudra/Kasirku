@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 import DateRangeFilter from "../date-range-filter";
 
 function formatRupiah(v: number) {
@@ -42,25 +43,29 @@ export default async function MirrorLaporanJamPage({
 
   if (!p.show_transactions) notFound();
 
-  const { data: rows } = await service
-    .from("mirror_visible_transactions")
-    .select(
-      `transactions!mirror_visible_transactions_transaction_id_fkey(
-        date, total
-      )`,
-    )
-    .eq("business_id", businessId);
+  type MirrorRow = {
+    transactions: { date: string; total: number; voided: boolean } | null;
+  };
+
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
+    service
+      .from("mirror_visible_transactions")
+      .select(
+        `transactions!mirror_visible_transactions_transaction_id_fkey(
+          date, total, voided
+        )`,
+      )
+      .eq("business_id", businessId)
+      .range(from2, to2),
+  );
 
   // Agregasi per jam (WIB = UTC+7)
   const hourMap = new Map<number, { count: number; revenue: number }>();
   for (let h = 0; h < 24; h++) hourMap.set(h, { count: 0, revenue: 0 });
 
-  for (const row of rows ?? []) {
-    const tx = row.transactions as unknown as {
-      date: string;
-      total: number;
-    } | null;
-    if (!tx) continue;
+  for (const row of rows) {
+    const tx = row.transactions;
+    if (!tx || tx.voided) continue;
 
     const dateWib = new Date(new Date(tx.date).getTime() + 7 * 60 * 60 * 1000);
     const dateStr = dateWib.toISOString().slice(0, 10); // YYYY-MM-DD

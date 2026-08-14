@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   getPeriodRange,
@@ -65,16 +66,37 @@ export default async function MirrorLaporanTransaksiPage({
 
   const basePath = `/business/${businessId}/laporan/laporan-transaksi`;
 
-  const { data: rows } = await service
-    .from("mirror_visible_transactions")
-    .select(
-      `transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, date, invoice_number, receipt_code, total, subtotal_raw, subtotal,
-        total_item_disc, order_disc_amt, service, tax, voided,
-        transaction_items(qty)
-      )`,
-    )
-    .eq("business_id", businessId);
+  type MirrorRow = {
+    transactions: {
+      id: string;
+      date: string;
+      invoice_number: string;
+      receipt_code: string | null;
+      total: number;
+      subtotal_raw: number;
+      subtotal: number;
+      total_item_disc: number;
+      order_disc_amt: number;
+      service: number;
+      tax: number;
+      voided: boolean;
+      transaction_items: { qty: number }[] | null;
+    } | null;
+  };
+
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
+    service
+      .from("mirror_visible_transactions")
+      .select(
+        `transactions!mirror_visible_transactions_transaction_id_fkey(
+          id, date, invoice_number, receipt_code, total, subtotal_raw, subtotal,
+          total_item_disc, order_disc_amt, service, tax, voided,
+          transaction_items(qty)
+        )`,
+      )
+      .eq("business_id", businessId)
+      .range(from2, to2),
+  );
 
   type TxRow = {
     id: string;
@@ -91,23 +113,9 @@ export default async function MirrorLaporanTransaksiPage({
     totalMenuQty: number;
   };
 
-  const txList: TxRow[] = (rows ?? [])
+  const txList: TxRow[] = rows
     .map((row) => {
-      const t = row.transactions as unknown as {
-        id: string;
-        date: string;
-        invoice_number: string;
-        receipt_code: string | null;
-        total: number;
-        subtotal_raw: number;
-        subtotal: number;
-        total_item_disc: number;
-        order_disc_amt: number;
-        service: number;
-        tax: number;
-        voided: boolean;
-        transaction_items: { qty: number }[] | null;
-      } | null;
+      const t = row.transactions;
       if (!t || t.voided) return null;
       if (fromIso && t.date < fromIso) return null;
       if (toIsoExclusive && t.date >= toIsoExclusive) return null;

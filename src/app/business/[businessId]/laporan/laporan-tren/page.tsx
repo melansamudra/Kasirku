@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   getPeriodRange,
@@ -79,21 +80,24 @@ export default async function MirrorLaporanTrenPage({
 
   const basePath = `/business/${businessId}/laporan/laporan-tren`;
 
-  const { data: rows } = await service
-    .from("mirror_visible_transactions")
-    .select(
-      `transactions!mirror_visible_transactions_transaction_id_fkey(
-        date, total, voided
-      )`,
-    )
-    .eq("business_id", businessId);
+  type MirrorRow = { transactions: { date: string; total: number; voided: boolean } | null };
+
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
+    service
+      .from("mirror_visible_transactions")
+      .select(
+        `transactions!mirror_visible_transactions_transaction_id_fkey(
+          date, total, voided
+        )`,
+      )
+      .eq("business_id", businessId)
+      .range(from2, to2),
+  );
 
   const dayMap = new Map<string, { count: number; revenue: number }>();
 
-  for (const row of rows ?? []) {
-    const t = row.transactions as unknown as {
-      date: string; total: number; voided: boolean;
-    } | null;
+  for (const row of rows) {
+    const t = row.transactions;
     if (!t || t.voided) continue;
     if (fromIso && t.date < fromIso) continue;
     if (toIsoExclusive && t.date >= toIsoExclusive) continue;

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
@@ -64,12 +65,25 @@ export default async function MirrorKasHarianPage({
 
   if (!p.show_kas_harian) notFound();
 
-  const { data: rows } = await service
-    .from("mirror_visible_kas")
-    .select(
-      "journal_line_id, journal_lines!mirror_visible_kas_journal_line_id_fkey(id, debit, credit, journal_entries!inner(id, date, description, source))",
-    )
-    .eq("business_id", businessId);
+  type MirrorKasRow = {
+    journal_line_id: string;
+    journal_lines: {
+      id: string;
+      debit: number;
+      credit: number;
+      journal_entries: { id: string; date: string; description: string; source: string } | null;
+    } | null;
+  };
+
+  const rows = await fetchAllRows<MirrorKasRow>((from, to) =>
+    service
+      .from("mirror_visible_kas")
+      .select(
+        "journal_line_id, journal_lines!mirror_visible_kas_journal_line_id_fkey(id, debit, credit, journal_entries!inner(id, date, description, source))",
+      )
+      .eq("business_id", businessId)
+      .range(from, to),
+  );
 
   type KasRow = {
     id: string;
@@ -80,14 +94,9 @@ export default async function MirrorKasHarianPage({
     keluar: number;
   };
 
-  const kasEntries: KasRow[] = (rows ?? [])
+  const kasEntries: KasRow[] = rows
     .map((row) => {
-      const line = row.journal_lines as unknown as {
-        id: string;
-        debit: number;
-        credit: number;
-        journal_entries: { id: string; date: string; description: string; source: string } | null;
-      } | null;
+      const line = row.journal_lines;
       if (!line?.journal_entries) return null;
       return {
         id: line.id,

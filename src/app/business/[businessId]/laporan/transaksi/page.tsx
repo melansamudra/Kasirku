@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 
 function formatRupiah(v: number) {
   return `Rp${Math.round(v).toLocaleString("id-ID")}`;
@@ -53,21 +54,46 @@ export default async function MirrorTransaksiPage({
 
   if (!p.show_transactions) notFound();
 
-  const { data: rows } = await service
-    .from("mirror_visible_transactions")
-    .select(
-      `transaction_id,
-      transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, receipt_code, date, total, subtotal_raw, total_item_disc, order_disc_amt, service, tax,
-        order_label, customer_name,
-        cashiers!transactions_cashier_id_fkey(name),
-        customers!transactions_customer_id_fkey(name),
-        transaction_payments(method),
-        transaction_items(qty, name, products(name))
-      )`,
-    )
-    .eq("business_id", businessId)
-    .order("transaction_id", { ascending: false });
+  type MirrorRow = {
+    transaction_id: string;
+    transactions: {
+      id: string;
+      receipt_code: string | null;
+      date: string;
+      total: number;
+      subtotal_raw: number;
+      total_item_disc: number;
+      order_disc_amt: number;
+      service: number;
+      tax: number;
+      voided: boolean;
+      order_label: string | null;
+      customer_name: string | null;
+      cashiers: { name: string } | null;
+      customers: { name: string } | null;
+      transaction_payments: { method: string }[] | null;
+      transaction_items: { qty: number; name: string; products: { name: string } | null }[] | null;
+    } | null;
+  };
+
+  const rows = await fetchAllRows<MirrorRow>((from, to) =>
+    service
+      .from("mirror_visible_transactions")
+      .select(
+        `transaction_id,
+        transactions!mirror_visible_transactions_transaction_id_fkey(
+          id, receipt_code, date, total, subtotal_raw, total_item_disc, order_disc_amt, service, tax, voided,
+          order_label, customer_name,
+          cashiers!transactions_cashier_id_fkey(name),
+          customers!transactions_customer_id_fkey(name),
+          transaction_payments(method),
+          transaction_items(qty, name, products(name))
+        )`,
+      )
+      .eq("business_id", businessId)
+      .order("transaction_id", { ascending: false })
+      .range(from, to),
+  );
 
   type TxRow = {
     id: string;
@@ -87,26 +113,10 @@ export default async function MirrorTransaksiPage({
     items: { qty: number; product_name: string }[];
   };
 
-  const transactions: TxRow[] = (rows ?? [])
+  const transactions: TxRow[] = rows
     .map((row) => {
-      const t = row.transactions as unknown as {
-        id: string;
-        receipt_code: string | null;
-        date: string;
-        total: number;
-        subtotal_raw: number;
-        total_item_disc: number;
-        order_disc_amt: number;
-        service: number;
-        tax: number;
-        order_label: string | null;
-        customer_name: string | null;
-        cashiers: { name: string } | null;
-        customers: { name: string } | null;
-        transaction_payments: { method: string }[] | null;
-        transaction_items: { qty: number; name: string; products: { name: string } | null }[] | null;
-      } | null;
-      if (!t) return null;
+      const t = row.transactions;
+      if (!t || t.voided) return null;
       return {
         id: t.id,
         receipt_code: t.receipt_code,

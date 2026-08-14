@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import LockMonthButton from "./lock-month-button";
 import DownloadRekapButton from "./download-rekap-button";
 
@@ -49,18 +50,21 @@ export default async function RekapTab({
 }) {
   const supabase = await createClient();
 
-  const [{ data: markedRows }, { data: lockRows }] = await Promise.all([
-    supabase
-      .from("mirror_visible_transactions")
-      .select("transaction_id")
-      .eq("business_id", businessId),
+  const [markedRows, { data: lockRows }] = await Promise.all([
+    fetchAllRows<{ transaction_id: string }>((from, to) =>
+      supabase
+        .from("mirror_visible_transactions")
+        .select("transaction_id")
+        .eq("business_id", businessId)
+        .range(from, to),
+    ),
     supabase
       .from("mirror_month_locks")
       .select("month_year")
       .eq("business_id", businessId),
   ]);
 
-  const markedIds = (markedRows ?? []).map((r) => r.transaction_id as string);
+  const markedIds = markedRows.map((r) => r.transaction_id);
   const lockedSet = new Set((lockRows ?? []).map((r) => r.month_year as string));
 
   if (markedIds.length === 0) {

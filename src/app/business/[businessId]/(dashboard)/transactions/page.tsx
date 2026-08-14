@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchAllRows } from "@/lib/pagination";
 import { importTransactions, previewMokaImport, importFromMoka } from "./actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
@@ -70,14 +71,17 @@ export default async function TransactionsPage({
     query.eq("voided", false);
   }
 
-  const [{ data: transactions }, { data: visibleRows }, { data: lockRows }] = await Promise.all([
+  const [{ data: transactions }, visibleRows, { data: lockRows }] = await Promise.all([
     query,
     showMirrorToggle
-      ? supabase
-          .from("mirror_visible_transactions")
-          .select("transaction_id")
-          .eq("business_id", businessId)
-      : Promise.resolve({ data: null }),
+      ? fetchAllRows<{ transaction_id: string }>((from, to) =>
+          supabase
+            .from("mirror_visible_transactions")
+            .select("transaction_id")
+            .eq("business_id", businessId)
+            .range(from, to),
+        )
+      : Promise.resolve([]),
     showMirrorToggle
       ? supabase
           .from("mirror_month_locks")
@@ -86,7 +90,7 @@ export default async function TransactionsPage({
       : Promise.resolve({ data: null }),
   ]);
 
-  const visibleIds = new Set((visibleRows ?? []).map((r) => r.transaction_id as string));
+  const visibleIds = new Set(visibleRows.map((r) => r.transaction_id));
   const lockedMonths = new Set((lockRows ?? []).map((r) => r.month_year as string));
 
   function txLockedMonth(dateStr: string): boolean {

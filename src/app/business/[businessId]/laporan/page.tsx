@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   getPeriodRange,
@@ -80,15 +81,6 @@ export default async function MirrorLaporanPage({
     );
   }
 
-  const { data: rows } = await service
-    .from("mirror_visible_transactions")
-    .select(
-      `transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, date, total, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, voided
-      )`,
-    )
-    .eq("business_id", businessId);
-
   type TxData = {
     id: string;
     date: string;
@@ -102,11 +94,20 @@ export default async function MirrorLaporanPage({
     voided: boolean;
   };
 
-  const txList: TxData[] = (rows ?? [])
-    .map((row) => {
-      const t = row.transactions as unknown as TxData | null;
-      return t;
-    })
+  const rows = await fetchAllRows<{ transactions: TxData | null }>((from2, to2) =>
+    service
+      .from("mirror_visible_transactions")
+      .select(
+        `transactions!mirror_visible_transactions_transaction_id_fkey(
+          id, date, total, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, voided
+        )`,
+      )
+      .eq("business_id", businessId)
+      .range(from2, to2),
+  );
+
+  const txList: TxData[] = rows
+    .map((row) => row.transactions)
     .filter((t): t is TxData => {
       if (!t || t.voided) return false;
       if (fromIso && t.date < fromIso) return false;

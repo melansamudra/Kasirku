@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   getPeriodRange,
@@ -59,26 +60,33 @@ export default async function MirrorLaporanMetodeBayarPage({
 
   const basePath = `/business/${businessId}/laporan/laporan-metode-bayar`;
 
-  const { data: rows } = await service
-    .from("mirror_visible_transactions")
-    .select(
-      `transactions!mirror_visible_transactions_transaction_id_fkey(
-        id, date, voided,
-        transaction_payments(method, amount)
-      )`,
-    )
-    .eq("business_id", businessId);
-
-  // Agregasi per metode bayar
-  const methodMap = new Map<string, { txIds: Set<string>; total: number }>();
-
-  for (const row of rows ?? []) {
-    const t = row.transactions as unknown as {
+  type MirrorRow = {
+    transactions: {
       id: string;
       date: string;
       voided: boolean;
       transaction_payments: { method: string; amount: number }[] | null;
     } | null;
+  };
+
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
+    service
+      .from("mirror_visible_transactions")
+      .select(
+        `transactions!mirror_visible_transactions_transaction_id_fkey(
+          id, date, voided,
+          transaction_payments(method, amount)
+        )`,
+      )
+      .eq("business_id", businessId)
+      .range(from2, to2),
+  );
+
+  // Agregasi per metode bayar
+  const methodMap = new Map<string, { txIds: Set<string>; total: number }>();
+
+  for (const row of rows) {
+    const t = row.transactions;
     if (!t || t.voided) continue;
     if (fromIso && t.date < fromIso) continue;
     if (toIsoExclusive && t.date >= toIsoExclusive) continue;

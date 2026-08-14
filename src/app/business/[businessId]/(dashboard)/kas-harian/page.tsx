@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchAllRows } from "@/lib/pagination";
 import MirrorKasToggle from "./mirror-kas-toggle";
 import {
   PERIOD_COOKIE_NAME,
@@ -121,14 +122,17 @@ export default async function KasHarianPage({
   const isOwner = business?.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business?.mirroring_enabled;
 
-  const { data: visibleKasRows } = showMirrorToggle
-    ? await supabase
-        .from("mirror_visible_kas")
-        .select("journal_line_id")
-        .eq("business_id", businessId)
-    : { data: null };
+  const visibleKasRows = showMirrorToggle
+    ? await fetchAllRows<{ journal_line_id: string }>((from, to) =>
+        supabase
+          .from("mirror_visible_kas")
+          .select("journal_line_id")
+          .eq("business_id", businessId)
+          .range(from, to),
+      )
+    : [];
 
-  const visibleKasIds = new Set((visibleKasRows ?? []).map((r) => r.journal_line_id as string));
+  const visibleKasIds = new Set(visibleKasRows.map((r) => r.journal_line_id));
 
   const totalMasuk = lines.reduce((s, l) => s + Number(l.debit), 0);
   const totalKeluar = lines.reduce((s, l) => s + Number(l.credit), 0);

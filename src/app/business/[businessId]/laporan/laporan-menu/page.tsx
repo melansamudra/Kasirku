@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 import DateRangeFilter from "../date-range-filter";
 
 function formatRupiah(v: number) {
@@ -37,34 +38,35 @@ export default async function MirrorLaporanMenuPage({
   if (!p.show_items) notFound();
 
   // Ambil transaksi yang dipilih owner beserta item-nya
-  let query = service
-    .from("mirror_visible_transactions")
-    .select(
-      `transactions!mirror_visible_transactions_transaction_id_fkey(
-        date,
-        transaction_items(name, qty, price)
-      )`,
-    )
-    .eq("business_id", businessId);
+  type MirrorRow = {
+    transactions: {
+      date: string;
+      voided: boolean;
+      transaction_items: { name: string; qty: number; price: number }[] | null;
+    } | null;
+  };
 
-  if (from) {
-    query = query.gte("transactions.date", `${from}T00:00:00+07:00`);
-  }
-  if (to) {
-    query = query.lte("transactions.date", `${to}T23:59:59+07:00`);
-  }
-
-  const { data: rows } = await query;
+  const rows = await fetchAllRows<MirrorRow>((rFrom, rTo) => {
+    let q = service
+      .from("mirror_visible_transactions")
+      .select(
+        `transactions!mirror_visible_transactions_transaction_id_fkey(
+          date, voided,
+          transaction_items(name, qty, price)
+        )`,
+      )
+      .eq("business_id", businessId);
+    if (from) q = q.gte("transactions.date", `${from}T00:00:00+07:00`);
+    if (to) q = q.lte("transactions.date", `${to}T23:59:59+07:00`);
+    return q.range(rFrom, rTo);
+  });
 
   // Agregasi per nama menu
   const menuMap = new Map<string, { qty: number; revenue: number }>();
 
-  for (const row of rows ?? []) {
-    const tx = row.transactions as unknown as {
-      date: string;
-      transaction_items: { name: string; qty: number; price: number }[] | null;
-    } | null;
-    if (!tx) continue;
+  for (const row of rows) {
+    const tx = row.transactions;
+    if (!tx || tx.voided) continue;
 
     // Filter tanggal manual karena nested filter Supabase tidak selalu reliable
     if (from && tx.date < `${from}T00:00:00`) continue;
