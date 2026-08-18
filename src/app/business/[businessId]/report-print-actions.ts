@@ -106,7 +106,9 @@ export async function buildSettlementPrintJobs(
   // Gunakan transactions.total (sudah dipotong void item) bukan jumlah payments
   const totalSales = nonVoided.reduce((s, t) => s + Number(t.total), 0);
   const grossFromPayments = byMethod.reduce((s, m) => s + m.amount, 0);
-  const voidItemsTotal = Math.max(0, grossFromPayments - totalSales);
+  // Selisih ini BUKAN berarti pasti ada void — bisa juga salah input nominal
+  // tender. Jangan dianggap void tanpa cek transaction_items.voided langsung.
+  const cashGapTotal = Math.max(0, grossFromPayments - totalSales);
   const txCount = nonVoided.length;
   const voidCount = txRows.length - txCount;
   const totalDiscount = nonVoided.reduce(
@@ -133,7 +135,7 @@ export async function buildSettlementPrintJobs(
     byMethod,
     totalSales,
     totalDiscount,
-    voidItemsTotal,
+    cashGapTotal,
     txCount,
     voidCount,
     shifts,
@@ -193,7 +195,7 @@ export async function buildSingleShiftPrintJobs(
   // Gunakan transactions.total (sudah dipotong void item) bukan shift.total_sales
   const totalSalesLive = nonVoided.reduce((s, t) => s + Number(t.total), 0);
   const grossFromPaymentsSingle = byMethod.reduce((s, m) => s + m.amount, 0);
-  const voidItemsTotalSingle = Math.max(0, grossFromPaymentsSingle - totalSalesLive);
+  const cashGapTotalSingle = Math.max(0, grossFromPaymentsSingle - totalSalesLive);
 
   const openedAt = new Date(shift.opened_at).toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
@@ -222,7 +224,7 @@ export async function buildSingleShiftPrintJobs(
     byMethod,
     totalSales: totalSalesLive,
     totalDiscount,
-    voidItemsTotal: voidItemsTotalSingle,
+    cashGapTotal: cashGapTotalSingle,
     txCount,
     voidCount,
     shifts: [shiftSummary],

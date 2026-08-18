@@ -2674,7 +2674,7 @@ export default function PosScreen({
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
-                    {t.method === "Tunai" ? (
+                    {t.method === "Tunai" && tenders.length > 1 ? (
                       <input
                         type="number"
                         min="0"
@@ -2791,19 +2791,9 @@ export default function PosScreen({
                             <option key={m} value={m}>{m}</option>
                           ))}
                         </select>
-                        {t.method === "Tunai" ? (
-                          <input
-                            type="number"
-                            min="0"
-                            value={t.amount || ""}
-                            onChange={(e) => updatePisahTender(t.id, { amount: Number(e.target.value) || 0 })}
-                            className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
-                          />
-                        ) : (
-                          <div className="w-full rounded-lg bg-zinc-100 px-2 py-1.5 text-xs font-medium text-zinc-700 tabular-nums">
-                            {formatRupiah(t.amount)}
-                          </div>
-                        )}
+                        <div className="w-full rounded-lg bg-zinc-100 px-2 py-1.5 text-xs font-medium text-zinc-700 tabular-nums">
+                          {formatRupiah(t.amount)}
+                        </div>
                       </div>
                       {t.method === "Tunai" && (
                         <div className="space-y-1.5">

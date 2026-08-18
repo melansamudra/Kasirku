@@ -347,7 +347,7 @@ export type SettlementTicketInput = {
   byMethod: SettlementByMethod[];
   totalSales: number;
   totalDiscount: number;
-  voidItemsTotal?: number;
+  cashGapTotal?: number;
   txCount: number;
   voidCount: number;
   shifts?: SettlementShiftRow[];
@@ -385,8 +385,13 @@ export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
   if (input.totalDiscount > 0) {
     text(padLine("Diskon", `-${formatRp(input.totalDiscount)}`));
   }
-  if (input.voidItemsTotal && input.voidItemsTotal > 0) {
-    text(padLine("Void Item", `-${formatRp(input.voidItemsTotal)}`));
+  if (input.cashGapTotal && input.cashGapTotal > 0) {
+    // Bukan void sungguhan — ini selisih antara nominal pembayaran yang
+    // tercatat (transaction_payments) vs total transaksi bersih. Bisa
+    // berarti void item (kalau migrasi penyesuaian payments belum jalan),
+    // tapi juga bisa salah input nominal tender. Jangan diberi label "Void"
+    // sebelum dicek langsung ke transaction_items.voided.
+    text(padLine("Selisih Kas", `-${formatRp(input.cashGapTotal)}`));
   }
   push([ESC, 0x45, 0x01]);
   text(padLine("TOTAL", formatRp(input.totalSales)));
