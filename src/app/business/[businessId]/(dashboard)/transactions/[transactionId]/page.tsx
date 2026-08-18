@@ -131,6 +131,7 @@ export default async function TransactionDetailPage({
                           itemId={item.id}
                           itemName={item.name}
                           invoiceNumber={transaction.invoice_number}
+                          isOwner={isOwner}
                         />
                       )}
                     </div>

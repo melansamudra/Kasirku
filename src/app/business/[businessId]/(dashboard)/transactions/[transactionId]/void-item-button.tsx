@@ -17,16 +17,19 @@ export default function VoidItemButton({
   itemId,
   itemName,
   invoiceNumber,
+  isOwner,
 }: {
   businessId: string;
   transactionId: string;
   itemId: string;
   itemName: string;
   invoiceNumber: string;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState(VOID_REASONS[0]);
+  const [managerPin, setManagerPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +48,7 @@ export default function VoidItemButton({
     setError(null);
     setSubmitting(true);
     const result = await voidTransactionItem(
-      businessId, transactionId, itemId, itemName, invoiceNumber, reason,
+      businessId, transactionId, itemId, itemName, invoiceNumber, reason, managerPin,
     );
     setSubmitting(false);
     if (!result.success) { setError(result.error); return; }
@@ -67,11 +70,22 @@ export default function VoidItemButton({
           <option key={r} value={r}>{r}</option>
         ))}
       </select>
+      {!isOwner && (
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={6}
+          value={managerPin}
+          onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ""))}
+          placeholder="PIN Manajer"
+          className="mt-2 w-full rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs tracking-widest focus:outline-none"
+        />
+      )}
       {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
       <div className="mt-2 flex gap-2">
         <button
           onClick={handleConfirm}
-          disabled={submitting}
+          disabled={submitting || (!isOwner && managerPin.length < 4)}
           className="flex-1 rounded-lg bg-red-600 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
         >
           {submitting ? "…" : "Konfirmasi Void"}

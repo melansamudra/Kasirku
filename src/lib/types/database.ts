@@ -2597,6 +2597,15 @@ export type Database = {
           p_item_id: string;
           p_reason?: string | null;
           p_cashier_id?: string | null;
+          p_manager_pin?: string | null;
+        };
+        Returns: undefined;
+      };
+      delete_open_bill: {
+        Args: {
+          p_business_id: string;
+          p_bill_id: string;
+          p_manager_pin: string;
         };
         Returns: undefined;
       };

@@ -8,7 +8,8 @@ import {
   checkout,
   closeShift,
   openShift,
-  deleteOpenBill,
+  deleteOpenBillAfterPayment,
+  deleteOpenBillManual,
   printOpenBillToReceipt,
   getPosCatalog,
   getSelfOrders,
@@ -279,8 +280,12 @@ export default function PosScreen({
   // exposes (see dashboard-shell.tsx) — hide the link here too so it's not a
   // dead end that lands on "Akses Ditolak".
   const isNative = Capacitor.isNativePlatform();
-  const [billBusyId, setBillBusyId] = useState<string | null>(null);
+  const [billBusyId] = useState<string | null>(null);
   const [billPrintingId, setBillPrintingId] = useState<string | null>(null);
+  const [billDeleteTarget, setBillDeleteTarget] = useState<OpenBill | null>(null);
+  const [billDeletePin, setBillDeletePin] = useState("");
+  const [billDeleteError, setBillDeleteError] = useState<string | null>(null);
+  const [billDeleteSubmitting, setBillDeleteSubmitting] = useState(false);
   const [activeBill, setActiveBill] = useState<{ id: string; label: string; customer_id?: string | null } | null>(null);
   const [saveBonOpen, setSaveBonOpen] = useState(false);
   const [bonLabel, setBonLabel] = useState("");
@@ -842,11 +847,25 @@ export default function PosScreen({
     setBillsOpen(false);
   }
 
-  async function handleDeleteBill(bill: OpenBill) {
-    if (!window.confirm(`Hapus open bill "${bill.label}"?`)) return;
-    setBillBusyId(bill.id);
-    await deleteOpenBill(businessId, bill.id, cashierName);
-    setBillBusyId(null);
+  function handleDeleteBill(bill: OpenBill) {
+    setBillDeleteTarget(bill);
+    setBillDeletePin("");
+    setBillDeleteError(null);
+  }
+
+  async function handleConfirmDeleteBill() {
+    if (!billDeleteTarget || billDeleteSubmitting) return;
+    setBillDeleteSubmitting(true);
+    setBillDeleteError(null);
+    const bill = billDeleteTarget;
+    const result = await deleteOpenBillManual(businessId, bill.id, billDeletePin, cashierName);
+    setBillDeleteSubmitting(false);
+    if (!result.success) {
+      setBillDeleteError(result.error);
+      return;
+    }
+    setBillDeleteTarget(null);
+    setBillDeletePin("");
     if (activeBill?.id === bill.id) setActiveBill(null);
     void refreshCatalog();
   }
@@ -1287,7 +1306,7 @@ export default function PosScreen({
       setSuccessInvoice(result.invoiceNumber);
       setSuccessTransactionId(result.transactionId);
       if (activeBill && isOnline) {
-        void deleteOpenBill(businessId, activeBill.id);
+        void deleteOpenBillAfterPayment(businessId, activeBill.id);
         setActiveBill(null);
       }
       setSelectedCustomer(null);
@@ -1425,7 +1444,7 @@ export default function PosScreen({
     // supaya tidak menahan layar sukses; bon hilang saat refreshCatalog
     // berikutnya kalau delete gagal karena jaringan.
     if (activeBill && isOnline) {
-      void deleteOpenBill(businessId, activeBill.id);
+      void deleteOpenBillAfterPayment(businessId, activeBill.id);
       setActiveBill(null);
     }
 
@@ -3307,6 +3326,54 @@ export default function PosScreen({
                   );
                 })
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Konfirmasi hapus Open Bill — wajib PIN manajer */}
+      {billDeleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+          <div
+            className="absolute inset-0"
+            onClick={() => { if (!billDeleteSubmitting) setBillDeleteTarget(null); }}
+          />
+          <div className="relative w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <h2 className="text-sm font-bold text-zinc-900">⚠️ Hapus Open Bill</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              &quot;{billDeleteTarget.label}&quot; akan dihapus permanen. Butuh PIN manajer untuk melanjutkan.
+            </p>
+            <div className="mt-4">
+              <label className="mb-1 block text-xs font-medium text-zinc-600">PIN Manajer</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                value={billDeletePin}
+                onChange={(e) => setBillDeletePin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm tracking-widest focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            {billDeleteError && (
+              <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{billDeleteError}</p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setBillDeleteTarget(null)}
+                disabled={billDeleteSubmitting}
+                className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-500 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => void handleConfirmDeleteBill()}
+                disabled={billDeleteSubmitting || billDeletePin.length < 4}
+                className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {billDeleteSubmitting ? "Menghapus…" : "Hapus Sekarang"}
+              </button>
             </div>
           </div>
         </div>

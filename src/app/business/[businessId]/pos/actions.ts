@@ -843,11 +843,32 @@ export async function saveOpenBill(
   return { success: true, billId: data.id, printJobs };
 }
 
-export async function deleteOpenBill(
+// Dipanggil hanya dari housekeeping internal setelah checkout_transaction
+// sukses (lihat pos-screen.tsx) untuk membuang bon yang barusan LUNAS
+// dibayar lewat RPC checkout yang sah -- bukan aksi "hapus" oleh staf,
+// jadi sengaja tidak minta PIN. Aksi hapus manual (tombol "Hapus" di daftar
+// Open Bill) ada di deleteOpenBillManual di bawah, yang mewajibkan PIN
+// manajer.
+export async function deleteOpenBillAfterPayment(businessId: string, billId: string) {
+  const supabase = await createClient();
+  await supabase.from("open_bills").delete().eq("id", billId).eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/pos`);
+}
+
+export type DeleteOpenBillResult = { success: true } | { success: false; error: string };
+
+// Tombol "Hapus" di daftar Open Bill membuang bon yang SUDAH TERSIMPAN
+// tanpa transaksi apa pun tercatat -- sebelumnya cuma dibatasi di UI
+// (disembunyikan untuk role pelayan), padahal server action-nya sendiri
+// tidak pernah memverifikasi apa pun, jadi bisa dipanggil langsung oleh
+// siapa saja yang punya sesi kasir aktif. Sekarang wajib PIN manajer aktif,
+// diverifikasi lewat RPC delete_open_bill (pola sama dengan void_pos_transaction).
+export async function deleteOpenBillManual(
   businessId: string,
   billId: string,
+  managerPin: string,
   cashierName?: string,
-) {
+): Promise<DeleteOpenBillResult> {
   const supabase = await createClient();
 
   // Ambil dulu sebelum dihapus supaya log-nya mencatat apa yang sungguh
@@ -859,7 +880,17 @@ export async function deleteOpenBill(
     .eq("business_id", businessId)
     .maybeSingle();
 
-  await supabase.from("open_bills").delete().eq("id", billId).eq("business_id", businessId);
+  const { error } = await supabase.rpc("delete_open_bill", {
+    p_business_id: businessId,
+    p_bill_id: billId,
+    p_manager_pin: managerPin,
+  });
+
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("PIN salah")) return { success: false, error: "PIN salah atau tidak memiliki otorisasi." };
+    return { success: false, error: msg || "Gagal menghapus bon." };
+  }
 
   if (bill) {
     const itemCount = Array.isArray(bill.items) ? bill.items.length : 0;
@@ -874,6 +905,7 @@ export async function deleteOpenBill(
   }
 
   revalidatePath(`/business/${businessId}/pos`);
+  return { success: true };
 }
 
 export type PrintOpenBillResult =

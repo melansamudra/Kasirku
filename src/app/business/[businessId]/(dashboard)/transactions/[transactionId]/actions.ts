@@ -44,6 +44,7 @@ export async function voidTransactionItem(
   itemName: string,
   invoiceNumber: string,
   reason: string,
+  managerPin: string,
 ): Promise<VoidResult> {
   const supabase = await createClient();
 
@@ -59,6 +60,7 @@ export async function voidTransactionItem(
     p_transaction_id: transactionId,
     p_item_id:        itemId,
     p_reason:         reason || null,
+    p_manager_pin:    managerPin || null,
     ...(cashierId ? { p_cashier_id: cashierId } : {}),
   });
 
@@ -66,6 +68,7 @@ export async function voidTransactionItem(
     const msg = error.message ?? "";
     if (msg.includes("item sudah di-void")) return { success: false, error: "Item sudah di-void." };
     if (msg.includes("item tidak ditemukan")) return { success: false, error: "Item tidak ditemukan." };
+    if (msg.includes("PIN salah")) return { success: false, error: "PIN salah atau tidak memiliki otorisasi." };
     return { success: false, error: msg || "Gagal membatalkan item." };
   }
 
