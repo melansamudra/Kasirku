@@ -845,7 +845,7 @@ export default function PosScreen({
   async function handleDeleteBill(bill: OpenBill) {
     if (!window.confirm(`Hapus open bill "${bill.label}"?`)) return;
     setBillBusyId(bill.id);
-    await deleteOpenBill(businessId, bill.id);
+    await deleteOpenBill(businessId, bill.id, cashierName);
     setBillBusyId(null);
     if (activeBill?.id === bill.id) setActiveBill(null);
     void refreshCatalog();
@@ -3277,13 +3277,15 @@ export default function PosScreen({
                       </div>
                       <p className="mt-1 truncate text-xs text-zinc-500">{preview}</p>
                       <div className="mt-2 flex justify-end gap-1.5 border-t border-zinc-100 pt-2">
-                        <button
-                          onClick={() => handleDeleteBill(bill)}
-                          disabled={busy}
-                          className="rounded-lg px-3 py-1.5 text-[11px] font-bold text-red-500 ring-1 ring-red-200 transition-colors hover:bg-red-50 disabled:opacity-50"
-                        >
-                          Hapus
-                        </button>
+                        {cashierRole !== "pelayan" && (
+                          <button
+                            onClick={() => handleDeleteBill(bill)}
+                            disabled={busy}
+                            className="rounded-lg px-3 py-1.5 text-[11px] font-bold text-red-500 ring-1 ring-red-200 transition-colors hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Hapus
+                          </button>
+                        )}
                         {(hasReceiptPrinters || !!localPrinterConfig) && (
                           <button
                             onClick={() => void handlePrintBill(bill)}

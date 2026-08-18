@@ -843,9 +843,36 @@ export async function saveOpenBill(
   return { success: true, billId: data.id, printJobs };
 }
 
-export async function deleteOpenBill(businessId: string, billId: string) {
+export async function deleteOpenBill(
+  businessId: string,
+  billId: string,
+  cashierName?: string,
+) {
   const supabase = await createClient();
+
+  // Ambil dulu sebelum dihapus supaya log-nya mencatat apa yang sungguh
+  // hilang (label + jumlah item), bukan cuma "sebuah bon dihapus".
+  const { data: bill } = await supabase
+    .from("open_bills")
+    .select("label, items")
+    .eq("id", billId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
   await supabase.from("open_bills").delete().eq("id", billId).eq("business_id", businessId);
+
+  if (bill) {
+    const itemCount = Array.isArray(bill.items) ? bill.items.length : 0;
+    await logActivity(
+      supabase,
+      businessId,
+      "transaksi",
+      "warning",
+      `Open Bill dihapus: ${bill.label}`,
+      `${itemCount} jenis item · oleh ${cashierName ?? "tidak diketahui"}`,
+    );
+  }
+
   revalidatePath(`/business/${businessId}/pos`);
 }
 
