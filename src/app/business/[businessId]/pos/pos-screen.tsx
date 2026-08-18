@@ -760,7 +760,14 @@ export default function PosScreen({
     }
 
     if (result.printJobs.length > 0) {
-      void dispatchPrintJobs(businessId, result.printJobs);
+      dispatchPrintJobs(businessId, result.printJobs).then((results) => {
+        const failed = results.filter((r) => !r.result.ok);
+        setInboxNotice(
+          failed.length === 0
+            ? "🖨️ Struk dapur berhasil dikirim ke printer."
+            : `⚠️ Struk dapur gagal: ${failed.map((r) => r.job.printerName).join(", ")} — dicoba lagi otomatis.`,
+        );
+      }).catch(() => {});
     }
 
     setCart([]);
@@ -868,7 +875,16 @@ export default function PosScreen({
     setOrderBusyId(orderId);
     const result = await updateSelfOrderStatus(businessId, orderId, status);
     setOrderBusyId(null);
-    if (result.printJobs) void dispatchPrintJobs(businessId, result.printJobs);
+    if (result.printJobs && result.printJobs.length > 0) {
+      dispatchPrintJobs(businessId, result.printJobs).then((results) => {
+        const failed = results.filter((r) => !r.result.ok);
+        if (failed.length > 0) {
+          setInboxNotice(
+            `⚠️ Struk dapur gagal: ${failed.map((r) => r.job.printerName).join(", ")} — dicoba lagi otomatis.`,
+          );
+        }
+      }).catch(() => {});
+    }
     void getSelfOrders(businessId).then(setSelfOrders).catch(() => {});
   }
 
