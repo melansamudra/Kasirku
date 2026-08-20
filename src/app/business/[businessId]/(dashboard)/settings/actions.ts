@@ -580,52 +580,8 @@ export async function updateTaxService(
   return { error: null, saved: true };
 }
 
-export type PayrollDeductionsState = { error: string | null; saved: boolean };
-
-export async function updatePayrollDeductions(
-  businessId: string,
-  _prevState: PayrollDeductionsState,
-  formData: FormData,
-): Promise<PayrollDeductionsState> {
-  const izinWeekday = Number(formData.get("izinDeductionWeekday"));
-  const izinWeekend = Number(formData.get("izinDeductionWeekend"));
-  const latePerOccurrence = Number(formData.get("lateDeductionPerOccurrence"));
-
-  if (Number.isNaN(izinWeekday) || izinWeekday < 0) {
-    return { error: "Potongan izin hari biasa harus angka 0 atau lebih.", saved: false };
-  }
-  if (Number.isNaN(izinWeekend) || izinWeekend < 0) {
-    return { error: "Potongan izin weekend harus angka 0 atau lebih.", saved: false };
-  }
-  if (Number.isNaN(latePerOccurrence) || latePerOccurrence < 0) {
-    return { error: "Potongan per keterlambatan harus angka 0 atau lebih.", saved: false };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("businesses")
-    .update({
-      izin_deduction_weekday: izinWeekday,
-      izin_deduction_weekend: izinWeekend,
-      late_deduction_per_occurrence: latePerOccurrence,
-    })
-    .eq("id", businessId);
-
-  if (error) {
-    return { error: error.message, saved: false };
-  }
-
-  await logActivity(
-    supabase,
-    businessId,
-    "pengaturan",
-    "sukses",
-    "Pengaturan potongan payroll diperbarui",
-    `Izin hari biasa Rp${izinWeekday.toLocaleString("id-ID")} · Izin weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")}`,
-  );
-  revalidatePath(`/business/${businessId}/settings`);
-  return { error: null, saved: true };
-}
+// Pindah ke payroll/actions.ts (updatePayrollDeductions) supaya bisa diedit
+// langsung dari halaman Payroll, bukan dari sini — biar tidak bolak-balik.
 
 export async function saveReceiptSettings(
   businessId: string,

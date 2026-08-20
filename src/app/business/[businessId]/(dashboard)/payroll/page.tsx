@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { PillBadge } from "@/components/ui/pill-badge";
-import { createPayslip, addEmployeeAdvance } from "./actions";
+import { createPayslip, addEmployeeAdvance, updatePayrollDeductions } from "./actions";
 import CreatePayslipForm from "./create-payslip-form";
 import DeletePayslipButton from "./delete-payslip-button";
 import AddAdvanceForm from "./add-advance-form";
+import PayrollDeductionsForm from "./payroll-deductions-form";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -74,7 +75,7 @@ export default async function PayrollPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
     .eq("id", businessId)
     .single();
 
@@ -179,6 +180,30 @@ export default async function PayrollPage({
             icon={HandCoins}
             tone={totalKasbonBeredar > 0 ? "amber" : "brand"}
           />
+        </div>
+
+        <Link
+          href={`/business/${businessId}/payroll/rekap`}
+          className="mt-4 flex items-center justify-between rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
+        >
+          Lihat Rekap Payroll Bulanan
+          <span className="text-brand-600">→</span>
+        </Link>
+
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Potongan Payroll</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Berlaku sama untuk semua karyawan — dipakai otomatis saat slip gaji dibuat dari data
+            Absensi.
+          </p>
+          <div className="mt-4">
+            <PayrollDeductionsForm
+              action={updatePayrollDeductions.bind(null, businessId)}
+              izinDeductionWeekday={Number(business.izin_deduction_weekday)}
+              izinDeductionWeekend={Number(business.izin_deduction_weekend)}
+              lateDeductionPerOccurrence={Number(business.late_deduction_per_occurrence)}
+            />
+          </div>
         </div>
 
         <div className="mt-6 space-y-2">

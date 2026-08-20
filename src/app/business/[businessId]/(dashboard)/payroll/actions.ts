@@ -3,8 +3,56 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { calcPayslip } from "./calc";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+export type PayrollDeductionsState = { error: string | null; saved: boolean };
+
+export async function updatePayrollDeductions(
+  businessId: string,
+  _prevState: PayrollDeductionsState,
+  formData: FormData,
+): Promise<PayrollDeductionsState> {
+  const izinWeekday = Number(formData.get("izinDeductionWeekday"));
+  const izinWeekend = Number(formData.get("izinDeductionWeekend"));
+  const latePerOccurrence = Number(formData.get("lateDeductionPerOccurrence"));
+
+  if (Number.isNaN(izinWeekday) || izinWeekday < 0) {
+    return { error: "Potongan izin hari biasa harus angka 0 atau lebih.", saved: false };
+  }
+  if (Number.isNaN(izinWeekend) || izinWeekend < 0) {
+    return { error: "Potongan izin weekend harus angka 0 atau lebih.", saved: false };
+  }
+  if (Number.isNaN(latePerOccurrence) || latePerOccurrence < 0) {
+    return { error: "Potongan per keterlambatan harus angka 0 atau lebih.", saved: false };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({
+      izin_deduction_weekday: izinWeekday,
+      izin_deduction_weekend: izinWeekend,
+      late_deduction_per_occurrence: latePerOccurrence,
+    })
+    .eq("id", businessId);
+
+  if (error) {
+    return { error: error.message, saved: false };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    "Pengaturan potongan payroll diperbarui",
+    `Izin hari biasa Rp${izinWeekday.toLocaleString("id-ID")} · Izin weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")}`,
+  );
+  revalidatePath(`/business/${businessId}/payroll`);
+  return { error: null, saved: true };
+}
 
 // Return value: pesan error kalau posting jurnal gagal, null kalau sukses.
 // Baris payslips sudah kadung ditandai dibayar di titik ini (lihat pemanggil)
@@ -74,45 +122,21 @@ export async function createPayslip(
     .gte("date", periodStart)
     .lte("date", periodEnd);
 
-  const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
-  let izinWeekdayCount = 0;
-  let izinWeekendCount = 0;
-  let lateCount = 0;
-  for (const r of attendanceRows ?? []) {
-    counts[r.status as keyof typeof counts] += 1;
-    if (r.status === "izin") {
-      const dow = new Date(`${r.date}T00:00:00Z`).getUTCDay(); // 0 = Minggu, 6 = Sabtu
-      if (dow === 0 || dow === 6) izinWeekendCount += 1;
-      else izinWeekdayCount += 1;
-    }
-    if (r.late) lateCount += 1;
-  }
-
-  // Hari kerja efektif = total hari di periode dikurangi hari Off — dipakai
-  // buat menurunkan rate harian dari gaji bulanan, jadi beda tiap bulan
-  // tergantung panjang bulan & berapa hari Off yang diberikan.
-  const totalDaysInPeriod =
-    Math.round(
-      (new Date(`${periodEnd}T00:00:00Z`).getTime() - new Date(`${periodStart}T00:00:00Z`).getTime()) /
-        86400000,
-    ) + 1;
-  const hariKerjaEfektif = Math.max(1, totalDaysInPeriod - counts.off);
-
   const salaryType = employee.salary_type === "bulanan" ? "bulanan" : "harian";
   const dailyRate = Number(employee.daily_rate);
   const monthlyRate = Number(employee.monthly_rate);
-  // Izin sekarang dihitung tetap dibayar (seperti hadir) di gaji pokok, tapi
-  // kena potongan tetap terpisah — menggantikan cara lama (izin = tidak
-  // dihitung sama sekali, sehingga upah hari itu hilang begitu saja).
-  const dailyEquivalent = salaryType === "bulanan" ? monthlyRate / hariKerjaEfektif : dailyRate;
-  const basePay = dailyEquivalent * (counts.hadir + counts.izin);
 
-  const izinDeductionWeekday = Number(business.izin_deduction_weekday);
-  const izinDeductionWeekend = Number(business.izin_deduction_weekend);
-  const izinDeduction = izinWeekdayCount * izinDeductionWeekday + izinWeekendCount * izinDeductionWeekend;
-
-  const lateDeductionPerOccurrence = Number(business.late_deduction_per_occurrence);
-  const lateDeduction = lateCount * lateDeductionPerOccurrence;
+  const calc = calcPayslip(
+    periodStart,
+    periodEnd,
+    attendanceRows ?? [],
+    { salaryType, dailyRate, monthlyRate },
+    {
+      izinDeductionWeekday: Number(business.izin_deduction_weekday),
+      izinDeductionWeekend: Number(business.izin_deduction_weekend),
+      lateDeductionPerOccurrence: Number(business.late_deduction_per_occurrence),
+    },
+  );
 
   const { data: payslip, error } = await supabase
     .from("payslips")
@@ -124,18 +148,18 @@ export async function createPayslip(
       salary_type: salaryType,
       daily_rate: dailyRate,
       monthly_rate: monthlyRate,
-      hadir_count: counts.hadir,
-      izin_count: counts.izin,
-      sakit_count: counts.sakit,
-      alpa_count: counts.alpa,
-      off_count: counts.off,
-      izin_weekday_count: izinWeekdayCount,
-      izin_weekend_count: izinWeekendCount,
-      izin_deduction: izinDeduction,
-      late_count: lateCount,
-      late_deduction: lateDeduction,
-      hari_kerja_efektif: hariKerjaEfektif,
-      base_pay: basePay,
+      hadir_count: calc.hadirCount,
+      izin_count: calc.izinCount,
+      sakit_count: calc.sakitCount,
+      alpa_count: calc.alpaCount,
+      off_count: calc.offCount,
+      izin_weekday_count: calc.izinWeekdayCount,
+      izin_weekend_count: calc.izinWeekendCount,
+      izin_deduction: calc.izinDeduction,
+      late_count: calc.lateCount,
+      late_deduction: calc.lateDeduction,
+      hari_kerja_efektif: calc.hariKerjaEfektif,
+      base_pay: calc.basePay,
     })
     .select("id")
     .single();
@@ -150,7 +174,7 @@ export async function createPayslip(
     "sistem",
     "sukses",
     `Slip gaji dibuat: ${employee.name}`,
-    `${periodStart} s/d ${periodEnd} · ${counts.hadir} hari kerja`,
+    `${periodStart} s/d ${periodEnd} · ${calc.hadirCount} hari kerja`,
   );
 
   revalidatePath(`/business/${businessId}/payroll`);
