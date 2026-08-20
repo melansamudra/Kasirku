@@ -4,6 +4,88 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+const REPORT_TIMEZONE = "Asia/Jakarta";
+
+function wibMinutesOfDay(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: REPORT_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(iso));
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return h * 60 + m;
+}
+
+function timeStrToMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Dipanggil tiap kali shift di-assign/diganti/dihapus untuk satu
+// (employee_id, date) — kalau hari itu sudah kepakai absen selfie duluan
+// (urutannya kebalik: absen dulu, shift-nya baru di-set admin belakangan),
+// telat/lembur yang sudah tersimpan dihitung ULANG dari jam absen yang
+// sudah ada, bukan dibiarkan nyangkut di 0. Tanpa ini, admin yang lupa
+// nyiapin jadwal duluan bakal kehilangan deteksi otomatisnya untuk hari
+// itu selamanya.
+async function recomputeAttendanceForShift(
+  supabase: SupabaseServerClient,
+  businessId: string,
+  employeeId: string,
+  date: string,
+  shiftTemplateId: string | null,
+) {
+  const { data: attendance } = await supabase
+    .from("attendance")
+    .select("id, check_in_at, check_out_at")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId)
+    .eq("date", date)
+    .maybeSingle();
+
+  if (!attendance || (!attendance.check_in_at && !attendance.check_out_at)) {
+    return; // Belum ada absen selfie hari itu — tidak ada yang perlu dihitung ulang.
+  }
+
+  let shift: { start_time: string; end_time: string } | null = null;
+  if (shiftTemplateId) {
+    const { data } = await supabase
+      .from("shift_templates")
+      .select("start_time, end_time")
+      .eq("id", shiftTemplateId)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    shift = data;
+  }
+
+  const lateMinutes =
+    shift && attendance.check_in_at
+      ? Math.max(0, wibMinutesOfDay(attendance.check_in_at) - timeStrToMinutes(shift.start_time))
+      : 0;
+  const overtimeHours =
+    shift && attendance.check_out_at
+      ? Math.max(
+          0,
+          Math.round(((wibMinutesOfDay(attendance.check_out_at) - timeStrToMinutes(shift.end_time)) / 60) * 100) /
+            100,
+        )
+      : 0;
+
+  await supabase
+    .from("attendance")
+    .update({
+      shift_template_id: shiftTemplateId,
+      late_minutes: lateMinutes,
+      late: lateMinutes > 0,
+      overtime_hours: overtimeHours,
+    })
+    .eq("id", attendance.id);
+}
+
 export type AddShiftTemplateState = { error: string | null };
 
 export async function addShiftTemplate(
@@ -73,7 +155,10 @@ export async function assignShift(
       .eq("employee_id", employeeId)
       .eq("date", date);
     if (error) return { error: error.message };
+
+    await recomputeAttendanceForShift(supabase, businessId, employeeId, date, null);
     revalidatePath(`/business/${businessId}/jadwal-shift`);
+    revalidatePath(`/business/${businessId}/attendance`);
     return { error: null };
   }
 
@@ -83,7 +168,10 @@ export async function assignShift(
   );
 
   if (error) return { error: error.message };
+
+  await recomputeAttendanceForShift(supabase, businessId, employeeId, date, shiftTemplateId);
   revalidatePath(`/business/${businessId}/jadwal-shift`);
+  revalidatePath(`/business/${businessId}/attendance`);
   return { error: null };
 }
 
@@ -104,22 +192,30 @@ export async function applyShiftToRange(
   }
 
   const supabase = await createClient();
-  const rows = Array.from({ length: days }, (_, i) => {
+  const dates = Array.from({ length: days }, (_, i) => {
     const d = new Date(`${startDate}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() + i);
-    return {
-      business_id: businessId,
-      employee_id: employeeId,
-      date: d.toISOString().slice(0, 10),
-      shift_template_id: shiftTemplateId,
-    };
+    return d.toISOString().slice(0, 10);
   });
+  const rows = dates.map((date) => ({
+    business_id: businessId,
+    employee_id: employeeId,
+    date,
+    shift_template_id: shiftTemplateId,
+  }));
 
   const { error } = await supabase
     .from("employee_shift_assignments")
     .upsert(rows, { onConflict: "employee_id,date" });
 
   if (error) return { error: error.message };
+
+  // Kalau di antara hari-hari itu ada yang sudah kepakai absen selfie
+  // (jarang tapi mungkin, mis. terapkan ke tanggal lampau), hitung ulang
+  // juga — sama seperti assignShift satu hari.
+  for (const date of dates) {
+    await recomputeAttendanceForShift(supabase, businessId, employeeId, date, shiftTemplateId);
+  }
 
   await logActivity(
     supabase,
@@ -130,6 +226,7 @@ export async function applyShiftToRange(
     `${days} hari mulai ${startDate}`,
   );
   revalidatePath(`/business/${businessId}/jadwal-shift`);
+  revalidatePath(`/business/${businessId}/attendance`);
   return { error: null };
 }
 
