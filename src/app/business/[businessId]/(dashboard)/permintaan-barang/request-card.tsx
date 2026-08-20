@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { receivePurchaseRequest } from "./actions";
 import ItemRow from "./item-row";
+import SupplierGroup from "./supplier-group";
 
 type Supplier = { id: string; name: string; phone: string | null };
 type RequestItem = {
@@ -73,6 +74,20 @@ export default function RequestCard({
     diteruskan: "border-brand-600 bg-brand-50 text-brand-700",
   };
 
+  const supplierMap = new Map(suppliers.map((s) => [s.id, s]));
+
+  // Barang yang sudah dipilih supplier-nya tapi belum diteruskan, dikelompokkan
+  // per supplier — biar "Teruskan" itu satu kali per supplier (satu WA), bukan
+  // satu kali per barang.
+  const readyGroups = new Map<string, RequestItem[]>();
+  for (const it of request.items) {
+    if (it.supplierId && !it.forwardedAt) {
+      const list = readyGroups.get(it.supplierId) ?? [];
+      list.push(it);
+      readyGroups.set(it.supplierId, list);
+    }
+  }
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -103,19 +118,34 @@ export default function RequestCard({
                 </div>
               </div>
             ))
-          : request.items.map((it) => (
-              <ItemRow
-                key={it.id}
+          : request.items.map((it) => <ItemRow key={it.id} businessId={businessId} suppliers={suppliers} item={it} />)}
+      </div>
+
+      {readyGroups.size > 0 && (
+        <div className="mt-3 space-y-2">
+          {Array.from(readyGroups.entries()).map(([supplierId, items]) => {
+            const supplier = supplierMap.get(supplierId);
+            if (!supplier) return null;
+            return (
+              <SupplierGroup
+                key={supplierId}
                 businessId={businessId}
                 requestId={request.id}
                 businessName={businessName}
                 employeeName={request.employeeName}
                 createdAt={request.createdAt}
-                suppliers={suppliers}
-                item={it}
+                supplier={supplier}
+                items={items.map((it) => ({
+                  id: it.id,
+                  itemName: it.itemName,
+                  unit: it.unit,
+                  qty: it.approvedQty ?? it.qtyOrdered,
+                }))}
               />
-            ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {request.note && <p className="mt-2 text-xs italic text-zinc-500">Catatan: {request.note}</p>}
 

@@ -71,27 +71,39 @@ export async function updateItemApprovedQty(
   return { error: null };
 }
 
-export async function forwardItemToSupplier(
+// Diteruskan per SUPPLIER, bukan per barang — kalau satu order punya 10
+// barang buat supplier yang sama, ini satu kali panggilan (satu WA, satu
+// "invoice") yang menandai forwarded_at ke-10 barang itu sekaligus, bukan
+// 10 kali forward terpisah.
+export async function forwardItemsToSupplier(
   businessId: string,
   requestId: string,
-  itemId: string,
+  itemIds: string[],
 ): Promise<ActionState> {
+  if (itemIds.length === 0) {
+    return { error: "Tidak ada barang yang dipilih." };
+  }
+
   const supabase = await createClient();
 
-  const { data: item } = await supabase
+  const { data: items } = await supabase
     .from("purchase_request_items")
     .select("id, item_name, supplier_id")
-    .eq("id", itemId)
+    .in("id", itemIds)
     .eq("business_id", businessId)
-    .single();
+    .eq("purchase_request_id", requestId);
 
-  if (!item) return { error: "Barang tidak ditemukan." };
-  if (!item.supplier_id) return { error: "Pilih supplier dulu sebelum diteruskan." };
+  if (!items || items.length === 0) return { error: "Barang tidak ditemukan." };
+
+  const supplierId = items[0].supplier_id;
+  if (!supplierId || items.some((it) => it.supplier_id !== supplierId)) {
+    return { error: "Semua barang yang diteruskan bareng harus punya supplier yang sama." };
+  }
 
   const { error } = await supabase
     .from("purchase_request_items")
     .update({ forwarded_at: new Date().toISOString() })
-    .eq("id", itemId)
+    .in("id", itemIds)
     .eq("business_id", businessId);
 
   if (error) return { error: error.message };
@@ -101,8 +113,8 @@ export async function forwardItemToSupplier(
     businessId,
     "produk",
     "sukses",
-    "Barang order diteruskan ke supplier",
-    item.item_name,
+    "Order barang diteruskan ke supplier",
+    `${items.length} barang: ${items.map((i) => i.item_name).join(", ")}`,
   );
 
   // Kalau semua barang di order ini sudah diteruskan, tandai order-nya

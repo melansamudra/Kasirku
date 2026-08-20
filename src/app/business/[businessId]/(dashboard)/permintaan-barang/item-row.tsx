@@ -2,43 +2,16 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { assignItemSupplier, forwardItemToSupplier, updateItemApprovedQty } from "./actions";
+import { assignItemSupplier, updateItemApprovedQty } from "./actions";
 
-type Supplier = { id: string; name: string; phone: string | null };
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("id-ID", {
-    timeZone: "Asia/Jakarta",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-// Normalisasi kasar nomor HP Indonesia ke format internasional buat wa.me —
-// nomor supplier biasanya diawali 0, wa.me butuh kode negara.
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("62")) return digits;
-  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
-  return `62${digits}`;
-}
+type Supplier = { id: string; name: string };
 
 export default function ItemRow({
   businessId,
-  requestId,
-  businessName,
-  employeeName,
-  createdAt,
   suppliers,
   item,
 }: {
   businessId: string;
-  requestId: string;
-  businessName: string;
-  employeeName: string;
-  createdAt: string;
   suppliers: Supplier[];
   item: {
     id: string;
@@ -90,31 +63,6 @@ export default function ItemRow({
         setError(res.error);
         return;
       }
-      router.refresh();
-    });
-  }
-
-  function handleForward() {
-    setError(null);
-    setPending(true);
-    forwardItemToSupplier(businessId, requestId, item.id).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      const supplier = supplierMap.get(supplierId);
-      const waText = [
-        `*Order Barang — ${businessName}*`,
-        `Dari: ${employeeName}`,
-        `Tanggal: ${formatDateTime(createdAt)}`,
-        "",
-        `${item.itemName}: ${finalQty}${item.unit ? ` ${item.unit}` : ""}`,
-      ].join("\n");
-      const waHref = supplier?.phone
-        ? `https://wa.me/${normalizePhone(supplier.phone)}?text=${encodeURIComponent(waText)}`
-        : `https://wa.me/?text=${encodeURIComponent(waText)}`;
-      window.open(waHref, "_blank");
       router.refresh();
     });
   }
@@ -186,14 +134,6 @@ export default function ItemRow({
             </option>
           ))}
         </select>
-
-        <button
-          onClick={handleForward}
-          disabled={pending || !supplierId}
-          className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-        >
-          Teruskan
-        </button>
       </div>
       {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
     </div>
