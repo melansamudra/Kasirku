@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarCheck, Clock, Thermometer, UserX } from "lucide-react";
+import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import type { AttendanceStatus } from "../actions";
@@ -74,19 +74,20 @@ export default async function AttendanceRekapPage({
 
   const recap = new Map<string, Record<AttendanceStatus, number>>();
   for (const e of employees ?? []) {
-    recap.set(e.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
+    recap.set(e.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 });
   }
   for (const r of monthRows ?? []) {
     const entry = recap.get(r.employee_id);
     if (entry) entry[r.status as AttendanceStatus] += 1;
   }
 
-  const totals = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+  const totals = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   for (const entry of recap.values()) {
     totals.hadir += entry.hadir;
     totals.izin += entry.izin;
     totals.sakit += entry.sakit;
     totals.alpa += entry.alpa;
+    totals.off += entry.off;
   }
 
   return (
@@ -124,11 +125,12 @@ export default async function AttendanceRekapPage({
       <p className="mt-1 hidden text-[11px] text-zinc-400 print:block">{monthLabel(month)}</p>
 
       {employees && employees.length > 0 && (
-        <div className="mt-4 grid grid-cols-4 gap-2.5 print:hidden">
+        <div className="mt-4 grid grid-cols-5 gap-2 print:hidden">
           <StatCard label="Hadir" value={String(totals.hadir)} icon={CalendarCheck} tone="brand" />
           <StatCard label="Izin" value={String(totals.izin)} icon={Clock} tone="amber" />
           <StatCard label="Sakit" value={String(totals.sakit)} icon={Thermometer} tone="blue" />
           <StatCard label="Alpa" value={String(totals.alpa)} icon={UserX} tone="red" />
+          <StatCard label="Off" value={String(totals.off)} icon={CalendarOff} tone="zinc" />
         </div>
       )}
 
@@ -147,7 +149,8 @@ export default async function AttendanceRekapPage({
                     <span className="text-brand-700">{r.hadir} hadir</span> ·{" "}
                     <span className="text-amber-600">{r.izin} izin</span> ·{" "}
                     <span className="text-blue-600">{r.sakit} sakit</span> ·{" "}
-                    <span className="text-red-600">{r.alpa} alpa</span>
+                    <span className="text-red-600">{r.alpa} alpa</span> ·{" "}
+                    <span className="text-zinc-500">{r.off} off</span>
                   </span>
                 </div>
               );

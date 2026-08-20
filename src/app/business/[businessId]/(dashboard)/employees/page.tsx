@@ -28,7 +28,9 @@ export default async function EmployeesPage({
 
   const { data: employees } = await supabase
     .from("employees")
-    .select("id, name, daily_rate, active, note, cashier_id, contract_end, cashiers(name)")
+    .select(
+      "id, name, salary_type, daily_rate, monthly_rate, active, note, cashier_id, contract_end, cashiers(name)",
+    )
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
@@ -84,9 +86,13 @@ export default async function EmployeesPage({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-zinc-900">{e.name}</p>
                   <p className="text-xs text-zinc-500">
-                    {Number(e.daily_rate) > 0
-                      ? `Rp${Number(e.daily_rate).toLocaleString("id-ID")}/hari`
-                      : "Gaji harian belum diisi"}
+                    {e.salary_type === "bulanan"
+                      ? Number(e.monthly_rate) > 0
+                        ? `Rp${Number(e.monthly_rate).toLocaleString("id-ID")}/bulan`
+                        : "Gaji bulanan belum diisi"
+                      : Number(e.daily_rate) > 0
+                        ? `Rp${Number(e.daily_rate).toLocaleString("id-ID")}/hari`
+                        : "Gaji harian belum diisi"}
                     {linkedCashierName && <> · akun kasir: {linkedCashierName}</>}
                   </p>
                   {e.note && <p className="text-xs text-zinc-400">{e.note}</p>}
@@ -109,7 +115,9 @@ export default async function EmployeesPage({
                 )}
                 <EditEmployeeForm
                   name={e.name}
+                  salaryType={e.salary_type === "bulanan" ? "bulanan" : "harian"}
                   dailyRate={Number(e.daily_rate)}
+                  monthlyRate={Number(e.monthly_rate)}
                   note={e.note}
                   cashierId={e.cashier_id}
                   contractEnd={e.contract_end}

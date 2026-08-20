@@ -6,19 +6,37 @@ import { logActivity } from "@/lib/activity-log";
 
 function parseEmployeeFields(formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
+  const salaryTypeRaw = formData.get("salaryType") as string;
   const dailyRateRaw = formData.get("dailyRate") as string;
+  const monthlyRateRaw = formData.get("monthlyRate") as string;
   const note = (formData.get("note") as string)?.trim();
   const cashierId = (formData.get("cashierId") as string) || null;
   const contractEnd = (formData.get("contractEnd") as string) || null;
 
   if (!name) return { error: "Nama karyawan wajib diisi." } as const;
 
+  const salaryType = salaryTypeRaw === "bulanan" ? "bulanan" : "harian";
+
   const dailyRate = dailyRateRaw ? Number(dailyRateRaw) : 0;
   if (Number.isNaN(dailyRate) || dailyRate < 0) {
     return { error: "Gaji harian harus angka dan tidak boleh negatif." } as const;
   }
 
-  return { error: null, name, dailyRate, note: note || null, cashierId, contractEnd } as const;
+  const monthlyRate = monthlyRateRaw ? Number(monthlyRateRaw) : 0;
+  if (Number.isNaN(monthlyRate) || monthlyRate < 0) {
+    return { error: "Gaji bulanan harus angka dan tidak boleh negatif." } as const;
+  }
+
+  return {
+    error: null,
+    name,
+    salaryType,
+    dailyRate,
+    monthlyRate,
+    note: note || null,
+    cashierId,
+    contractEnd,
+  } as const;
 }
 
 export type AddEmployeeState = { error: string | null };
@@ -35,7 +53,9 @@ export async function addEmployee(
   const { error } = await supabase.from("employees").insert({
     business_id: businessId,
     name: parsed.name,
+    salary_type: parsed.salaryType,
     daily_rate: parsed.dailyRate,
+    monthly_rate: parsed.monthlyRate,
     note: parsed.note,
     cashier_id: parsed.cashierId,
     contract_end: parsed.contractEnd,
@@ -69,7 +89,9 @@ export async function editEmployee(
     .from("employees")
     .update({
       name: parsed.name,
+      salary_type: parsed.salaryType,
       daily_rate: parsed.dailyRate,
+      monthly_rate: parsed.monthlyRate,
       note: parsed.note,
       cashier_id: parsed.cashierId,
       contract_end: parsed.contractEnd,

@@ -47,7 +47,7 @@ export async function createPayslip(
 
   const { data: employee } = await supabase
     .from("employees")
-    .select("name, daily_rate")
+    .select("name, salary_type, daily_rate, monthly_rate")
     .eq("id", employeeId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -64,13 +64,17 @@ export async function createPayslip(
     .gte("date", periodStart)
     .lte("date", periodEnd);
 
-  const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+  const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   for (const r of attendanceRows ?? []) {
     counts[r.status as keyof typeof counts] += 1;
   }
 
+  const salaryType = employee.salary_type === "bulanan" ? "bulanan" : "harian";
   const dailyRate = Number(employee.daily_rate);
-  const basePay = dailyRate * counts.hadir;
+  const monthlyRate = Number(employee.monthly_rate);
+  // Bulanan: nominal flat per periode slip (tidak dihitung dari hari hadir).
+  // Harian: tetap seperti semula, dikali hari hadir.
+  const basePay = salaryType === "bulanan" ? monthlyRate : dailyRate * counts.hadir;
 
   const { data: payslip, error } = await supabase
     .from("payslips")
@@ -79,11 +83,14 @@ export async function createPayslip(
       employee_id: employeeId,
       period_start: periodStart,
       period_end: periodEnd,
+      salary_type: salaryType,
       daily_rate: dailyRate,
+      monthly_rate: monthlyRate,
       hadir_count: counts.hadir,
       izin_count: counts.izin,
       sakit_count: counts.sakit,
       alpa_count: counts.alpa,
+      off_count: counts.off,
       base_pay: basePay,
     })
     .select("id")
@@ -140,7 +147,9 @@ export async function markPayslipPaid(
 
   const { data: payslip } = await supabase
     .from("payslips")
-    .select("id, base_pay, lembur_amount, thr_amount, paid_at, period_end, employees(name)")
+    .select(
+      "id, base_pay, lembur_amount, thr_amount, late_deduction, kasbon_deduction, paid_at, period_end, employees(name)",
+    )
     .eq("id", payslipId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -168,7 +177,9 @@ export async function markPayslipPaid(
     Number(payslip.lembur_amount) +
     Number(payslip.thr_amount) +
     tunjangan -
-    potongan;
+    potongan -
+    Number(payslip.late_deduction) -
+    Number(payslip.kasbon_deduction);
 
   if (total <= 0) {
     return { error: "Total gaji harus lebih dari 0 untuk ditandai dibayar." };
@@ -260,6 +271,147 @@ export async function updatePayslipExtras(
   );
 
   revalidatePath(`/business/${businessId}/payroll/${payslipId}`);
+  return { error: null };
+}
+
+export async function updatePayslipDeductions(
+  businessId: string,
+  payslipId: string,
+  lateDeduction: number,
+  kasbonDeduction: number,
+): Promise<{ error: string | null }> {
+  if (
+    Number.isNaN(lateDeduction) ||
+    lateDeduction < 0 ||
+    Number.isNaN(kasbonDeduction) ||
+    kasbonDeduction < 0
+  ) {
+    return { error: "Nominal potongan keterlambatan dan kasbon harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: payslip } = await supabase
+    .from("payslips")
+    .select("id, employee_id, paid_at")
+    .eq("id", payslipId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!payslip) {
+    return { error: "Slip gaji tidak ditemukan." };
+  }
+  if (payslip.paid_at) {
+    return { error: "Slip gaji sudah dibayar, tidak bisa diubah lagi." };
+  }
+
+  if (kasbonDeduction > 0) {
+    const outstanding = await getOutstandingKasbon(supabase, businessId, payslip.employee_id);
+    if (kasbonDeduction > outstanding) {
+      return {
+        error: `Potongan kasbon (Rp${kasbonDeduction.toLocaleString("id-ID")}) melebihi sisa kasbon karyawan ini (Rp${outstanding.toLocaleString("id-ID")}).`,
+      };
+    }
+  }
+
+  const { error } = await supabase
+    .from("payslips")
+    .update({ late_deduction: lateDeduction, kasbon_deduction: kasbonDeduction })
+    .eq("id", payslipId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Potongan keterlambatan/kasbon diperbarui",
+    `Keterlambatan Rp${lateDeduction.toLocaleString("id-ID")} · Kasbon Rp${kasbonDeduction.toLocaleString("id-ID")}`,
+  );
+
+  revalidatePath(`/business/${businessId}/payroll/${payslipId}`);
+  return { error: null };
+}
+
+// Sisa kasbon = total kasbon yang pernah diberikan dikurangi kasbon_deduction
+// dari slip-slip yang SUDAH dibayar (bukan settled_amount terpisah) — supaya
+// potongan di slip yang masih bisa diedit/dihapus belum dianggap lunas.
+async function getOutstandingKasbon(
+  supabase: SupabaseServerClient,
+  businessId: string,
+  employeeId: string,
+): Promise<number> {
+  const [{ data: advances }, { data: paidSlips }] = await Promise.all([
+    supabase
+      .from("employee_advances")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId),
+    supabase
+      .from("payslips")
+      .select("kasbon_deduction")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .not("paid_at", "is", null),
+  ]);
+
+  const given = (advances ?? []).reduce((s, a) => s + Number(a.amount), 0);
+  const settled = (paidSlips ?? []).reduce((s, p) => s + Number(p.kasbon_deduction), 0);
+  return Math.max(0, given - settled);
+}
+
+export async function addEmployeeAdvance(
+  businessId: string,
+  employeeId: string,
+  date: string,
+  amount: number,
+  note: string,
+): Promise<{ error: string | null }> {
+  if (!date) {
+    return { error: "Tanggal wajib diisi." };
+  }
+  if (Number.isNaN(amount) || amount <= 0) {
+    return { error: "Nominal kasbon harus angka lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("name")
+    .eq("id", employeeId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!employee) {
+    return { error: "Karyawan tidak ditemukan." };
+  }
+
+  const { error } = await supabase.from("employee_advances").insert({
+    business_id: businessId,
+    employee_id: employeeId,
+    date,
+    amount,
+    note: note.trim() || null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    `Kasbon dicatat: ${employee.name}`,
+    `Rp${amount.toLocaleString("id-ID")}`,
+  );
+
+  revalidatePath(`/business/${businessId}/payroll`);
   return { error: null };
 }
 

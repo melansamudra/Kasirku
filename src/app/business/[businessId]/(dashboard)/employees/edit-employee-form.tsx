@@ -6,7 +6,9 @@ import type { EditEmployeeState } from "./actions";
 
 export default function EditEmployeeForm({
   name,
+  salaryType,
   dailyRate,
+  monthlyRate,
   note,
   cashierId,
   contractEnd,
@@ -14,7 +16,9 @@ export default function EditEmployeeForm({
   action,
 }: {
   name: string;
+  salaryType: "harian" | "bulanan";
   dailyRate: number;
+  monthlyRate: number;
   note: string | null;
   cashierId: string | null;
   contractEnd: string | null;
@@ -25,7 +29,9 @@ export default function EditEmployeeForm({
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({
     name,
+    salaryType,
     dailyRate: String(dailyRate),
+    monthlyRate: String(monthlyRate),
     note: note ?? "",
     cashierId: cashierId ?? "",
     contractEnd: contractEnd ?? "",
@@ -49,7 +55,9 @@ export default function EditEmployeeForm({
     setPending(true);
     const formData = new FormData();
     formData.set("name", values.name);
+    formData.set("salaryType", values.salaryType);
     formData.set("dailyRate", values.dailyRate);
+    formData.set("monthlyRate", values.monthlyRate);
     formData.set("note", values.note);
     formData.set("cashierId", values.cashierId);
     formData.set("contractEnd", values.contractEnd);
@@ -77,16 +85,57 @@ export default function EditEmployeeForm({
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Gaji Harian (Rp)</label>
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={values.dailyRate}
-          onChange={(e) => setValues((v) => ({ ...v, dailyRate: e.target.value }))}
-          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Tipe Gaji</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setValues((v) => ({ ...v, salaryType: "harian" }))}
+            className={`rounded-lg border-2 py-2 text-xs font-semibold transition-colors ${
+              values.salaryType === "harian"
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-zinc-200 bg-white text-zinc-600"
+            }`}
+          >
+            Harian
+          </button>
+          <button
+            type="button"
+            onClick={() => setValues((v) => ({ ...v, salaryType: "bulanan" }))}
+            className={`rounded-lg border-2 py-2 text-xs font-semibold transition-colors ${
+              values.salaryType === "bulanan"
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-zinc-200 bg-white text-zinc-600"
+            }`}
+          >
+            Bulanan
+          </button>
+        </div>
       </div>
+      {values.salaryType === "harian" ? (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Gaji Harian (Rp)</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={values.dailyRate}
+            onChange={(e) => setValues((v) => ({ ...v, dailyRate: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Gaji Bulanan (Rp)</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={values.monthlyRate}
+            onChange={(e) => setValues((v) => ({ ...v, monthlyRate: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-xs font-medium text-zinc-600">
           Jabatan/Catatan

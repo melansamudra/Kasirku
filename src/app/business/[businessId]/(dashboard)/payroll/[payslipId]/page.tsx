@@ -1,9 +1,15 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addPayslipAdjustment, markPayslipPaid, updatePayslipExtras } from "../actions";
+import {
+  addPayslipAdjustment,
+  markPayslipPaid,
+  updatePayslipExtras,
+  updatePayslipDeductions,
+} from "../actions";
 import AddAdjustmentForm from "./add-adjustment-form";
 import DeleteAdjustmentButton from "./delete-adjustment-button";
 import LemburThrForm from "./lembur-thr-form";
+import DeductionsForm from "./deductions-form";
 import MarkPaidButton from "./mark-paid-button";
 import PrintButton from "./print-button";
 
@@ -37,7 +43,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, period_start, period_end, daily_rate, hadir_count, izin_count, sakit_count, alpa_count, base_pay, lembur_amount, thr_amount, created_at, paid_at, employees(name)",
+      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, base_pay, lembur_amount, thr_amount, late_deduction, kasbon_deduction, created_at, paid_at, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -47,11 +53,28 @@ export default async function PayslipDetailPage({
     notFound();
   }
 
-  const { data: adjustments } = await supabase
-    .from("payslip_adjustments")
-    .select("id, type, label, amount")
-    .eq("payslip_id", payslipId)
-    .order("created_at", { ascending: true });
+  const [{ data: adjustments }, { data: advances }, { data: paidSlips }] = await Promise.all([
+    supabase
+      .from("payslip_adjustments")
+      .select("id, type, label, amount")
+      .eq("payslip_id", payslipId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("employee_advances")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", payslip.employee_id),
+    supabase
+      .from("payslips")
+      .select("kasbon_deduction")
+      .eq("business_id", businessId)
+      .eq("employee_id", payslip.employee_id)
+      .not("paid_at", "is", null),
+  ]);
+
+  const kasbonGiven = (advances ?? []).reduce((s, a) => s + Number(a.amount), 0);
+  const kasbonSettled = (paidSlips ?? []).reduce((s, p) => s + Number(p.kasbon_deduction), 0);
+  const outstandingKasbon = Math.max(0, kasbonGiven - kasbonSettled);
 
   const employee = payslip.employees as unknown as { name: string } | null;
   const tunjangan = (adjustments ?? []).filter((a) => a.type === "tunjangan");
@@ -61,10 +84,14 @@ export default async function PayslipDetailPage({
   const basePay = Number(payslip.base_pay);
   const lemburAmount = Number(payslip.lembur_amount);
   const thrAmount = Number(payslip.thr_amount);
-  const totalDiterima = basePay + lemburAmount + thrAmount + totalTunjangan - totalPotongan;
+  const lateDeduction = Number(payslip.late_deduction);
+  const kasbonDeduction = Number(payslip.kasbon_deduction);
+  const totalDiterima =
+    basePay + lemburAmount + thrAmount + totalTunjangan - totalPotongan - lateDeduction - kasbonDeduction;
 
   const boundAddAdjustment = addPayslipAdjustment.bind(null, businessId, payslipId);
   const boundUpdateExtras = updatePayslipExtras.bind(null, businessId, payslipId);
+  const boundUpdateDeductions = updatePayslipDeductions.bind(null, businessId, payslipId);
   const boundMarkPaid = markPayslipPaid.bind(null, businessId, payslipId);
   const isPaid = Boolean(payslip.paid_at);
 
@@ -95,7 +122,7 @@ export default async function PayslipDetailPage({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-1.5 border-t border-dashed border-zinc-300 pt-3 text-center">
+          <div className="mt-3 grid grid-cols-5 gap-1 border-t border-dashed border-zinc-300 pt-3 text-center">
             <div>
               <p className="text-sm font-bold text-brand-700">{payslip.hadir_count}</p>
               <p className="text-[10px] text-zinc-400">Hadir</p>
@@ -112,12 +139,18 @@ export default async function PayslipDetailPage({
               <p className="text-sm font-bold text-red-600">{payslip.alpa_count}</p>
               <p className="text-[10px] text-zinc-400">Alpa</p>
             </div>
+            <div>
+              <p className="text-sm font-bold text-zinc-500">{payslip.off_count}</p>
+              <p className="text-[10px] text-zinc-400">Off</p>
+            </div>
           </div>
 
           <div className="mt-3 space-y-1.5 border-t border-dashed border-zinc-300 pt-3 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-600">
-                Gaji Pokok ({payslip.hadir_count} hari x {formatRupiah(Number(payslip.daily_rate))})
+                {payslip.salary_type === "bulanan"
+                  ? "Gaji Pokok (bulanan)"
+                  : `Gaji Pokok (${payslip.hadir_count} hari x ${formatRupiah(Number(payslip.daily_rate))})`}
               </span>
               <span className="font-semibold text-zinc-900">{formatRupiah(basePay)}</span>
             </div>
@@ -168,6 +201,18 @@ export default async function PayslipDetailPage({
                 </span>
               </div>
             ))}
+            {lateDeduction > 0 && (
+              <div className="flex justify-between text-red-500">
+                <span>− Potongan Keterlambatan</span>
+                <span>{formatRupiah(lateDeduction)}</span>
+              </div>
+            )}
+            {kasbonDeduction > 0 && (
+              <div className="flex justify-between text-red-500">
+                <span>− Potongan Kasbon</span>
+                <span>{formatRupiah(kasbonDeduction)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-base font-bold text-zinc-900">
               <span>Total Diterima</span>
               <span>{formatRupiah(totalDiterima)}</span>
@@ -193,6 +238,12 @@ export default async function PayslipDetailPage({
                 initialThr={thrAmount}
               />
               <AddAdjustmentForm action={boundAddAdjustment} />
+              <DeductionsForm
+                action={boundUpdateDeductions}
+                initialLate={lateDeduction}
+                initialKasbon={kasbonDeduction}
+                outstandingKasbon={outstandingKasbon}
+              />
               <MarkPaidButton action={boundMarkPaid} totalDiterima={totalDiterima} />
             </div>
           )}

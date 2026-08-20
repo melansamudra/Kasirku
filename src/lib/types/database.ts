@@ -453,12 +453,52 @@ export type Database = {
           },
         ];
       };
+      employee_advances: {
+        Row: {
+          id: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          employee_id?: string;
+          date?: string;
+          amount?: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "employee_advances_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       employees: {
         Row: {
           id: string;
           business_id: string;
           name: string;
+          salary_type: string;
           daily_rate: number;
+          monthly_rate: number;
           active: boolean;
           note: string | null;
           cashier_id: string | null;
@@ -469,7 +509,9 @@ export type Database = {
           id?: string;
           business_id: string;
           name: string;
+          salary_type?: string;
           daily_rate?: number;
+          monthly_rate?: number;
           active?: boolean;
           note?: string | null;
           cashier_id?: string | null;
@@ -480,7 +522,9 @@ export type Database = {
           id?: string;
           business_id?: string;
           name?: string;
+          salary_type?: string;
           daily_rate?: number;
+          monthly_rate?: number;
           active?: boolean;
           note?: string | null;
           cashier_id?: string | null;
@@ -1229,16 +1273,21 @@ export type Database = {
           employee_id: string;
           period_start: string;
           period_end: string;
+          salary_type: string;
           daily_rate: number;
+          monthly_rate: number;
           hadir_count: number;
           izin_count: number;
           sakit_count: number;
           alpa_count: number;
+          off_count: number;
           base_pay: number;
           created_at: string;
           paid_at: string | null;
           lembur_amount: number;
           thr_amount: number;
+          late_deduction: number;
+          kasbon_deduction: number;
         };
         Insert: {
           id?: string;
@@ -1246,16 +1295,21 @@ export type Database = {
           employee_id: string;
           period_start: string;
           period_end: string;
+          salary_type?: string;
           daily_rate: number;
+          monthly_rate?: number;
           hadir_count?: number;
           izin_count?: number;
           sakit_count?: number;
           alpa_count?: number;
+          off_count?: number;
           base_pay?: number;
           created_at?: string;
           paid_at?: string | null;
           lembur_amount?: number;
           thr_amount?: number;
+          late_deduction?: number;
+          kasbon_deduction?: number;
         };
         Update: {
           id?: string;
@@ -1263,16 +1317,21 @@ export type Database = {
           employee_id?: string;
           period_start?: string;
           period_end?: string;
+          salary_type?: string;
           daily_rate?: number;
+          monthly_rate?: number;
           hadir_count?: number;
           izin_count?: number;
           sakit_count?: number;
           alpa_count?: number;
+          off_count?: number;
           base_pay?: number;
           created_at?: string;
           paid_at?: string | null;
           lembur_amount?: number;
           thr_amount?: number;
+          late_deduction?: number;
+          kasbon_deduction?: number;
         };
         Relationships: [
           {

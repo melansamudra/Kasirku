@@ -1,21 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarCheck, Clock, Thermometer, UserX } from "lucide-react";
+import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { setAttendance, type AttendanceStatus } from "./actions";
 import AttendanceRow from "./attendance-row";
+import AttendanceDatePicker from "./attendance-date-picker";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
 
 function todayStr() {
   return new Date().toLocaleDateString("en-CA", { timeZone: REPORT_TIMEZONE });
-}
-
-function addDaysStr(dateStr: string, days: number) {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 function formatDateLabel(dateStr: string) {
@@ -68,7 +63,7 @@ export default async function AttendancePage({
     (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
 
-  const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+  const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   for (const status of statusByEmployee.values()) {
     counts[status] += 1;
   }
@@ -77,38 +72,20 @@ export default async function AttendancePage({
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Absensi — {business.name}</h1>
 
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
-          <Link
-            href={`/business/${businessId}/attendance?date=${addDaysStr(date, -1)}`}
-            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100"
-          >
-            ←
-          </Link>
-          <div className="text-center">
-            <p className="text-xs font-semibold text-zinc-900">{formatDateLabel(date)}</p>
-            {date !== todayStr() && (
-              <Link
-                href={`/business/${businessId}/attendance`}
-                className="text-[11px] font-medium text-brand-600 hover:underline"
-              >
-                Kembali ke hari ini
-              </Link>
-            )}
-          </div>
-          <Link
-            href={`/business/${businessId}/attendance?date=${addDaysStr(date, 1)}`}
-            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100"
-          >
-            →
-          </Link>
-        </div>
+        <AttendanceDatePicker
+          businessId={businessId}
+          date={date}
+          today={todayStr()}
+          label={formatDateLabel(date)}
+        />
 
         {employees && employees.length > 0 && (
-          <div className="mt-4 grid grid-cols-4 gap-2.5">
+          <div className="mt-4 grid grid-cols-5 gap-2">
             <StatCard label="Hadir" value={String(counts.hadir)} icon={CalendarCheck} tone="brand" />
             <StatCard label="Izin" value={String(counts.izin)} icon={Clock} tone="amber" />
             <StatCard label="Sakit" value={String(counts.sakit)} icon={Thermometer} tone="blue" />
             <StatCard label="Alpa" value={String(counts.alpa)} icon={UserX} tone="red" />
+            <StatCard label="Off" value={String(counts.off)} icon={CalendarOff} tone="zinc" />
           </div>
         )}
 

@@ -9,6 +9,7 @@ const STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
   { value: "izin", label: "Izin" },
   { value: "sakit", label: "Sakit" },
   { value: "alpa", label: "Alpa" },
+  { value: "off", label: "Off" },
 ];
 
 const STATUS_STYLES: Record<AttendanceStatus, string> = {
@@ -16,6 +17,7 @@ const STATUS_STYLES: Record<AttendanceStatus, string> = {
   izin: "border-amber-500 bg-amber-50 text-amber-700",
   sakit: "border-blue-500 bg-blue-50 text-blue-700",
   alpa: "border-red-500 bg-red-50 text-red-700",
+  off: "border-zinc-400 bg-zinc-100 text-zinc-600",
 };
 
 export default function AttendanceRow({
@@ -46,7 +48,7 @@ export default function AttendanceRow({
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
       <p className="text-sm font-medium text-zinc-900">{employeeName}</p>
-      <div className="mt-2 grid grid-cols-4 gap-1.5">
+      <div className="mt-2 grid grid-cols-5 gap-1.5">
         {STATUS_OPTIONS.map((opt) => (
           <button
             key={opt.value}

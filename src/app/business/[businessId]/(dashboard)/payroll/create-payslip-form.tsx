@@ -4,7 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CreatePayslipResult } from "./actions";
 
-type EmployeeOption = { id: string; name: string; dailyRate: number; active: boolean };
+type EmployeeOption = {
+  id: string;
+  name: string;
+  salaryType: "harian" | "bulanan";
+  dailyRate: number;
+  monthlyRate: number;
+  active: boolean;
+};
 
 export default function CreatePayslipForm({
   businessId,
@@ -29,6 +36,8 @@ export default function CreatePayslipForm({
   const [periodEnd, setPeriodEnd] = useState(defaultEnd);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  const selectedEmployee = employees.find((e) => e.id === employeeId);
 
   async function handleSubmit() {
     setError(null);
@@ -68,10 +77,19 @@ export default function CreatePayslipForm({
           {employees.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
-              {!e.active ? " (nonaktif)" : ""} — Rp{e.dailyRate.toLocaleString("id-ID")}/hari
+              {!e.active ? " (nonaktif)" : ""} —{" "}
+              {e.salaryType === "bulanan"
+                ? `Rp${e.monthlyRate.toLocaleString("id-ID")}/bulan`
+                : `Rp${e.dailyRate.toLocaleString("id-ID")}/hari`}
             </option>
           ))}
         </select>
+        {selectedEmployee?.salaryType === "bulanan" && (
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Karyawan bulanan — gaji pokok flat Rp{selectedEmployee.monthlyRate.toLocaleString("id-ID")}
+            {" "}untuk periode ini, tidak dihitung dari hari hadir.
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

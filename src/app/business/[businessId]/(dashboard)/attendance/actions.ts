@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
-export type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpa";
+export type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpa" | "off";
 
 export async function setAttendance(
   businessId: string,
