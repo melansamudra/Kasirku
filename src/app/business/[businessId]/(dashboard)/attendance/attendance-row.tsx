@@ -32,12 +32,20 @@ export type SelfieInfo = {
   attendanceId: string;
   checkInAt: string | null;
   checkInPhotoUrl: string | null;
+  checkInLat: number | null;
+  checkInLng: number | null;
   checkOutAt: string | null;
   checkOutPhotoUrl: string | null;
+  checkOutLat: number | null;
+  checkOutLng: number | null;
   lateMinutes: number;
   overtimeHours: number;
   verified: boolean;
 };
+
+function mapsUrl(lat: number, lng: number) {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
 
 export default function AttendanceRow({
   employeeName,
@@ -166,6 +174,30 @@ export default function AttendanceRow({
               )}
               {selfie.lateMinutes === 0 && selfie.overtimeHours === 0 && "Selfie absen"}
             </p>
+            {(selfie.checkInLat !== null || selfie.checkOutLat !== null) && (
+              <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11px]">
+                {selfie.checkInLat !== null && selfie.checkInLng !== null && (
+                  <a
+                    href={mapsUrl(selfie.checkInLat, selfie.checkInLng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-600 hover:underline"
+                  >
+                    📍 Lokasi masuk
+                  </a>
+                )}
+                {selfie.checkOutLat !== null && selfie.checkOutLng !== null && (
+                  <a
+                    href={mapsUrl(selfie.checkOutLat, selfie.checkOutLng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-600 hover:underline"
+                  >
+                    📍 Lokasi pulang
+                  </a>
+                )}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             {verifyAction &&

@@ -51,7 +51,7 @@ export default async function PayrollRekapPage({
 
   const supabase = await createClient();
 
-  const [{ data: business }, { data: employees }] = await Promise.all([
+  const [{ data: business }, { data: employees }, { data: lateTierRows }] = await Promise.all([
     supabase
       .from("businesses")
       .select(
@@ -64,6 +64,7 @@ export default async function PayrollRekapPage({
       .select("id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, active")
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
+    supabase.from("late_deduction_tiers").select("threshold_minutes, amount").eq("business_id", businessId),
   ]);
 
   if (!business) {
@@ -73,7 +74,7 @@ export default async function PayrollRekapPage({
   const [{ data: attendanceRows }, { data: existingSlips }] = await Promise.all([
     supabase
       .from("attendance")
-      .select("employee_id, date, status, late, overtime_hours")
+      .select("employee_id, date, status, late, late_minutes, overtime_hours")
       .eq("business_id", businessId)
       .gte("date", monthStart)
       .lte("date", monthEnd),
@@ -85,11 +86,14 @@ export default async function PayrollRekapPage({
       .eq("period_end", monthEnd),
   ]);
 
-  const attendanceByEmployee = new Map<string, { date: string; status: string; late: boolean }[]>();
+  const attendanceByEmployee = new Map<
+    string,
+    { date: string; status: string; late: boolean; lateMinutes: number }[]
+  >();
   const overtimeByEmployee = new Map<string, number>();
   for (const r of attendanceRows ?? []) {
     const list = attendanceByEmployee.get(r.employee_id) ?? [];
-    list.push({ date: r.date, status: r.status, late: r.late });
+    list.push({ date: r.date, status: r.status, late: r.late, lateMinutes: r.late_minutes });
     attendanceByEmployee.set(r.employee_id, list);
     overtimeByEmployee.set(
       r.employee_id,
@@ -103,6 +107,10 @@ export default async function PayrollRekapPage({
     izinDeductionWeekday: Number(business.izin_deduction_weekday),
     izinDeductionWeekend: Number(business.izin_deduction_weekend),
     lateDeductionPerOccurrence: Number(business.late_deduction_per_occurrence),
+    lateTiers: (lateTierRows ?? []).map((t) => ({
+      thresholdMinutes: t.threshold_minutes,
+      amount: Number(t.amount),
+    })),
   };
 
   const rows = (employees ?? []).map((e) => {

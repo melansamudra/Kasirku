@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Employee = { id: string; name: string };
 type CheckinResult = { ok: boolean; message?: string; error?: string };
+type LocationStatus = "pending" | "ok" | "denied" | "unsupported";
 
 export default function CheckinClient({
   slug,
@@ -20,6 +21,26 @@ export default function CheckinClient({
   const [pending, setPending] = useState<"in" | "out" | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
+    typeof navigator !== "undefined" && "geolocation" in navigator ? "pending" : "unsupported",
+  );
+
+  // Diminta pas halaman dibuka (bukan pas klik tombol) supaya waktu klik
+  // Absen Masuk/Pulang, lokasinya sudah siap — nggak nunggu GPS di momen
+  // kritis. Absen tetap boleh jalan walau lokasi ditolak/gagal, cuma
+  // datanya kosong buat record itu.
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationStatus("ok");
+      },
+      () => setLocationStatus("denied"),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -52,6 +73,10 @@ export default function CheckinClient({
     formData.set("employeeId", employeeId);
     formData.set("action", action);
     formData.set("photo", photo);
+    if (location) {
+      formData.set("lat", String(location.lat));
+      formData.set("lng", String(location.lng));
+    }
 
     try {
       const res = await fetch("/api/attendance-checkin", { method: "POST", body: formData });
@@ -71,6 +96,16 @@ export default function CheckinClient({
         {businessName}
       </p>
       <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Absen Selfie</h1>
+      <p
+        className={`mt-1 text-center text-[11px] ${
+          locationStatus === "ok" ? "text-brand-600" : "text-amber-600"
+        }`}
+      >
+        {locationStatus === "pending" && "📍 Mendeteksi lokasi…"}
+        {locationStatus === "ok" && "📍 Lokasi terdeteksi"}
+        {locationStatus === "denied" && "⚠️ Lokasi tidak diizinkan — aktifkan izin lokasi di browser"}
+        {locationStatus === "unsupported" && "⚠️ Perangkat tidak mendukung deteksi lokasi"}
+      </p>
 
       <div className="mt-4">
         <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda</label>

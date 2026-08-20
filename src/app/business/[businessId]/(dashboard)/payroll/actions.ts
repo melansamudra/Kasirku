@@ -59,6 +59,58 @@ export async function updatePayrollDeductions(
   return { error: null, saved: true };
 }
 
+export type AddLateTierState = { error: string | null };
+
+export async function addLateTier(
+  businessId: string,
+  _prevState: AddLateTierState,
+  formData: FormData,
+): Promise<AddLateTierState> {
+  const thresholdMinutes = Number(formData.get("thresholdMinutes"));
+  const amount = Number(formData.get("amount"));
+
+  if (!Number.isInteger(thresholdMinutes) || thresholdMinutes < 0) {
+    return { error: "Ambang menit harus angka bulat 0 atau lebih." };
+  }
+  if (Number.isNaN(amount) || amount < 0) {
+    return { error: "Nominal potongan harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("late_deduction_tiers").upsert(
+    { business_id: businessId, threshold_minutes: thresholdMinutes, amount },
+    { onConflict: "business_id,threshold_minutes" },
+  );
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    "Tingkatan potongan telat ditambahkan",
+    `> ${thresholdMinutes} menit = Rp${amount.toLocaleString("id-ID")}`,
+  );
+  revalidatePath(`/business/${businessId}/payroll`);
+  return { error: null };
+}
+
+export async function deleteLateTier(businessId: string, tierId: string): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("late_deduction_tiers")
+    .delete()
+    .eq("id", tierId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/payroll`);
+  return { error: null };
+}
+
 // Return value: pesan error kalau posting jurnal gagal, null kalau sukses.
 // Baris payslips sudah kadung ditandai dibayar di titik ini (lihat pemanggil)
 // — jadi kegagalan di sini tidak dibatalkan, hanya dilaporkan (lihat pola yang
@@ -102,7 +154,7 @@ export async function createPayslip(
 
   const supabase = await createClient();
 
-  const [{ data: employee }, { data: business }] = await Promise.all([
+  const [{ data: employee }, { data: business }, { data: lateTierRows }] = await Promise.all([
     supabase
       .from("employees")
       .select("name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour")
@@ -114,6 +166,10 @@ export async function createPayslip(
       .select("izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour")
       .eq("id", businessId)
       .single(),
+    supabase
+      .from("late_deduction_tiers")
+      .select("threshold_minutes, amount")
+      .eq("business_id", businessId),
   ]);
 
   if (!employee) {
@@ -125,7 +181,7 @@ export async function createPayslip(
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
-    .select("date, status, late")
+    .select("date, status, late, late_minutes")
     .eq("business_id", businessId)
     .eq("employee_id", employeeId)
     .gte("date", periodStart)
@@ -138,12 +194,16 @@ export async function createPayslip(
   const calc = calcPayslip(
     periodStart,
     periodEnd,
-    attendanceRows ?? [],
+    (attendanceRows ?? []).map((r) => ({ ...r, lateMinutes: r.late_minutes })),
     { salaryType, dailyRate, monthlyRate },
     {
       izinDeductionWeekday: Number(business.izin_deduction_weekday),
       izinDeductionWeekend: Number(business.izin_deduction_weekend),
       lateDeductionPerOccurrence: Number(business.late_deduction_per_occurrence),
+      lateTiers: (lateTierRows ?? []).map((t) => ({
+        thresholdMinutes: t.threshold_minutes,
+        amount: Number(t.amount),
+      })),
     },
   );
 

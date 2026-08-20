@@ -46,6 +46,10 @@ export async function POST(request: Request) {
   const employeeId = formData.get("employeeId") as string | null;
   const action = formData.get("action") as string | null;
   const file = formData.get("photo") as File | null;
+  const latRaw = formData.get("lat") as string | null;
+  const lngRaw = formData.get("lng") as string | null;
+  const lat = latRaw ? Number(latRaw) : null;
+  const lng = lngRaw ? Number(lngRaw) : null;
 
   if (!slug || !employeeId || (action !== "in" && action !== "out") || !file) {
     return Response.json({ ok: false, error: "Data tidak lengkap." }, { status: 400 });
@@ -148,6 +152,8 @@ export async function POST(request: Request) {
         late_minutes: lateMinutes,
         check_in_at: new Date().toISOString(),
         check_in_photo_url: publicUrl,
+        check_in_lat: lat,
+        check_in_lng: lng,
         shift_template_id: assignment?.shift_template_id ?? null,
       },
       { onConflict: "employee_id,date" },
@@ -175,6 +181,8 @@ export async function POST(request: Request) {
     .update({
       check_out_at: new Date().toISOString(),
       check_out_photo_url: publicUrl,
+      check_out_lat: lat,
+      check_out_lng: lng,
       overtime_hours: overtimeHours,
     })
     .eq("id", existing!.id);

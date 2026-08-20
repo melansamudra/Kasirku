@@ -5,11 +5,19 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { PillBadge } from "@/components/ui/pill-badge";
-import { createPayslip, addEmployeeAdvance, updatePayrollDeductions } from "./actions";
+import {
+  createPayslip,
+  addEmployeeAdvance,
+  updatePayrollDeductions,
+  addLateTier,
+  deleteLateTier,
+} from "./actions";
 import CreatePayslipForm from "./create-payslip-form";
 import DeletePayslipButton from "./delete-payslip-button";
 import AddAdvanceForm from "./add-advance-form";
 import PayrollDeductionsForm from "./payroll-deductions-form";
+import AddLateTierForm from "./add-late-tier-form";
+import DeleteLateTierButton from "./delete-late-tier-button";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -106,6 +114,12 @@ export default async function PayrollPage({
   if (!business) {
     notFound();
   }
+
+  const { data: lateTiers } = await supabase
+    .from("late_deduction_tiers")
+    .select("id, threshold_minutes, amount")
+    .eq("business_id", businessId)
+    .order("threshold_minutes", { ascending: true });
 
   const { data: employees } = await supabase
     .from("employees")
@@ -272,6 +286,37 @@ export default async function PayrollPage({
               lateDeductionPerOccurrence={Number(business.late_deduction_per_occurrence)}
               lemburRatePerHour={Number(business.lembur_rate_per_hour)}
             />
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Tingkatan Potongan Keterlambatan</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Opsional — kalau diisi, ini menggantikan &quot;Potongan per Kali Terlambat&quot; flat di
+            atas. Potongan dihitung per hari dari menit telat hari itu, bukan lagi rata sama semua.
+          </p>
+          {lateTiers && lateTiers.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {lateTiers.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2"
+                >
+                  <p className="text-sm text-zinc-900">
+                    Lebih dari <span className="font-semibold">{t.threshold_minutes} menit</span> ={" "}
+                    <span className="font-semibold">{formatRupiah(Number(t.amount))}</span>
+                  </p>
+                  <DeleteLateTierButton action={deleteLateTier.bind(null, businessId, t.id)} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 rounded-lg border border-dashed border-zinc-200 px-3 py-4 text-center text-xs text-zinc-400">
+              Belum ada tingkatan — pakai potongan flat di atas.
+            </p>
+          )}
+          <div className="mt-3">
+            <AddLateTierForm action={addLateTier.bind(null, businessId)} />
           </div>
         </div>
 

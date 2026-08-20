@@ -4,13 +4,35 @@
 // tempat itu selalu pakai formula yang sama persis, nggak ada risiko
 // ketinggalan sinkron kalau formulanya berubah lagi nanti.
 
-export type AttendanceForCalc = { date: string; status: string; late: boolean };
+export type AttendanceForCalc = { date: string; status: string; late: boolean; lateMinutes: number };
+
+export type LateTier = { thresholdMinutes: number; amount: number };
 
 export type PayrollSettings = {
   izinDeductionWeekday: number;
   izinDeductionWeekend: number;
+  // Dipakai kalau lateTiers kosong (bisnis belum sempat atur tingkatan
+  // custom) — potongan flat per hari telat, tidak peduli berapa menitnya.
   lateDeductionPerOccurrence: number;
+  // Tingkatan custom: "lebih dari N menit = Rp Y". Kalau ada isinya, ini
+  // yang dipakai (bukan lateDeductionPerOccurrence) — dicari tier dengan
+  // thresholdMinutes terbesar yang masih lebih kecil dari menit telat hari
+  // itu. Nominal per tingkat bebas sama atau beda.
+  lateTiers: LateTier[];
 };
+
+// "> N menit = Rp Y" — cari tier tertinggi yang thresholdnya masih
+// terlampaui. Tidak ada tier yang cocok (mis. telat 3 menit tapi tier
+// termurah "> 5 menit") = 0, tidak kena potongan.
+function lateDeductionForMinutes(minutes: number, tiers: LateTier[], flatFallback: number): number {
+  if (tiers.length === 0) return minutes > 0 ? flatFallback : 0;
+  const sorted = [...tiers].sort((a, b) => a.thresholdMinutes - b.thresholdMinutes);
+  let amount = 0;
+  for (const t of sorted) {
+    if (minutes > t.thresholdMinutes) amount = t.amount;
+  }
+  return amount;
+}
 
 export type EmployeeForCalc = {
   salaryType: "harian" | "bulanan";
@@ -55,6 +77,7 @@ export function calcPayslip(
   let izinWeekdayCount = 0;
   let izinWeekendCount = 0;
   let lateCount = 0;
+  let lateDeduction = 0;
   for (const r of attendanceRows) {
     if (r.status in counts) counts[r.status as keyof typeof counts] += 1;
     if (r.status === "izin") {
@@ -62,7 +85,10 @@ export function calcPayslip(
       if (dow === 0 || dow === 6) izinWeekendCount += 1;
       else izinWeekdayCount += 1;
     }
-    if (r.late) lateCount += 1;
+    if (r.late) {
+      lateCount += 1;
+      lateDeduction += lateDeductionForMinutes(r.lateMinutes, settings.lateTiers, settings.lateDeductionPerOccurrence);
+    }
   }
 
   // Hari kerja efektif = total hari di periode dikurangi hari Off — dipakai
@@ -84,7 +110,6 @@ export function calcPayslip(
 
   const izinDeduction =
     izinWeekdayCount * settings.izinDeductionWeekday + izinWeekendCount * settings.izinDeductionWeekend;
-  const lateDeduction = lateCount * settings.lateDeductionPerOccurrence;
 
   return {
     hadirCount: counts.hadir,

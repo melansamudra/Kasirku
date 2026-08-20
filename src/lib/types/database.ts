@@ -155,6 +155,10 @@ export type Database = {
           overtime_hours: number;
           verified_by_admin: boolean;
           verified_at: string | null;
+          check_in_lat: number | null;
+          check_in_lng: number | null;
+          check_out_lat: number | null;
+          check_out_lng: number | null;
         };
         Insert: {
           id?: string;
@@ -174,6 +178,10 @@ export type Database = {
           overtime_hours?: number;
           verified_by_admin?: boolean;
           verified_at?: string | null;
+          check_in_lat?: number | null;
+          check_in_lng?: number | null;
+          check_out_lat?: number | null;
+          check_out_lng?: number | null;
         };
         Update: {
           id?: string;
@@ -193,6 +201,10 @@ export type Database = {
           overtime_hours?: number;
           verified_by_admin?: boolean;
           verified_at?: string | null;
+          check_in_lat?: number | null;
+          check_in_lng?: number | null;
+          check_out_lat?: number | null;
+          check_out_lng?: number | null;
         };
         Relationships: [];
       };
@@ -1062,6 +1074,30 @@ export type Database = {
           device_label?: string | null;
           prints_receipt?: boolean;
           paper_width?: number;
+        };
+        Relationships: [];
+      };
+      late_deduction_tiers: {
+        Row: {
+          id: string;
+          business_id: string;
+          threshold_minutes: number;
+          amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          threshold_minutes: number;
+          amount: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          threshold_minutes?: number;
+          amount?: number;
+          created_at?: string;
         };
         Relationships: [];
       };

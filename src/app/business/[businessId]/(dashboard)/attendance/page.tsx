@@ -62,7 +62,7 @@ export default async function AttendancePage({
   const { data: attendanceRows } = await supabase
     .from("attendance")
     .select(
-      "id, employee_id, status, late, check_in_at, check_in_photo_url, check_out_at, check_out_photo_url, late_minutes, overtime_hours, verified_by_admin",
+      "id, employee_id, status, late, check_in_at, check_in_photo_url, check_in_lat, check_in_lng, check_out_at, check_out_photo_url, check_out_lat, check_out_lng, late_minutes, overtime_hours, verified_by_admin",
     )
     .eq("business_id", businessId)
     .eq("date", date);
@@ -78,8 +78,12 @@ export default async function AttendancePage({
         attendanceId: r.id,
         checkInAt: r.check_in_at,
         checkInPhotoUrl: r.check_in_photo_url,
+        checkInLat: r.check_in_lat,
+        checkInLng: r.check_in_lng,
         checkOutAt: r.check_out_at,
         checkOutPhotoUrl: r.check_out_photo_url,
+        checkOutLat: r.check_out_lat,
+        checkOutLng: r.check_out_lng,
         lateMinutes: r.late_minutes,
         overtimeHours: Number(r.overtime_hours),
         verified: r.verified_by_admin,
