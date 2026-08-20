@@ -335,13 +335,23 @@ export async function markPayslipPaid(
   const employeeName =
     (payslip.employees as unknown as { name: string } | null)?.name ?? "Karyawan terhapus";
 
-  const { error } = await supabase
+  // .is("paid_at", null) di WHERE (bukan cuma cek di atas lalu update) biar
+  // dua klik/tab bersamaan tidak dua-duanya lolos dan double-posting jurnal
+  // & expenses — hanya salah satu yang benar-benar meng-update baris ini.
+  const { data: updated, error } = await supabase
     .from("payslips")
     .update({ paid_at: new Date().toISOString() })
-    .eq("id", payslipId);
+    .eq("id", payslipId)
+    .eq("business_id", businessId)
+    .is("paid_at", null)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     return { error: error.message };
+  }
+  if (!updated) {
+    return { error: "Slip gaji ini sudah ditandai dibayar (mungkin oleh proses lain)." };
   }
 
   const journalError = await postPayrollJournal(

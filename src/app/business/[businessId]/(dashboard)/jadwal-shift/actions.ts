@@ -121,6 +121,22 @@ export async function deleteShiftTemplate(
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
+  // employee_shift_assignments.shift_template_id itu ON DELETE CASCADE (bukan
+  // restrict) — kalau langsung delete, semua assignment yang pakai shift ini
+  // (masa lalu maupun masa depan, semua karyawan) ikut terhapus TANPA
+  // peringatan. Cek dulu di sini biar admin sadar dampaknya sebelum kejadian.
+  const { count } = await supabase
+    .from("employee_shift_assignments")
+    .select("id", { count: "exact", head: true })
+    .eq("shift_template_id", templateId)
+    .eq("business_id", businessId);
+
+  if (count && count > 0) {
+    return {
+      error: `Shift ini masih dipakai di ${count} jadwal karyawan. Hapus/ubah jadwal itu dulu di halaman ini sebelum menghapus shift-nya.`,
+    };
+  }
+
   const { error } = await supabase
     .from("shift_templates")
     .delete()
@@ -128,11 +144,7 @@ export async function deleteShiftTemplate(
     .eq("business_id", businessId);
 
   if (error) {
-    // Kemungkinan besar masih dipakai di employee_shift_assignments atau
-    // attendance (foreign key restrict/no-action bawaan Postgres).
-    return {
-      error: "Gagal menghapus — shift ini kemungkinan masih dipakai di jadwal atau riwayat absensi.",
-    };
+    return { error: error.message };
   }
 
   revalidatePath(`/business/${businessId}/jadwal-shift`);

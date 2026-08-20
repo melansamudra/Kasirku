@@ -233,10 +233,14 @@ export type VoidPurchaseState = { error: string | null };
 
 // Batalkan pembelian — bukan hapus baris, tapi ditandai voided + otomatis
 // membalik efeknya: stok bahan/produk yang sempat bertambah dikurangi lagi
-// (tidak mencoba mengembalikan persis unit_cost sebelumnya, karena transaksi
-// lain mungkin sudah terjadi sejak itu), dan jurnal koreksi (kebalikan dari
-// jurnal saat pembelian dicatat, berdasarkan paid_amount TERKINI — termasuk
-// pembayaran cicilan yang mungkin sudah ditambahkan lewat purchase_payments).
+// (di-floor ke 0, tidak boleh negatif — kalau sebagian stok itu sudah
+// kepakai/kejual duluan, sisanya hilang begitu saja, tidak dipaksa minus),
+// unit_cost dibalikkan pakai kebalikan rumus rata-rata tertimbang (best
+// effort — akurat kalau belum ada pembelian/penyesuaian lain sejak itu,
+// yang merupakan kasus umum untuk "baru salah input, langsung dibatalkan"),
+// dan jurnal koreksi (kebalikan dari jurnal saat pembelian dicatat,
+// berdasarkan paid_amount TERKINI — termasuk pembayaran cicilan yang mungkin
+// sudah ditambahkan lewat purchase_payments).
 export async function voidPurchase(
   businessId: string,
   purchaseId: string,
@@ -264,34 +268,58 @@ export async function voidPurchase(
   }
 
   let itemName = "Pembelian";
+  const purchaseQty = Number(purchase.qty);
+  const purchaseAmount = Number(purchase.amount);
 
   if (purchase.category === "Bahan Baku" && purchase.ingredient_id) {
     const { data: ingredient } = await supabase
       .from("ingredients")
-      .select("id, name, stock")
+      .select("id, name, stock, unit_cost")
       .eq("id", purchase.ingredient_id)
       .single();
 
     if (ingredient) {
       itemName = ingredient.name;
+      const stockBefore = Number(ingredient.stock);
+      const unitCostBefore = Number(ingredient.unit_cost);
+      const stockAfter = Math.max(0, stockBefore - purchaseQty);
+      const valueAfter = stockBefore * unitCostBefore - purchaseAmount;
+      const unitCostAfter = stockAfter > 0 ? Math.max(0, Math.round(valueAfter / stockAfter)) : unitCostBefore;
+
       const { error: updateError } = await supabase
         .from("ingredients")
-        .update({ stock: Number(ingredient.stock) - Number(purchase.qty) })
+        .update({ stock: stockAfter, unit_cost: unitCostAfter })
         .eq("id", purchase.ingredient_id);
       if (updateError) return { error: updateError.message };
+
+      if (unitCostAfter !== unitCostBefore) {
+        await supabase.from("ingredient_price_history").insert({
+          business_id: businessId,
+          ingredient_id: purchase.ingredient_id,
+          unit_cost: unitCostAfter,
+          source: "manual",
+        });
+        await recalculateProductCostsForIngredient(supabase, purchase.ingredient_id);
+      }
     }
   } else if (purchase.category === "Barang Dagang" && purchase.product_id) {
     const { data: product } = await supabase
       .from("products")
-      .select("id, name, stock")
+      .select("id, name, stock, cost")
       .eq("id", purchase.product_id)
       .single();
 
     if (product) {
       itemName = product.name;
+      const stockBefore = Number(product.stock);
+      const costBefore = Number(product.cost);
+      const stockAfter = Math.max(0, stockBefore - purchaseQty);
+      const valueAfter = stockBefore * costBefore - purchaseAmount;
+      const costAfter = stockAfter > 0 ? Math.max(0, Math.round(valueAfter / stockAfter)) : costBefore;
+
       const { error: updateError } = await supabase
         .from("products")
-        .update({ stock: Number(product.stock) - Number(purchase.qty) })
+        .update({ stock: stockAfter, cost: costAfter })
         .eq("id", purchase.product_id);
       if (updateError) return { error: updateError.message };
     }
@@ -380,13 +408,16 @@ export async function addPurchasePayment(
 
   const { data: purchase } = await supabase
     .from("purchases")
-    .select("id, business_id, amount, paid_amount, ingredient_id, product_id")
+    .select("id, business_id, amount, paid_amount, ingredient_id, product_id, voided")
     .eq("id", purchaseId)
     .eq("business_id", businessId)
     .single();
 
   if (!purchase) {
     return { error: "Data pembelian tidak ditemukan." };
+  }
+  if (purchase.voided) {
+    return { error: "Pembelian ini sudah dibatalkan, tidak bisa dibayar." };
   }
 
   const sisaUtang = Number(purchase.amount) - Number(purchase.paid_amount);
