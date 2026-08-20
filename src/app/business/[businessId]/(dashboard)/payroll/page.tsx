@@ -28,6 +28,19 @@ function todayStr() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
 
+function toWibMonth(iso: string) {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }).slice(0, 7);
+}
+
+function monthLabel(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 type PayslipAgg = {
   id: string;
   employee_id: string;
@@ -122,7 +135,11 @@ export default async function PayrollPage({
 
   const activeEmployeeCount = (employees ?? []).filter((e) => e.active).length;
 
+  const currentMonth = today.slice(0, 7);
   const totalDibayarkan = allPayslips.filter((p) => p.paid_at).reduce((s, p) => s + payslipTotal(p), 0);
+  const totalDibayarkanBulanIni = allPayslips
+    .filter((p) => p.paid_at && toWibMonth(p.paid_at) === currentMonth)
+    .reduce((s, p) => s + payslipTotal(p), 0);
   const belumDibayarCount = allPayslips.filter((p) => !p.paid_at).length;
 
   // Rekap per karyawan: total dibayarkan sepanjang waktu, slip terakhir,
@@ -168,21 +185,31 @@ export default async function PayrollPage({
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Karyawan Aktif" value={String(activeEmployeeCount)} icon={Users} tone="zinc" />
-          <StatCard label="Total Dibayarkan" value={formatRupiah(totalDibayarkan)} icon={Wallet} tone="brand" />
+          <StatCard
+            label="Dibayarkan Bulan Ini"
+            value={formatRupiah(totalDibayarkanBulanIni)}
+            sub={monthLabel(currentMonth)}
+            icon={Wallet}
+            tone="brand"
+          />
           <StatCard
             label="Belum Dibayar"
             value={String(belumDibayarCount)}
-            sub={belumDibayarCount > 0 ? "slip gaji" : undefined}
+            sub="slip gaji · semua waktu"
             icon={ClipboardCheck}
             tone={belumDibayarCount > 0 ? "amber" : "brand"}
           />
           <StatCard
             label="Kasbon Beredar"
             value={formatRupiah(totalKasbonBeredar)}
+            sub="saldo saat ini"
             icon={HandCoins}
             tone={totalKasbonBeredar > 0 ? "amber" : "brand"}
           />
         </div>
+        <p className="mt-2 text-[11px] text-zinc-400">
+          Total dibayarkan sepanjang waktu (semua periode): {formatRupiah(totalDibayarkan)}
+        </p>
 
         <Link
           href={`/business/${businessId}/payroll/rekap`}

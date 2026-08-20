@@ -292,25 +292,50 @@ export async function markPayslipPaid(
     total,
   );
 
+  // Laporan → Laba Rugi (yang biasa dibuka lewat menu Laporan) baca dari
+  // tabel expenses, BUKAN dari journal_entries — beda sumber data dari
+  // Akuntansi → Laba Rugi (Akrual). Tanpa baris ini, gaji yang sudah
+  // dibayar tercatat benar di jurnal/Kas & Bank tapi tidak pernah
+  // mengurangi laba di Laporan biasa. Kategori "Gaji & Upah" dipakai
+  // supaya konsisten dengan kategori yang sudah dikenal di halaman
+  // Keuangan → Catat Pengeluaran. Tidak lewat postExpenseJournal — jurnal
+  // untuk baris ini sudah diposting di atas lewat postPayrollJournal,
+  // insert langsung ke sini biar tidak dobel post jurnal untuk slip yang sama.
+  const { error: expenseError } = await supabase.from("expenses").insert({
+    business_id: businessId,
+    date: payslip.period_end,
+    category: "Gaji & Upah",
+    amount: total,
+    note: `Gaji: ${employeeName}`,
+  });
+
   await logActivity(
     supabase,
     businessId,
     "sistem",
-    journalError ? "warning" : "sukses",
+    journalError || expenseError ? "warning" : "sukses",
     `Slip gaji dibayar: ${employeeName}`,
     journalError
       ? `Rp${total.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
-      : `Rp${total.toLocaleString("id-ID")}`,
+      : expenseError
+        ? `Rp${total.toLocaleString("id-ID")} — GAGAL dicatat ke Laporan Laba Rugi: ${expenseError.message}`
+        : `Rp${total.toLocaleString("id-ID")}`,
   );
 
   revalidatePath(`/business/${businessId}/payroll`);
   revalidatePath(`/business/${businessId}/payroll/${payslipId}`);
 
-  return {
-    error: journalError
-      ? `Slip gaji ditandai dibayar, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
-      : null,
-  };
+  if (journalError) {
+    return {
+      error: `Slip gaji ditandai dibayar, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`,
+    };
+  }
+  if (expenseError) {
+    return {
+      error: `Slip gaji ditandai dibayar dan sudah masuk jurnal, tapi gagal dicatat ke Laporan Laba Rugi (${expenseError.message}). Tambahkan manual di halaman Keuangan → Catat Pengeluaran.`,
+    };
+  }
+  return { error: null };
 }
 
 export async function updatePayslipExtras(
