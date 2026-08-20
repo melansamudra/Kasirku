@@ -103,6 +103,7 @@ export default async function JadwalShiftPage({
           perlu akun kasir.
         </p>
         <AttendanceLinkSection
+          businessId={businessId}
           initialSlug={business.attendance_qr_slug ?? ""}
           regenerateAction={boundRegenerateSlug}
         />

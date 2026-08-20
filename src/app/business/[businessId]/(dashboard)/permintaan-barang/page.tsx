@@ -118,6 +118,7 @@ export default async function PermintaanBarangPage({
         </p>
         <div className="mt-3">
           <PurchaseRequestLinkSection
+            businessId={businessId}
             initialSlug={business.purchase_request_slug ?? ""}
             regenerateAction={boundRegenerateSlug}
           />
