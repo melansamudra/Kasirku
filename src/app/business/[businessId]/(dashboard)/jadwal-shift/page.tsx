@@ -176,9 +176,7 @@ export default async function JadwalShiftPage({
               shifts={shiftOptions}
               date={date}
               assignAction={assignShift.bind(null, businessId, e.id, date)}
-              applyRangeAction={(shiftTemplateId, days) =>
-                applyShiftToRange(businessId, e.id, shiftTemplateId, date, days)
-              }
+              applyRangeAction={applyShiftToRange.bind(null, businessId, e.id, date)}
             />
           ))
         ) : (

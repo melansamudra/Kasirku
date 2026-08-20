@@ -87,11 +87,15 @@ export async function assignShift(
   return { error: null };
 }
 
+// Urutan parameter sengaja: businessId, employeeId, startDate dulu — supaya
+// pemanggil bisa .bind() ketiganya dan menyisakan (shiftTemplateId, days)
+// buat diisi client. Server Action wajib dilempar ke Client Component lewat
+// bind, bukan dibungkus arrow function biasa (Next.js menolak itu).
 export async function applyShiftToRange(
   businessId: string,
   employeeId: string,
-  shiftTemplateId: string,
   startDate: string,
+  shiftTemplateId: string,
   days: number,
 ): Promise<{ error: string | null }> {
   if (!shiftTemplateId) return { error: "Pilih shift dulu." };
