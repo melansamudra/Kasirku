@@ -43,7 +43,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_weekday_count, izin_weekend_count, izin_deduction, late_count, late_deduction, hari_kerja_efektif, base_pay, lembur_amount, thr_amount, kasbon_deduction, created_at, paid_at, employees(name)",
+      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_weekday_count, izin_weekend_count, izin_deduction, late_count, late_deduction, hari_kerja_efektif, base_pay, lembur_amount, lembur_hours, lembur_rate, thr_amount, kasbon_deduction, created_at, paid_at, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -170,7 +170,11 @@ export default async function PayslipDetailPage({
             )}
             {lemburAmount > 0 && (
               <div className="flex justify-between text-brand-700">
-                <span>+ Lembur</span>
+                <span>
+                  + Lembur
+                  {Number(payslip.lembur_hours) > 0 &&
+                    ` (${payslip.lembur_hours} jam x ${formatRupiah(Number(payslip.lembur_rate))})`}
+                </span>
                 <span>{formatRupiah(lemburAmount)}</span>
               </div>
             )}

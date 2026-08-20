@@ -34,6 +34,16 @@ export type PayslipCalcResult = {
   estimatedTotal: number;
 };
 
+// Rate lembur karyawan: pakai override per-karyawan kalau diisi, kalau
+// tidak (null) pakai default toko. Dipakai bareng di Rekap Payroll (buat
+// preview sebelum slip dibuat) dan createPayslip (buat snapshot final).
+export function effectiveLemburRate(
+  employeeRatePerHour: number | null,
+  businessDefaultRatePerHour: number,
+): number {
+  return employeeRatePerHour ?? businessDefaultRatePerHour;
+}
+
 export function calcPayslip(
   periodStart: string,
   periodEnd: string,

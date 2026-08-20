@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CreatePayslipResult } from "./actions";
+import { effectiveLemburRate } from "./calc";
 
 type EmployeeOption = {
   id: string;
@@ -10,34 +11,41 @@ type EmployeeOption = {
   salaryType: "harian" | "bulanan";
   dailyRate: number;
   monthlyRate: number;
+  lemburRatePerHour: number | null;
   active: boolean;
 };
 
 export default function CreatePayslipForm({
   businessId,
   employees,
+  businessLemburRate,
   defaultStart,
   defaultEnd,
   action,
 }: {
   businessId: string;
   employees: EmployeeOption[];
+  businessLemburRate: number;
   defaultStart: string;
   defaultEnd: string;
   action: (
     employeeId: string,
     periodStart: string,
     periodEnd: string,
+    lemburHours: number,
   ) => Promise<CreatePayslipResult>;
 }) {
   const router = useRouter();
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? "");
   const [periodStart, setPeriodStart] = useState(defaultStart);
   const [periodEnd, setPeriodEnd] = useState(defaultEnd);
+  const [lemburHours, setLemburHours] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const selectedEmployee = employees.find((e) => e.id === employeeId);
+  const lemburRate = effectiveLemburRate(selectedEmployee?.lemburRatePerHour ?? null, businessLemburRate);
+  const lemburPreview = (Number(lemburHours) || 0) * lemburRate;
 
   async function handleSubmit() {
     setError(null);
@@ -46,7 +54,7 @@ export default function CreatePayslipForm({
       return;
     }
     setPending(true);
-    const result = await action(employeeId, periodStart, periodEnd);
+    const result = await action(employeeId, periodStart, periodEnd, Number(lemburHours) || 0);
     setPending(false);
 
     if (!result.success) {
@@ -110,6 +118,27 @@ export default function CreatePayslipForm({
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Jam Lembur (opsional) — rate Rp{lemburRate.toLocaleString("id-ID")}/jam
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.5"
+          value={lemburHours}
+          onChange={(e) => setLemburHours(e.target.value)}
+          placeholder="0"
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        {Number(lemburHours) > 0 && (
+          <p className="mt-1 text-[11px] text-zinc-400">
+            ≈ Rp{Math.round(lemburPreview).toLocaleString("id-ID")} — langsung masuk ke slip, masih bisa
+            diubah lagi di halaman slip.
+          </p>
+        )}
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}

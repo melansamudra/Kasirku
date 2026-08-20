@@ -9,6 +9,7 @@ export default function EditEmployeeForm({
   salaryType,
   dailyRate,
   monthlyRate,
+  lemburRatePerHour,
   note,
   cashierId,
   contractEnd,
@@ -19,6 +20,7 @@ export default function EditEmployeeForm({
   salaryType: "harian" | "bulanan";
   dailyRate: number;
   monthlyRate: number;
+  lemburRatePerHour: number | null;
   note: string | null;
   cashierId: string | null;
   contractEnd: string | null;
@@ -32,6 +34,7 @@ export default function EditEmployeeForm({
     salaryType,
     dailyRate: String(dailyRate),
     monthlyRate: String(monthlyRate),
+    lemburRatePerHour: lemburRatePerHour !== null ? String(lemburRatePerHour) : "",
     note: note ?? "",
     cashierId: cashierId ?? "",
     contractEnd: contractEnd ?? "",
@@ -58,6 +61,7 @@ export default function EditEmployeeForm({
     formData.set("salaryType", values.salaryType);
     formData.set("dailyRate", values.dailyRate);
     formData.set("monthlyRate", values.monthlyRate);
+    formData.set("lemburRatePerHour", values.lemburRatePerHour);
     formData.set("note", values.note);
     formData.set("cashierId", values.cashierId);
     formData.set("contractEnd", values.contractEnd);
@@ -136,6 +140,20 @@ export default function EditEmployeeForm({
           />
         </div>
       )}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Rate Lembur per Jam (Rp) — kosongkan = pakai default toko
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={values.lemburRatePerHour}
+          onChange={(e) => setValues((v) => ({ ...v, lemburRatePerHour: e.target.value }))}
+          placeholder="Default toko"
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-zinc-600">
           Jabatan/Catatan

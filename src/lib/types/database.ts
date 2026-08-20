@@ -254,6 +254,7 @@ export type Database = {
           izin_deduction_weekday: number;
           izin_deduction_weekend: number;
           late_deduction_per_occurrence: number;
+          lembur_rate_per_hour: number;
         };
         Insert: {
           id?: string;
@@ -279,6 +280,7 @@ export type Database = {
           izin_deduction_weekday?: number;
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
+          lembur_rate_per_hour?: number;
         };
         Update: {
           id?: string;
@@ -304,6 +306,7 @@ export type Database = {
           izin_deduction_weekday?: number;
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
+          lembur_rate_per_hour?: number;
         };
         Relationships: [];
       };
@@ -516,6 +519,7 @@ export type Database = {
           cashier_id: string | null;
           created_at: string;
           contract_end: string | null;
+          lembur_rate_per_hour: number | null;
         };
         Insert: {
           id?: string;
@@ -529,6 +533,7 @@ export type Database = {
           cashier_id?: string | null;
           created_at?: string;
           contract_end?: string | null;
+          lembur_rate_per_hour?: number | null;
         };
         Update: {
           id?: string;
@@ -542,6 +547,7 @@ export type Database = {
           cashier_id?: string | null;
           created_at?: string;
           contract_end?: string | null;
+          lembur_rate_per_hour?: number | null;
         };
         Relationships: [
           {
@@ -1305,6 +1311,8 @@ export type Database = {
           izin_deduction: number;
           late_count: number;
           hari_kerja_efektif: number;
+          lembur_hours: number;
+          lembur_rate: number;
         };
         Insert: {
           id?: string;
@@ -1332,6 +1340,8 @@ export type Database = {
           izin_deduction?: number;
           late_count?: number;
           hari_kerja_efektif?: number;
+          lembur_hours?: number;
+          lembur_rate?: number;
         };
         Update: {
           id?: string;
@@ -1359,6 +1369,8 @@ export type Database = {
           izin_deduction?: number;
           late_count?: number;
           hari_kerja_efektif?: number;
+          lembur_hours?: number;
+          lembur_rate?: number;
         };
         Relationships: [
           {

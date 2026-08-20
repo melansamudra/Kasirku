@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PillBadge } from "@/components/ui/pill-badge";
 import { createPayslip } from "../actions";
-import { calcPayslip } from "../calc";
+import { calcPayslip, effectiveLemburRate } from "../calc";
 import CreateSlipButton from "./create-slip-button";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
@@ -54,12 +54,14 @@ export default async function PayrollRekapPage({
   const [{ data: business }, { data: employees }] = await Promise.all([
     supabase
       .from("businesses")
-      .select("name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
+      .select(
+        "name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+      )
       .eq("id", businessId)
       .single(),
     supabase
       .from("employees")
-      .select("id, name, salary_type, daily_rate, monthly_rate, active")
+      .select("id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, active")
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
   ]);
@@ -202,6 +204,10 @@ export default async function PayrollRekapPage({
                 ) : (
                   <CreateSlipButton
                     businessId={businessId}
+                    lemburRate={effectiveLemburRate(
+                      e.lembur_rate_per_hour === null ? null : Number(e.lembur_rate_per_hour),
+                      Number(business.lembur_rate_per_hour),
+                    )}
                     action={createPayslip.bind(null, businessId, e.id, monthStart, monthEnd)}
                   />
                 )}

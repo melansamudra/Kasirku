@@ -107,6 +107,24 @@ export default function AddEmployeeForm({
       )}
 
       <div>
+        <label htmlFor="lemburRatePerHour" className="mb-1 block text-xs font-medium text-zinc-600">
+          Rate Lembur per Jam (Rp, opsional)
+        </label>
+        <input
+          id="lemburRatePerHour"
+          name="lemburRatePerHour"
+          type="number"
+          min="0"
+          step="1"
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          placeholder="mis. 20000"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Kosongkan untuk pakai rate lembur default toko (diatur di halaman Payroll).
+        </p>
+      </div>
+
+      <div>
         <label htmlFor="note" className="mb-1 block text-xs font-medium text-zinc-600">
           Jabatan/Catatan (opsional)
         </label>

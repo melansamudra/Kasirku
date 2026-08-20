@@ -9,6 +9,7 @@ function parseEmployeeFields(formData: FormData) {
   const salaryTypeRaw = formData.get("salaryType") as string;
   const dailyRateRaw = formData.get("dailyRate") as string;
   const monthlyRateRaw = formData.get("monthlyRate") as string;
+  const lemburRateRaw = formData.get("lemburRatePerHour") as string;
   const note = (formData.get("note") as string)?.trim();
   const cashierId = (formData.get("cashierId") as string) || null;
   const contractEnd = (formData.get("contractEnd") as string) || null;
@@ -27,12 +28,23 @@ function parseEmployeeFields(formData: FormData) {
     return { error: "Gaji bulanan harus angka dan tidak boleh negatif." } as const;
   }
 
+  // Kosong = pakai rate lembur default toko, bukan 0 — beda dari
+  // dailyRate/monthlyRate yang defaultnya memang 0 kalau dikosongkan.
+  let lemburRatePerHour: number | null = null;
+  if (lemburRateRaw && lemburRateRaw.trim() !== "") {
+    lemburRatePerHour = Number(lemburRateRaw);
+    if (Number.isNaN(lemburRatePerHour) || lemburRatePerHour < 0) {
+      return { error: "Rate lembur per jam harus angka dan tidak boleh negatif." } as const;
+    }
+  }
+
   return {
     error: null,
     name,
     salaryType,
     dailyRate,
     monthlyRate,
+    lemburRatePerHour,
     note: note || null,
     cashierId,
     contractEnd,
@@ -56,6 +68,7 @@ export async function addEmployee(
     salary_type: parsed.salaryType,
     daily_rate: parsed.dailyRate,
     monthly_rate: parsed.monthlyRate,
+    lembur_rate_per_hour: parsed.lemburRatePerHour,
     note: parsed.note,
     cashier_id: parsed.cashierId,
     contract_end: parsed.contractEnd,
@@ -92,6 +105,7 @@ export async function editEmployee(
       salary_type: parsed.salaryType,
       daily_rate: parsed.dailyRate,
       monthly_rate: parsed.monthlyRate,
+      lembur_rate_per_hour: parsed.lemburRatePerHour,
       note: parsed.note,
       cashier_id: parsed.cashierId,
       contract_end: parsed.contractEnd,

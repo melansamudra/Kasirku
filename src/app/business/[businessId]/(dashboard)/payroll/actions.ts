@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
-import { calcPayslip } from "./calc";
+import { calcPayslip, effectiveLemburRate } from "./calc";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -17,6 +17,7 @@ export async function updatePayrollDeductions(
   const izinWeekday = Number(formData.get("izinDeductionWeekday"));
   const izinWeekend = Number(formData.get("izinDeductionWeekend"));
   const latePerOccurrence = Number(formData.get("lateDeductionPerOccurrence"));
+  const lemburRate = Number(formData.get("lemburRatePerHour"));
 
   if (Number.isNaN(izinWeekday) || izinWeekday < 0) {
     return { error: "Potongan izin hari biasa harus angka 0 atau lebih.", saved: false };
@@ -27,6 +28,9 @@ export async function updatePayrollDeductions(
   if (Number.isNaN(latePerOccurrence) || latePerOccurrence < 0) {
     return { error: "Potongan per keterlambatan harus angka 0 atau lebih.", saved: false };
   }
+  if (Number.isNaN(lemburRate) || lemburRate < 0) {
+    return { error: "Rate lembur per jam (default) harus angka 0 atau lebih.", saved: false };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -35,6 +39,7 @@ export async function updatePayrollDeductions(
       izin_deduction_weekday: izinWeekday,
       izin_deduction_weekend: izinWeekend,
       late_deduction_per_occurrence: latePerOccurrence,
+      lembur_rate_per_hour: lemburRate,
     })
     .eq("id", businessId);
 
@@ -47,8 +52,8 @@ export async function updatePayrollDeductions(
     businessId,
     "pengaturan",
     "sukses",
-    "Pengaturan potongan payroll diperbarui",
-    `Izin hari biasa Rp${izinWeekday.toLocaleString("id-ID")} · Izin weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")}`,
+    "Pengaturan payroll diperbarui",
+    `Izin hari biasa Rp${izinWeekday.toLocaleString("id-ID")} · Izin weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")} · Lembur Rp${lemburRate.toLocaleString("id-ID")}/jam`,
   );
   revalidatePath(`/business/${businessId}/payroll`);
   return { error: null, saved: true };
@@ -86,9 +91,13 @@ export async function createPayslip(
   employeeId: string,
   periodStart: string,
   periodEnd: string,
+  lemburHours = 0,
 ): Promise<CreatePayslipResult> {
   if (!periodStart || !periodEnd || periodStart > periodEnd) {
     return { success: false, error: "Rentang tanggal tidak valid." };
+  }
+  if (Number.isNaN(lemburHours) || lemburHours < 0) {
+    return { success: false, error: "Jam lembur harus angka 0 atau lebih." };
   }
 
   const supabase = await createClient();
@@ -96,13 +105,13 @@ export async function createPayslip(
   const [{ data: employee }, { data: business }] = await Promise.all([
     supabase
       .from("employees")
-      .select("name, salary_type, daily_rate, monthly_rate")
+      .select("name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour")
       .eq("id", employeeId)
       .eq("business_id", businessId)
       .maybeSingle(),
     supabase
       .from("businesses")
-      .select("izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
+      .select("izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour")
       .eq("id", businessId)
       .single(),
   ]);
@@ -138,6 +147,12 @@ export async function createPayslip(
     },
   );
 
+  const lemburRate = effectiveLemburRate(
+    employee.lembur_rate_per_hour === null ? null : Number(employee.lembur_rate_per_hour),
+    Number(business.lembur_rate_per_hour),
+  );
+  const lemburAmount = lemburHours * lemburRate;
+
   const { data: payslip, error } = await supabase
     .from("payslips")
     .insert({
@@ -148,6 +163,9 @@ export async function createPayslip(
       salary_type: salaryType,
       daily_rate: dailyRate,
       monthly_rate: monthlyRate,
+      lembur_amount: lemburAmount,
+      lembur_hours: lemburHours,
+      lembur_rate: lemburRate,
       hadir_count: calc.hadirCount,
       izin_count: calc.izinCount,
       sakit_count: calc.sakitCount,

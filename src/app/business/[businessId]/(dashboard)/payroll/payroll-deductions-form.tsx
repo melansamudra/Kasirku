@@ -10,11 +10,13 @@ export default function PayrollDeductionsForm({
   izinDeductionWeekday,
   izinDeductionWeekend,
   lateDeductionPerOccurrence,
+  lemburRatePerHour,
 }: {
   action: (state: PayrollDeductionsState, formData: FormData) => Promise<PayrollDeductionsState>;
   izinDeductionWeekday: number;
   izinDeductionWeekend: number;
   lateDeductionPerOccurrence: number;
+  lemburRatePerHour: number;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -68,6 +70,24 @@ export default function PayrollDeductionsForm({
         <p className="mt-1 text-[11px] text-zinc-400">
           Dihitung otomatis dari berapa kali karyawan ditandai &quot;Terlambat&quot; di halaman
           Absensi.
+        </p>
+      </div>
+      <div className="border-t border-zinc-100 pt-4">
+        <label htmlFor="lemburRatePerHour" className="mb-1 block text-xs font-medium text-zinc-600">
+          Rate Lembur per Jam — Default (Rp)
+        </label>
+        <input
+          id="lemburRatePerHour"
+          name="lemburRatePerHour"
+          type="number"
+          min="0"
+          step="1"
+          defaultValue={lemburRatePerHour}
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Dipakai kalau karyawan tidak punya rate lembur sendiri (bisa diatur per karyawan di
+          halaman Karyawan).
         </p>
       </div>
 

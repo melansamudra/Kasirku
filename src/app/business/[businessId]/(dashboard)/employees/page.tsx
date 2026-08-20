@@ -29,7 +29,7 @@ export default async function EmployeesPage({
   const { data: employees } = await supabase
     .from("employees")
     .select(
-      "id, name, salary_type, daily_rate, monthly_rate, active, note, cashier_id, contract_end, cashiers(name)",
+      "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, active, note, cashier_id, contract_end, cashiers(name)",
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
@@ -118,6 +118,7 @@ export default async function EmployeesPage({
                   salaryType={e.salary_type === "bulanan" ? "bulanan" : "harian"}
                   dailyRate={Number(e.daily_rate)}
                   monthlyRate={Number(e.monthly_rate)}
+                  lemburRatePerHour={e.lembur_rate_per_hour === null ? null : Number(e.lembur_rate_per_hour)}
                   note={e.note}
                   cashierId={e.cashier_id}
                   contractEnd={e.contract_end}

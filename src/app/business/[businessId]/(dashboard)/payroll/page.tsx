@@ -75,7 +75,9 @@ export default async function PayrollPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
+    .select(
+      "id, name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+    )
     .eq("id", businessId)
     .single();
 
@@ -85,7 +87,7 @@ export default async function PayrollPage({
 
   const { data: employees } = await supabase
     .from("employees")
-    .select("id, name, salary_type, daily_rate, monthly_rate, active")
+    .select("id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, active")
     .eq("business_id", businessId)
     .order("name", { ascending: true });
 
@@ -191,7 +193,7 @@ export default async function PayrollPage({
         </Link>
 
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">Potongan Payroll</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Pengaturan Payroll</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Berlaku sama untuk semua karyawan — dipakai otomatis saat slip gaji dibuat dari data
             Absensi.
@@ -202,6 +204,7 @@ export default async function PayrollPage({
               izinDeductionWeekday={Number(business.izin_deduction_weekday)}
               izinDeductionWeekend={Number(business.izin_deduction_weekend)}
               lateDeductionPerOccurrence={Number(business.late_deduction_per_occurrence)}
+              lemburRatePerHour={Number(business.lembur_rate_per_hour)}
             />
           </div>
         </div>
@@ -273,8 +276,10 @@ export default async function PayrollPage({
               salaryType: e.salary_type === "bulanan" ? "bulanan" : "harian",
               dailyRate: Number(e.daily_rate),
               monthlyRate: Number(e.monthly_rate),
+              lemburRatePerHour: e.lembur_rate_per_hour === null ? null : Number(e.lembur_rate_per_hour),
               active: e.active,
             }))}
+            businessLemburRate={Number(business.lembur_rate_per_hour)}
             defaultStart={defaultStart}
             defaultEnd={today}
             action={boundCreatePayslip}
