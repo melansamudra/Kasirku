@@ -31,7 +31,7 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock")
+    .select("id, name, unit, unit_cost, stock, min_stock, purchase_unit, purchase_conversion")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -99,6 +99,11 @@ export default async function IngredientsPage({
                       </span>
                     )}
                   </p>
+                  {i.purchase_unit && (
+                    <p className="text-[10.5px] text-zinc-400">
+                      Beli per {i.purchase_unit} (1 {i.purchase_unit} = {i.purchase_conversion} {i.unit})
+                    </p>
+                  )}
                 </div>
                 <p className="text-sm font-semibold text-zinc-900">
                   {formatRupiah(Number(i.unit_cost))}/{i.unit}
@@ -108,6 +113,8 @@ export default async function IngredientsPage({
                   unit={i.unit}
                   unitCost={Number(i.unit_cost)}
                   minStock={Number(i.min_stock)}
+                  purchaseUnit={i.purchase_unit}
+                  purchaseConversion={i.purchase_conversion !== null ? Number(i.purchase_conversion) : null}
                   action={editIngredient.bind(null, businessId, i.id)}
                 />
                 <AdjustStockForm

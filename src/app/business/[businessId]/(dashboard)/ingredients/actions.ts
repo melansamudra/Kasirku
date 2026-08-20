@@ -19,6 +19,8 @@ export async function addIngredient(
   const unitCostRaw = formData.get("unitCost") as string;
   const stockRaw = formData.get("stock") as string;
   const minStockRaw = formData.get("minStock") as string;
+  const purchaseUnit = (formData.get("purchaseUnit") as string)?.trim();
+  const purchaseConversionRaw = formData.get("purchaseConversion") as string;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -42,6 +44,14 @@ export async function addIngredient(
     return { error: "Stok minimum harus angka dan tidak boleh negatif." };
   }
 
+  let purchaseConversion: number | null = null;
+  if (purchaseUnit) {
+    purchaseConversion = purchaseConversionRaw ? Number(purchaseConversionRaw) : NaN;
+    if (Number.isNaN(purchaseConversion) || purchaseConversion <= 0) {
+      return { error: `Isi berapa ${unit || "satuan stok"} per 1 ${purchaseUnit}.` };
+    }
+  }
+
   const supabase = await createClient();
   const { data: inserted, error } = await supabase
     .from("ingredients")
@@ -52,6 +62,8 @@ export async function addIngredient(
       unit_cost: unitCost,
       stock,
       min_stock: minStock,
+      purchase_unit: purchaseUnit || null,
+      purchase_conversion: purchaseConversion,
     })
     .select("id")
     .single();
@@ -91,6 +103,8 @@ export async function editIngredient(
   const unit = (formData.get("unit") as string)?.trim();
   const unitCostRaw = formData.get("unitCost") as string;
   const minStockRaw = formData.get("minStock") as string;
+  const purchaseUnit = (formData.get("purchaseUnit") as string)?.trim();
+  const purchaseConversionRaw = formData.get("purchaseConversion") as string;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -109,6 +123,14 @@ export async function editIngredient(
     return { error: "Stok minimum harus angka dan tidak boleh negatif." };
   }
 
+  let purchaseConversion: number | null = null;
+  if (purchaseUnit) {
+    purchaseConversion = purchaseConversionRaw ? Number(purchaseConversionRaw) : NaN;
+    if (Number.isNaN(purchaseConversion) || purchaseConversion <= 0) {
+      return { error: `Isi berapa ${unit || "satuan stok"} per 1 ${purchaseUnit}.` };
+    }
+  }
+
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -120,7 +142,14 @@ export async function editIngredient(
 
   const { error } = await supabase
     .from("ingredients")
-    .update({ name, unit, unit_cost: unitCost, min_stock: minStock })
+    .update({
+      name,
+      unit,
+      unit_cost: unitCost,
+      min_stock: minStock,
+      purchase_unit: purchaseUnit || null,
+      purchase_conversion: purchaseConversion,
+    })
     .eq("id", ingredientId)
     .eq("business_id", businessId);
 

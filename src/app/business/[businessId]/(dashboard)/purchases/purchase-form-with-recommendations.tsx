@@ -5,7 +5,14 @@ import AddPurchaseForm, { type PurchasePrefill } from "./add-purchase-form";
 import type { AddPurchaseState } from "./actions";
 
 type SupplierOption = { id: string; name: string };
-type IngredientOption = { id: string; name: string; unit: string; stock: number };
+type IngredientOption = {
+  id: string;
+  name: string;
+  unit: string;
+  stock: number;
+  purchase_unit?: string | null;
+  purchase_conversion?: number | null;
+};
 type ProductOption = { id: string; name: string; stock: number };
 
 type LowStockIngredient = {

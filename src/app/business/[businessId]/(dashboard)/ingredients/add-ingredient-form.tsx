@@ -96,6 +96,41 @@ export default function AddIngredientForm({
         </div>
       </div>
 
+      <div className="rounded-xl bg-zinc-50 p-3">
+        <p className="mb-2 text-[11px] font-medium text-zinc-500">
+          Satuan Beli (opsional) — kalau belinya beda satuan dari stok, mis. beli per Sak/Karung
+          tapi stok dihitung per gram.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="purchaseUnit" className="mb-1 block text-xs font-medium text-zinc-600">
+              Satuan Beli
+            </label>
+            <input
+              id="purchaseUnit"
+              name="purchaseUnit"
+              type="text"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              placeholder="Sak"
+            />
+          </div>
+          <div>
+            <label htmlFor="purchaseConversion" className="mb-1 block text-xs font-medium text-zinc-600">
+              Isi per Satuan Beli
+            </label>
+            <input
+              id="purchaseConversion"
+              name="purchaseConversion"
+              type="number"
+              min="0"
+              step="any"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              placeholder="25000"
+            />
+          </div>
+        </div>
+      </div>
+
       {state.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>
       )}

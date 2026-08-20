@@ -7,7 +7,14 @@ type PurchaseRequestInfo = {
   business_name: string;
   business_type: string;
   employees: { id: string; name: string }[];
-  items: { id: string; name: string; unit: string; stock: number }[];
+  items: {
+    id: string;
+    name: string;
+    unit: string;
+    stock: number;
+    purchase_unit: string | null;
+    purchase_conversion: number | null;
+  }[];
 };
 
 export default async function PermintaanBarangPage({
@@ -33,7 +40,14 @@ export default async function PermintaanBarangPage({
         businessName={info.business_name}
         isFnb={info.business_type === "fnb"}
         employees={info.employees}
-        items={info.items}
+        items={info.items.map((i) => ({
+          id: i.id,
+          name: i.name,
+          unit: i.unit,
+          stock: i.stock,
+          purchaseUnit: i.purchase_unit,
+          purchaseConversion: i.purchase_conversion,
+        }))}
       />
     </div>
   );

@@ -89,7 +89,7 @@ export default async function PurchasesPage({
       isFnb
         ? supabase
             .from("ingredients")
-            .select("id, name, unit, stock, min_stock, unit_cost")
+            .select("id, name, unit, stock, min_stock, unit_cost, purchase_unit, purchase_conversion")
             .eq("business_id", businessId)
             .is("deleted_at", null)
             .order("name", { ascending: true })

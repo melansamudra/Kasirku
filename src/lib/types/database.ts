@@ -859,6 +859,8 @@ export type Database = {
           stock: number;
           deleted_at: string | null;
           min_stock: number;
+          purchase_unit: string | null;
+          purchase_conversion: number | null;
         };
         Insert: {
           id?: string;
@@ -869,6 +871,8 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
+          purchase_unit?: string | null;
+          purchase_conversion?: number | null;
         };
         Update: {
           id?: string;
@@ -879,6 +883,8 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
+          purchase_unit?: string | null;
+          purchase_conversion?: number | null;
         };
         Relationships: [];
       };
