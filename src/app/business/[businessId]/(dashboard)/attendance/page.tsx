@@ -82,6 +82,16 @@ export default async function AttendancePage({
         />
 
         {employees && employees.length > 0 && (
+          <Link
+            href={`/business/${businessId}/attendance/rekap`}
+            className="mt-3 flex items-center justify-between rounded-xl bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
+          >
+            Lihat Rekap Bulanan
+            <span className="text-brand-600">→</span>
+          </Link>
+        )}
+
+        {employees && employees.length > 0 && (
           <div className="mt-4 grid grid-cols-5 gap-2">
             <StatCard label="Hadir" value={String(counts.hadir)} icon={CalendarCheck} tone="brand" />
             <StatCard label="Izin" value={String(counts.izin)} icon={Clock} tone="amber" />
@@ -115,16 +125,6 @@ export default async function AttendancePage({
             </p>
           )}
         </div>
-
-        {employees && employees.length > 0 && (
-          <Link
-            href={`/business/${businessId}/attendance/rekap`}
-            className="mt-6 flex items-center justify-between rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
-          >
-            Lihat Rekap Bulanan
-            <span className="text-brand-600">→</span>
-          </Link>
-        )}
     </div>
   );
 }
