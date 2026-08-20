@@ -21,6 +21,7 @@ type RequestItem = {
   itemType: "ingredient" | "product";
   ingredientId: string | null;
   productId: string | null;
+  department: string | null;
   unit: string | null;
   qtyOrdered: number;
   currentStock: number | null;

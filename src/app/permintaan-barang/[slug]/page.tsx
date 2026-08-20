@@ -12,6 +12,7 @@ type PurchaseRequestInfo = {
     name: string;
     unit: string;
     stock: number;
+    department: string | null;
     purchase_units: { unitName: string; conversion: number }[];
   }[];
 };
@@ -44,6 +45,7 @@ export default async function PermintaanBarangPage({
           name: i.name,
           unit: i.unit,
           stock: i.stock,
+          department: i.department,
           purchaseUnits: i.purchase_units ?? [],
         }))}
       />

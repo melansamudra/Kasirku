@@ -229,6 +229,132 @@ export async function addPurchase(
     : { error: null, resetToken: prevState.resetToken + 1 };
 }
 
+export type VoidPurchaseState = { error: string | null };
+
+// Batalkan pembelian — bukan hapus baris, tapi ditandai voided + otomatis
+// membalik efeknya: stok bahan/produk yang sempat bertambah dikurangi lagi
+// (tidak mencoba mengembalikan persis unit_cost sebelumnya, karena transaksi
+// lain mungkin sudah terjadi sejak itu), dan jurnal koreksi (kebalikan dari
+// jurnal saat pembelian dicatat, berdasarkan paid_amount TERKINI — termasuk
+// pembayaran cicilan yang mungkin sudah ditambahkan lewat purchase_payments).
+export async function voidPurchase(
+  businessId: string,
+  purchaseId: string,
+  reason: string,
+): Promise<VoidPurchaseState> {
+  reason = reason.trim();
+  if (!reason) {
+    return { error: "Alasan pembatalan wajib diisi." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: purchase } = await supabase
+    .from("purchases")
+    .select("id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided")
+    .eq("id", purchaseId)
+    .eq("business_id", businessId)
+    .single();
+
+  if (!purchase) {
+    return { error: "Data pembelian tidak ditemukan." };
+  }
+  if (purchase.voided) {
+    return { error: "Pembelian ini sudah dibatalkan sebelumnya." };
+  }
+
+  let itemName = "Pembelian";
+
+  if (purchase.category === "Bahan Baku" && purchase.ingredient_id) {
+    const { data: ingredient } = await supabase
+      .from("ingredients")
+      .select("id, name, stock")
+      .eq("id", purchase.ingredient_id)
+      .single();
+
+    if (ingredient) {
+      itemName = ingredient.name;
+      const { error: updateError } = await supabase
+        .from("ingredients")
+        .update({ stock: Number(ingredient.stock) - Number(purchase.qty) })
+        .eq("id", purchase.ingredient_id);
+      if (updateError) return { error: updateError.message };
+    }
+  } else if (purchase.category === "Barang Dagang" && purchase.product_id) {
+    const { data: product } = await supabase
+      .from("products")
+      .select("id, name, stock")
+      .eq("id", purchase.product_id)
+      .single();
+
+    if (product) {
+      itemName = product.name;
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ stock: Number(product.stock) - Number(purchase.qty) })
+        .eq("id", purchase.product_id);
+      if (updateError) return { error: updateError.message };
+    }
+  }
+
+  const amount = Number(purchase.amount);
+  const paidAmount = Number(purchase.paid_amount);
+  const sisaUtang = amount - paidAmount;
+
+  const reversalLines: { account_code: string; debit: number; credit: number }[] = [
+    { account_code: "1-200", debit: 0, credit: amount },
+  ];
+  if (paidAmount > 0) {
+    reversalLines.push({ account_code: "1-001", debit: paidAmount, credit: 0 });
+  }
+  if (sisaUtang > 0) {
+    reversalLines.push({ account_code: "2-001", debit: sisaUtang, credit: 0 });
+  }
+  const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
+    p_business_id: businessId,
+    p_date: new Date().toISOString().slice(0, 10),
+    p_description: `Batal pembelian: ${itemName}`,
+    p_lines: reversalLines,
+  });
+  const journalError = journalRpcError?.message ?? null;
+
+  const { error } = await supabase
+    .from("purchases")
+    .update({ voided: true, voided_at: new Date().toISOString(), void_reason: reason })
+    .eq("id", purchaseId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  // Lepas link ke Permintaan Barang biar tombol "Catat sebagai Pembelian"
+  // muncul lagi kalau mau dicatat ulang.
+  await supabase
+    .from("purchase_request_item_allocations")
+    .update({ purchase_id: null })
+    .eq("purchase_id", purchaseId)
+    .eq("business_id", businessId);
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    journalError ? "warning" : "warning",
+    `Pembelian dibatalkan: ${itemName}`,
+    journalError
+      ? `${reason} — GAGAL posting jurnal koreksi: ${journalError}`
+      : reason,
+  );
+
+  revalidatePath(`/business/${businessId}/purchases`);
+  revalidatePath(`/business/${businessId}/suppliers`);
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return journalError
+    ? {
+        error: `Pembelian dibatalkan, tapi gagal posting jurnal koreksi (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`,
+      }
+    : { error: null };
+}
+
 export type AddPaymentState = { error: string | null };
 
 export async function addPurchasePayment(

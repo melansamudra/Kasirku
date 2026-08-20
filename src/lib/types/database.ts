@@ -894,6 +894,7 @@ export type Database = {
           stock: number;
           deleted_at: string | null;
           min_stock: number;
+          department: string | null;
         };
         Insert: {
           id?: string;
@@ -904,6 +905,7 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
+          department?: string | null;
         };
         Update: {
           id?: string;
@@ -914,6 +916,7 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
+          department?: string | null;
         };
         Relationships: [];
       };
@@ -1943,6 +1946,9 @@ export type Database = {
           paid_amount: number;
           created_at: string;
           due_date: string | null;
+          voided: boolean;
+          voided_at: string | null;
+          void_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -1958,6 +1964,9 @@ export type Database = {
           paid_amount?: number;
           created_at?: string;
           due_date?: string | null;
+          voided?: boolean;
+          voided_at?: string | null;
+          void_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -1973,6 +1982,9 @@ export type Database = {
           paid_amount?: number;
           created_at?: string;
           due_date?: string | null;
+          voided?: boolean;
+          voided_at?: string | null;
+          void_reason?: string | null;
         };
         Relationships: [
           {

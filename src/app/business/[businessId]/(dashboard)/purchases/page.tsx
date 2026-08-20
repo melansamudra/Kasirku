@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
-import { addPurchase, addPurchasePayment } from "./actions";
+import { addPurchase, addPurchasePayment, voidPurchase } from "./actions";
 import AddPaymentForm from "./add-payment-form";
 import PurchaseFormWithRecommendations from "./purchase-form-with-recommendations";
 import type { PurchasePrefill } from "./add-purchase-form";
+import VoidPurchaseButton from "./void-purchase-button";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -46,6 +47,8 @@ type PurchaseRow = {
   supplier_id: string | null;
   ingredient_id: string | null;
   product_id: string | null;
+  voided: boolean;
+  void_reason: string | null;
 };
 
 export default async function PurchasesPage({
@@ -110,7 +113,7 @@ export default async function PurchasesPage({
       supabase
         .from("purchases")
         .select(
-          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id",
+          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason",
         )
         .eq("business_id", businessId)
         .order("date", { ascending: false })
@@ -134,11 +137,12 @@ export default async function PurchasesPage({
   const productMap = new Map((products ?? []).map((p) => [p.id, p.name]));
 
   const rows = (purchases ?? []) as PurchaseRow[];
-  const totalUtang = rows.reduce((s, r) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
-  const belumLunasCount = rows.filter((r) => Number(r.paid_amount) < Number(r.amount)).length;
+  const activeRows = rows.filter((r) => !r.voided);
+  const totalUtang = activeRows.reduce((s, r) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
+  const belumLunasCount = activeRows.filter((r) => Number(r.paid_amount) < Number(r.amount)).length;
 
   const agingTotals = new Map<AgingBucket, number>();
-  for (const r of rows) {
+  for (const r of activeRows) {
     const sisa = Number(r.amount) - Number(r.paid_amount);
     if (sisa <= 0) continue;
     const bucket = agingBucketOf(r.date, today);
@@ -276,35 +280,45 @@ export default async function PurchasesPage({
                   ? productMap.get(r.product_id)
                   : null;
               return (
-                <div key={r.id} className="px-4 py-3">
+                <div key={r.id} className={`px-4 py-3 ${r.voided ? "opacity-60" : ""}`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-[13px] font-semibold text-zinc-900">
                         {itemName ?? r.category}
                         {r.qty ? ` · ${r.qty}` : ""}
+                        {r.voided && (
+                          <span className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                            Dibatalkan
+                          </span>
+                        )}
                       </p>
                       <p className="text-[11px] text-zinc-400">
                         {formatDate(r.date)}
                         {r.supplier_id ? ` · ${supplierMap.get(r.supplier_id) ?? "—"}` : ""}
                         {r.note ? ` · ${r.note}` : ""}
                       </p>
+                      {r.voided && r.void_reason && (
+                        <p className="text-[11px] text-red-500">Alasan: {r.void_reason}</p>
+                      )}
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-bold text-zinc-900">{formatRupiah(Number(r.amount))}</p>
-                      <p
-                        className={`text-[11px] font-medium ${
-                          lunas ? "text-brand-700" : "text-amber-600"
-                        }`}
-                      >
-                        {lunas ? "Lunas" : `Sisa ${formatRupiah(sisaUtang)}`}
-                      </p>
-                      {!lunas && r.due_date && (
+                      {!r.voided && (
+                        <p
+                          className={`text-[11px] font-medium ${
+                            lunas ? "text-brand-700" : "text-amber-600"
+                          }`}
+                        >
+                          {lunas ? "Lunas" : `Sisa ${formatRupiah(sisaUtang)}`}
+                        </p>
+                      )}
+                      {!r.voided && !lunas && r.due_date && (
                         <p className="text-[10.5px] text-zinc-400">
                           Jatuh tempo {formatDate(r.due_date)}
                         </p>
                       )}
                     </div>
-                    {!lunas && (
+                    {!r.voided && !lunas && (
                       <AddPaymentForm
                         today={today}
                         sisaUtang={sisaUtang}
@@ -312,6 +326,11 @@ export default async function PurchasesPage({
                       />
                     )}
                   </div>
+                  {!r.voided && (
+                    <div className="mt-1">
+                      <VoidPurchaseButton action={voidPurchase.bind(null, businessId, r.id)} />
+                    </div>
+                  )}
                 </div>
               );
             })}

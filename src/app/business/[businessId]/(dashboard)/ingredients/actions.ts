@@ -7,6 +7,30 @@ import { parseCsv } from "@/lib/csv";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 import ExcelJS from "exceljs";
 
+// Pengelompokan bahan per departemen (dapur/bar/front) — biar admin yang
+// scan/lihat order Permintaan Barang langsung tahu ini buat departemen mana.
+export async function updateIngredientDepartment(
+  businessId: string,
+  ingredientId: string,
+  department: string,
+): Promise<{ error: string | null }> {
+  if (department && !["dapur", "bar", "front"].includes(department)) {
+    return { error: "Departemen tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ingredients")
+    .update({ department: department || null })
+    .eq("id", ingredientId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
 export type AddIngredientState = { error: string | null };
 
 export async function addIngredient(

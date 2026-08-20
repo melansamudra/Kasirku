@@ -9,10 +9,30 @@ type MasterItem = {
   name: string;
   unit: string;
   stock: number;
+  department: string | null;
   purchaseUnits: { unitName: string; conversion: number }[];
 };
 
 const NEW_ITEM_VALUE = "__new__";
+
+const DEPARTMENT_LABELS: Record<string, string> = {
+  dapur: "🍳 Dapur",
+  bar: "🍹 Bar",
+  front: "🛎️ Front",
+  lainnya: "Lainnya",
+};
+
+function groupItemsByDepartment(items: MasterItem[]): [string, MasterItem[]][] {
+  const groups = new Map<string, MasterItem[]>();
+  for (const item of items) {
+    const key = item.department ?? "lainnya";
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+  const order = ["dapur", "bar", "front", "lainnya"];
+  return order.filter((k) => groups.has(k)).map((k) => [k, groups.get(k)!]);
+}
 
 type CartRow = {
   key: string;
@@ -55,6 +75,7 @@ export default function RequestClient({
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const itemMap = new Map(items.map((i) => [i.id, i]));
+  const groupedItems = groupItemsByDepartment(items);
 
   function updateRow(key: string, patch: Partial<CartRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -194,7 +215,14 @@ export default function RequestClient({
             return (
               <div key={row.key} className="rounded-xl border border-zinc-200 p-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-semibold text-zinc-500">Barang #{idx + 1}</p>
+                  <p className="text-[11px] font-semibold text-zinc-500">
+                    Barang #{idx + 1}
+                    {selectedItem?.department && (
+                      <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                        {DEPARTMENT_LABELS[selectedItem.department]}
+                      </span>
+                    )}
+                  </p>
                   {rows.length > 1 && (
                     <button
                       type="button"
@@ -212,10 +240,14 @@ export default function RequestClient({
                   className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 >
                   <option value="">— Pilih barang —</option>
-                  {items.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
+                  {groupedItems.map(([dept, deptItems]) => (
+                    <optgroup key={dept} label={DEPARTMENT_LABELS[dept]}>
+                      {deptItems.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                   <option value={NEW_ITEM_VALUE}>+ Barang baru (belum ada di daftar)</option>
                 </select>

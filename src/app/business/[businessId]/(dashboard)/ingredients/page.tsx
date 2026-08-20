@@ -7,10 +7,12 @@ import {
   deleteIngredientPurchaseUnit,
   editIngredient,
   importIngredients,
+  updateIngredientDepartment,
 } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
+import DepartmentSelect from "./department-select";
 import EditIngredientForm from "./edit-ingredient-form";
 import ImportIngredientsForm from "./import-ingredients-form";
 import PurchaseUnitsManager from "./purchase-units-manager";
@@ -39,7 +41,7 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock")
+    .select("id, name, unit, unit_cost, stock, min_stock, department")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -114,7 +116,14 @@ export default async function IngredientsPage({
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
               >
                 <div>
-                  <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                    <DepartmentSelect
+                      ingredientId={i.id}
+                      department={i.department}
+                      action={updateIngredientDepartment.bind(null, businessId)}
+                    />
+                  </div>
                   <p className="text-xs text-zinc-500">
                     Stok {i.stock} {i.unit}
                     {Number(i.min_stock) > 0 && Number(i.stock) <= Number(i.min_stock) && (

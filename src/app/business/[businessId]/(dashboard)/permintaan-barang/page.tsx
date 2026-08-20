@@ -53,7 +53,7 @@ export default async function PermintaanBarangPage({
     notFound();
   }
 
-  const [{ data: suppliers }, { data: requests }, { data: items }, { data: allocations }] =
+  const [{ data: suppliers }, { data: requests }, { data: items }, { data: allocations }, { data: ingredients }] =
     await Promise.all([
       supabase
         .from("suppliers")
@@ -77,7 +77,10 @@ export default async function PermintaanBarangPage({
         .from("purchase_request_item_allocations")
         .select("id, purchase_request_item_id, supplier_id, qty, forwarded_at, received_at, purchase_id")
         .eq("business_id", businessId),
+      supabase.from("ingredients").select("id, department").eq("business_id", businessId),
     ]);
+
+  const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
 
   const allocationsByItem = new Map<string, AllocationRow[]>();
   for (const a of (allocations ?? []) as AllocationRow[]) {
@@ -145,6 +148,7 @@ export default async function PermintaanBarangPage({
                   itemType: it.item_type,
                   ingredientId: it.ingredient_id,
                   productId: it.product_id,
+                  department: it.ingredient_id ? (departmentByIngredient.get(it.ingredient_id) ?? null) : null,
                   unit: it.unit,
                   qtyOrdered: Number(it.qty_ordered),
                   currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
