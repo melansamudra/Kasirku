@@ -32,6 +32,12 @@ function toWibMonth(iso: string) {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }).slice(0, 7);
 }
 
+function addMonthsStr(month: string, delta: number) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function monthLabel(month: string) {
   const [y, m] = month.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("id-ID", {
@@ -80,10 +86,13 @@ function payslipTotal(p: PayslipAgg) {
 
 export default async function PayrollPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ month?: string }>;
 }) {
   const { businessId } = await params;
+  const { month: monthParam } = await searchParams;
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -136,9 +145,11 @@ export default async function PayrollPage({
   const activeEmployeeCount = (employees ?? []).filter((e) => e.active).length;
 
   const currentMonth = today.slice(0, 7);
+  const selectedMonth = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth;
+  const monthSlips = allPayslips.filter((p) => toWibMonth(p.period_start) === selectedMonth);
   const totalDibayarkan = allPayslips.filter((p) => p.paid_at).reduce((s, p) => s + payslipTotal(p), 0);
-  const totalDibayarkanBulanIni = allPayslips
-    .filter((p) => p.paid_at && toWibMonth(p.paid_at) === currentMonth)
+  const totalDibayarkanBulan = monthSlips
+    .filter((p) => p.paid_at)
     .reduce((s, p) => s + payslipTotal(p), 0);
   const unpaidSlips = allPayslips.filter((p) => !p.paid_at);
   const belumDibayarCount = unpaidSlips.length;
@@ -176,7 +187,7 @@ export default async function PayrollPage({
     return s + Math.max(0, given - settled);
   }, 0);
 
-  const recentPayslips = allPayslips.slice(0, 50);
+  const recentPayslips = monthSlips;
 
   return (
     <div className="w-full max-w-2xl">
@@ -185,12 +196,38 @@ export default async function PayrollPage({
           Buat slip gaji dari data absensi, tambah tunjangan/potongan di halaman slip.
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
+          <Link
+            href={`/business/${businessId}/payroll?month=${addMonthsStr(selectedMonth, -1)}`}
+            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100"
+          >
+            ←
+          </Link>
+          <div className="text-center">
+            <p className="text-xs font-semibold text-zinc-900">{monthLabel(selectedMonth)}</p>
+            {selectedMonth !== currentMonth && (
+              <Link
+                href={`/business/${businessId}/payroll`}
+                className="text-[11px] font-medium text-brand-600 hover:underline"
+              >
+                Kembali ke bulan ini
+              </Link>
+            )}
+          </div>
+          <Link
+            href={`/business/${businessId}/payroll?month=${addMonthsStr(selectedMonth, 1)}`}
+            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100"
+          >
+            →
+          </Link>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Karyawan Aktif" value={String(activeEmployeeCount)} icon={Users} tone="zinc" />
           <StatCard
-            label="Dibayarkan Bulan Ini"
-            value={formatRupiah(totalDibayarkanBulanIni)}
-            sub={monthLabel(currentMonth)}
+            label="Dibayarkan"
+            value={formatRupiah(totalDibayarkanBulan)}
+            sub={monthLabel(selectedMonth)}
             icon={Wallet}
             tone="brand"
           />
@@ -316,7 +353,9 @@ export default async function PayrollPage({
         </div>
 
         <div className="mt-6 space-y-2">
-          <h2 className="text-sm font-semibold text-zinc-900">Riwayat Slip Gaji</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">
+            Riwayat Slip Gaji — {monthLabel(selectedMonth)}
+          </h2>
           {recentPayslips.length > 0 ? (
             recentPayslips.map((p) => {
               const total = payslipTotal(p);
@@ -349,7 +388,7 @@ export default async function PayrollPage({
             })
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-              Belum ada slip gaji dibuat.
+              Belum ada slip gaji untuk periode {monthLabel(selectedMonth)}.
             </p>
           )}
         </div>
