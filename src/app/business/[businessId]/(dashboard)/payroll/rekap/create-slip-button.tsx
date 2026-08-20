@@ -7,14 +7,16 @@ import type { CreatePayslipResult } from "../actions";
 export default function CreateSlipButton({
   businessId,
   lemburRate,
+  defaultHours = 0,
   action,
 }: {
   businessId: string;
   lemburRate: number;
+  defaultHours?: number;
   action: (lemburHours: number) => Promise<CreatePayslipResult>;
 }) {
   const router = useRouter();
-  const [lemburHours, setLemburHours] = useState("");
+  const [lemburHours, setLemburHours] = useState(defaultHours > 0 ? String(defaultHours) : "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

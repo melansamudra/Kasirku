@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
-import { setAttendance, setAttendanceLate, type AttendanceStatus } from "./actions";
-import AttendanceRow from "./attendance-row";
+import { setAttendance, setAttendanceLate, verifyAttendance, type AttendanceStatus } from "./actions";
+import AttendanceRow, { type SelfieInfo } from "./attendance-row";
 import AttendanceDatePicker from "./attendance-date-picker";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
@@ -55,7 +55,9 @@ export default async function AttendancePage({
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
-    .select("employee_id, status, late")
+    .select(
+      "id, employee_id, status, late, check_in_at, check_in_photo_url, check_out_at, check_out_photo_url, late_minutes, overtime_hours, verified_by_admin",
+    )
     .eq("business_id", businessId)
     .eq("date", date);
 
@@ -63,6 +65,21 @@ export default async function AttendancePage({
     (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
   const lateByEmployee = new Map((attendanceRows ?? []).map((r) => [r.employee_id, r.late]));
+  const selfieByEmployee = new Map<string, SelfieInfo>(
+    (attendanceRows ?? []).map((r) => [
+      r.employee_id,
+      {
+        attendanceId: r.id,
+        checkInAt: r.check_in_at,
+        checkInPhotoUrl: r.check_in_photo_url,
+        checkOutAt: r.check_out_at,
+        checkOutPhotoUrl: r.check_out_photo_url,
+        lateMinutes: r.late_minutes,
+        overtimeHours: Number(r.overtime_hours),
+        verified: r.verified_by_admin,
+      },
+    ]),
+  );
 
   const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   for (const status of statusByEmployee.values()) {
@@ -117,6 +134,12 @@ export default async function AttendancePage({
                 late={lateByEmployee.get(e.id) ?? false}
                 action={setAttendance.bind(null, businessId, e.id, date)}
                 lateAction={setAttendanceLate.bind(null, businessId, e.id, date)}
+                selfie={selfieByEmployee.get(e.id) ?? null}
+                verifyAction={
+                  selfieByEmployee.get(e.id)
+                    ? verifyAttendance.bind(null, businessId, selfieByEmployee.get(e.id)!.attendanceId)
+                    : undefined
+                }
               />
             ))
           ) : (

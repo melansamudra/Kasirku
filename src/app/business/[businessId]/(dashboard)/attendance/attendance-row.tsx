@@ -20,18 +20,41 @@ const STATUS_STYLES: Record<AttendanceStatus, string> = {
   off: "border-zinc-400 bg-zinc-100 text-zinc-600",
 };
 
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export type SelfieInfo = {
+  attendanceId: string;
+  checkInAt: string | null;
+  checkInPhotoUrl: string | null;
+  checkOutAt: string | null;
+  checkOutPhotoUrl: string | null;
+  lateMinutes: number;
+  overtimeHours: number;
+  verified: boolean;
+};
+
 export default function AttendanceRow({
   employeeName,
   currentStatus,
   late,
   action,
   lateAction,
+  selfie,
+  verifyAction,
 }: {
   employeeName: string;
   currentStatus: AttendanceStatus | null;
   late: boolean;
   action: (status: AttendanceStatus) => Promise<{ error: string | null }>;
   lateAction: (late: boolean) => Promise<{ error: string | null }>;
+  selfie?: SelfieInfo | null;
+  verifyAction?: () => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -61,6 +84,19 @@ export default function AttendanceRow({
     });
   }
 
+  function handleVerify() {
+    if (!verifyAction) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await verifyAction();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
       <div className="flex items-center justify-between gap-2">
@@ -79,6 +115,56 @@ export default function AttendanceRow({
           </button>
         )}
       </div>
+
+      {selfie && (selfie.checkInAt || selfie.checkOutAt) && (
+        <div className="mt-2 flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+          <div className="flex gap-1.5">
+            {selfie.checkInPhotoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selfie.checkInPhotoUrl}
+                alt="Selfie absen masuk"
+                className="h-12 w-12 rounded-lg object-cover"
+              />
+            )}
+            {selfie.checkOutPhotoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selfie.checkOutPhotoUrl}
+                alt="Selfie absen pulang"
+                className="h-12 w-12 rounded-lg object-cover"
+              />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] text-zinc-500">
+              {selfie.checkInAt && <>Masuk {formatTime(selfie.checkInAt)}</>}
+              {selfie.checkOutAt && <> · Pulang {formatTime(selfie.checkOutAt)}</>}
+            </p>
+            <p className="text-[11px] text-zinc-400">
+              {selfie.lateMinutes > 0 && <span className="text-amber-600">Telat {selfie.lateMinutes} mnt</span>}
+              {selfie.lateMinutes > 0 && selfie.overtimeHours > 0 && " · "}
+              {selfie.overtimeHours > 0 && (
+                <span className="text-brand-700">Lembur {selfie.overtimeHours} jam</span>
+              )}
+              {selfie.lateMinutes === 0 && selfie.overtimeHours === 0 && "Selfie absen"}
+            </p>
+          </div>
+          {verifyAction &&
+            (selfie.verified ? (
+              <span className="shrink-0 text-[11px] font-medium text-brand-600">✓ Terverifikasi</span>
+            ) : (
+              <button
+                onClick={handleVerify}
+                disabled={isPending}
+                className="shrink-0 rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+              >
+                Verifikasi
+              </button>
+            ))}
+        </div>
+      )}
+
       <div className="mt-2 grid grid-cols-5 gap-1.5">
         {STATUS_OPTIONS.map((opt) => (
           <button

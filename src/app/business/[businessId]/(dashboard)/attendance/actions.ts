@@ -84,3 +84,27 @@ export async function setAttendanceLate(
   revalidatePath(`/business/${businessId}/attendance`);
   return { error: null };
 }
+
+// Verifikasi cuma jejak audit "admin sudah mengecek foto & jam-nya benar" —
+// TIDAK memblokir apa pun. Absen selfie sudah otomatis kehitung (status,
+// late_minutes, overtime_hours) begitu masuk lewat /absen/[slug], sebelum
+// admin sempat verifikasi.
+export async function verifyAttendance(
+  businessId: string,
+  attendanceId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("attendance")
+    .update({ verified_by_admin: true, verified_at: new Date().toISOString() })
+    .eq("id", attendanceId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/attendance`);
+  return { error: null };
+}

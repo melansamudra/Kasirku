@@ -34,6 +34,7 @@ import {
   UserCog,
   UserCheck,
   CalendarCheck,
+  CalendarClock,
   Banknote,
   Settings,
   ShieldCheck,
@@ -151,6 +152,7 @@ function buildNavGroups(
           ? [
               { key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog },
               { key: "attendance", href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
+              { key: "jadwal-shift", href: `${base}/jadwal-shift`, label: "Jadwal Shift", icon: CalendarClock },
               { key: "payroll", href: `${base}/payroll`, label: "Payroll", icon: Banknote },
             ]
           : []),

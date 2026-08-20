@@ -73,7 +73,7 @@ export default async function PayrollRekapPage({
   const [{ data: attendanceRows }, { data: existingSlips }] = await Promise.all([
     supabase
       .from("attendance")
-      .select("employee_id, date, status, late")
+      .select("employee_id, date, status, late, overtime_hours")
       .eq("business_id", businessId)
       .gte("date", monthStart)
       .lte("date", monthEnd),
@@ -86,10 +86,15 @@ export default async function PayrollRekapPage({
   ]);
 
   const attendanceByEmployee = new Map<string, { date: string; status: string; late: boolean }[]>();
+  const overtimeByEmployee = new Map<string, number>();
   for (const r of attendanceRows ?? []) {
     const list = attendanceByEmployee.get(r.employee_id) ?? [];
     list.push({ date: r.date, status: r.status, late: r.late });
     attendanceByEmployee.set(r.employee_id, list);
+    overtimeByEmployee.set(
+      r.employee_id,
+      (overtimeByEmployee.get(r.employee_id) ?? 0) + Number(r.overtime_hours),
+    );
   }
 
   const existingSlipByEmployee = new Map((existingSlips ?? []).map((s) => [s.employee_id, s.id]));
@@ -187,6 +192,11 @@ export default async function PayrollRekapPage({
                       {calc.lateDeduction > 0 && <>− Potongan telat {formatRupiah(calc.lateDeduction)}</>}
                     </p>
                   )}
+                  {(overtimeByEmployee.get(e.id) ?? 0) > 0 && (
+                    <p className="mt-0.5 text-[11px] text-brand-600">
+                      ⏰ {overtimeByEmployee.get(e.id)} jam lembur terdeteksi dari absen selfie
+                    </p>
+                  )}
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-bold text-zinc-900">{formatRupiah(calc.estimatedTotal)}</p>
@@ -208,6 +218,7 @@ export default async function PayrollRekapPage({
                       e.lembur_rate_per_hour === null ? null : Number(e.lembur_rate_per_hour),
                       Number(business.lembur_rate_per_hour),
                     )}
+                    defaultHours={overtimeByEmployee.get(e.id) ?? 0}
                     action={createPayslip.bind(null, businessId, e.id, monthStart, monthEnd)}
                   />
                 )}

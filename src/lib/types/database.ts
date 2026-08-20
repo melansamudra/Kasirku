@@ -146,6 +146,15 @@ export type Database = {
           note: string | null;
           created_at: string;
           late: boolean;
+          shift_template_id: string | null;
+          check_in_at: string | null;
+          check_in_photo_url: string | null;
+          check_out_at: string | null;
+          check_out_photo_url: string | null;
+          late_minutes: number;
+          overtime_hours: number;
+          verified_by_admin: boolean;
+          verified_at: string | null;
         };
         Insert: {
           id?: string;
@@ -156,6 +165,15 @@ export type Database = {
           note?: string | null;
           created_at?: string;
           late?: boolean;
+          shift_template_id?: string | null;
+          check_in_at?: string | null;
+          check_in_photo_url?: string | null;
+          check_out_at?: string | null;
+          check_out_photo_url?: string | null;
+          late_minutes?: number;
+          overtime_hours?: number;
+          verified_by_admin?: boolean;
+          verified_at?: string | null;
         };
         Update: {
           id?: string;
@@ -166,6 +184,15 @@ export type Database = {
           note?: string | null;
           created_at?: string;
           late?: boolean;
+          shift_template_id?: string | null;
+          check_in_at?: string | null;
+          check_in_photo_url?: string | null;
+          check_out_at?: string | null;
+          check_out_photo_url?: string | null;
+          late_minutes?: number;
+          overtime_hours?: number;
+          verified_by_admin?: boolean;
+          verified_at?: string | null;
         };
         Relationships: [];
       };
@@ -255,6 +282,7 @@ export type Database = {
           izin_deduction_weekend: number;
           late_deduction_per_occurrence: number;
           lembur_rate_per_hour: number;
+          attendance_qr_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -281,6 +309,7 @@ export type Database = {
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
           lembur_rate_per_hour?: number;
+          attendance_qr_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -307,6 +336,7 @@ export type Database = {
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
           lembur_rate_per_hour?: number;
+          attendance_qr_slug?: string | null;
         };
         Relationships: [];
       };
@@ -502,6 +532,48 @@ export type Database = {
             columns: ["employee_id"];
             isOneToOne: false;
             referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      employee_shift_assignments: {
+        Row: {
+          id: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          shift_template_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          shift_template_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          employee_id?: string;
+          date?: string;
+          shift_template_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "employee_shift_assignments_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "employee_shift_assignments_shift_template_id_fkey";
+            columns: ["shift_template_id"];
+            isOneToOne: false;
+            referencedRelation: "shift_templates";
             referencedColumns: ["id"];
           },
         ];
@@ -1867,6 +1939,33 @@ export type Database = {
           },
         ];
       };
+      shift_templates: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          start_time: string;
+          end_time: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          start_time: string;
+          end_time: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          start_time?: string;
+          end_time?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       shifts: {
         Row: {
           id: string;
@@ -2591,6 +2690,15 @@ export type Database = {
       get_self_order_menu: {
         Args: { p_qr_slug: string };
         Returns: Json;
+      };
+      get_attendance_checkin_info: {
+        Args: { p_slug: string };
+        Returns: {
+          business_id: string;
+          business_name: string;
+          employee_id: string;
+          employee_name: string;
+        }[];
       };
       submit_self_order: {
         Args: {

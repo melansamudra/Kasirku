@@ -50,6 +50,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "assets", label: "Aset Tetap" },
       { key: "employees", label: "Karyawan" },
       { key: "attendance", label: "Absensi" },
+      { key: "jadwal-shift", label: "Jadwal Shift" },
       { key: "payroll", label: "Payroll" },
     ],
   },
