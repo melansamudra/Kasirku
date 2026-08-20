@@ -46,6 +46,9 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = authPages.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );
+  // /absen/* adalah halaman absen selfie karyawan (scan link/QR) — tanpa
+  // login, sama alasannya dengan /order. /api/attendance-checkin adalah API
+  // route yang dipanggil dari halaman itu, juga tanpa sesi browser.
   // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
   // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
   // /reset-password sama kasusnya: link reset dari email membawa token di URL
@@ -86,6 +89,8 @@ export async function updateSession(request: NextRequest) {
     isAuthPage ||
     request.nextUrl.pathname === "/" ||
     request.nextUrl.pathname.startsWith("/order") ||
+    request.nextUrl.pathname.startsWith("/absen") ||
+    request.nextUrl.pathname.startsWith("/api/attendance-checkin") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
     request.nextUrl.pathname.startsWith("/set-password") ||
