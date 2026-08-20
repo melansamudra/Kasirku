@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateKitchenPrinter, updateTaxService } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateKitchenPrinter, updateTaxService, updatePayrollDeductions } from "./actions";
 import SelfOrderBannerForm from "./self-order-banner-form";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
@@ -11,6 +11,7 @@ import DiscountRulesSection from "./discount-rules-section";
 import PrinterCard from "./printer-card";
 import ReceiptSettingsSection from "./receipt-settings-section";
 import TaxServiceForm from "./tax-service-form";
+import PayrollDeductionsForm from "./payroll-deductions-form";
 export default async function SettingsPage({
   params,
 }: {
@@ -21,7 +22,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner")
+    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
     .eq("id", businessId)
     .single();
 
@@ -205,6 +206,23 @@ export default async function SettingsPage({
               taxRate={Number(business.tax_rate)}
               serviceEnabled={business.service_enabled}
               serviceRate={Number(business.service_rate)}
+            />
+          </div>
+        </div>
+
+        {/* Potongan Payroll */}
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Potongan Payroll</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Berlaku sama untuk semua karyawan — dipakai otomatis saat slip gaji dibuat dari data
+            Absensi.
+          </p>
+          <div className="mt-4">
+            <PayrollDeductionsForm
+              action={updatePayrollDeductions.bind(null, businessId)}
+              izinDeductionWeekday={Number(business.izin_deduction_weekday)}
+              izinDeductionWeekend={Number(business.izin_deduction_weekend)}
+              lateDeductionPerOccurrence={Number(business.late_deduction_per_occurrence)}
             />
           </div>
         </div>

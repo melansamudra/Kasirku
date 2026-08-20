@@ -4,7 +4,7 @@ import {
   addPayslipAdjustment,
   markPayslipPaid,
   updatePayslipExtras,
-  updatePayslipDeductions,
+  updateKasbonDeduction,
 } from "../actions";
 import AddAdjustmentForm from "./add-adjustment-form";
 import DeleteAdjustmentButton from "./delete-adjustment-button";
@@ -43,7 +43,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, base_pay, lembur_amount, thr_amount, late_deduction, kasbon_deduction, created_at, paid_at, employees(name)",
+      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_weekday_count, izin_weekend_count, izin_deduction, late_count, late_deduction, hari_kerja_efektif, base_pay, lembur_amount, thr_amount, kasbon_deduction, created_at, paid_at, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -84,14 +84,22 @@ export default async function PayslipDetailPage({
   const basePay = Number(payslip.base_pay);
   const lemburAmount = Number(payslip.lembur_amount);
   const thrAmount = Number(payslip.thr_amount);
+  const izinDeduction = Number(payslip.izin_deduction);
   const lateDeduction = Number(payslip.late_deduction);
   const kasbonDeduction = Number(payslip.kasbon_deduction);
   const totalDiterima =
-    basePay + lemburAmount + thrAmount + totalTunjangan - totalPotongan - lateDeduction - kasbonDeduction;
+    basePay +
+    lemburAmount +
+    thrAmount +
+    totalTunjangan -
+    totalPotongan -
+    izinDeduction -
+    lateDeduction -
+    kasbonDeduction;
 
   const boundAddAdjustment = addPayslipAdjustment.bind(null, businessId, payslipId);
   const boundUpdateExtras = updatePayslipExtras.bind(null, businessId, payslipId);
-  const boundUpdateDeductions = updatePayslipDeductions.bind(null, businessId, payslipId);
+  const boundUpdateKasbon = updateKasbonDeduction.bind(null, businessId, payslipId);
   const boundMarkPaid = markPayslipPaid.bind(null, businessId, payslipId);
   const isPaid = Boolean(payslip.paid_at);
 
@@ -149,11 +157,17 @@ export default async function PayslipDetailPage({
             <div className="flex justify-between">
               <span className="text-zinc-600">
                 {payslip.salary_type === "bulanan"
-                  ? "Gaji Pokok (bulanan)"
-                  : `Gaji Pokok (${payslip.hadir_count} hari x ${formatRupiah(Number(payslip.daily_rate))})`}
+                  ? `Gaji Pokok (${payslip.hadir_count + payslip.izin_count} hari x ${formatRupiah(Number(payslip.monthly_rate) / payslip.hari_kerja_efektif)})`
+                  : `Gaji Pokok (${payslip.hadir_count + payslip.izin_count} hari x ${formatRupiah(Number(payslip.daily_rate))})`}
               </span>
               <span className="font-semibold text-zinc-900">{formatRupiah(basePay)}</span>
             </div>
+            {payslip.salary_type === "bulanan" && (
+              <p className="text-[11px] text-zinc-400">
+                Rp{Number(payslip.monthly_rate).toLocaleString("id-ID")}/bulan ÷ {payslip.hari_kerja_efektif}{" "}
+                hari kerja efektif · {payslip.hadir_count} hadir + {payslip.izin_count} izin
+              </p>
+            )}
             {lemburAmount > 0 && (
               <div className="flex justify-between text-brand-700">
                 <span>+ Lembur</span>
@@ -201,9 +215,18 @@ export default async function PayslipDetailPage({
                 </span>
               </div>
             ))}
+            {izinDeduction > 0 && (
+              <div className="flex justify-between text-red-500">
+                <span>
+                  − Potongan Izin ({payslip.izin_weekday_count}x hari biasa
+                  {payslip.izin_weekend_count > 0 ? `, ${payslip.izin_weekend_count}x weekend` : ""})
+                </span>
+                <span>{formatRupiah(izinDeduction)}</span>
+              </div>
+            )}
             {lateDeduction > 0 && (
               <div className="flex justify-between text-red-500">
-                <span>− Potongan Keterlambatan</span>
+                <span>− Potongan Keterlambatan ({payslip.late_count}x)</span>
                 <span>{formatRupiah(lateDeduction)}</span>
               </div>
             )}
@@ -239,8 +262,7 @@ export default async function PayslipDetailPage({
               />
               <AddAdjustmentForm action={boundAddAdjustment} />
               <DeductionsForm
-                action={boundUpdateDeductions}
-                initialLate={lateDeduction}
+                action={boundUpdateKasbon}
                 initialKasbon={kasbonDeduction}
                 outstandingKasbon={outstandingKasbon}
               />

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
-import { setAttendance, type AttendanceStatus } from "./actions";
+import { setAttendance, setAttendanceLate, type AttendanceStatus } from "./actions";
 import AttendanceRow from "./attendance-row";
 import AttendanceDatePicker from "./attendance-date-picker";
 
@@ -55,18 +55,20 @@ export default async function AttendancePage({
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
-    .select("employee_id, status")
+    .select("employee_id, status, late")
     .eq("business_id", businessId)
     .eq("date", date);
 
   const statusByEmployee = new Map(
     (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
+  const lateByEmployee = new Map((attendanceRows ?? []).map((r) => [r.employee_id, r.late]));
 
   const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   for (const status of statusByEmployee.values()) {
     counts[status] += 1;
   }
+  const lateCount = (attendanceRows ?? []).filter((r) => r.late).length;
 
   return (
     <div className="w-full max-w-2xl">
@@ -89,6 +91,12 @@ export default async function AttendancePage({
           </div>
         )}
 
+        {lateCount > 0 && (
+          <p className="mt-2 text-xs font-medium text-amber-600">
+            ⏰ {lateCount} karyawan tercatat terlambat hari ini
+          </p>
+        )}
+
         <div className="mt-4 space-y-2">
           {employees && employees.length > 0 ? (
             employees.map((e) => (
@@ -96,7 +104,9 @@ export default async function AttendancePage({
                 key={e.id}
                 employeeName={e.name}
                 currentStatus={statusByEmployee.get(e.id) ?? null}
+                late={lateByEmployee.get(e.id) ?? false}
                 action={setAttendance.bind(null, businessId, e.id, date)}
+                lateAction={setAttendanceLate.bind(null, businessId, e.id, date)}
               />
             ))
           ) : (

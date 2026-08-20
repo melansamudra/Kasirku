@@ -21,12 +21,20 @@ export async function setAttendance(
     .eq("business_id", businessId)
     .maybeSingle();
 
-  const { error } = await supabase
-    .from("attendance")
-    .upsert(
-      { business_id: businessId, employee_id: employeeId, date, status },
-      { onConflict: "employee_id,date" },
-    );
+  // Kalau status diganti ke selain "hadir", tandai terlambat ikut direset —
+  // keterlambatan cuma masuk akal buat hari yang beneran hadir, jangan
+  // sampai nyangkut true di hari izin/sakit/alpa/off gara-gara status
+  // sebelumnya sempat hadir+terlambat.
+  const { error } = await supabase.from("attendance").upsert(
+    {
+      business_id: businessId,
+      employee_id: employeeId,
+      date,
+      status,
+      ...(status !== "hadir" ? { late: false } : {}),
+    },
+    { onConflict: "employee_id,date" },
+  );
 
   if (error) {
     return { error: error.message };
@@ -41,6 +49,36 @@ export async function setAttendance(
       `Absensi ${employee.name}: ${status}`,
       date,
     );
+  }
+
+  revalidatePath(`/business/${businessId}/attendance`);
+  return { error: null };
+}
+
+export async function setAttendanceLate(
+  businessId: string,
+  employeeId: string,
+  date: string,
+  late: boolean,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("attendance")
+    .select("id, status")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId)
+    .eq("date", date)
+    .maybeSingle();
+
+  if (!existing || existing.status !== "hadir") {
+    return { error: "Tandai Hadir dulu sebelum menandai terlambat." };
+  }
+
+  const { error } = await supabase.from("attendance").update({ late }).eq("id", existing.id);
+
+  if (error) {
+    return { error: error.message };
   }
 
   revalidatePath(`/business/${businessId}/attendance`);

@@ -45,36 +45,74 @@ export async function createPayslip(
 
   const supabase = await createClient();
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("name, salary_type, daily_rate, monthly_rate")
-    .eq("id", employeeId)
-    .eq("business_id", businessId)
-    .maybeSingle();
+  const [{ data: employee }, { data: business }] = await Promise.all([
+    supabase
+      .from("employees")
+      .select("name, salary_type, daily_rate, monthly_rate")
+      .eq("id", employeeId)
+      .eq("business_id", businessId)
+      .maybeSingle(),
+    supabase
+      .from("businesses")
+      .select("izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
+      .eq("id", businessId)
+      .single(),
+  ]);
 
   if (!employee) {
     return { success: false, error: "Karyawan tidak ditemukan." };
   }
+  if (!business) {
+    return { success: false, error: "Bisnis tidak ditemukan." };
+  }
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
-    .select("status")
+    .select("date, status, late")
     .eq("business_id", businessId)
     .eq("employee_id", employeeId)
     .gte("date", periodStart)
     .lte("date", periodEnd);
 
   const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
+  let izinWeekdayCount = 0;
+  let izinWeekendCount = 0;
+  let lateCount = 0;
   for (const r of attendanceRows ?? []) {
     counts[r.status as keyof typeof counts] += 1;
+    if (r.status === "izin") {
+      const dow = new Date(`${r.date}T00:00:00Z`).getUTCDay(); // 0 = Minggu, 6 = Sabtu
+      if (dow === 0 || dow === 6) izinWeekendCount += 1;
+      else izinWeekdayCount += 1;
+    }
+    if (r.late) lateCount += 1;
   }
+
+  // Hari kerja efektif = total hari di periode dikurangi hari Off — dipakai
+  // buat menurunkan rate harian dari gaji bulanan, jadi beda tiap bulan
+  // tergantung panjang bulan & berapa hari Off yang diberikan.
+  const totalDaysInPeriod =
+    Math.round(
+      (new Date(`${periodEnd}T00:00:00Z`).getTime() - new Date(`${periodStart}T00:00:00Z`).getTime()) /
+        86400000,
+    ) + 1;
+  const hariKerjaEfektif = Math.max(1, totalDaysInPeriod - counts.off);
 
   const salaryType = employee.salary_type === "bulanan" ? "bulanan" : "harian";
   const dailyRate = Number(employee.daily_rate);
   const monthlyRate = Number(employee.monthly_rate);
-  // Bulanan: nominal flat per periode slip (tidak dihitung dari hari hadir).
-  // Harian: tetap seperti semula, dikali hari hadir.
-  const basePay = salaryType === "bulanan" ? monthlyRate : dailyRate * counts.hadir;
+  // Izin sekarang dihitung tetap dibayar (seperti hadir) di gaji pokok, tapi
+  // kena potongan tetap terpisah — menggantikan cara lama (izin = tidak
+  // dihitung sama sekali, sehingga upah hari itu hilang begitu saja).
+  const dailyEquivalent = salaryType === "bulanan" ? monthlyRate / hariKerjaEfektif : dailyRate;
+  const basePay = dailyEquivalent * (counts.hadir + counts.izin);
+
+  const izinDeductionWeekday = Number(business.izin_deduction_weekday);
+  const izinDeductionWeekend = Number(business.izin_deduction_weekend);
+  const izinDeduction = izinWeekdayCount * izinDeductionWeekday + izinWeekendCount * izinDeductionWeekend;
+
+  const lateDeductionPerOccurrence = Number(business.late_deduction_per_occurrence);
+  const lateDeduction = lateCount * lateDeductionPerOccurrence;
 
   const { data: payslip, error } = await supabase
     .from("payslips")
@@ -91,6 +129,12 @@ export async function createPayslip(
       sakit_count: counts.sakit,
       alpa_count: counts.alpa,
       off_count: counts.off,
+      izin_weekday_count: izinWeekdayCount,
+      izin_weekend_count: izinWeekendCount,
+      izin_deduction: izinDeduction,
+      late_count: lateCount,
+      late_deduction: lateDeduction,
+      hari_kerja_efektif: hariKerjaEfektif,
       base_pay: basePay,
     })
     .select("id")
@@ -148,7 +192,7 @@ export async function markPayslipPaid(
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, base_pay, lembur_amount, thr_amount, late_deduction, kasbon_deduction, paid_at, period_end, employees(name)",
+      "id, base_pay, lembur_amount, thr_amount, izin_deduction, late_deduction, kasbon_deduction, paid_at, period_end, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -178,6 +222,7 @@ export async function markPayslipPaid(
     Number(payslip.thr_amount) +
     tunjangan -
     potongan -
+    Number(payslip.izin_deduction) -
     Number(payslip.late_deduction) -
     Number(payslip.kasbon_deduction);
 
@@ -274,19 +319,18 @@ export async function updatePayslipExtras(
   return { error: null };
 }
 
-export async function updatePayslipDeductions(
+// Potongan keterlambatan sekarang dihitung otomatis dari attendance.late x
+// pengaturan payroll saat slip dibuat (lihat createPayslip) — tidak lagi
+// diedit manual di sini. Cuma kasbon yang masih manual, karena itu memang
+// keputusan per-periode (mau dipotong berapa dari sisa kasbon), bukan
+// sesuatu yang bisa diturunkan otomatis dari data lain.
+export async function updateKasbonDeduction(
   businessId: string,
   payslipId: string,
-  lateDeduction: number,
   kasbonDeduction: number,
 ): Promise<{ error: string | null }> {
-  if (
-    Number.isNaN(lateDeduction) ||
-    lateDeduction < 0 ||
-    Number.isNaN(kasbonDeduction) ||
-    kasbonDeduction < 0
-  ) {
-    return { error: "Nominal potongan keterlambatan dan kasbon harus angka 0 atau lebih." };
+  if (Number.isNaN(kasbonDeduction) || kasbonDeduction < 0) {
+    return { error: "Nominal potongan kasbon harus angka 0 atau lebih." };
   }
 
   const supabase = await createClient();
@@ -316,7 +360,7 @@ export async function updatePayslipDeductions(
 
   const { error } = await supabase
     .from("payslips")
-    .update({ late_deduction: lateDeduction, kasbon_deduction: kasbonDeduction })
+    .update({ kasbon_deduction: kasbonDeduction })
     .eq("id", payslipId);
 
   if (error) {
@@ -328,8 +372,8 @@ export async function updatePayslipDeductions(
     businessId,
     "sistem",
     "info",
-    "Potongan keterlambatan/kasbon diperbarui",
-    `Keterlambatan Rp${lateDeduction.toLocaleString("id-ID")} · Kasbon Rp${kasbonDeduction.toLocaleString("id-ID")}`,
+    "Potongan kasbon diperbarui",
+    `Rp${kasbonDeduction.toLocaleString("id-ID")}`,
   );
 
   revalidatePath(`/business/${businessId}/payroll/${payslipId}`);

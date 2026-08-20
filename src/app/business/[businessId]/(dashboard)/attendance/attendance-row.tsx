@@ -23,11 +23,15 @@ const STATUS_STYLES: Record<AttendanceStatus, string> = {
 export default function AttendanceRow({
   employeeName,
   currentStatus,
+  late,
   action,
+  lateAction,
 }: {
   employeeName: string;
   currentStatus: AttendanceStatus | null;
+  late: boolean;
   action: (status: AttendanceStatus) => Promise<{ error: string | null }>;
+  lateAction: (late: boolean) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -45,9 +49,36 @@ export default function AttendanceRow({
     });
   }
 
+  function handleToggleLate() {
+    setError(null);
+    startTransition(async () => {
+      const result = await lateAction(!late);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-      <p className="text-sm font-medium text-zinc-900">{employeeName}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-zinc-900">{employeeName}</p>
+        {currentStatus === "hadir" && (
+          <button
+            onClick={handleToggleLate}
+            disabled={isPending}
+            className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+              late
+                ? "border-amber-500 bg-amber-50 text-amber-700"
+                : "border-zinc-200 text-zinc-400 hover:border-zinc-300"
+            }`}
+          >
+            {late ? "⏰ Terlambat" : "Tandai Terlambat"}
+          </button>
+        )}
+      </div>
       <div className="mt-2 grid grid-cols-5 gap-1.5">
         {STATUS_OPTIONS.map((opt) => (
           <button

@@ -145,6 +145,7 @@ export type Database = {
           status: string;
           note: string | null;
           created_at: string;
+          late: boolean;
         };
         Insert: {
           id?: string;
@@ -154,6 +155,7 @@ export type Database = {
           status: string;
           note?: string | null;
           created_at?: string;
+          late?: boolean;
         };
         Update: {
           id?: string;
@@ -163,6 +165,7 @@ export type Database = {
           status?: string;
           note?: string | null;
           created_at?: string;
+          late?: boolean;
         };
         Relationships: [];
       };
@@ -248,6 +251,9 @@ export type Database = {
           self_order_banner: string | null;
           self_order_enabled: boolean;
           mirroring_enabled: boolean;
+          izin_deduction_weekday: number;
+          izin_deduction_weekend: number;
+          late_deduction_per_occurrence: number;
         };
         Insert: {
           id?: string;
@@ -270,6 +276,9 @@ export type Database = {
           self_order_banner?: string | null;
           self_order_enabled?: boolean;
           mirroring_enabled?: boolean;
+          izin_deduction_weekday?: number;
+          izin_deduction_weekend?: number;
+          late_deduction_per_occurrence?: number;
         };
         Update: {
           id?: string;
@@ -292,6 +301,9 @@ export type Database = {
           self_order_banner?: string | null;
           self_order_enabled?: boolean;
           mirroring_enabled?: boolean;
+          izin_deduction_weekday?: number;
+          izin_deduction_weekend?: number;
+          late_deduction_per_occurrence?: number;
         };
         Relationships: [];
       };
@@ -1288,6 +1300,11 @@ export type Database = {
           thr_amount: number;
           late_deduction: number;
           kasbon_deduction: number;
+          izin_weekday_count: number;
+          izin_weekend_count: number;
+          izin_deduction: number;
+          late_count: number;
+          hari_kerja_efektif: number;
         };
         Insert: {
           id?: string;
@@ -1310,6 +1327,11 @@ export type Database = {
           thr_amount?: number;
           late_deduction?: number;
           kasbon_deduction?: number;
+          izin_weekday_count?: number;
+          izin_weekend_count?: number;
+          izin_deduction?: number;
+          late_count?: number;
+          hari_kerja_efektif?: number;
         };
         Update: {
           id?: string;
@@ -1332,6 +1354,11 @@ export type Database = {
           thr_amount?: number;
           late_deduction?: number;
           kasbon_deduction?: number;
+          izin_weekday_count?: number;
+          izin_weekend_count?: number;
+          izin_deduction?: number;
+          late_count?: number;
+          hari_kerja_efektif?: number;
         };
         Relationships: [
           {

@@ -35,6 +35,7 @@ type PayslipAgg = {
   base_pay: number;
   lembur_amount: number;
   thr_amount: number;
+  izin_deduction: number;
   late_deduction: number;
   kasbon_deduction: number;
   hadir_count: number;
@@ -57,6 +58,7 @@ function payslipTotal(p: PayslipAgg) {
     Number(p.thr_amount) +
     tunjangan -
     potongan -
+    Number(p.izin_deduction) -
     Number(p.late_deduction) -
     Number(p.kasbon_deduction)
   );
@@ -94,7 +96,7 @@ export default async function PayrollPage({
       supabase
         .from("payslips")
         .select(
-          "id, employee_id, period_start, period_end, base_pay, lembur_amount, thr_amount, late_deduction, kasbon_deduction, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
+          "id, employee_id, period_start, period_end, base_pay, lembur_amount, thr_amount, izin_deduction, late_deduction, kasbon_deduction, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
         )
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })

@@ -86,8 +86,8 @@ export default function CreatePayslipForm({
         </select>
         {selectedEmployee?.salaryType === "bulanan" && (
           <p className="mt-1 text-[11px] text-zinc-400">
-            Karyawan bulanan — gaji pokok flat Rp{selectedEmployee.monthlyRate.toLocaleString("id-ID")}
-            {" "}untuk periode ini, tidak dihitung dari hari hadir.
+            Karyawan bulanan — Rp{selectedEmployee.monthlyRate.toLocaleString("id-ID")}/bulan dibagi hari
+            kerja efektif (total hari periode dikurangi hari Off), lalu dikali hari Hadir + Izin.
           </p>
         )}
       </div>
