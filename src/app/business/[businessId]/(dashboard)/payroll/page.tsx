@@ -140,7 +140,9 @@ export default async function PayrollPage({
   const totalDibayarkanBulanIni = allPayslips
     .filter((p) => p.paid_at && toWibMonth(p.paid_at) === currentMonth)
     .reduce((s, p) => s + payslipTotal(p), 0);
-  const belumDibayarCount = allPayslips.filter((p) => !p.paid_at).length;
+  const unpaidSlips = allPayslips.filter((p) => !p.paid_at);
+  const belumDibayarCount = unpaidSlips.length;
+  const totalBelumDibayar = unpaidSlips.reduce((s, p) => s + payslipTotal(p), 0);
 
   // Rekap per karyawan: total dibayarkan sepanjang waktu, slip terakhir,
   // dan sisa kasbon (diberikan dikurangi yang sudah dipotong di slip yang
@@ -194,8 +196,8 @@ export default async function PayrollPage({
           />
           <StatCard
             label="Belum Dibayar"
-            value={String(belumDibayarCount)}
-            sub="slip gaji · semua waktu"
+            value={formatRupiah(totalBelumDibayar)}
+            sub={`${belumDibayarCount} slip gaji · semua waktu`}
             icon={ClipboardCheck}
             tone={belumDibayarCount > 0 ? "amber" : "brand"}
           />
