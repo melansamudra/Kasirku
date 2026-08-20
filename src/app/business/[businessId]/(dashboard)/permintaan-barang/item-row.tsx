@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   addItemAllocation,
   deleteItemAllocation,
+  deleteRequestItem,
   markAllocationReceived,
   updateItemApprovedQty,
 } from "./actions";
@@ -48,12 +49,14 @@ export default function ItemRow({
   const [newQty, setNewQty] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState(false);
 
   const supplierMap = new Map(suppliers.map((s) => [s.id, s]));
   const finalQty = item.approvedQty ?? item.qtyOrdered;
   const qtyWasAdjusted = item.approvedQty !== null && item.approvedQty !== item.qtyOrdered;
   const allocatedQty = item.allocations.reduce((s, a) => s + a.qty, 0);
   const remainingQty = Math.max(finalQty - allocatedQty, 0);
+  const hasForwardedAllocation = item.allocations.some((a) => a.forwardedAt);
 
   function handleSaveQty() {
     const qty = Number(approvedQty);
@@ -124,6 +127,20 @@ export default function ItemRow({
     });
   }
 
+  function handleDeleteItem() {
+    setError(null);
+    setPending(true);
+    deleteRequestItem(businessId, item.id).then((res) => {
+      setPending(false);
+      setConfirmDeleteItem(false);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function purchaseHref(allocation: Allocation) {
     const params = new URLSearchParams({
       prefillCategory: item.itemType === "ingredient" ? "Bahan Baku" : "Barang Dagang",
@@ -132,6 +149,7 @@ export default function ItemRow({
       fromAllocationId: allocation.id,
     });
     if (allocation.supplierId) params.set("prefillSupplierId", allocation.supplierId);
+    if (item.unit) params.set("prefillQtyUnit", item.unit);
     return `/business/${businessId}/purchases?${params.toString()}`;
   }
 
@@ -139,9 +157,9 @@ export default function ItemRow({
     <div className="px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-zinc-800">{item.itemName}</p>
-        <div className="shrink-0 text-right text-sm">
+        <div className="flex shrink-0 items-center gap-2 text-right text-sm">
           {qtyWasAdjusted && (
-            <span className="mr-1 text-zinc-400 line-through">
+            <span className="text-zinc-400 line-through">
               {item.qtyOrdered}
               {item.unit ? ` ${item.unit}` : ""}
             </span>
@@ -150,6 +168,31 @@ export default function ItemRow({
             {finalQty}
             {item.unit ? ` ${item.unit}` : ""}
           </span>
+          {!hasForwardedAllocation &&
+            (confirmDeleteItem ? (
+              <span className="flex items-center gap-1 text-[10.5px]">
+                <button
+                  onClick={handleDeleteItem}
+                  disabled={pending}
+                  className="font-semibold text-red-600 hover:underline disabled:opacity-50"
+                >
+                  Ya
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteItem(false)}
+                  className="text-zinc-400 hover:text-zinc-600"
+                >
+                  Batal
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmDeleteItem(true)}
+                className="text-[10.5px] text-zinc-400 hover:text-red-600"
+              >
+                Hapus
+              </button>
+            ))}
         </div>
       </div>
       {item.currentStock !== null && (

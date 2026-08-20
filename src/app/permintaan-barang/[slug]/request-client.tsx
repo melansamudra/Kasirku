@@ -9,8 +9,7 @@ type MasterItem = {
   name: string;
   unit: string;
   stock: number;
-  purchaseUnit: string | null;
-  purchaseConversion: number | null;
+  purchaseUnits: { unitName: string; conversion: number }[];
 };
 
 const NEW_ITEM_VALUE = "__new__";
@@ -19,10 +18,9 @@ type CartRow = {
   key: string;
   itemId: string; // MasterItem.id, or NEW_ITEM_VALUE
   newItemName: string;
-  unit: string;
+  unit: string; // satuan yang lagi dipakai buat baris ini (bebas apa adanya)
   qtyOrdered: string;
   currentStock: string;
-  qtyUnitMode: "base" | "purchase";
 };
 
 function emptyRow(defaultUnit: string): CartRow {
@@ -33,12 +31,7 @@ function emptyRow(defaultUnit: string): CartRow {
     unit: defaultUnit,
     qtyOrdered: "",
     currentStock: "",
-    qtyUnitMode: "base",
   };
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
 }
 
 export default function RequestClient({
@@ -69,47 +62,18 @@ export default function RequestClient({
 
   function handleItemPick(key: string, itemId: string) {
     if (itemId === NEW_ITEM_VALUE) {
-      updateRow(key, { itemId, currentStock: "", qtyUnitMode: "base" });
+      updateRow(key, { itemId, currentStock: "" });
       return;
     }
     const item = itemMap.get(itemId);
-    const hasPurchaseUnit = !!(item?.purchaseUnit && item?.purchaseConversion);
-    const mode: "base" | "purchase" = hasPurchaseUnit ? "purchase" : "base";
-    const stockDisplay = item
-      ? mode === "purchase"
-        ? String(round2(item.stock / item.purchaseConversion!))
-        : String(item.stock)
-      : "";
+    // Default ke satuan beli pertama kalau ada (lebih natural buat staf,
+    // mis. "Sak"), kalau tidak ada varian ya pakai satuan stok langsung.
+    const defaultUnit = item?.purchaseUnits[0]?.unitName ?? item?.unit ?? "";
     updateRow(key, {
       itemId,
-      currentStock: stockDisplay,
-      unit: item?.unit ?? "",
-      qtyUnitMode: mode,
+      currentStock: item ? String(item.stock) : "",
+      unit: defaultUnit,
     });
-  }
-
-  // Ganti mode satuan (beli <-> stok) sambil ikut mengonversi angka yang
-  // sudah diketik, biar tidak hilang cuma karena tukar tampilan satuan.
-  function handleToggleUnitMode(key: string, newMode: "base" | "purchase") {
-    setRows((prev) =>
-      prev.map((r) => {
-        if (r.key !== key || r.qtyUnitMode === newMode) return r;
-        const item = itemMap.get(r.itemId);
-        const conversion = item?.purchaseConversion ?? 1;
-        const convert = (val: string) => {
-          const num = Number(val);
-          if (!val || Number.isNaN(num)) return val;
-          const converted = newMode === "purchase" ? num / conversion : num * conversion;
-          return String(round2(converted));
-        };
-        return {
-          ...r,
-          qtyUnitMode: newMode,
-          qtyOrdered: convert(r.qtyOrdered),
-          currentStock: convert(r.currentStock),
-        };
-      }),
-    );
   }
 
   function addRow() {
@@ -138,25 +102,20 @@ export default function RequestClient({
     }[] = [];
 
     for (const r of rows) {
-      const qtyTyped = Number(r.qtyOrdered);
-      if (!r.qtyOrdered || Number.isNaN(qtyTyped) || qtyTyped <= 0) {
+      const qty = Number(r.qtyOrdered);
+      if (!r.qtyOrdered || Number.isNaN(qty) || qty <= 0) {
         setResult({ ok: false, message: "Isi qty order untuk setiap barang (harus lebih dari 0)." });
         return;
       }
-      const stockTyped = r.currentStock === "" ? null : Number(r.currentStock);
-      if (r.currentStock !== "" && Number.isNaN(stockTyped as number)) {
+      const currentStock = r.currentStock === "" ? null : Number(r.currentStock);
+      if (r.currentStock !== "" && Number.isNaN(currentStock as number)) {
         setResult({ ok: false, message: "Stok saat ini harus angka." });
         return;
       }
 
-      // Qty & stok selalu dikirim dalam satuan STOK (base unit) — kalau
-      // staf lagi input dalam satuan beli, konversi dulu di sini.
-      const item = itemMap.get(r.itemId);
-      const factor =
-        r.qtyUnitMode === "purchase" && item?.purchaseConversion ? item.purchaseConversion : 1;
-      const qty = qtyTyped * factor;
-      const currentStock = stockTyped !== null ? stockTyped * factor : null;
-
+      // Qty & satuan dikirim APA ADANYA (tidak dikonversi) — konversi ke
+      // satuan stok baru terjadi nanti saat barang dicatat sebagai
+      // pembelian resmi, biar order ke supplier tetap dalam satuan aslinya.
       if (r.itemId === NEW_ITEM_VALUE) {
         if (!r.newItemName.trim()) {
           setResult({ ok: false, message: "Isi nama barang baru." });
@@ -165,7 +124,7 @@ export default function RequestClient({
         preparedItems.push({
           itemId: null,
           newItemName: r.newItemName.trim(),
-          unit: isFnb ? r.unit.trim() || null : null,
+          unit: r.unit.trim() || null,
           qtyOrdered: qty,
           currentStock,
         });
@@ -177,7 +136,7 @@ export default function RequestClient({
         preparedItems.push({
           itemId: r.itemId,
           newItemName: null,
-          unit: null,
+          unit: r.unit || null,
           qtyOrdered: qty,
           currentStock,
         });
@@ -228,9 +187,9 @@ export default function RequestClient({
         <div className="space-y-3">
           {rows.map((row, idx) => {
             const selectedItem = itemMap.get(row.itemId);
-            const hasPurchaseUnit = !!(selectedItem?.purchaseUnit && selectedItem?.purchaseConversion);
-            const activeUnitLabel =
-              row.qtyUnitMode === "purchase" ? selectedItem?.purchaseUnit : row.unit;
+            const unitOptions = selectedItem
+              ? [selectedItem.unit, ...selectedItem.purchaseUnits.map((u) => u.unitName)]
+              : [];
 
             return (
               <div key={row.key} className="rounded-xl border border-zinc-200 p-3">
@@ -270,43 +229,28 @@ export default function RequestClient({
                       onChange={(e) => updateRow(row.key, { newItemName: e.target.value })}
                       className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
                     />
-                    {isFnb && (
-                      <input
-                        type="text"
-                        placeholder="Satuan (kg, pcs, ...)"
-                        value={row.unit}
-                        onChange={(e) => updateRow(row.key, { unit: e.target.value })}
-                        className="w-28 shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                      />
-                    )}
+                    <input
+                      type="text"
+                      placeholder="Satuan (kg, sak, pcs, ...)"
+                      value={row.unit}
+                      onChange={(e) => updateRow(row.key, { unit: e.target.value })}
+                      className="w-32 shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
                   </div>
                 )}
 
-                {hasPurchaseUnit && (
-                  <div className="mt-2 flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleUnitMode(row.key, "purchase")}
-                      className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
-                        row.qtyUnitMode === "purchase"
-                          ? "border-brand-600 bg-brand-50 text-brand-700"
-                          : "border-zinc-200 text-zinc-500"
-                      }`}
-                    >
-                      Per {selectedItem!.purchaseUnit}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleUnitMode(row.key, "base")}
-                      className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
-                        row.qtyUnitMode === "base"
-                          ? "border-brand-600 bg-brand-50 text-brand-700"
-                          : "border-zinc-200 text-zinc-500"
-                      }`}
-                    >
-                      Per {selectedItem!.unit}
-                    </button>
-                  </div>
+                {unitOptions.length > 1 && (
+                  <select
+                    value={row.unit}
+                    onChange={(e) => updateRow(row.key, { unit: e.target.value })}
+                    className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  >
+                    {unitOptions.map((u) => (
+                      <option key={u} value={u}>
+                        Satuan: {u}
+                      </option>
+                    ))}
+                  </select>
                 )}
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -315,7 +259,7 @@ export default function RequestClient({
                       htmlFor={`${formId}-qty-${row.key}`}
                       className="mb-1 block text-[11px] text-zinc-500"
                     >
-                      Qty order{activeUnitLabel ? ` (${activeUnitLabel})` : ""}
+                      Qty order{row.unit ? ` (${row.unit})` : ""}
                     </label>
                     <input
                       id={`${formId}-qty-${row.key}`}
@@ -333,7 +277,7 @@ export default function RequestClient({
                       htmlFor={`${formId}-stock-${row.key}`}
                       className="mb-1 block text-[11px] text-zinc-500"
                     >
-                      Stok saat ini{activeUnitLabel ? ` (${activeUnitLabel})` : ""}
+                      Stok saat ini{selectedItem ? ` (${selectedItem.unit})` : ""}
                     </label>
                     <input
                       id={`${formId}-stock-${row.key}`}

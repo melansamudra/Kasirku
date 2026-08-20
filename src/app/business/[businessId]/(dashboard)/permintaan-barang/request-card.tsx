@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { receivePurchaseRequest } from "./actions";
+import { deleteRequest, receivePurchaseRequest } from "./actions";
 import ItemRow from "./item-row";
 import SupplierGroup from "./supplier-group";
 
@@ -59,12 +59,27 @@ export default function RequestCard({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteRequest, setConfirmDeleteRequest] = useState(false);
 
   function handleReceive() {
     setError(null);
     setPending(true);
     receivePurchaseRequest(businessId, request.id).then((res) => {
       setPending(false);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function handleDeleteRequest() {
+    setError(null);
+    setPending(true);
+    deleteRequest(businessId, request.id).then((res) => {
+      setPending(false);
+      setConfirmDeleteRequest(false);
       if (res.error) {
         setError(res.error);
         return;
@@ -110,30 +125,44 @@ export default function RequestCard({
           <p className="text-sm font-semibold text-zinc-900">{request.employeeName}</p>
           <p className="text-[11px] text-zinc-400">{formatDateTime(request.createdAt)}</p>
         </div>
-        <span
-          className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_STYLE[request.status]}`}
-        >
-          {STATUS_LABEL[request.status]}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_STYLE[request.status]}`}
+          >
+            {STATUS_LABEL[request.status]}
+          </span>
+          {confirmDeleteRequest ? (
+            <span className="flex items-center gap-1.5 text-[11px]">
+              <button
+                onClick={handleDeleteRequest}
+                disabled={pending}
+                className="font-semibold text-red-600 hover:underline disabled:opacity-50"
+              >
+                Ya, hapus
+              </button>
+              <button
+                onClick={() => setConfirmDeleteRequest(false)}
+                className="text-zinc-400 hover:text-zinc-600"
+              >
+                Batal
+              </button>
+            </span>
+          ) : (
+            <button
+              onClick={() => setConfirmDeleteRequest(true)}
+              className="text-[11px] text-zinc-400 hover:text-red-600"
+              title="Hapus order ini"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-100">
-        {request.status === "baru"
-          ? request.items.map((it) => (
-              <div key={it.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                <p className="text-zinc-800">{it.itemName}</p>
-                <div className="text-right">
-                  <p className="font-medium text-zinc-900">
-                    {it.qtyOrdered}
-                    {it.unit ? ` ${it.unit}` : ""}
-                  </p>
-                  {it.currentStock !== null && (
-                    <p className="text-[10.5px] text-zinc-400">Stok saat ini: {it.currentStock}</p>
-                  )}
-                </div>
-              </div>
-            ))
-          : request.items.map((it) => <ItemRow key={it.id} businessId={businessId} suppliers={suppliers} item={it} />)}
+        {request.items.map((it) => (
+          <ItemRow key={it.id} businessId={businessId} suppliers={suppliers} item={it} />
+        ))}
       </div>
 
       {readyGroups.size > 0 && (

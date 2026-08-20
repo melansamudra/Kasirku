@@ -190,6 +190,55 @@ export async function markAllocationReceived(
   return { error: null };
 }
 
+// Hapus satu barang dari order — cuma boleh selama belum ada alokasinya yang
+// diteruskan ke supplier (kalau sudah diteruskan, hapus jadi tidak masuk
+// akal karena supplier sudah dihubungi).
+export async function deleteRequestItem(businessId: string, itemId: string): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { count } = await supabase
+    .from("purchase_request_item_allocations")
+    .select("id", { count: "exact", head: true })
+    .eq("purchase_request_item_id", itemId)
+    .eq("business_id", businessId)
+    .not("forwarded_at", "is", null);
+
+  if (count && count > 0) {
+    return { error: "Barang ini sudah diteruskan ke supplier, tidak bisa dihapus." };
+  }
+
+  const { error } = await supabase
+    .from("purchase_request_items")
+    .delete()
+    .eq("id", itemId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
+// Hapus seluruh order — buat kesalahan input atau uji coba. Tidak dibatasi
+// status, karena menghapus order tidak menyentuh catatan Pembelian yang
+// mungkin sudah dibuat (purchase_id di alokasi cuma referensi, bukan
+// kepemilikan; purchases record tetap utuh).
+export async function deleteRequest(businessId: string, requestId: string): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("purchase_requests")
+    .delete()
+    .eq("id", requestId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  await logActivity(supabase, businessId, "produk", "warning", "Order barang dihapus");
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
 export type RegenerateSlugState = { error: string | null; slug: string | null };
 
 export async function regeneratePurchaseRequestSlug(

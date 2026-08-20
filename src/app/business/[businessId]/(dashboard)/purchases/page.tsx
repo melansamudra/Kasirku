@@ -57,6 +57,7 @@ export default async function PurchasesPage({
     prefillCategory?: string;
     prefillItemId?: string;
     prefillQty?: string;
+    prefillQtyUnit?: string;
     prefillSupplierId?: string;
     fromAllocationId?: string;
   }>;
@@ -78,7 +79,7 @@ export default async function PurchasesPage({
   const isFnb = business.business_type === "fnb";
   const today = todayWibDateString();
 
-  const [{ data: suppliers }, { data: ingredients }, { data: products }, { data: purchases }] =
+  const [{ data: suppliers }, { data: ingredients }, { data: purchaseUnits }, { data: products }, { data: purchases }] =
     await Promise.all([
       supabase
         .from("suppliers")
@@ -89,10 +90,16 @@ export default async function PurchasesPage({
       isFnb
         ? supabase
             .from("ingredients")
-            .select("id, name, unit, stock, min_stock, unit_cost, purchase_unit, purchase_conversion")
+            .select("id, name, unit, stock, min_stock, unit_cost")
             .eq("business_id", businessId)
             .is("deleted_at", null)
             .order("name", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      isFnb
+        ? supabase
+            .from("ingredient_purchase_units")
+            .select("ingredient_id, unit_name, conversion")
+            .eq("business_id", businessId)
         : Promise.resolve({ data: [] }),
       supabase
         .from("products")
@@ -110,6 +117,17 @@ export default async function PurchasesPage({
         .order("created_at", { ascending: false })
         .limit(50),
     ]);
+
+  const purchaseUnitsByIngredient = new Map<string, { unitName: string; conversion: number }[]>();
+  for (const u of purchaseUnits ?? []) {
+    const list = purchaseUnitsByIngredient.get(u.ingredient_id) ?? [];
+    list.push({ unitName: u.unit_name, conversion: Number(u.conversion) });
+    purchaseUnitsByIngredient.set(u.ingredient_id, list);
+  }
+  const ingredientsWithUnits = (ingredients ?? []).map((i) => ({
+    ...i,
+    purchase_units: purchaseUnitsByIngredient.get(i.id) ?? [],
+  }));
 
   const supplierMap = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
   const ingredientMap = new Map((ingredients ?? []).map((i) => [i.id, i.name]));
@@ -138,6 +156,7 @@ export default async function PurchasesPage({
           category: sp.prefillCategory,
           itemId: sp.prefillItemId ?? "",
           qty: sp.prefillQty ? Number(sp.prefillQty) : 0,
+          qtyUnit: sp.prefillQtyUnit || undefined,
           amount: 0,
           supplierId: sp.prefillSupplierId || undefined,
           fromAllocationId: sp.fromAllocationId || undefined,
@@ -235,7 +254,7 @@ export default async function PurchasesPage({
         today={today}
         isFnb={isFnb}
         suppliers={suppliers ?? []}
-        ingredients={ingredients ?? []}
+        ingredients={ingredientsWithUnits}
         products={products ?? []}
         lowStockIngredients={lowStockIngredients}
         lowStockProducts={lowStockProducts}

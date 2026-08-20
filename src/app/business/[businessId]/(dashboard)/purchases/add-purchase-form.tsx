@@ -11,8 +11,7 @@ type IngredientOption = {
   name: string;
   unit: string;
   stock: number;
-  purchase_unit?: string | null;
-  purchase_conversion?: number | null;
+  purchase_units?: { unitName: string; conversion: number }[];
 };
 type ProductOption = { id: string; name: string; stock: number };
 export type PurchasePrefill = {
@@ -21,6 +20,7 @@ export type PurchasePrefill = {
   qty: number;
   amount: number;
   supplierId?: string;
+  qtyUnit?: string;
   fromAllocationId?: string;
 };
 
@@ -89,10 +89,11 @@ function PurchaseFormFields({
   const [amount, setAmount] = useState(prefill && prefill.amount > 0 ? String(prefill.amount) : "");
   const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
-  // Qty selalu diketik dalam satuan yang lagi dipilih (satuan beli atau
-  // satuan stok) — yang dikirim ke server (hidden input "qty") selalu sudah
-  // dikonversi ke satuan stok, biar update stok/HPP tetap konsisten.
-  const [qtyMode, setQtyMode] = useState<"base" | "purchase">("base");
+  // Qty selalu diketik dalam satuan yang lagi dipilih (satuan stok, atau
+  // salah satu varian satuan beli bahan itu) — yang dikirim ke server
+  // (hidden input "qty") selalu sudah dikonversi ke satuan stok, biar update
+  // stok/HPP tetap konsisten. qtyUnit "" berarti satuan stok langsung.
+  const [qtyUnit, setQtyUnit] = useState<string>(prefill?.qtyUnit ?? "");
   const [qtyDisplay, setQtyDisplay] = useState(
     prefill?.category === "Bahan Baku" ? String(prefill.qty) : "",
   );
@@ -100,12 +101,10 @@ function PurchaseFormFields({
   const isIngredientPurchase = category === "Bahan Baku";
   const isProductPurchase = category === "Barang Dagang";
   const selectedIngredient = ingredients.find((i) => i.id === ingredientId);
-  const hasPurchaseUnit = !!(selectedIngredient?.purchase_unit && selectedIngredient?.purchase_conversion);
+  const purchaseUnits = selectedIngredient?.purchase_units ?? [];
+  const selectedVariant = purchaseUnits.find((u) => u.unitName === qtyUnit);
   const qtyNum = Number(qtyDisplay) || 0;
-  const baseQty =
-    hasPurchaseUnit && qtyMode === "purchase"
-      ? qtyNum * Number(selectedIngredient!.purchase_conversion)
-      : qtyNum;
+  const baseQty = selectedVariant ? qtyNum * selectedVariant.conversion : qtyNum;
 
   const effectivePaidAmount =
     paymentMode === "lunas" ? amount : paymentMode === "utang" ? "0" : paidAmount;
@@ -185,7 +184,7 @@ function PurchaseFormFields({
               value={ingredientId}
               onChange={(e) => {
                 setIngredientId(e.target.value);
-                setQtyMode("base");
+                setQtyUnit("");
               }}
               className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             >
@@ -216,31 +215,19 @@ function PurchaseFormFields({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-amber-800">Satuan</label>
-              {hasPurchaseUnit ? (
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setQtyMode("purchase")}
-                    className={`flex-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
-                      qtyMode === "purchase"
-                        ? "border-brand-600 bg-brand-50 text-brand-700"
-                        : "border-amber-200 bg-white text-amber-700"
-                    }`}
-                  >
-                    {selectedIngredient!.purchase_unit}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQtyMode("base")}
-                    className={`flex-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors ${
-                      qtyMode === "base"
-                        ? "border-brand-600 bg-brand-50 text-brand-700"
-                        : "border-amber-200 bg-white text-amber-700"
-                    }`}
-                  >
-                    {selectedIngredient!.unit}
-                  </button>
-                </div>
+              {purchaseUnits.length > 0 ? (
+                <select
+                  value={qtyUnit}
+                  onChange={(e) => setQtyUnit(e.target.value)}
+                  className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                >
+                  <option value="">{selectedIngredient?.unit}</option>
+                  {purchaseUnits.map((u) => (
+                    <option key={u.unitName} value={u.unitName}>
+                      {u.unitName}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <input
                   type="text"
@@ -251,7 +238,7 @@ function PurchaseFormFields({
               )}
             </div>
           </div>
-          {hasPurchaseUnit && qtyMode === "purchase" && qtyNum > 0 && (
+          {selectedVariant && qtyNum > 0 && (
             <p className="text-[10.5px] font-medium text-amber-800">
               = {baseQty.toLocaleString("id-ID")} {selectedIngredient!.unit}
             </p>

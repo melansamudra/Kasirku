@@ -9,16 +9,12 @@ export default function EditIngredientForm({
   unit,
   unitCost,
   minStock,
-  purchaseUnit,
-  purchaseConversion,
   action,
 }: {
   name: string;
   unit: string;
   unitCost: number;
   minStock: number;
-  purchaseUnit: string | null;
-  purchaseConversion: number | null;
   action: (state: EditIngredientState, formData: FormData) => Promise<EditIngredientState>;
 }) {
   const router = useRouter();
@@ -28,8 +24,6 @@ export default function EditIngredientForm({
     unit,
     unitCost: String(unitCost),
     minStock: String(minStock),
-    purchaseUnit: purchaseUnit ?? "",
-    purchaseConversion: purchaseConversion !== null ? String(purchaseConversion) : "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -53,8 +47,6 @@ export default function EditIngredientForm({
     formData.set("unit", values.unit);
     formData.set("unitCost", values.unitCost);
     formData.set("minStock", values.minStock);
-    formData.set("purchaseUnit", values.purchaseUnit);
-    formData.set("purchaseConversion", values.purchaseConversion);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -113,36 +105,6 @@ export default function EditIngredientForm({
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
-      <div className="rounded-lg bg-white p-2.5">
-        <p className="mb-1.5 text-[10.5px] font-medium text-zinc-500">
-          Satuan Beli (opsional) — kosongkan kalau belinya langsung dalam satuan stok di atas.
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600">Satuan Beli</label>
-            <input
-              type="text"
-              value={values.purchaseUnit}
-              onChange={(e) => setValues((v) => ({ ...v, purchaseUnit: e.target.value }))}
-              placeholder="Sak"
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600">Isi per Satuan Beli</label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={values.purchaseConversion}
-              onChange={(e) => setValues((v) => ({ ...v, purchaseConversion: e.target.value }))}
-              placeholder="25000"
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-          </div>
-        </div>
-      </div>
-
       {error && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-600">{error}</p>}
 
       <div className="flex gap-2">

@@ -10,8 +10,7 @@ type IngredientOption = {
   name: string;
   unit: string;
   stock: number;
-  purchase_unit?: string | null;
-  purchase_conversion?: number | null;
+  purchase_units?: { unitName: string; conversion: number }[];
 };
 type ProductOption = { id: string; name: string; stock: number };
 

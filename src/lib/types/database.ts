@@ -849,6 +849,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      ingredient_purchase_units: {
+        Row: {
+          id: string;
+          business_id: string;
+          ingredient_id: string;
+          unit_name: string;
+          conversion: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          ingredient_id: string;
+          unit_name: string;
+          conversion: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          ingredient_id?: string;
+          unit_name?: string;
+          conversion?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_purchase_units_ingredient_id_fkey";
+            columns: ["ingredient_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ingredients: {
         Row: {
           id: string;
@@ -859,8 +894,6 @@ export type Database = {
           stock: number;
           deleted_at: string | null;
           min_stock: number;
-          purchase_unit: string | null;
-          purchase_conversion: number | null;
         };
         Insert: {
           id?: string;
@@ -871,8 +904,6 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
-          purchase_unit?: string | null;
-          purchase_conversion?: number | null;
         };
         Update: {
           id?: string;
@@ -883,8 +914,6 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
-          purchase_unit?: string | null;
-          purchase_conversion?: number | null;
         };
         Relationships: [];
       };

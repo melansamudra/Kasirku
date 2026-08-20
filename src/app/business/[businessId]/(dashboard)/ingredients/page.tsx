@@ -1,11 +1,19 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addIngredient, adjustIngredientStock, editIngredient, importIngredients } from "./actions";
+import {
+  addIngredient,
+  addIngredientPurchaseUnit,
+  adjustIngredientStock,
+  deleteIngredientPurchaseUnit,
+  editIngredient,
+  importIngredients,
+} from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
 import EditIngredientForm from "./edit-ingredient-form";
 import ImportIngredientsForm from "./import-ingredients-form";
+import PurchaseUnitsManager from "./purchase-units-manager";
 
 function formatRupiah(value: number) {
   return `Rp${value.toLocaleString("id-ID")}`;
@@ -31,10 +39,26 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, purchase_unit, purchase_conversion")
+    .select("id, name, unit, unit_cost, stock, min_stock")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
+
+  const { data: purchaseUnits } = await supabase
+    .from("ingredient_purchase_units")
+    .select("id, ingredient_id, unit_name, conversion")
+    .eq("business_id", businessId)
+    .order("unit_name", { ascending: true });
+
+  const purchaseUnitsByIngredient = new Map<
+    string,
+    { id: string; unitName: string; conversion: number }[]
+  >();
+  for (const u of purchaseUnits ?? []) {
+    const list = purchaseUnitsByIngredient.get(u.ingredient_id) ?? [];
+    list.push({ id: u.id, unitName: u.unit_name, conversion: Number(u.conversion) });
+    purchaseUnitsByIngredient.set(u.ingredient_id, list);
+  }
 
   const { data: adjustments } = await supabase
     .from("stock_adjustments")
@@ -99,11 +123,12 @@ export default async function IngredientsPage({
                       </span>
                     )}
                   </p>
-                  {i.purchase_unit && (
-                    <p className="text-[10.5px] text-zinc-400">
-                      Beli per {i.purchase_unit} (1 {i.purchase_unit} = {i.purchase_conversion} {i.unit})
-                    </p>
-                  )}
+                  <PurchaseUnitsManager
+                    baseUnit={i.unit}
+                    units={purchaseUnitsByIngredient.get(i.id) ?? []}
+                    addAction={addIngredientPurchaseUnit.bind(null, businessId, i.id)}
+                    deleteAction={deleteIngredientPurchaseUnit.bind(null, businessId)}
+                  />
                 </div>
                 <p className="text-sm font-semibold text-zinc-900">
                   {formatRupiah(Number(i.unit_cost))}/{i.unit}
@@ -113,8 +138,6 @@ export default async function IngredientsPage({
                   unit={i.unit}
                   unitCost={Number(i.unit_cost)}
                   minStock={Number(i.min_stock)}
-                  purchaseUnit={i.purchase_unit}
-                  purchaseConversion={i.purchase_conversion !== null ? Number(i.purchase_conversion) : null}
                   action={editIngredient.bind(null, businessId, i.id)}
                 />
                 <AdjustStockForm
