@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
-import { setAttendance, setAttendanceLate, verifyAttendance, type AttendanceStatus } from "./actions";
+import {
+  setAttendance,
+  setAttendanceLate,
+  verifyAttendance,
+  deleteAttendanceSelfie,
+  type AttendanceStatus,
+} from "./actions";
 import AttendanceRow, { type SelfieInfo } from "./attendance-row";
 import AttendanceDatePicker from "./attendance-date-picker";
 
@@ -138,6 +144,11 @@ export default async function AttendancePage({
                 verifyAction={
                   selfieByEmployee.get(e.id)
                     ? verifyAttendance.bind(null, businessId, selfieByEmployee.get(e.id)!.attendanceId)
+                    : undefined
+                }
+                deleteSelfieAction={
+                  selfieByEmployee.get(e.id)
+                    ? deleteAttendanceSelfie.bind(null, businessId, selfieByEmployee.get(e.id)!.attendanceId)
                     : undefined
                 }
               />

@@ -47,6 +47,7 @@ export default function AttendanceRow({
   lateAction,
   selfie,
   verifyAction,
+  deleteSelfieAction,
 }: {
   employeeName: string;
   currentStatus: AttendanceStatus | null;
@@ -55,10 +56,12 @@ export default function AttendanceRow({
   lateAction: (late: boolean) => Promise<{ error: string | null }>;
   selfie?: SelfieInfo | null;
   verifyAction?: () => Promise<{ error: string | null }>;
+  deleteSelfieAction?: () => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   function handleClick(status: AttendanceStatus) {
     setError(null);
@@ -89,6 +92,20 @@ export default function AttendanceRow({
     setError(null);
     startTransition(async () => {
       const result = await verifyAction();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function handleDeleteSelfie() {
+    if (!deleteSelfieAction) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteSelfieAction();
+      setConfirmDelete(false);
       if (result.error) {
         setError(result.error);
         return;
@@ -150,18 +167,45 @@ export default function AttendanceRow({
               {selfie.lateMinutes === 0 && selfie.overtimeHours === 0 && "Selfie absen"}
             </p>
           </div>
-          {verifyAction &&
-            (selfie.verified ? (
-              <span className="shrink-0 text-[11px] font-medium text-brand-600">✓ Terverifikasi</span>
-            ) : (
-              <button
-                onClick={handleVerify}
-                disabled={isPending}
-                className="shrink-0 rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-              >
-                Verifikasi
-              </button>
-            ))}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {verifyAction &&
+              (selfie.verified ? (
+                <span className="text-[11px] font-medium text-brand-600">✓ Terverifikasi</span>
+              ) : (
+                <button
+                  onClick={handleVerify}
+                  disabled={isPending}
+                  className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+                >
+                  Verifikasi
+                </button>
+              ))}
+            {deleteSelfieAction &&
+              (confirmDelete ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleDeleteSelfie}
+                    disabled={isPending}
+                    className="text-[10px] font-semibold text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Ya, hapus
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-[10px] text-zinc-400 hover:text-zinc-600"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-[10px] text-zinc-400 hover:text-red-600"
+                >
+                  Hapus
+                </button>
+              ))}
+          </div>
         </div>
       )}
 

@@ -85,6 +85,41 @@ export async function setAttendanceLate(
   return { error: null };
 }
 
+// Cuma hapus data absen selfie-nya (foto, jam, telat/lembur terdeteksi,
+// verifikasi) — status Hadir/Izin/dst yang mungkin sudah ditandai manual
+// TIDAK ikut kehapus, biar admin bisa isi ulang manual atau minta
+// karyawan absen ulang tanpa kehilangan tandaan lain hari itu.
+export async function deleteAttendanceSelfie(
+  businessId: string,
+  attendanceId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("attendance")
+    .update({
+      check_in_at: null,
+      check_in_photo_url: null,
+      check_out_at: null,
+      check_out_photo_url: null,
+      late_minutes: 0,
+      late: false,
+      overtime_hours: 0,
+      shift_template_id: null,
+      verified_by_admin: false,
+      verified_at: null,
+    })
+    .eq("id", attendanceId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/attendance`);
+  return { error: null };
+}
+
 // Verifikasi cuma jejak audit "admin sudah mengecek foto & jam-nya benar" —
 // TIDAK memblokir apa pun. Absen selfie sudah otomatis kehitung (status,
 // late_minutes, overtime_hours) begitu masuk lewat /absen/[slug], sebelum
