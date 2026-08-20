@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AddPurchaseForm, { type PurchasePrefill } from "./add-purchase-form";
 import type { AddPurchaseState } from "./actions";
 
@@ -40,6 +40,7 @@ export default function PurchaseFormWithRecommendations({
   products,
   lowStockIngredients,
   lowStockProducts,
+  initialPrefill,
 }: {
   action: (state: AddPurchaseState, formData: FormData) => Promise<AddPurchaseState>;
   today: string;
@@ -49,9 +50,19 @@ export default function PurchaseFormWithRecommendations({
   products: ProductOption[];
   lowStockIngredients: LowStockIngredient[];
   lowStockProducts: LowStockProduct[];
+  initialPrefill?: PurchasePrefill | null;
 }) {
-  const [prefill, setPrefill] = useState<PurchasePrefill | null>(null);
+  const [prefill, setPrefill] = useState<PurchasePrefill | null>(initialPrefill ?? null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang —
+  // langsung scroll ke form biar kelihatan sudah terisi.
+  useEffect(() => {
+    if (initialPrefill) {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasRecommendations = lowStockIngredients.length > 0 || lowStockProducts.length > 0;
 

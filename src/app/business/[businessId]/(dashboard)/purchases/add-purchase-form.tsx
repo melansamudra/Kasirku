@@ -13,6 +13,8 @@ export type PurchasePrefill = {
   itemId: string;
   qty: number;
   amount: number;
+  supplierId?: string;
+  fromAllocationId?: string;
 };
 
 export default function AddPurchaseForm({
@@ -77,7 +79,7 @@ function PurchaseFormFields({
   const [ingredientId, setIngredientId] = useState(
     prefill?.category === "Bahan Baku" ? prefill.itemId : ingredients[0]?.id ?? "",
   );
-  const [amount, setAmount] = useState(prefill ? String(prefill.amount) : "");
+  const [amount, setAmount] = useState(prefill && prefill.amount > 0 ? String(prefill.amount) : "");
   const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
 
@@ -111,6 +113,7 @@ function PurchaseFormFields({
           <select
             id="supplierId"
             name="supplierId"
+            defaultValue={prefill?.supplierId ?? ""}
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           >
             <option value="">— Tanpa supplier —</option>
@@ -329,6 +332,10 @@ function PurchaseFormFields({
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
+
+      {prefill?.fromAllocationId && (
+        <input type="hidden" name="fromAllocationId" value={prefill.fromAllocationId} />
+      )}
 
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>

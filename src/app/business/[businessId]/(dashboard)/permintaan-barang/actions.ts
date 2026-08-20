@@ -25,29 +25,6 @@ export async function receivePurchaseRequest(
   return { error: null };
 }
 
-export async function assignItemSupplier(
-  businessId: string,
-  itemId: string,
-  supplierId: string,
-): Promise<ActionState> {
-  if (!supplierId) {
-    return { error: "Pilih supplier dulu." };
-  }
-
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("purchase_request_items")
-    .update({ supplier_id: supplierId })
-    .eq("id", itemId)
-    .eq("business_id", businessId);
-
-  if (error) return { error: error.message };
-
-  revalidatePath(`/business/${businessId}/permintaan-barang`);
-  return { error: null };
-}
-
 export async function updateItemApprovedQty(
   businessId: string,
   itemId: string,
@@ -71,39 +48,87 @@ export async function updateItemApprovedQty(
   return { error: null };
 }
 
-// Diteruskan per SUPPLIER, bukan per barang — kalau satu order punya 10
-// barang buat supplier yang sama, ini satu kali panggilan (satu WA, satu
-// "invoice") yang menandai forwarded_at ke-10 barang itu sekaligus, bukan
-// 10 kali forward terpisah.
-export async function forwardItemsToSupplier(
+// Satu barang bisa dipecah ke beberapa supplier (mis. qty besar, satu
+// supplier ga sanggup semua) — tiap panggilan ini nambah satu baris alokasi
+// baru untuk barang tsb, tidak menggantikan alokasi yang sudah ada.
+export async function addItemAllocation(
+  businessId: string,
+  itemId: string,
+  supplierId: string,
+  qty: number,
+): Promise<ActionState> {
+  if (!supplierId) {
+    return { error: "Pilih supplier dulu." };
+  }
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { error: "Qty harus angka lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("purchase_request_item_allocations").insert({
+    business_id: businessId,
+    purchase_request_item_id: itemId,
+    supplier_id: supplierId,
+    qty,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
+export async function deleteItemAllocation(
+  businessId: string,
+  allocationId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("purchase_request_item_allocations")
+    .delete()
+    .eq("id", allocationId)
+    .eq("business_id", businessId)
+    .is("forwarded_at", null);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
+// Diteruskan per SUPPLIER, bukan per alokasi satu-satu — kalau satu supplier
+// dapat alokasi dari 10 barang, ini satu kali panggilan (satu WA) yang
+// menandai forwarded_at ke-10 alokasi itu sekaligus.
+export async function forwardAllocationsToSupplier(
   businessId: string,
   requestId: string,
-  itemIds: string[],
+  allocationIds: string[],
 ): Promise<ActionState> {
-  if (itemIds.length === 0) {
+  if (allocationIds.length === 0) {
     return { error: "Tidak ada barang yang dipilih." };
   }
 
   const supabase = await createClient();
 
-  const { data: items } = await supabase
-    .from("purchase_request_items")
-    .select("id, item_name, supplier_id")
-    .in("id", itemIds)
-    .eq("business_id", businessId)
-    .eq("purchase_request_id", requestId);
+  const { data: allocations } = await supabase
+    .from("purchase_request_item_allocations")
+    .select("id, supplier_id")
+    .in("id", allocationIds)
+    .eq("business_id", businessId);
 
-  if (!items || items.length === 0) return { error: "Barang tidak ditemukan." };
+  if (!allocations || allocations.length === 0) return { error: "Alokasi tidak ditemukan." };
 
-  const supplierId = items[0].supplier_id;
-  if (!supplierId || items.some((it) => it.supplier_id !== supplierId)) {
-    return { error: "Semua barang yang diteruskan bareng harus punya supplier yang sama." };
+  const supplierId = allocations[0].supplier_id;
+  if (!supplierId || allocations.some((a) => a.supplier_id !== supplierId)) {
+    return { error: "Semua alokasi yang diteruskan bareng harus punya supplier yang sama." };
   }
 
   const { error } = await supabase
-    .from("purchase_request_items")
+    .from("purchase_request_item_allocations")
     .update({ forwarded_at: new Date().toISOString() })
-    .in("id", itemIds)
+    .in("id", allocationIds)
     .eq("business_id", businessId);
 
   if (error) return { error: error.message };
@@ -114,25 +139,52 @@ export async function forwardItemsToSupplier(
     "produk",
     "sukses",
     "Order barang diteruskan ke supplier",
-    `${items.length} barang: ${items.map((i) => i.item_name).join(", ")}`,
+    `${allocations.length} alokasi barang`,
   );
 
-  // Kalau semua barang di order ini sudah diteruskan, tandai order-nya
-  // selesai supaya badge "order baru menunggu" tidak menghitung dia lagi.
-  const { data: remaining } = await supabase
+  // Order dianggap "semua diteruskan" kalau tiap barangnya sudah punya
+  // minimal 1 alokasi, dan semua alokasi (di semua barang) sudah diteruskan.
+  const { data: items } = await supabase
     .from("purchase_request_items")
     .select("id")
     .eq("purchase_request_id", requestId)
-    .eq("business_id", businessId)
-    .is("forwarded_at", null);
+    .eq("business_id", businessId);
 
-  if (remaining && remaining.length === 0) {
+  const { data: allAllocations } = await supabase
+    .from("purchase_request_item_allocations")
+    .select("purchase_request_item_id, forwarded_at")
+    .eq("business_id", businessId)
+    .in("purchase_request_item_id", (items ?? []).map((i) => i.id));
+
+  const itemIdsWithAllocation = new Set((allAllocations ?? []).map((a) => a.purchase_request_item_id));
+  const everyItemAllocated = (items ?? []).every((i) => itemIdsWithAllocation.has(i.id));
+  const everyAllocationForwarded = (allAllocations ?? []).every((a) => a.forwarded_at !== null);
+
+  if (everyItemAllocated && everyAllocationForwarded) {
     await supabase
       .from("purchase_requests")
       .update({ status: "diteruskan", forwarded_at: new Date().toISOString() })
       .eq("id", requestId)
       .eq("business_id", businessId);
   }
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
+export async function markAllocationReceived(
+  businessId: string,
+  allocationId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("purchase_request_item_allocations")
+    .update({ received_at: new Date().toISOString() })
+    .eq("id", allocationId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
 
   revalidatePath(`/business/${businessId}/permintaan-barang`);
   return { error: null };

@@ -5,6 +5,7 @@ import { todayWibDateString } from "@/lib/wib";
 import { addPurchase, addPurchasePayment } from "./actions";
 import AddPaymentForm from "./add-payment-form";
 import PurchaseFormWithRecommendations from "./purchase-form-with-recommendations";
+import type { PurchasePrefill } from "./add-purchase-form";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -49,10 +50,19 @@ type PurchaseRow = {
 
 export default async function PurchasesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{
+    prefillCategory?: string;
+    prefillItemId?: string;
+    prefillQty?: string;
+    prefillSupplierId?: string;
+    fromAllocationId?: string;
+  }>;
 }) {
   const { businessId } = await params;
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -118,6 +128,21 @@ export default async function PurchasesPage({
   }
 
   const boundAddPurchase = addPurchase.bind(null, businessId);
+
+  // Datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang —
+  // amount sengaja dikosongkan (0), admin isi harga sendiri karena qty
+  // request tidak pernah bawa info harga.
+  const initialPrefill: PurchasePrefill | null =
+    sp.prefillCategory === "Bahan Baku" || sp.prefillCategory === "Barang Dagang"
+      ? {
+          category: sp.prefillCategory,
+          itemId: sp.prefillItemId ?? "",
+          qty: sp.prefillQty ? Number(sp.prefillQty) : 0,
+          amount: 0,
+          supplierId: sp.prefillSupplierId || undefined,
+          fromAllocationId: sp.fromAllocationId || undefined,
+        }
+      : null;
 
   // Reorder suggestion: top up back to 2x the minimum-stock threshold,
   // floored at 1 unit — a simple heuristic, not a demand forecast. The qty
@@ -214,6 +239,7 @@ export default async function PurchasesPage({
         products={products ?? []}
         lowStockIngredients={lowStockIngredients}
         lowStockProducts={lowStockProducts}
+        initialPrefill={initialPrefill}
       />
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">

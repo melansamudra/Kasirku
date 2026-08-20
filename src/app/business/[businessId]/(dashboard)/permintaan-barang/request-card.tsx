@@ -7,15 +7,25 @@ import ItemRow from "./item-row";
 import SupplierGroup from "./supplier-group";
 
 type Supplier = { id: string; name: string; phone: string | null };
+type Allocation = {
+  id: string;
+  supplierId: string | null;
+  qty: number;
+  forwardedAt: string | null;
+  receivedAt: string | null;
+  purchaseId: string | null;
+};
 type RequestItem = {
   id: string;
   itemName: string;
+  itemType: "ingredient" | "product";
+  ingredientId: string | null;
+  productId: string | null;
   unit: string | null;
   qtyOrdered: number;
   currentStock: number | null;
-  supplierId: string | null;
   approvedQty: number | null;
-  forwardedAt: string | null;
+  allocations: Allocation[];
 };
 
 function formatDateTime(iso: string) {
@@ -76,15 +86,20 @@ export default function RequestCard({
 
   const supplierMap = new Map(suppliers.map((s) => [s.id, s]));
 
-  // Barang yang sudah dipilih supplier-nya tapi belum diteruskan, dikelompokkan
-  // per supplier — biar "Teruskan" itu satu kali per supplier (satu WA), bukan
-  // satu kali per barang.
-  const readyGroups = new Map<string, RequestItem[]>();
-  for (const it of request.items) {
-    if (it.supplierId && !it.forwardedAt) {
-      const list = readyGroups.get(it.supplierId) ?? [];
-      list.push(it);
-      readyGroups.set(it.supplierId, list);
+  // Alokasi yang sudah punya supplier tapi belum diteruskan, dikelompokkan
+  // per supplier lintas SEMUA barang di order ini — biar "Teruskan" itu satu
+  // kali per supplier (satu WA), bukan satu kali per barang/alokasi.
+  const readyGroups = new Map<
+    string,
+    { allocationId: string; itemName: string; unit: string | null; qty: number }[]
+  >();
+  for (const item of request.items) {
+    for (const a of item.allocations) {
+      if (a.supplierId && !a.forwardedAt) {
+        const list = readyGroups.get(a.supplierId) ?? [];
+        list.push({ allocationId: a.id, itemName: item.itemName, unit: item.unit, qty: a.qty });
+        readyGroups.set(a.supplierId, list);
+      }
     }
   }
 
@@ -123,7 +138,7 @@ export default function RequestCard({
 
       {readyGroups.size > 0 && (
         <div className="mt-3 space-y-2">
-          {Array.from(readyGroups.entries()).map(([supplierId, items]) => {
+          {Array.from(readyGroups.entries()).map(([supplierId, allocations]) => {
             const supplier = supplierMap.get(supplierId);
             if (!supplier) return null;
             return (
@@ -135,12 +150,7 @@ export default function RequestCard({
                 employeeName={request.employeeName}
                 createdAt={request.createdAt}
                 supplier={supplier}
-                items={items.map((it) => ({
-                  id: it.id,
-                  itemName: it.itemName,
-                  unit: it.unit,
-                  qty: it.approvedQty ?? it.qtyOrdered,
-                }))}
+                allocations={allocations}
               />
             );
           })}

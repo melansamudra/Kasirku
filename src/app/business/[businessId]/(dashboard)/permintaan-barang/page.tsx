@@ -7,13 +7,24 @@ import RequestCard from "./request-card";
 type ItemRow = {
   id: string;
   purchase_request_id: string;
+  item_type: "ingredient" | "product";
+  ingredient_id: string | null;
+  product_id: string | null;
   item_name: string;
   unit: string | null;
   qty_ordered: number;
   current_stock: number | null;
-  supplier_id: string | null;
   approved_qty: number | null;
+};
+
+type AllocationRow = {
+  id: string;
+  purchase_request_item_id: string;
+  supplier_id: string | null;
+  qty: number;
   forwarded_at: string | null;
+  received_at: string | null;
+  purchase_id: string | null;
 };
 
 type RequestRow = {
@@ -42,26 +53,38 @@ export default async function PermintaanBarangPage({
     notFound();
   }
 
-  const [{ data: suppliers }, { data: requests }, { data: items }] = await Promise.all([
-    supabase
-      .from("suppliers")
-      .select("id, name, phone")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
-    supabase
-      .from("purchase_requests")
-      .select("id, employee_name, status, note, created_at")
-      .eq("business_id", businessId)
-      .order("created_at", { ascending: false })
-      .limit(50),
-    supabase
-      .from("purchase_request_items")
-      .select(
-        "id, purchase_request_id, item_name, unit, qty_ordered, current_stock, supplier_id, approved_qty, forwarded_at",
-      )
-      .eq("business_id", businessId),
-  ]);
+  const [{ data: suppliers }, { data: requests }, { data: items }, { data: allocations }] =
+    await Promise.all([
+      supabase
+        .from("suppliers")
+        .select("id, name, phone")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("purchase_requests")
+        .select("id, employee_name, status, note, created_at")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("purchase_request_items")
+        .select(
+          "id, purchase_request_id, item_type, ingredient_id, product_id, item_name, unit, qty_ordered, current_stock, approved_qty",
+        )
+        .eq("business_id", businessId),
+      supabase
+        .from("purchase_request_item_allocations")
+        .select("id, purchase_request_item_id, supplier_id, qty, forwarded_at, received_at, purchase_id")
+        .eq("business_id", businessId),
+    ]);
+
+  const allocationsByItem = new Map<string, AllocationRow[]>();
+  for (const a of (allocations ?? []) as AllocationRow[]) {
+    const list = allocationsByItem.get(a.purchase_request_item_id) ?? [];
+    list.push(a);
+    allocationsByItem.set(a.purchase_request_item_id, list);
+  }
 
   const itemsByRequest = new Map<string, ItemRow[]>();
   for (const it of (items ?? []) as ItemRow[]) {
@@ -79,7 +102,7 @@ export default async function PermintaanBarangPage({
     <div className="w-full max-w-2xl">
       <h1 className="text-lg font-bold text-zinc-900">Permintaan Barang — {business.name}</h1>
       <p className="mt-0.5 text-xs text-zinc-500">
-        Order barang dari staf dapur/bar/front — terima, pilih supplier, teruskan.
+        Order barang dari staf dapur/bar/front — terima, alokasikan ke supplier, teruskan.
       </p>
 
       {baruCount > 0 && (
@@ -118,12 +141,21 @@ export default async function PermintaanBarangPage({
                 items: (itemsByRequest.get(r.id) ?? []).map((it) => ({
                   id: it.id,
                   itemName: it.item_name,
+                  itemType: it.item_type,
+                  ingredientId: it.ingredient_id,
+                  productId: it.product_id,
                   unit: it.unit,
                   qtyOrdered: Number(it.qty_ordered),
                   currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
-                  supplierId: it.supplier_id,
                   approvedQty: it.approved_qty !== null ? Number(it.approved_qty) : null,
-                  forwardedAt: it.forwarded_at,
+                  allocations: (allocationsByItem.get(it.id) ?? []).map((a) => ({
+                    id: a.id,
+                    supplierId: a.supplier_id,
+                    qty: Number(a.qty),
+                    forwardedAt: a.forwarded_at,
+                    receivedAt: a.received_at,
+                    purchaseId: a.purchase_id,
+                  })),
                 })),
               }}
             />

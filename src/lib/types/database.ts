@@ -1746,6 +1746,64 @@ export type Database = {
         };
         Relationships: [];
       };
+      purchase_request_item_allocations: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_request_item_id: string;
+          supplier_id: string | null;
+          qty: number;
+          forwarded_at: string | null;
+          received_at: string | null;
+          purchase_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_request_item_id: string;
+          supplier_id?: string | null;
+          qty: number;
+          forwarded_at?: string | null;
+          received_at?: string | null;
+          purchase_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_request_item_id?: string;
+          supplier_id?: string | null;
+          qty?: number;
+          forwarded_at?: string | null;
+          received_at?: string | null;
+          purchase_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_item_allocations_purchase_request_item_id_fkey";
+            columns: ["purchase_request_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_request_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_request_item_allocations_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_request_item_allocations_purchase_id_fkey";
+            columns: ["purchase_id"];
+            isOneToOne: false;
+            referencedRelation: "purchases";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       purchase_request_items: {
         Row: {
           id: string;
@@ -1759,9 +1817,7 @@ export type Database = {
           qty_ordered: number;
           current_stock: number | null;
           created_at: string;
-          supplier_id: string | null;
           approved_qty: number | null;
-          forwarded_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1775,9 +1831,7 @@ export type Database = {
           qty_ordered: number;
           current_stock?: number | null;
           created_at?: string;
-          supplier_id?: string | null;
           approved_qty?: number | null;
-          forwarded_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1791,9 +1845,7 @@ export type Database = {
           qty_ordered?: number;
           current_stock?: number | null;
           created_at?: string;
-          supplier_id?: string | null;
           approved_qty?: number | null;
-          forwarded_at?: string | null;
         };
         Relationships: [
           {
@@ -1801,13 +1853,6 @@ export type Database = {
             columns: ["purchase_request_id"];
             isOneToOne: false;
             referencedRelation: "purchase_requests";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "purchase_request_items_supplier_id_fkey";
-            columns: ["supplier_id"];
-            isOneToOne: false;
-            referencedRelation: "suppliers";
             referencedColumns: ["id"];
           },
         ];

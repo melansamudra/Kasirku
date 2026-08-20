@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { forwardItemsToSupplier } from "./actions";
+import { forwardAllocationsToSupplier } from "./actions";
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
@@ -23,7 +23,7 @@ function normalizePhone(raw: string): string {
   return `62${digits}`;
 }
 
-type GroupItem = { id: string; itemName: string; unit: string | null; qty: number };
+type GroupAllocation = { allocationId: string; itemName: string; unit: string | null; qty: number };
 
 export default function SupplierGroup({
   businessId,
@@ -32,7 +32,7 @@ export default function SupplierGroup({
   employeeName,
   createdAt,
   supplier,
-  items,
+  allocations,
 }: {
   businessId: string;
   requestId: string;
@@ -40,7 +40,7 @@ export default function SupplierGroup({
   employeeName: string;
   createdAt: string;
   supplier: { id: string; name: string; phone: string | null };
-  items: GroupItem[];
+  allocations: GroupAllocation[];
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -49,10 +49,10 @@ export default function SupplierGroup({
   function handleForward() {
     setError(null);
     setPending(true);
-    forwardItemsToSupplier(
+    forwardAllocationsToSupplier(
       businessId,
       requestId,
-      items.map((i) => i.id),
+      allocations.map((a) => a.allocationId),
     ).then((res) => {
       setPending(false);
       if (res.error) {
@@ -66,7 +66,9 @@ export default function SupplierGroup({
         `Tanggal: ${formatDateTime(createdAt)}`,
         "",
         "Daftar barang:",
-        ...items.map((it, idx) => `${idx + 1}. ${it.itemName} — ${it.qty}${it.unit ? ` ${it.unit}` : ""}`),
+        ...allocations.map(
+          (a, idx) => `${idx + 1}. ${a.itemName} — ${a.qty}${a.unit ? ` ${a.unit}` : ""}`,
+        ),
       ].join("\n");
       const waHref = supplier.phone
         ? `https://wa.me/${normalizePhone(supplier.phone)}?text=${encodeURIComponent(waText)}`
@@ -80,10 +82,10 @@ export default function SupplierGroup({
     <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-3">
       <p className="text-xs font-semibold text-zinc-900">Ke: {supplier.name}</p>
       <ul className="mt-1.5 space-y-0.5">
-        {items.map((it) => (
-          <li key={it.id} className="text-[12px] text-zinc-600">
-            {it.itemName} — {it.qty}
-            {it.unit ? ` ${it.unit}` : ""}
+        {allocations.map((a) => (
+          <li key={a.allocationId} className="text-[12px] text-zinc-600">
+            {a.itemName} — {a.qty}
+            {a.unit ? ` ${a.unit}` : ""}
           </li>
         ))}
       </ul>
@@ -92,7 +94,7 @@ export default function SupplierGroup({
         disabled={pending}
         className="mt-2 rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
       >
-        {pending ? "Memproses…" : `Teruskan ${items.length} Barang ke ${supplier.name}`}
+        {pending ? "Memproses…" : `Teruskan ${allocations.length} Barang ke ${supplier.name}`}
       </button>
       {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
     </div>

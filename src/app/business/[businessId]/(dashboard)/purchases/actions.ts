@@ -164,22 +164,40 @@ export async function addPurchase(
     }
   }
 
-  const { error } = await supabase.from("purchases").insert({
-    business_id: businessId,
-    supplier_id: supplierId,
-    date,
-    due_date: dueDate,
-    category,
-    ingredient_id: ingredientId,
-    product_id: productId,
-    qty,
-    note: note || null,
-    amount,
-    paid_amount: paidAmount,
-  });
+  const { data: newPurchase, error } = await supabase
+    .from("purchases")
+    .insert({
+      business_id: businessId,
+      supplier_id: supplierId,
+      date,
+      due_date: dueDate,
+      category,
+      ingredient_id: ingredientId,
+      product_id: productId,
+      qty,
+      note: note || null,
+      amount,
+      paid_amount: paidAmount,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return fail(error.message);
+  }
+
+  // Kalau datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang,
+  // link balik alokasinya ke pembelian ini biar riwayatnya nyambung —
+  // best-effort, kegagalan di sini tidak membatalkan pembelian yang sudah
+  // tersimpan.
+  const fromAllocationId = (formData.get("fromAllocationId") as string) || null;
+  if (fromAllocationId) {
+    await supabase
+      .from("purchase_request_item_allocations")
+      .update({ purchase_id: newPurchase.id })
+      .eq("id", fromAllocationId)
+      .eq("business_id", businessId);
+    revalidatePath(`/business/${businessId}/permintaan-barang`);
   }
 
   const journalError = await postPurchaseJournal(
