@@ -295,6 +295,7 @@ export type Database = {
           late_deduction_per_occurrence: number;
           lembur_rate_per_hour: number;
           attendance_qr_slug: string | null;
+          purchase_request_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -322,6 +323,7 @@ export type Database = {
           late_deduction_per_occurrence?: number;
           lembur_rate_per_hour?: number;
           attendance_qr_slug?: string | null;
+          purchase_request_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -349,6 +351,7 @@ export type Database = {
           late_deduction_per_occurrence?: number;
           lembur_rate_per_hour?: number;
           attendance_qr_slug?: string | null;
+          purchase_request_slug?: string | null;
         };
         Relationships: [];
       };
@@ -1743,6 +1746,103 @@ export type Database = {
         };
         Relationships: [];
       };
+      purchase_request_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_request_id: string;
+          item_type: string;
+          ingredient_id: string | null;
+          product_id: string | null;
+          item_name: string;
+          unit: string | null;
+          qty_ordered: number;
+          current_stock: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_request_id: string;
+          item_type: string;
+          ingredient_id?: string | null;
+          product_id?: string | null;
+          item_name: string;
+          unit?: string | null;
+          qty_ordered: number;
+          current_stock?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_request_id?: string;
+          item_type?: string;
+          ingredient_id?: string | null;
+          product_id?: string | null;
+          item_name?: string;
+          unit?: string | null;
+          qty_ordered?: number;
+          current_stock?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_items_purchase_request_id_fkey";
+            columns: ["purchase_request_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          employee_id: string | null;
+          employee_name: string;
+          status: string;
+          supplier_id: string | null;
+          note: string | null;
+          created_at: string;
+          received_at: string | null;
+          forwarded_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          employee_id?: string | null;
+          employee_name: string;
+          status?: string;
+          supplier_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+          received_at?: string | null;
+          forwarded_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          employee_id?: string | null;
+          employee_name?: string;
+          status?: string;
+          supplier_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+          received_at?: string | null;
+          forwarded_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       purchases: {
         Row: {
           id: string;
@@ -2735,6 +2835,19 @@ export type Database = {
           employee_id: string;
           employee_name: string;
         }[];
+      };
+      get_purchase_request_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_purchase_request: {
+        Args: {
+          p_slug: string;
+          p_employee_id: string;
+          p_note: string | null;
+          p_items: Json;
+        };
+        Returns: string;
       };
       submit_self_order: {
         Args: {

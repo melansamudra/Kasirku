@@ -29,6 +29,7 @@ import {
   Users,
   CreditCard,
   ShoppingBag,
+  ClipboardList,
   Store,
   Monitor,
   UserCog,
@@ -63,7 +64,7 @@ const STARTER_ALLOWED_KEYS = new Set([
   "settings", "admins",
   // Cost Control (COGS)
   "reports-cogs", "hpp-calculator", "reports-price-trend",
-  "purchases", "suppliers",
+  "purchases", "suppliers", "purchase-requests",
   // Lainnya
   "notifikasi", "activity",
 ]);
@@ -144,6 +145,7 @@ function buildNavGroups(
               { key: "receivables", href: `${base}/receivables`, label: "Piutang Pelanggan", icon: CreditCard },
             ]),
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+        { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         ...(!isStarter && !isFinanceOnly
           ? [{ key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor }]
