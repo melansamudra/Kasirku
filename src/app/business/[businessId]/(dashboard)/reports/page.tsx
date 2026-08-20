@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -10,6 +11,22 @@ import {
 } from "./period";
 import PeriodTabs from "./period-tabs";
 import ReportPrintButtons from "../../report-print-buttons";
+
+type ReportTransactionRow = {
+  date: string;
+  total: number;
+  subtotal_raw: number | null;
+  subtotal: number;
+  total_item_disc: number | null;
+  order_disc_amt: number | null;
+  service: number | null;
+  tax: number | null;
+  total_cost: number;
+  gross_profit: number;
+  voided: boolean;
+  transaction_items: { qty: number }[];
+  transaction_payments: { method: string; amount: number }[];
+};
 
 function fmt(v: number) {
   const sign = v < 0 ? "-" : "";
@@ -89,16 +106,25 @@ export default async function ReportsPage({
     : "today";
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
-  let txQuery = supabase
-    .from("transactions")
-    .select("date, total, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, total_cost, gross_profit, voided, transaction_items(qty), transaction_payments(method, amount)")
-    .eq("business_id", businessId)
-    .order("date", { ascending: false });
-  if (fromIso) txQuery = txQuery.gte("date", fromIso);
-  if (toIsoExclusive) txQuery = txQuery.lt("date", toIsoExclusive);
-  const { data: transactions } = await txQuery;
+  // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
+  // tidak di-paginate — bisnis dengan riwayat transaksi (termasuk impor
+  // Moka) lebih dari 1000 per periode kehilangan baris paling lama tanpa
+  // ada error, bikin Pendapatan/Transaksi under-count. Lihat lib/pagination.ts.
+  const transactions = await fetchAllRows<ReportTransactionRow>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select(
+        "date, total, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, total_cost, gross_profit, voided, transaction_items(qty), transaction_payments(method, amount)",
+      )
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
-  const txList = transactions ?? [];
+  const txList = transactions;
   const validTx = txList.filter((t) => !t.voided);
   const voidCount = txList.length - validTx.length;
 

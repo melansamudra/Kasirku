@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { BookOpen, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { PillBadge, type PillTone } from "@/components/ui/pill-badge";
 import {
@@ -48,6 +49,14 @@ function formatDate(iso: string) {
   });
 }
 
+type JournalEntryRow = {
+  id: string;
+  date: string;
+  description: string;
+  source: string;
+  journal_lines: { debit: number; credit: number; accounts: { code: string; name: string } | null }[];
+};
+
 export default async function JurnalPage({
   params,
   searchParams,
@@ -63,18 +72,14 @@ export default async function JurnalPage({
 
   const supabase = await createClient();
 
-  let entryQuery = supabase
-    .from("journal_entries")
-    .select("id, date, description, source, journal_lines(debit, credit, accounts(code, name))")
-    .eq("business_id", businessId)
-    .order("date", { ascending: false });
-  if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
-  if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-
   // Keempat query di bawah tidak saling bergantung — dijalankan paralel
   // (bukan berurutan) supaya waktu tunggu halaman = query terlama, bukan
-  // jumlah semuanya.
-  const [{ data: business }, { data: accounts }, { data: entries }, { data: reversals }] =
+  // jumlah semuanya. entryQuery dibungkus fetchAllRows karena
+  // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
+  // tidak di-paginate — bisnis dengan riwayat jurnal (termasuk impor Moka)
+  // lebih dari 1000 per periode kehilangan baris paling lama tanpa ada
+  // error. Lihat lib/pagination.ts.
+  const [{ data: business }, { data: accounts }, entries, { data: reversals }] =
     await Promise.all([
       supabase.from("businesses").select("id, name").eq("id", businessId).single(),
       supabase
@@ -82,7 +87,17 @@ export default async function JurnalPage({
         .select("code, name, type, normal_balance")
         .eq("business_id", businessId)
         .order("code", { ascending: true }),
-      entryQuery,
+      fetchAllRows<JournalEntryRow>((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("journal_entries")
+          .select("id, date, description, source, journal_lines(debit, credit, accounts(code, name))")
+          .eq("business_id", businessId)
+          .order("date", { ascending: false })
+          .range(rangeFrom, rangeTo);
+        if (fromIso) q = q.gte("date", fromIso);
+        if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+        return q;
+      }),
       // Terlepas dari filter periode yang sedang aktif — sebuah jurnal
       // manual lama (di luar rentang tanggal yang sedang dilihat) tetap
       // tidak boleh ditawari tombol "Koreksi" lagi kalau sudah pernah
@@ -103,7 +118,7 @@ export default async function JurnalPage({
   const boundAddJournalEntry = addJournalEntry.bind(null, businessId);
   const today = todayWibDateString();
 
-  const entryTotals = (entries ?? []).map((e) => {
+  const entryTotals = entries.map((e) => {
     const lines = e.journal_lines as unknown as { debit: number; credit: number }[];
     return lines.reduce((s, l) => s + Number(l.debit), 0);
   });
@@ -157,7 +172,7 @@ export default async function JurnalPage({
       )}
 
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <StatCard label="Jumlah Entri" value={String((entries ?? []).length)} icon={BookOpen} tone="zinc" />
+        <StatCard label="Jumlah Entri" value={String(entries.length)} icon={BookOpen} tone="zinc" />
         <StatCard label="Total Nominal" value={formatRupiah(totalNominal)} icon={Wallet} tone="brand" />
       </div>
 
@@ -191,12 +206,12 @@ export default async function JurnalPage({
       </div>
 
       <div className="mt-4 space-y-3">
-        {(entries ?? []).length === 0 && (
+        {entries.length === 0 && (
           <p className="rounded-2xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-300">
             Belum ada jurnal di periode ini.
           </p>
         )}
-        {(entries ?? []).map((e) => {
+        {entries.map((e) => {
           const lines = e.journal_lines as unknown as {
             debit: number;
             credit: number;

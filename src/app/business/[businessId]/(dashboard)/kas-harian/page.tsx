@@ -49,7 +49,7 @@ type CashLine = {
   id: string;
   debit: number;
   credit: number;
-  journal_entries: { id: string; date: string; description: string; source: string };
+  journal_entries: { id: string; date: string; description: string; source: string; source_id: string | null };
 };
 
 export default async function KasHarianPage({
@@ -99,15 +99,24 @@ export default async function KasHarianPage({
 
   let lines: CashLine[] = [];
   if (kasAccount) {
-    let lineQuery = supabase
-      .from("journal_lines")
-      .select("id, debit, credit, journal_entries!inner(id, date, description, source, business_id)")
-      .eq("account_id", kasAccount.id)
-      .eq("journal_entries.business_id", businessId);
-    if (fromIso) lineQuery = lineQuery.gte("journal_entries.date", fromIso);
-    if (toIsoExclusive) lineQuery = lineQuery.lt("journal_entries.date", toIsoExclusive);
-    const { data } = await lineQuery;
-    lines = ((data ?? []) as unknown as CashLine[])
+    // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
+    // tidak di-paginate — toko dengan riwayat kas (termasuk impor Moka) lebih
+    // dari 1000 baris per periode kehilangan sisanya tanpa ada error, bikin
+    // Kas Masuk/Keluar under-count dan tidak sinkron dengan Laporan. Lihat
+    // lib/pagination.ts.
+    const rawLines = await fetchAllRows<unknown>((rangeFrom, rangeTo) => {
+      let q = supabase
+        .from("journal_lines")
+        .select("id, debit, credit, journal_entries!inner(id, date, description, source, source_id, business_id)")
+        .eq("account_id", kasAccount.id)
+        .eq("journal_entries.business_id", businessId)
+        .order("id", { ascending: true })
+        .range(rangeFrom, rangeTo);
+      if (fromIso) q = q.gte("journal_entries.date", fromIso);
+      if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
+      return q;
+    });
+    lines = (rawLines as CashLine[])
       .filter(
         (l) =>
           l.journal_entries.source !== "koreksi" &&
@@ -134,16 +143,49 @@ export default async function KasHarianPage({
 
   const visibleKasIds = new Set(visibleKasRows.map((r) => r.journal_line_id));
 
+  // Penjualan yang di-void belakangan tetap punya baris "penjualan" (debit)
+  // di sini — void cuma menambah baris pembalikan (source "void"), tidak
+  // menghapus baris aslinya. Laporan Laba Rugi/Penjualan sudah membuang
+  // transaksi voided sepenuhnya (cek transactions.voided saat ini, bukan
+  // "apakah pembalikannya jatuh di periode yang sama"), jadi supaya Kas
+  // Masuk nyambung ke Laporan, baris penjualan asli dari transaksi yang
+  // SAAT INI voided juga harus dikeluarkan dari Kas Masuk — bukan cuma
+  // baris pembalikannya. Ini penting terutama kalau penjualannya terjadi
+  // di periode ini tapi baru di-void belakangan (pembalikannya jatuh di
+  // periode lain, jadi tidak ketangkep filter tanggal Kas & Bank).
+  const saleSourceIds = Array.from(
+    new Set(
+      lines
+        .filter((l) => l.journal_entries.source === "penjualan" && l.journal_entries.source_id)
+        .map((l) => l.journal_entries.source_id as string),
+    ),
+  );
+  const { data: saleVoidStatus } =
+    saleSourceIds.length > 0
+      ? await supabase.from("transactions").select("id, voided").in("id", saleSourceIds)
+      : { data: [] as { id: string; voided: boolean }[] };
+  const voidedSaleIds = new Set(
+    (saleVoidStatus ?? []).filter((t) => t.voided).map((t) => t.id),
+  );
+
+  const isVoidRelated = (l: CashLine) =>
+    l.journal_entries.source === "void" ||
+    (l.journal_entries.source === "penjualan" &&
+      !!l.journal_entries.source_id &&
+      voidedSaleIds.has(l.journal_entries.source_id));
+
   // Void adalah pembalikan penjualan (koreksi omset), bukan beban usaha —
-  // dipisah dari Kas Keluar biasa supaya "Kas Keluar" mencerminkan
-  // pengeluaran nyata (manual, pembelian, beban, dll), bukan tercampur
-  // dengan transaksi yang dibatalkan.
-  const voidLines = lines.filter((l) => l.journal_entries.source === "void");
-  const nonVoidLines = lines.filter((l) => l.journal_entries.source !== "void");
+  // dipisah dari Kas Keluar/Kas Masuk biasa supaya keduanya mencerminkan
+  // pergerakan kas yang masih berlaku, bukan tercampur dengan transaksi
+  // yang dibatalkan.
+  const voidLines = lines.filter(isVoidRelated);
+  const nonVoidLines = lines.filter((l) => !isVoidRelated(l));
 
   const totalMasuk = nonVoidLines.reduce((s, l) => s + Number(l.debit), 0);
   const totalKeluar = nonVoidLines.reduce((s, l) => s + Number(l.credit), 0);
-  const totalVoid = voidLines.reduce((s, l) => s + Number(l.credit), 0);
+  const totalVoid = voidLines
+    .filter((l) => l.journal_entries.source === "void")
+    .reduce((s, l) => s + Number(l.credit), 0);
 
   const renderCashRow = (l: CashLine) => {
     const isMasuk = Number(l.debit) > 0;
@@ -240,8 +282,8 @@ export default async function KasHarianPage({
           </p>
           <p className="text-xl font-bold text-amber-700">{formatRupiah(totalVoid)}</p>
           <p className="mt-1 text-[11px] text-amber-600">
-            Koreksi omset dari transaksi yang dibatalkan — dipisah dari Kas Keluar karena bukan
-            beban usaha. Rinciannya di &quot;Riwayat Void&quot; di bawah.
+            Nilai transaksi yang dibatalkan — sudah dikeluarkan dari Kas Masuk &amp; Kas Keluar di
+            atas (supaya sinkron dengan Laporan). Rinciannya di &quot;Riwayat Void&quot; di bawah.
           </p>
         </div>
       )}
@@ -265,9 +307,10 @@ export default async function KasHarianPage({
       {voidLines.length > 0 && (
         <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-amber-100 bg-amber-50/60 px-4 py-3">
-            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidLines.length})</h2>
+            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidedSaleIds.size})</h2>
             <p className="mt-0.5 text-[11px] text-amber-600">
-              Transaksi yang dibatalkan — koreksi omset, terpisah dari Kas Keluar di atas.
+              Transaksi yang dibatalkan (penjualan asli + pembalikannya) — dikeluarkan dari Kas
+              Masuk/Keluar di atas supaya sinkron dengan Laporan.
             </p>
           </div>
           <div className="divide-y divide-zinc-100">{voidLines.map(renderCashRow)}</div>
