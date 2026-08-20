@@ -18,7 +18,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "ticket-reports", label: "Laporan Tiket" },
       { key: "members", label: "Anggota" },
       { key: "shifts", label: "Riwayat Shift" },
-      { key: "kas-harian", label: "Kas Harian" },
+      { key: "kas-harian", label: "Kas & Bank" },
       { key: "products", label: "Kelola Produk" },
       { key: "ingredients", label: "Bahan Baku" },
       { key: "tables", label: "Meja & Self-Order" },

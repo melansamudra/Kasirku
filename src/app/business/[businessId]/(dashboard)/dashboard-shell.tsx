@@ -85,7 +85,7 @@ function buildNavGroups(
         { key: "reports", href: `${base}/reports`, label: "Laporan", icon: BarChart3 },
         { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
         { key: "shifts", href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
-        { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas Harian", icon: Wallet },
+        { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas & Bank", icon: Wallet },
         { key: "products", href: `${base}/products`, label: "Kelola Produk", icon: Package },
         { key: "modifiers", href: `${base}/modifiers`, label: "Modifier Global", icon: Tag },
         ...(isFnb

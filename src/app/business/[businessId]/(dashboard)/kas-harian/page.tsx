@@ -134,14 +134,56 @@ export default async function KasHarianPage({
 
   const visibleKasIds = new Set(visibleKasRows.map((r) => r.journal_line_id));
 
-  const totalMasuk = lines.reduce((s, l) => s + Number(l.debit), 0);
-  const totalKeluar = lines.reduce((s, l) => s + Number(l.credit), 0);
+  // Void adalah pembalikan penjualan (koreksi omset), bukan beban usaha —
+  // dipisah dari Kas Keluar biasa supaya "Kas Keluar" mencerminkan
+  // pengeluaran nyata (manual, pembelian, beban, dll), bukan tercampur
+  // dengan transaksi yang dibatalkan.
+  const voidLines = lines.filter((l) => l.journal_entries.source === "void");
+  const nonVoidLines = lines.filter((l) => l.journal_entries.source !== "void");
+
+  const totalMasuk = nonVoidLines.reduce((s, l) => s + Number(l.debit), 0);
+  const totalKeluar = nonVoidLines.reduce((s, l) => s + Number(l.credit), 0);
+  const totalVoid = voidLines.reduce((s, l) => s + Number(l.credit), 0);
+
+  const renderCashRow = (l: CashLine) => {
+    const isMasuk = Number(l.debit) > 0;
+    return (
+      <div key={l.id} className="flex items-center gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium text-zinc-900">
+            {l.journal_entries.description}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span className="text-[11px] text-zinc-400">{formatDate(l.journal_entries.date)}</span>
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                SOURCE_BADGE[l.journal_entries.source] ?? "bg-zinc-100 text-zinc-600"
+              }`}
+            >
+              {SOURCE_LABELS[l.journal_entries.source] ?? l.journal_entries.source}
+            </span>
+          </div>
+        </div>
+        <p className={`shrink-0 text-sm font-bold ${isMasuk ? "text-brand-700" : "text-red-600"}`}>
+          {isMasuk ? "+" : "-"}
+          {formatRupiah(isMasuk ? Number(l.debit) : Number(l.credit))}
+        </p>
+        {showMirrorToggle && (
+          <MirrorKasToggle
+            businessId={businessId}
+            journalLineId={l.id}
+            visible={visibleKasIds.has(l.id)}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="w-full max-w-2xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg font-bold text-zinc-900">Kas Harian — {business.name}</h1>
+          <h1 className="text-lg font-bold text-zinc-900">Kas & Bank — {business.name}</h1>
           <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
         </div>
         <PeriodTabs basePath={`/business/${businessId}/kas-harian`} period={period} />
@@ -191,6 +233,19 @@ export default async function KasHarianPage({
         </div>
       </div>
 
+      {voidLines.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-amber-700">
+            Dibatalkan (Void)
+          </p>
+          <p className="text-xl font-bold text-amber-700">{formatRupiah(totalVoid)}</p>
+          <p className="mt-1 text-[11px] text-amber-600">
+            Koreksi omset dari transaksi yang dibatalkan — dipisah dari Kas Keluar karena bukan
+            beban usaha. Rinciannya di &quot;Riwayat Void&quot; di bawah.
+          </p>
+        </div>
+      )}
+
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">+ Catat Kas Masuk/Keluar</h2>
         <AddCashForm businessId={businessId} today={todayWibDateString()} />
@@ -200,50 +255,24 @@ export default async function KasHarianPage({
         <div className="border-b border-zinc-100 px-4 py-3">
           <h2 className="text-sm font-bold text-zinc-900">Riwayat Kas</h2>
         </div>
-        {lines.length > 0 ? (
-          <div className="divide-y divide-zinc-100">
-            {lines.map((l) => {
-              const isMasuk = Number(l.debit) > 0;
-              return (
-                <div key={l.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-zinc-900">
-                      {l.journal_entries.description}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <span className="text-[11px] text-zinc-400">
-                        {formatDate(l.journal_entries.date)}
-                      </span>
-                      <span
-                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                          SOURCE_BADGE[l.journal_entries.source] ?? "bg-zinc-100 text-zinc-600"
-                        }`}
-                      >
-                        {SOURCE_LABELS[l.journal_entries.source] ?? l.journal_entries.source}
-                      </span>
-                    </div>
-                  </div>
-                  <p
-                    className={`shrink-0 text-sm font-bold ${isMasuk ? "text-brand-700" : "text-red-600"}`}
-                  >
-                    {isMasuk ? "+" : "-"}
-                    {formatRupiah(isMasuk ? Number(l.debit) : Number(l.credit))}
-                  </p>
-                  {showMirrorToggle && (
-                    <MirrorKasToggle
-                      businessId={businessId}
-                      journalLineId={l.id}
-                      visible={visibleKasIds.has(l.id)}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {nonVoidLines.length > 0 ? (
+          <div className="divide-y divide-zinc-100">{nonVoidLines.map(renderCashRow)}</div>
         ) : (
           <p className="py-10 text-center text-sm text-zinc-300">Belum ada transaksi kas di periode ini</p>
         )}
       </div>
+
+      {voidLines.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="border-b border-amber-100 bg-amber-50/60 px-4 py-3">
+            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidLines.length})</h2>
+            <p className="mt-0.5 text-[11px] text-amber-600">
+              Transaksi yang dibatalkan — koreksi omset, terpisah dari Kas Keluar di atas.
+            </p>
+          </div>
+          <div className="divide-y divide-zinc-100">{voidLines.map(renderCashRow)}</div>
+        </div>
+      )}
     </div>
   );
 }
