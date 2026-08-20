@@ -143,16 +143,21 @@ export default async function AttendanceRekapPage({
             {employees.map((e) => {
               const r = recap.get(e.id)!;
               return (
-                <div key={e.id} className="flex items-center justify-between px-4 py-2.5">
+                <Link
+                  key={e.id}
+                  href={`/business/${businessId}/attendance/rekap/${e.id}?month=${month}`}
+                  className="flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-zinc-50 print:pointer-events-none"
+                >
                   <span className="text-xs font-medium text-zinc-700">{e.name}</span>
-                  <span className="text-[11px] text-zinc-500">
+                  <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                     <span className="text-brand-700">{r.hadir} hadir</span> ·{" "}
                     <span className="text-amber-600">{r.izin} izin</span> ·{" "}
                     <span className="text-blue-600">{r.sakit} sakit</span> ·{" "}
                     <span className="text-red-600">{r.alpa} alpa</span> ·{" "}
                     <span className="text-zinc-500">{r.off} off</span>
+                    <span className="text-brand-600 print:hidden">→</span>
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>
