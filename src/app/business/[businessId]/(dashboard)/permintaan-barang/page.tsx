@@ -11,13 +11,15 @@ type ItemRow = {
   unit: string | null;
   qty_ordered: number;
   current_stock: number | null;
+  supplier_id: string | null;
+  approved_qty: number | null;
+  forwarded_at: string | null;
 };
 
 type RequestRow = {
   id: string;
   employee_name: string;
   status: "baru" | "diterima" | "diteruskan";
-  supplier_id: string | null;
   note: string | null;
   created_at: string;
 };
@@ -49,13 +51,15 @@ export default async function PermintaanBarangPage({
       .order("name", { ascending: true }),
     supabase
       .from("purchase_requests")
-      .select("id, employee_name, status, supplier_id, note, created_at")
+      .select("id, employee_name, status, note, created_at")
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
       .from("purchase_request_items")
-      .select("id, purchase_request_id, item_name, unit, qty_ordered, current_stock")
+      .select(
+        "id, purchase_request_id, item_name, unit, qty_ordered, current_stock, supplier_id, approved_qty, forwarded_at",
+      )
       .eq("business_id", businessId),
   ]);
 
@@ -109,7 +113,6 @@ export default async function PermintaanBarangPage({
                 id: r.id,
                 employeeName: r.employee_name,
                 status: r.status,
-                supplierId: r.supplier_id,
                 note: r.note,
                 createdAt: r.created_at,
                 items: (itemsByRequest.get(r.id) ?? []).map((it) => ({
@@ -118,6 +121,9 @@ export default async function PermintaanBarangPage({
                   unit: it.unit,
                   qtyOrdered: Number(it.qty_ordered),
                   currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
+                  supplierId: it.supplier_id,
+                  approvedQty: it.approved_qty !== null ? Number(it.approved_qty) : null,
+                  forwardedAt: it.forwarded_at,
                 })),
               }}
             />

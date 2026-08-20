@@ -1759,6 +1759,9 @@ export type Database = {
           qty_ordered: number;
           current_stock: number | null;
           created_at: string;
+          supplier_id: string | null;
+          approved_qty: number | null;
+          forwarded_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1772,6 +1775,9 @@ export type Database = {
           qty_ordered: number;
           current_stock?: number | null;
           created_at?: string;
+          supplier_id?: string | null;
+          approved_qty?: number | null;
+          forwarded_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1785,6 +1791,9 @@ export type Database = {
           qty_ordered?: number;
           current_stock?: number | null;
           created_at?: string;
+          supplier_id?: string | null;
+          approved_qty?: number | null;
+          forwarded_at?: string | null;
         };
         Relationships: [
           {
@@ -1792,6 +1801,13 @@ export type Database = {
             columns: ["purchase_request_id"];
             isOneToOne: false;
             referencedRelation: "purchase_requests";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_request_items_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
             referencedColumns: ["id"];
           },
         ];
@@ -1803,7 +1819,6 @@ export type Database = {
           employee_id: string | null;
           employee_name: string;
           status: string;
-          supplier_id: string | null;
           note: string | null;
           created_at: string;
           received_at: string | null;
@@ -1815,7 +1830,6 @@ export type Database = {
           employee_id?: string | null;
           employee_name: string;
           status?: string;
-          supplier_id?: string | null;
           note?: string | null;
           created_at?: string;
           received_at?: string | null;
@@ -1827,21 +1841,12 @@ export type Database = {
           employee_id?: string | null;
           employee_name?: string;
           status?: string;
-          supplier_id?: string | null;
           note?: string | null;
           created_at?: string;
           received_at?: string | null;
           forwarded_at?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "purchase_requests_supplier_id_fkey";
-            columns: ["supplier_id"];
-            isOneToOne: false;
-            referencedRelation: "suppliers";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
       purchases: {
         Row: {

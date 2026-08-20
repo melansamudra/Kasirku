@@ -25,9 +25,9 @@ export async function receivePurchaseRequest(
   return { error: null };
 }
 
-export async function assignPurchaseRequestSupplier(
+export async function assignItemSupplier(
   businessId: string,
-  requestId: string,
+  itemId: string,
   supplierId: string,
 ): Promise<ActionState> {
   if (!supplierId) {
@@ -37,9 +37,9 @@ export async function assignPurchaseRequestSupplier(
   const supabase = await createClient();
 
   const { error } = await supabase
-    .from("purchase_requests")
+    .from("purchase_request_items")
     .update({ supplier_id: supplierId })
-    .eq("id", requestId)
+    .eq("id", itemId)
     .eq("business_id", businessId);
 
   if (error) return { error: error.message };
@@ -48,26 +48,50 @@ export async function assignPurchaseRequestSupplier(
   return { error: null };
 }
 
-export async function forwardPurchaseRequestToSupplier(
+export async function updateItemApprovedQty(
+  businessId: string,
+  itemId: string,
+  approvedQty: number,
+): Promise<ActionState> {
+  if (!Number.isFinite(approvedQty) || approvedQty < 0) {
+    return { error: "Qty disetujui harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("purchase_request_items")
+    .update({ approved_qty: approvedQty })
+    .eq("id", itemId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
+export async function forwardItemToSupplier(
   businessId: string,
   requestId: string,
+  itemId: string,
 ): Promise<ActionState> {
   const supabase = await createClient();
 
-  const { data: request } = await supabase
-    .from("purchase_requests")
-    .select("id, supplier_id, employee_name")
-    .eq("id", requestId)
+  const { data: item } = await supabase
+    .from("purchase_request_items")
+    .select("id, item_name, supplier_id")
+    .eq("id", itemId)
     .eq("business_id", businessId)
     .single();
 
-  if (!request) return { error: "Order tidak ditemukan." };
-  if (!request.supplier_id) return { error: "Pilih supplier dulu sebelum diteruskan." };
+  if (!item) return { error: "Barang tidak ditemukan." };
+  if (!item.supplier_id) return { error: "Pilih supplier dulu sebelum diteruskan." };
 
   const { error } = await supabase
-    .from("purchase_requests")
-    .update({ status: "diteruskan", forwarded_at: new Date().toISOString() })
-    .eq("id", requestId)
+    .from("purchase_request_items")
+    .update({ forwarded_at: new Date().toISOString() })
+    .eq("id", itemId)
     .eq("business_id", businessId);
 
   if (error) return { error: error.message };
@@ -77,9 +101,26 @@ export async function forwardPurchaseRequestToSupplier(
     businessId,
     "produk",
     "sukses",
-    "Order barang diteruskan ke supplier",
-    `Dari: ${request.employee_name}`,
+    "Barang order diteruskan ke supplier",
+    item.item_name,
   );
+
+  // Kalau semua barang di order ini sudah diteruskan, tandai order-nya
+  // selesai supaya badge "order baru menunggu" tidak menghitung dia lagi.
+  const { data: remaining } = await supabase
+    .from("purchase_request_items")
+    .select("id")
+    .eq("purchase_request_id", requestId)
+    .eq("business_id", businessId)
+    .is("forwarded_at", null);
+
+  if (remaining && remaining.length === 0) {
+    await supabase
+      .from("purchase_requests")
+      .update({ status: "diteruskan", forwarded_at: new Date().toISOString() })
+      .eq("id", requestId)
+      .eq("business_id", businessId);
+  }
 
   revalidatePath(`/business/${businessId}/permintaan-barang`);
   return { error: null };
