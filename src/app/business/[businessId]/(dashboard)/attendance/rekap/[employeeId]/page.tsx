@@ -173,14 +173,14 @@ export default async function EmployeeAttendanceRekapPage({
         </p>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
-        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5">
-          <p className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
-          <p className="text-base font-bold text-zinc-800">{formatJam(totalJamKerja)}</p>
+      <div className="mt-2 grid grid-cols-2 gap-2 print:mt-1.5 print:gap-1.5">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 print:rounded-lg print:px-2 print:py-1">
+          <p className="text-[9px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
+          <p className="text-sm font-bold text-zinc-800">{formatJam(totalJamKerja)}</p>
         </div>
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5">
-          <p className="mb-1 text-[10px] font-semibold uppercase text-red-600">Potongan (Izin + Telat)</p>
-          <p className="text-base font-bold text-red-600">{formatRupiah(totalPotongan)}</p>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 print:rounded-lg print:px-2 print:py-1">
+          <p className="text-[9px] font-semibold uppercase text-red-600">Potongan (Izin + Telat)</p>
+          <p className="text-sm font-bold text-red-600">{formatRupiah(totalPotongan)}</p>
         </div>
       </div>
 
