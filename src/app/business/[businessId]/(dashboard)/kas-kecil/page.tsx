@@ -6,6 +6,22 @@ import { getPeriodRange } from "../reports/period";
 import MovementCard from "./movement-card";
 import AddExpenseQuickForm from "./add-expense-quick-form";
 import PettyCashAllocationForm from "./petty-cash-allocation-form";
+import DebtNoteCard from "./debt-note-card";
+
+type DebtNoteRow = {
+  id: string;
+  supplier_id: string | null;
+  supplier_name_manual: string | null;
+  category: string;
+  amount: number;
+  note: string | null;
+  receipt_url: string | null;
+  status: "pending" | "verified";
+  origin: "kasir" | "admin";
+  created_at: string;
+  suppliers: { name: string } | null;
+  cashiers: { name: string } | null;
+};
 
 type MovementRow = {
   id: string;
@@ -61,6 +77,8 @@ export default async function KasKecilPage({
     { data: accountRows },
     { data: allocationRows },
     { data: todayNotaRows },
+    { data: debtNotePendingRows },
+    { data: debtNoteHistoryRows },
   ] = await Promise.all([
     supabase
       .from("shift_cash_movements")
@@ -103,6 +121,23 @@ export default async function KasKecilPage({
       .eq("direction", "out")
       .neq("status", "rejected")
       .gte("created_at", todayFromIso ?? `${today}T00:00:00+07:00`),
+    supabase
+      .from("supplier_debt_notes")
+      .select(
+        "id, supplier_id, supplier_name_manual, category, amount, note, receipt_url, status, origin, created_at, suppliers(name), cashiers(name)",
+      )
+      .eq("business_id", businessId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("supplier_debt_notes")
+      .select(
+        "id, supplier_id, supplier_name_manual, category, amount, note, receipt_url, status, origin, created_at, suppliers(name), cashiers(name)",
+      )
+      .eq("business_id", businessId)
+      .eq("status", "verified")
+      .order("verified_at", { ascending: false })
+      .limit(20),
   ]);
 
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
@@ -116,6 +151,8 @@ export default async function KasKecilPage({
     0,
   );
   const sisaPettyCashToday = totalAllocatedToday - totalNotaToday;
+  const debtNotesPending = (debtNotePendingRows ?? []) as unknown as DebtNoteRow[];
+  const debtNotesHistory = (debtNoteHistoryRows ?? []) as unknown as DebtNoteRow[];
 
   return (
     <div className="w-full max-w-2xl">
@@ -234,6 +271,68 @@ export default async function KasKecilPage({
           </div>
         </div>
       )}
+
+      <div className="mt-6 border-t border-zinc-200 pt-4">
+        <h2 className="text-sm font-bold text-zinc-900">📄 Nota Hutang</h2>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          Nota supplier yang datang secara hutang — verifikasi lalu alihkan ke Pembelian & Hutang
+          untuk dicatat resmi (update stok, jatuh tempo, Utang Dagang).
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {debtNotesPending.length > 0 ? (
+            debtNotesPending.map((n) => (
+              <DebtNoteCard
+                key={n.id}
+                businessId={businessId}
+                note={{
+                  id: n.id,
+                  supplierName: n.suppliers?.name ?? n.supplier_name_manual,
+                  category: n.category,
+                  amount: Number(n.amount),
+                  note: n.note,
+                  receiptUrl: n.receipt_url,
+                  createdAt: n.created_at,
+                  origin: n.origin,
+                  cashierName: n.cashiers?.name ?? null,
+                  supplierId: n.supplier_id,
+                }}
+              />
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+              Tidak ada nota hutang yang menunggu verifikasi.
+            </p>
+          )}
+        </div>
+
+        {debtNotesHistory.length > 0 && (
+          <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-4 py-3">
+              <h2 className="text-sm font-bold text-zinc-900">Sudah Diverifikasi</h2>
+            </div>
+            <div className="divide-y divide-zinc-100">
+              {debtNotesHistory.map((n) => (
+                <div key={n.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-zinc-900">
+                      {n.suppliers?.name ?? n.supplier_name_manual}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-zinc-400">{formatDateTime(n.created_at)}</span>
+                      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                        {n.category}
+                      </span>
+                      <PillBadge tone="green">Diverifikasi</PillBadge>
+                    </div>
+                  </div>
+                  <p className="shrink-0 text-sm font-bold text-red-600">{formatRupiah(Number(n.amount))}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

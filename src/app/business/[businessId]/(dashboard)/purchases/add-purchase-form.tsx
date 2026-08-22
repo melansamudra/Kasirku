@@ -15,10 +15,11 @@ type IngredientOption = {
 };
 type ProductOption = { id: string; name: string; stock: number };
 export type PurchasePrefill = {
-  category: "Bahan Baku" | "Barang Dagang";
+  category: "Bahan Baku" | "Barang Dagang" | "Lainnya";
   itemId: string;
   qty: number;
   amount: number;
+  note?: string;
   supplierId?: string;
   qtyUnit?: string;
   fromAllocationId?: string;
@@ -372,6 +373,7 @@ function PurchaseFormFields({
           id="note"
           name="note"
           type="text"
+          defaultValue={prefill?.note ?? ""}
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>

@@ -106,3 +106,40 @@ export async function addPettyCashAllocation(
   revalidatePath(`/business/${businessId}/kas-kecil`);
   return { error: null };
 }
+
+export async function verifySupplierDebtNote(businessId: string, noteId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("supplier_debt_notes")
+    .update({ status: "verified", verified_by: user?.id ?? null, verified_at: new Date().toISOString() })
+    .eq("id", noteId)
+    .eq("business_id", businessId)
+    .eq("status", "pending");
+
+  if (error) return { error: error.message };
+
+  await logActivity(supabase, businessId, "sistem", "sukses", "Nota hutang diverifikasi");
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { error: null };
+}
+
+export async function deleteSupplierDebtNote(businessId: string, noteId: string): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("supplier_debt_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("business_id", businessId)
+    .eq("status", "pending");
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { error: null };
+}

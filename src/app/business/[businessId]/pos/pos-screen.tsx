@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   addShiftCashMovement,
+  addSupplierDebtNote,
   checkout,
   closeShift,
   openShift,
@@ -48,7 +49,7 @@ import { getPeriodRange } from "../(dashboard)/reports/period";
 import { Capacitor } from "@capacitor/core";
 import { todayWibDateString } from "@/lib/wib";
 
-const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false, selfOrderEnabled: true, optionGroups: [] };
+const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false, selfOrderEnabled: true, optionGroups: [], suppliers: [] };
 
 const CASH_EXPENSE_CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku", "Lain-lain"];
 
@@ -489,6 +490,18 @@ export default function PosScreen({
   const [cashMoveUploading, setCashMoveUploading] = useState(false);
   const [cashMoveError, setCashMoveError] = useState<string | null>(null);
   const [cashMoveSubmitting, setCashMoveSubmitting] = useState(false);
+
+  const [debtNoteOpen, setDebtNoteOpen] = useState(false);
+  const [debtNoteSupplierId, setDebtNoteSupplierId] = useState("");
+  const [debtNoteSupplierManual, setDebtNoteSupplierManual] = useState("");
+  const [debtNoteCategory, setDebtNoteCategory] = useState<"Bahan Baku" | "Bukan Bahan Baku">("Bahan Baku");
+  const [debtNoteAmount, setDebtNoteAmount] = useState("");
+  const [debtNoteNote, setDebtNoteNote] = useState("");
+  const [debtNoteReceiptFile, setDebtNoteReceiptFile] = useState<File | null>(null);
+  const [debtNoteReceiptPreview, setDebtNoteReceiptPreview] = useState<string | null>(null);
+  const [debtNoteUploading, setDebtNoteUploading] = useState(false);
+  const [debtNoteError, setDebtNoteError] = useState<string | null>(null);
+  const [debtNoteSubmitting, setDebtNoteSubmitting] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -1597,6 +1610,80 @@ export default function PosScreen({
     setCashMoveReceiptPreview(URL.createObjectURL(file));
   }
 
+  function handleDebtNoteReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setDebtNoteError("Ukuran foto maksimal 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setDebtNoteError(null);
+    setDebtNoteReceiptFile(file);
+    setDebtNoteReceiptPreview(URL.createObjectURL(file));
+  }
+
+  async function handleConfirmDebtNote() {
+    setDebtNoteError(null);
+
+    if (!debtNoteSupplierId && !debtNoteSupplierManual.trim()) {
+      setDebtNoteError("Pilih supplier atau ketik nama supplier.");
+      return;
+    }
+    const amount = Number(debtNoteAmount);
+    if (!debtNoteAmount || Number.isNaN(amount) || amount <= 0) {
+      setDebtNoteError("Jumlah harus angka lebih dari 0.");
+      return;
+    }
+
+    setDebtNoteSubmitting(true);
+
+    let receiptUrl: string | null = null;
+    if (debtNoteReceiptFile) {
+      setDebtNoteUploading(true);
+      const fd = new FormData();
+      fd.append("file", debtNoteReceiptFile);
+      fd.append("businessId", businessId);
+      const res = await fetch("/api/upload-cash-receipt", { method: "POST", body: fd });
+      const json = await res.json();
+      setDebtNoteUploading(false);
+      if (!res.ok) {
+        setDebtNoteSubmitting(false);
+        setDebtNoteError(json.error ?? "Gagal upload foto nota.");
+        return;
+      }
+      receiptUrl = json.url;
+    }
+
+    const result = await addSupplierDebtNote(
+      businessId,
+      currentShiftId ?? "",
+      debtNoteSupplierId || null,
+      debtNoteSupplierId ? null : debtNoteSupplierManual.trim(),
+      debtNoteCategory,
+      amount,
+      debtNoteNote.trim() || null,
+      receiptUrl,
+    );
+    setDebtNoteSubmitting(false);
+
+    if (!result.success) {
+      setDebtNoteError(result.error);
+      return;
+    }
+
+    setDebtNoteOpen(false);
+    setDebtNoteSupplierId("");
+    setDebtNoteSupplierManual("");
+    setDebtNoteCategory("Bahan Baku");
+    setDebtNoteAmount("");
+    setDebtNoteNote("");
+    setDebtNoteReceiptFile(null);
+    setDebtNoteReceiptPreview(null);
+  }
+
   if (successInvoice) {
     return (
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
@@ -2006,6 +2093,170 @@ export default function PosScreen({
                 setCashMoveCategory(CASH_EXPENSE_CATEGORIES[0]);
                 setCashMoveReceiptFile(null);
                 setCashMoveReceiptPreview(null);
+              }}
+              className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (debtNoteOpen) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6">
+          <h1 className="text-lg font-bold text-zinc-900">Nota Hutang</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Nota supplier yang belum dibayar — catat di sini, admin yang verifikasi & catat sebagai
+            pembelian resmi.
+          </p>
+
+          <div className="mt-4 space-y-4">
+            <div>
+              <label htmlFor="debtNoteSupplier" className="mb-1 block text-xs font-medium text-zinc-600">
+                Supplier
+              </label>
+              <select
+                id="debtNoteSupplier"
+                value={debtNoteSupplierId}
+                onChange={(e) => {
+                  setDebtNoteSupplierId(e.target.value);
+                  if (e.target.value) setDebtNoteSupplierManual("");
+                }}
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="">— Pilih supplier —</option>
+                {catalog.suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {!debtNoteSupplierId && (
+                <input
+                  type="text"
+                  value={debtNoteSupplierManual}
+                  onChange={(e) => setDebtNoteSupplierManual(e.target.value)}
+                  placeholder="Belum ada di daftar? Ketik nama supplier"
+                  className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+              )}
+            </div>
+
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDebtNoteCategory("Bahan Baku")}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  debtNoteCategory === "Bahan Baku"
+                    ? "bg-brand-600 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                Bahan Baku
+              </button>
+              <button
+                type="button"
+                onClick={() => setDebtNoteCategory("Bukan Bahan Baku")}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  debtNoteCategory === "Bukan Bahan Baku"
+                    ? "bg-brand-600 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                Bukan Bahan Baku
+              </button>
+            </div>
+
+            <div>
+              <label htmlFor="debtNoteAmount" className="mb-1 block text-xs font-medium text-zinc-600">
+                Jumlah (Rp)
+              </label>
+              <input
+                id="debtNoteAmount"
+                type="number"
+                min="0"
+                value={debtNoteAmount}
+                onChange={(e) => setDebtNoteAmount(e.target.value)}
+                placeholder="mis. 850000"
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="debtNoteNote" className="mb-1 block text-xs font-medium text-zinc-600">
+                Keterangan (opsional)
+              </label>
+              <input
+                id="debtNoteNote"
+                type="text"
+                value={debtNoteNote}
+                onChange={(e) => setDebtNoteNote(e.target.value)}
+                placeholder="mis. Ayam potong 20kg"
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600">
+                Foto Nota (opsional, maks 2 MB)
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 flex items-center justify-center text-2xl">
+                  {debtNoteReceiptPreview ? (
+                    <img src={debtNoteReceiptPreview} alt="preview nota" className="h-full w-full object-cover" />
+                  ) : (
+                    "🧾"
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    onChange={handleDebtNoteReceiptChange}
+                    disabled={debtNoteUploading}
+                    className="w-full text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
+                  />
+                  {debtNoteReceiptFile && !debtNoteUploading && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDebtNoteReceiptFile(null);
+                        setDebtNoteReceiptPreview(null);
+                      }}
+                      className="mt-1 text-[11px] text-red-500 hover:text-red-600"
+                    >
+                      Hapus foto
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {debtNoteError && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{debtNoteError}</p>
+            )}
+
+            <button
+              onClick={handleConfirmDebtNote}
+              disabled={debtNoteSubmitting || debtNoteUploading}
+              className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {debtNoteUploading ? "Mengupload nota…" : debtNoteSubmitting ? "Menyimpan…" : "+ Catat Nota Hutang"}
+            </button>
+            <button
+              onClick={() => {
+                setDebtNoteOpen(false);
+                setDebtNoteError(null);
+                setDebtNoteSupplierId("");
+                setDebtNoteSupplierManual("");
+                setDebtNoteCategory("Bahan Baku");
+                setDebtNoteAmount("");
+                setDebtNoteNote("");
+                setDebtNoteReceiptFile(null);
+                setDebtNoteReceiptPreview(null);
               }}
               className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
             >
@@ -3225,6 +3476,18 @@ export default function PosScreen({
                     className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                   >
                     💵 Kas Masuk / Keluar
+                  </button>
+                )}
+                {currentShiftId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      setDebtNoteOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  >
+                    📄 Nota Hutang
                   </button>
                 )}
                 {currentShiftId ? (

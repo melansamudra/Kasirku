@@ -62,6 +62,8 @@ export default async function PurchasesPage({
     prefillQty?: string;
     prefillQtyUnit?: string;
     prefillSupplierId?: string;
+    prefillAmount?: string;
+    prefillNote?: string;
     fromAllocationId?: string;
   }>;
 }) {
@@ -151,21 +153,28 @@ export default async function PurchasesPage({
 
   const boundAddPurchase = addPurchase.bind(null, businessId);
 
-  // Datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang —
-  // amount sengaja dikosongkan (0), admin isi harga sendiri karena qty
-  // request tidak pernah bawa info harga.
-  const initialPrefill: PurchasePrefill | null =
-    sp.prefillCategory === "Bahan Baku" || sp.prefillCategory === "Barang Dagang"
-      ? {
-          category: sp.prefillCategory,
-          itemId: sp.prefillItemId ?? "",
-          qty: sp.prefillQty ? Number(sp.prefillQty) : 0,
-          qtyUnit: sp.prefillQtyUnit || undefined,
-          amount: 0,
-          supplierId: sp.prefillSupplierId || undefined,
-          fromAllocationId: sp.fromAllocationId || undefined,
-        }
-      : null;
+  // Datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang (amount
+  // sengaja 0, qty request tidak pernah bawa info harga) ATAU dari "Verifikasi
+  // & Alihkan" di Kas Kecil > Nota Hutang (amount & note terisi, tidak ada
+  // item/qty spesifik karena nota hutang cuma catatan nominal, bukan per-item).
+  const hasPrefill = Boolean(
+    sp.prefillCategory || sp.prefillSupplierId || sp.prefillAmount || sp.prefillNote,
+  );
+  const initialPrefill: PurchasePrefill | null = hasPrefill
+    ? {
+        category:
+          sp.prefillCategory === "Bahan Baku" || sp.prefillCategory === "Barang Dagang"
+            ? sp.prefillCategory
+            : "Lainnya",
+        itemId: sp.prefillItemId ?? "",
+        qty: sp.prefillQty ? Number(sp.prefillQty) : 0,
+        qtyUnit: sp.prefillQtyUnit || undefined,
+        amount: sp.prefillAmount ? Number(sp.prefillAmount) : 0,
+        note: sp.prefillNote || undefined,
+        supplierId: sp.prefillSupplierId || undefined,
+        fromAllocationId: sp.fromAllocationId || undefined,
+      }
+    : null;
 
   // Reorder suggestion: top up back to 2x the minimum-stock threshold,
   // floored at 1 unit — a simple heuristic, not a demand forecast. The qty

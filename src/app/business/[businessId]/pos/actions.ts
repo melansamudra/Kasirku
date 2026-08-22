@@ -728,6 +728,66 @@ export async function addShiftCashMovement(
   return { success: true };
 }
 
+export type SupplierDebtNoteResult = { success: true } | { success: false; error: string };
+
+// Kasir catat nota supplier yang datang secara hutang — murni catatan
+// (insert biasa, bukan RPC, karena tidak ada invariant akuntansi yang perlu
+// dijaga di sini seperti post_shift_cash_movement). Admin yang verifikasi &
+// alihkan ke Pembelian & Hutang lewat halaman Kas Kecil.
+export async function addSupplierDebtNote(
+  businessId: string,
+  shiftId: string,
+  supplierId: string | null,
+  supplierNameManual: string | null,
+  category: "Bahan Baku" | "Bukan Bahan Baku",
+  amount: number,
+  note: string | null,
+  receiptUrl: string | null,
+): Promise<SupplierDebtNoteResult> {
+  const supabase = await createClient();
+
+  const { data: shift } = await supabase
+    .from("shifts")
+    .select("cashier_id")
+    .eq("id", shiftId)
+    .eq("business_id", businessId)
+    .is("closed_at", null)
+    .maybeSingle();
+
+  if (!shift) {
+    return { success: false, error: "Shift tidak ditemukan atau sudah ditutup." };
+  }
+
+  const { error } = await supabase.from("supplier_debt_notes").insert({
+    business_id: businessId,
+    supplier_id: supplierId,
+    supplier_name_manual: supplierNameManual,
+    category,
+    amount,
+    note,
+    receipt_url: receiptUrl,
+    origin: "kasir",
+    shift_id: shiftId,
+    cashier_id: shift.cashier_id,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    `Nota Hutang dicatat: ${supplierNameManual ?? "supplier terdaftar"}`,
+    `Rp${amount.toLocaleString("id-ID")} · ${category}`,
+  );
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { success: true };
+}
+
 export type OpenBillItemInput = {
   product_id: string;
   name: string;
@@ -1063,6 +1123,7 @@ export type PosCatalog = {
   hasReceiptPrinters: boolean;
   selfOrderEnabled: boolean;
   optionGroups: PosOptionGroup[];
+  suppliers: { id: string; name: string }[];
 };
 
 // Sumber tunggal data katalog POS (produk/open bill/customer/metode bayar
@@ -1082,6 +1143,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     { data: printerRows },
     { data: businessRow },
     { data: optionGroupRows },
+    { data: supplierRows },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -1133,6 +1195,12 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
           .then((r) => (r.data ?? []).map((p) => p.id)))
       )
       .order("sort_order", { ascending: true }),
+    supabase
+      .from("suppliers")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
   ]);
 
   const printers = printerRows ?? [];
@@ -1192,6 +1260,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     hasReceiptPrinters: printers.some((p) => p.prints_receipt),
     selfOrderEnabled: (businessRow as { self_order_enabled: boolean } | null)?.self_order_enabled !== false,
     optionGroups,
+    suppliers: supplierRows ?? [],
   };
 }
 

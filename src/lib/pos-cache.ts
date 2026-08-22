@@ -22,6 +22,8 @@ export async function getCachedPosCatalog(businessId: string): Promise<PosCatalo
     hasReceiptPrinters: cached.hasReceiptPrinters ?? false,
     selfOrderEnabled: cached.selfOrderEnabled ?? true,
     optionGroups: cached.optionGroups ?? [],
+    // Bisa undefined di cache lama (sebelum fitur Nota Hutang) — default [].
+    suppliers: cached.suppliers ?? [],
   };
 }
 

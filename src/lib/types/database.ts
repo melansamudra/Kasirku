@@ -1925,6 +1925,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      supplier_debt_notes: {
+        Row: {
+          id: string;
+          business_id: string;
+          supplier_id: string | null;
+          supplier_name_manual: string | null;
+          category: string;
+          amount: number;
+          note: string | null;
+          receipt_url: string | null;
+          origin: string;
+          shift_id: string | null;
+          cashier_id: string | null;
+          created_by_user_id: string | null;
+          status: string;
+          verified_by: string | null;
+          verified_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          supplier_id?: string | null;
+          supplier_name_manual?: string | null;
+          category: string;
+          amount: number;
+          note?: string | null;
+          receipt_url?: string | null;
+          origin?: string;
+          shift_id?: string | null;
+          cashier_id?: string | null;
+          created_by_user_id?: string | null;
+          status?: string;
+          verified_by?: string | null;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          supplier_id?: string | null;
+          supplier_name_manual?: string | null;
+          category?: string;
+          amount?: number;
+          note?: string | null;
+          receipt_url?: string | null;
+          origin?: string;
+          shift_id?: string | null;
+          cashier_id?: string | null;
+          created_by_user_id?: string | null;
+          status?: string;
+          verified_by?: string | null;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       purchase_requests: {
         Row: {
           id: string;
