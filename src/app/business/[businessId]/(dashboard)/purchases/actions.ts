@@ -54,6 +54,11 @@ export async function addPurchase(
   const amountRaw = formData.get("amount") as string;
   const paidAmountRaw = formData.get("paidAmount") as string;
   const qtyRaw = formData.get("qty") as string;
+  // Kas sudah tercatat di tempat lain (mis. sudah disetujui/dibayar lewat
+  // Kas Kecil) -- entri ini cuma untuk update stok+unit cost, sama sekali
+  // tidak boleh posting ke Kas & Bank/Utang Dagang, supaya kas tidak
+  // tercatat dua kali untuk pengeluaran fisik yang sama.
+  const stockOnly = formData.get("stockOnly") === "on";
 
   if (!date) {
     return fail("Tanggal wajib diisi.");
@@ -61,13 +66,18 @@ export async function addPurchase(
   if (!["Bahan Baku", "Barang Dagang", "Lainnya"].includes(category)) {
     return fail("Kategori tidak valid.");
   }
+  if (stockOnly && category === "Lainnya") {
+    return fail("\"Cuma update stok\" cuma berlaku untuk kategori Bahan Baku/Barang Dagang.");
+  }
 
   const amount = Number(amountRaw);
   if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
     return fail("Total pembelian harus angka lebih dari 0.");
   }
 
-  const paidAmount = paidAmountRaw ? Number(paidAmountRaw) : 0;
+  // stockOnly selalu dianggap lunas (tidak ada konsep utang di sini -- kas
+  // untuk pembelian ini sudah selesai dicatat di alur lain).
+  const paidAmount = stockOnly ? amount : paidAmountRaw ? Number(paidAmountRaw) : 0;
   if (Number.isNaN(paidAmount) || paidAmount < 0) {
     return fail("Jumlah dibayar harus angka dan tidak boleh negatif.");
   }
@@ -178,6 +188,7 @@ export async function addPurchase(
       note: note || null,
       amount,
       paid_amount: paidAmount,
+      stock_only: stockOnly,
     })
     .select("id")
     .single();
@@ -200,14 +211,16 @@ export async function addPurchase(
     revalidatePath(`/business/${businessId}/permintaan-barang`);
   }
 
-  const journalError = await postPurchaseJournal(
-    supabase,
-    businessId,
-    date,
-    `Pembelian: ${itemName}`,
-    amount,
-    paidAmount,
-  );
+  const journalError = stockOnly
+    ? null
+    : await postPurchaseJournal(
+        supabase,
+        businessId,
+        date,
+        `Pembelian: ${itemName}`,
+        amount,
+        paidAmount,
+      );
 
   await logActivity(
     supabase,
@@ -217,7 +230,9 @@ export async function addPurchase(
     `Pembelian: ${itemName}`,
     journalError
       ? `Rp${amount.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
-      : `Rp${amount.toLocaleString("id-ID")}${paidAmount < amount ? " · sebagian/seluruhnya utang" : " · lunas"}`,
+      : stockOnly
+        ? `Rp${amount.toLocaleString("id-ID")} · cuma update stok, kas tidak disentuh`
+        : `Rp${amount.toLocaleString("id-ID")}${paidAmount < amount ? " · sebagian/seluruhnya utang" : " · lunas"}`,
   );
 
   revalidatePath(`/business/${businessId}/purchases`);
@@ -255,7 +270,7 @@ export async function voidPurchase(
 
   const { data: purchase } = await supabase
     .from("purchases")
-    .select("id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided")
+    .select("id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided, stock_only")
     .eq("id", purchaseId)
     .eq("business_id", businessId)
     .single();
@@ -329,22 +344,27 @@ export async function voidPurchase(
   const paidAmount = Number(purchase.paid_amount);
   const sisaUtang = amount - paidAmount;
 
-  const reversalLines: { account_code: string; debit: number; credit: number }[] = [
-    { account_code: "1-200", debit: 0, credit: amount },
-  ];
-  if (paidAmount > 0) {
-    reversalLines.push({ account_code: "1-001", debit: paidAmount, credit: 0 });
+  // stock_only tidak pernah posting jurnal saat dicatat (lihat addPurchase),
+  // jadi tidak ada apa pun untuk dibalikkan di sini juga.
+  let journalError: string | null = null;
+  if (!purchase.stock_only) {
+    const reversalLines: { account_code: string; debit: number; credit: number }[] = [
+      { account_code: "1-200", debit: 0, credit: amount },
+    ];
+    if (paidAmount > 0) {
+      reversalLines.push({ account_code: "1-001", debit: paidAmount, credit: 0 });
+    }
+    if (sisaUtang > 0) {
+      reversalLines.push({ account_code: "2-001", debit: sisaUtang, credit: 0 });
+    }
+    const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
+      p_business_id: businessId,
+      p_date: new Date().toISOString().slice(0, 10),
+      p_description: `Batal pembelian: ${itemName}`,
+      p_lines: reversalLines,
+    });
+    journalError = journalRpcError?.message ?? null;
   }
-  if (sisaUtang > 0) {
-    reversalLines.push({ account_code: "2-001", debit: sisaUtang, credit: 0 });
-  }
-  const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
-    p_business_id: businessId,
-    p_date: new Date().toISOString().slice(0, 10),
-    p_description: `Batal pembelian: ${itemName}`,
-    p_lines: reversalLines,
-  });
-  const journalError = journalRpcError?.message ?? null;
 
   const { error } = await supabase
     .from("purchases")

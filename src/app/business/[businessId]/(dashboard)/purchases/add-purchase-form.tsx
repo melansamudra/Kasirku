@@ -90,6 +90,7 @@ function PurchaseFormFields({
   const [amount, setAmount] = useState(prefill && prefill.amount > 0 ? String(prefill.amount) : "");
   const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
+  const [stockOnly, setStockOnly] = useState(false);
   // Qty selalu diketik dalam satuan yang lagi dipilih (satuan stok, atau
   // salah satu varian satuan beli bahan itu) — yang dikirim ke server
   // (hidden input "qty") selalu sudah dikonversi ke satuan stok, biar update
@@ -154,7 +155,10 @@ function PurchaseFormFields({
           id="category"
           name="category"
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            if (e.target.value === "Lainnya") setStockOnly(false);
+          }}
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         >
           <option value="Lainnya">Lainnya / Umum (catatan cepat)</option>
@@ -312,58 +316,83 @@ function PurchaseFormFields({
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Status Bayar</label>
-        <div className="flex gap-1.5">
-          {(
-            [
-              { key: "lunas", label: "Lunas Sekarang" },
-              { key: "sebagian", label: "Bayar Sebagian" },
-              { key: "utang", label: "Semua Utang" },
-            ] as const
-          ).map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => setPaymentMode(opt.key)}
-              className={`flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
-                paymentMode === opt.key
-                  ? "bg-brand-600 text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        {paymentMode === "sebagian" && (
+      {category !== "Lainnya" && (
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-zinc-200 px-3 py-2.5">
           <input
-            type="number"
-            min="0"
-            step="1"
-            placeholder="Jumlah dibayar sekarang (Rp)"
-            value={paidAmount}
-            onChange={(e) => setPaidAmount(e.target.value)}
-            required
-            className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            type="checkbox"
+            name="stockOnly"
+            checked={stockOnly}
+            onChange={(e) => setStockOnly(e.target.checked)}
+            className="mt-0.5"
           />
-        )}
-        <input type="hidden" name="paidAmount" value={effectivePaidAmount} />
-      </div>
-
-      {paymentMode !== "lunas" && (
-        <div>
-          <label htmlFor="dueDate" className="mb-1 block text-xs font-medium text-zinc-600">
-            Jatuh Tempo (opsional)
-          </label>
-          <input
-            id="dueDate"
-            name="dueDate"
-            type="date"
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-        </div>
+          <span className="text-xs text-zinc-600">
+            <span className="font-medium text-zinc-800">📦 Cuma update stok</span> — kas sudah
+            dicatat di tempat lain (mis. sudah disetujui/dibayar lewat Kas Kecil). Entri ini tidak
+            akan menyentuh Kas & Bank atau Utang Dagang sama sekali.
+          </span>
+        </label>
       )}
+
+      {stockOnly ? (
+        <p className="rounded-xl bg-zinc-50 px-3 py-2.5 text-[11px] text-zinc-500">
+          Status bayar & jatuh tempo tidak berlaku — entri ini murni update stok+harga rata-rata.
+        </p>
+      ) : (
+        <>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">Status Bayar</label>
+            <div className="flex gap-1.5">
+              {(
+                [
+                  { key: "lunas", label: "Lunas Sekarang" },
+                  { key: "sebagian", label: "Bayar Sebagian" },
+                  { key: "utang", label: "Semua Utang" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setPaymentMode(opt.key)}
+                  className={`flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+                    paymentMode === opt.key
+                      ? "bg-brand-600 text-white"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {paymentMode === "sebagian" && (
+              <input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Jumlah dibayar sekarang (Rp)"
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                required
+                className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            )}
+          </div>
+
+          {paymentMode !== "lunas" && (
+            <div>
+              <label htmlFor="dueDate" className="mb-1 block text-xs font-medium text-zinc-600">
+                Jatuh Tempo (opsional)
+              </label>
+              <input
+                id="dueDate"
+                name="dueDate"
+                type="date"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          )}
+        </>
+      )}
+      <input type="hidden" name="paidAmount" value={effectivePaidAmount} />
 
       <div>
         <label htmlFor="note" className="mb-1 block text-xs font-medium text-zinc-600">

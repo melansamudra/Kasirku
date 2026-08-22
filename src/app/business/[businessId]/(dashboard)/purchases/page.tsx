@@ -49,6 +49,7 @@ type PurchaseRow = {
   product_id: string | null;
   voided: boolean;
   void_reason: string | null;
+  stock_only: boolean;
 };
 
 export default async function PurchasesPage({
@@ -115,7 +116,7 @@ export default async function PurchasesPage({
       supabase
         .from("purchases")
         .select(
-          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason",
+          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason, stock_only",
         )
         .eq("business_id", businessId)
         .order("date", { ascending: false })
@@ -298,6 +299,14 @@ export default async function PurchasesPage({
                         {r.voided && (
                           <span className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
                             Dibatalkan
+                          </span>
+                        )}
+                        {!r.voided && r.stock_only && (
+                          <span
+                            className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+                            title="Kas sudah tercatat di tempat lain — entri ini cuma update stok"
+                          >
+                            📦 Stok saja
                           </span>
                         )}
                       </p>

@@ -2087,6 +2087,7 @@ export type Database = {
           voided: boolean;
           voided_at: string | null;
           void_reason: string | null;
+          stock_only: boolean;
         };
         Insert: {
           id?: string;
@@ -2105,6 +2106,7 @@ export type Database = {
           voided?: boolean;
           voided_at?: string | null;
           void_reason?: string | null;
+          stock_only?: boolean;
         };
         Update: {
           id?: string;
@@ -2123,6 +2125,7 @@ export type Database = {
           voided?: boolean;
           voided_at?: string | null;
           void_reason?: string | null;
+          stock_only?: boolean;
         };
         Relationships: [
           {
