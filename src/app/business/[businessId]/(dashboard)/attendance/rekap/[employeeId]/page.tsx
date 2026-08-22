@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { setAttendance, setAttendanceLate, setAttendanceTime, type AttendanceStatus } from "../../actions";
@@ -7,6 +8,26 @@ import { calcPayslip } from "../../../payroll/calc";
 import PrintSlipButton from "./print-slip-button";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
+
+// Judul tab/dokumen -- ini yang muncul di header cetak browser (ganti
+// "CreateImpact" default dari root layout dengan nama toko + karyawan).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ businessId: string; employeeId: string }>;
+}): Promise<Metadata> {
+  const { businessId, employeeId } = await params;
+  const supabase = await createClient();
+
+  const [{ data: business }, { data: employee }] = await Promise.all([
+    supabase.from("businesses").select("name").eq("id", businessId).maybeSingle(),
+    supabase.from("employees").select("name").eq("id", employeeId).eq("business_id", businessId).maybeSingle(),
+  ]);
+
+  const title =
+    business && employee ? `Slip Absensi - ${employee.name} - ${business.name}` : "Slip Absensi";
+  return { title };
+}
 
 function currentMonthStr() {
   return new Date().toLocaleDateString("en-CA", { timeZone: REPORT_TIMEZONE }).slice(0, 7);
