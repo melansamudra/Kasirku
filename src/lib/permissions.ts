@@ -47,6 +47,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "receivables", label: "Piutang Pelanggan" },
       { key: "purchases", label: "Pembelian & Hutang" },
       { key: "purchase-requests", label: "Permintaan Barang" },
+      { key: "kas-kecil", label: "Kas Kecil" },
       { key: "suppliers", label: "Supplier" },
       { key: "assets", label: "Aset Tetap" },
       { key: "employees", label: "Karyawan" },

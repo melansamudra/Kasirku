@@ -50,6 +50,8 @@ import { todayWibDateString } from "@/lib/wib";
 
 const EMPTY_CATALOG: PosCatalog = { products: [], openBills: [], customers: [], customPaymentMethods: [], discountRules: [], hasKitchenPrinters: false, hasReceiptPrinters: false, selfOrderEnabled: true, optionGroups: [] };
 
+const CASH_EXPENSE_CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku", "Lain-lain"];
+
 type Product = {
   id: string;
   name: string;
@@ -481,6 +483,10 @@ export default function PosScreen({
   const [cashMoveDirection, setCashMoveDirection] = useState<"in" | "out">("out");
   const [cashMoveAmount, setCashMoveAmount] = useState("");
   const [cashMoveDesc, setCashMoveDesc] = useState("");
+  const [cashMoveCategory, setCashMoveCategory] = useState(CASH_EXPENSE_CATEGORIES[0]);
+  const [cashMoveReceiptFile, setCashMoveReceiptFile] = useState<File | null>(null);
+  const [cashMoveReceiptPreview, setCashMoveReceiptPreview] = useState<string | null>(null);
+  const [cashMoveUploading, setCashMoveUploading] = useState(false);
   const [cashMoveError, setCashMoveError] = useState<string | null>(null);
   const [cashMoveSubmitting, setCashMoveSubmitting] = useState(false);
 
@@ -1533,12 +1539,32 @@ export default function PosScreen({
     }
 
     setCashMoveSubmitting(true);
+
+    let receiptUrl: string | null = null;
+    if (cashMoveDirection === "out" && cashMoveReceiptFile) {
+      setCashMoveUploading(true);
+      const fd = new FormData();
+      fd.append("file", cashMoveReceiptFile);
+      fd.append("businessId", businessId);
+      const res = await fetch("/api/upload-cash-receipt", { method: "POST", body: fd });
+      const json = await res.json();
+      setCashMoveUploading(false);
+      if (!res.ok) {
+        setCashMoveSubmitting(false);
+        setCashMoveError(json.error ?? "Gagal upload foto nota.");
+        return;
+      }
+      receiptUrl = json.url;
+    }
+
     const result = await addShiftCashMovement(
       businessId,
       currentShiftId ?? "",
       cashMoveDirection,
       amount,
       cashMoveDesc.trim(),
+      cashMoveDirection === "out" ? cashMoveCategory : null,
+      receiptUrl,
     );
     setCashMoveSubmitting(false);
 
@@ -1551,6 +1577,24 @@ export default function PosScreen({
     setCashMoveAmount("");
     setCashMoveDesc("");
     setCashMoveDirection("out");
+    setCashMoveCategory(CASH_EXPENSE_CATEGORIES[0]);
+    setCashMoveReceiptFile(null);
+    setCashMoveReceiptPreview(null);
+  }
+
+  function handleCashMoveReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setCashMoveError("Ukuran foto maksimal 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setCashMoveError(null);
+    setCashMoveReceiptFile(file);
+    setCashMoveReceiptPreview(URL.createObjectURL(file));
   }
 
   if (successInvoice) {
@@ -1874,23 +1918,94 @@ export default function PosScreen({
               />
             </div>
 
+            {cashMoveDirection === "out" && (
+              <>
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                  Pengeluaran ini akan diperiksa admin dulu (dipilihkan akunnya) sebelum masuk laporan keuangan.
+                </p>
+                <div>
+                  <label htmlFor="cashMoveCategory" className="mb-1 block text-xs font-medium text-zinc-600">
+                    Kategori
+                  </label>
+                  <select
+                    id="cashMoveCategory"
+                    value={cashMoveCategory}
+                    onChange={(e) => setCashMoveCategory(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  >
+                    {CASH_EXPENSE_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600">
+                    Foto Nota (opsional, maks 2 MB)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 flex items-center justify-center text-2xl">
+                      {cashMoveReceiptPreview ? (
+                        <img src={cashMoveReceiptPreview} alt="preview nota" className="h-full w-full object-cover" />
+                      ) : (
+                        "🧾"
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        capture="environment"
+                        onChange={handleCashMoveReceiptChange}
+                        disabled={cashMoveUploading}
+                        className="w-full text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
+                      />
+                      {cashMoveReceiptFile && !cashMoveUploading && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCashMoveReceiptFile(null);
+                            setCashMoveReceiptPreview(null);
+                          }}
+                          className="mt-1 text-[11px] text-red-500 hover:text-red-600"
+                        >
+                          Hapus foto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
             {cashMoveError && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{cashMoveError}</p>
             )}
 
             <button
               onClick={handleConfirmCashMove}
-              disabled={cashMoveSubmitting}
+              disabled={cashMoveSubmitting || cashMoveUploading}
               className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                 cashMoveDirection === "in" ? "bg-brand-600 hover:bg-brand-700" : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              {cashMoveSubmitting ? "Menyimpan…" : cashMoveDirection === "in" ? "+ Catat Kas Masuk" : "+ Catat Kas Keluar"}
+              {cashMoveUploading
+                ? "Mengupload nota…"
+                : cashMoveSubmitting
+                  ? "Menyimpan…"
+                  : cashMoveDirection === "in"
+                    ? "+ Catat Kas Masuk"
+                    : "+ Catat Kas Keluar"}
             </button>
             <button
               onClick={() => {
                 setCashMoveOpen(false);
                 setCashMoveError(null);
+                setCashMoveAmount("");
+                setCashMoveDesc("");
+                setCashMoveCategory(CASH_EXPENSE_CATEGORIES[0]);
+                setCashMoveReceiptFile(null);
+                setCashMoveReceiptPreview(null);
               }}
               className="w-full py-1 text-center text-xs font-medium text-zinc-400 hover:text-zinc-600"
             >
@@ -3100,6 +3215,18 @@ export default function PosScreen({
                 >
                   ↩️ Void Transaksi
                 </button>
+                {currentShiftId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      setCashMoveOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  >
+                    💵 Kas Masuk / Keluar
+                  </button>
+                )}
                 {currentShiftId ? (
                   <button
                     onClick={() => {

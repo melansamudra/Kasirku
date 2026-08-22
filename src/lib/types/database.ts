@@ -3020,6 +3020,26 @@ export type Database = {
           p_direction: string;
           p_amount: number;
           p_description: string;
+          p_category?: string | null;
+          p_receipt_url?: string | null;
+        };
+        Returns: string;
+      };
+      post_petty_cash_expense: {
+        Args: {
+          p_business_id: string;
+          p_amount: number;
+          p_description: string;
+          p_category?: string | null;
+          p_receipt_url?: string | null;
+        };
+        Returns: string;
+      };
+      review_shift_cash_movement: {
+        Args: {
+          p_movement_id: string;
+          p_decision: string;
+          p_account_code?: string | null;
         };
         Returns: string;
       };

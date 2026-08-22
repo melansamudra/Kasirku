@@ -12,6 +12,7 @@ import {
 } from "../reports/period";
 import PeriodTabs from "../reports/period-tabs";
 import AddCashForm from "./add-cash-form";
+import { PillBadge } from "@/components/ui/pill-badge";
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
@@ -21,6 +22,7 @@ const SOURCE_LABELS: Record<string, string> = {
   beban: "Beban",
   payroll: "Payroll",
   shift: "Shift",
+  kas_kecil: "Kas Kecil",
 };
 
 const SOURCE_BADGE: Record<string, string> = {
@@ -31,6 +33,7 @@ const SOURCE_BADGE: Record<string, string> = {
   beban: "bg-amber-50 text-amber-700",
   payroll: "bg-sky-50 text-sky-700",
   shift: "bg-violet-50 text-violet-700",
+  kas_kecil: "bg-violet-50 text-violet-700",
 };
 
 function formatRupiah(value: number) {
@@ -50,6 +53,25 @@ type CashLine = {
   debit: number;
   credit: number;
   journal_entries: { id: string; date: string; description: string; source: string; source_id: string | null };
+};
+
+type ShiftCashMovementMeta = {
+  journal_entry_id: string;
+  category: string | null;
+  receipt_url: string | null;
+  direction: "in" | "out";
+  status: "pending" | "posted" | "rejected";
+};
+
+const STATUS_LABEL: Record<ShiftCashMovementMeta["status"], string> = {
+  pending: "Menunggu Admin",
+  posted: "Disetujui",
+  rejected: "Ditolak",
+};
+const STATUS_TONE: Record<ShiftCashMovementMeta["status"], "amber" | "green" | "red"> = {
+  pending: "amber",
+  posted: "green",
+  rejected: "red",
 };
 
 export default async function KasHarianPage({
@@ -128,6 +150,27 @@ export default async function KasHarianPage({
       );
   }
 
+  // Kas keluar/masuk yang dicatat kasir lewat "Kas Masuk/Keluar" di POS
+  // (source='shift') bisa dilampiri kategori + foto nota — ambil metadatanya
+  // di sini supaya bisa ditampilkan di baris riwayat kas.
+  const shiftEntryIds = Array.from(
+    new Set(
+      lines
+        .filter((l) => l.journal_entries.source === "shift")
+        .map((l) => l.journal_entries.id),
+    ),
+  );
+  const { data: shiftMovements } =
+    shiftEntryIds.length > 0
+      ? await supabase
+          .from("shift_cash_movements")
+          .select("journal_entry_id, category, receipt_url, direction, status")
+          .in("journal_entry_id", shiftEntryIds)
+      : { data: [] as ShiftCashMovementMeta[] };
+  const shiftMovementByEntryId = new Map(
+    (shiftMovements ?? []).map((m) => [m.journal_entry_id, m as ShiftCashMovementMeta]),
+  );
+
   const isOwner = business?.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business?.mirroring_enabled;
 
@@ -174,28 +217,43 @@ export default async function KasHarianPage({
       !!l.journal_entries.source_id &&
       voidedSaleIds.has(l.journal_entries.source_id));
 
+  // Pengeluaran kas kecil yang masih "Menunggu Admin" sengaja belum masuk
+  // Kas & Bank sama sekali — halaman ini untuk pemilik toko yang bukan
+  // akuntan, dan pengeluaran yang belum diverifikasi admin belum resmi jadi
+  // beban usaha (persis pola Permintaan Barang: request belum jadi
+  // pembelian sampai diproses). Kas Kecil punya halamannya sendiri buat
+  // yang masih menunggu; begitu admin approve/tolak, baris ini otomatis
+  // muncul di sini seperti kas keluar biasa.
+  const isPendingPettyCash = (l: CashLine) => {
+    const m = shiftMovementByEntryId.get(l.journal_entries.id);
+    return !!m && m.direction === "out" && m.status === "pending";
+  };
+
   // Void adalah pembalikan penjualan (koreksi omset), bukan beban usaha —
   // dipisah dari Kas Keluar/Kas Masuk biasa supaya keduanya mencerminkan
   // pergerakan kas yang masih berlaku, bukan tercampur dengan transaksi
   // yang dibatalkan.
   const voidLines = lines.filter(isVoidRelated);
-  const nonVoidLines = lines.filter((l) => !isVoidRelated(l));
+  const pendingPettyCashLines = lines.filter((l) => !isVoidRelated(l) && isPendingPettyCash(l));
+  const nonVoidLines = lines.filter((l) => !isVoidRelated(l) && !isPendingPettyCash(l));
 
   const totalMasuk = nonVoidLines.reduce((s, l) => s + Number(l.debit), 0);
   const totalKeluar = nonVoidLines.reduce((s, l) => s + Number(l.credit), 0);
   const totalVoid = voidLines
     .filter((l) => l.journal_entries.source === "void")
     .reduce((s, l) => s + Number(l.credit), 0);
+  const totalPendingPettyCash = pendingPettyCashLines.reduce((s, l) => s + Number(l.credit), 0);
 
   const renderCashRow = (l: CashLine) => {
     const isMasuk = Number(l.debit) > 0;
+    const movement = shiftMovementByEntryId.get(l.journal_entries.id);
     return (
       <div key={l.id} className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium text-zinc-900">
             {l.journal_entries.description}
           </p>
-          <div className="mt-0.5 flex items-center gap-1.5">
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-zinc-400">{formatDate(l.journal_entries.date)}</span>
             <span
               className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
@@ -204,6 +262,24 @@ export default async function KasHarianPage({
             >
               {SOURCE_LABELS[l.journal_entries.source] ?? l.journal_entries.source}
             </span>
+            {movement?.category && (
+              <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                {movement.category}
+              </span>
+            )}
+            {movement?.direction === "out" && (
+              <PillBadge tone={STATUS_TONE[movement.status]}>{STATUS_LABEL[movement.status]}</PillBadge>
+            )}
+            {movement?.receipt_url && (
+              <a
+                href={movement.receipt_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100"
+              >
+                🧾 Lihat Nota
+              </a>
+            )}
           </div>
         </div>
         <p className={`shrink-0 text-sm font-bold ${isMasuk ? "text-brand-700" : "text-red-600"}`}>
@@ -274,6 +350,22 @@ export default async function KasHarianPage({
           <p className="text-xl font-bold text-red-600">{formatRupiah(totalKeluar)}</p>
         </div>
       </div>
+
+      {pendingPettyCashLines.length > 0 && (
+        <a
+          href={`/business/${businessId}/kas-kecil`}
+          className="mt-3 block rounded-2xl border border-violet-200 bg-violet-50 p-4 transition-colors hover:bg-violet-100"
+        >
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-violet-700">
+            Kas Kecil Menunggu Diperiksa
+          </p>
+          <p className="text-xl font-bold text-violet-700">{formatRupiah(totalPendingPettyCash)}</p>
+          <p className="mt-1 text-[11px] text-violet-600">
+            {pendingPettyCashLines.length} pengeluaran dari kasir belum diverifikasi admin — belum
+            dihitung di Kas Masuk/Keluar atau Laba Rugi. Ketuk untuk buka halaman Kas Kecil →
+          </p>
+        </a>
+      )}
 
       {voidLines.length > 0 && (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">

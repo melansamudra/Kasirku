@@ -44,6 +44,7 @@ import {
   ShoppingCart,
   Layers,
   ChevronRight,
+  PiggyBank,
   type LucideIcon,
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -64,7 +65,7 @@ const STARTER_ALLOWED_KEYS = new Set([
   "settings", "admins",
   // Cost Control (COGS)
   "reports-cogs", "hpp-calculator", "reports-price-trend",
-  "purchases", "suppliers", "purchase-requests",
+  "purchases", "suppliers", "purchase-requests", "kas-kecil",
   // Lainnya
   "notifikasi", "activity",
 ]);
@@ -146,6 +147,7 @@ function buildNavGroups(
             ]),
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
+        { key: "kas-kecil", href: `${base}/kas-kecil`, label: "Kas Kecil", icon: PiggyBank },
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         ...(!isStarter && !isFinanceOnly
           ? [{ key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor }]

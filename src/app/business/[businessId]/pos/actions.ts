@@ -697,6 +697,8 @@ export async function addShiftCashMovement(
   direction: "in" | "out",
   amount: number,
   description: string,
+  category?: string | null,
+  receiptUrl?: string | null,
 ): Promise<CashMovementResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("post_shift_cash_movement", {
@@ -705,6 +707,8 @@ export async function addShiftCashMovement(
     p_direction: direction,
     p_amount: amount,
     p_description: description,
+    p_category: category || null,
+    p_receipt_url: receiptUrl || null,
   });
 
   if (error) {
@@ -717,7 +721,7 @@ export async function addShiftCashMovement(
     "sistem",
     "info",
     direction === "in" ? `Kas Masuk (shift): ${description}` : `Kas Keluar (shift): ${description}`,
-    `Rp${amount.toLocaleString("id-ID")}`,
+    `Rp${amount.toLocaleString("id-ID")}${category ? ` · ${category}` : ""}`,
   );
 
   revalidatePath(`/business/${businessId}/kas-harian`);
