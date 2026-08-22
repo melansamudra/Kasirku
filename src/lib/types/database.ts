@@ -3176,6 +3176,15 @@ export type Database = {
         };
         Returns: string;
       };
+      post_petty_cash_kasbon: {
+        Args: {
+          p_business_id: string;
+          p_employee_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: string;
+      };
       review_shift_cash_movement: {
         Args: {
           p_movement_id: string;

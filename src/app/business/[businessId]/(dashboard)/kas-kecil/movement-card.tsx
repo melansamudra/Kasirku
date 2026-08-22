@@ -36,9 +36,11 @@ export default function MovementCard({
     createdAt: string;
     origin: "kasir" | "admin";
     cashierName: string | null;
+    employeeName?: string | null;
   };
 }) {
   const router = useRouter();
+  const isKasbon = movement.category === "Kasbon";
   // Sengaja tidak default ke accounts[0] — kalau admin tidak sadar dan
   // langsung klik Setujui, pengeluaran ini harus tetap gagal (bukan
   // kepilih akun sembarangan/pertama di daftar).
@@ -48,13 +50,15 @@ export default function MovementCard({
   const [confirmReject, setConfirmReject] = useState(false);
 
   function handleApprove() {
-    if (!accountCode) {
+    if (!isKasbon && !accountCode) {
       setError("Pilih akun dulu.");
       return;
     }
     setError(null);
     setPending(true);
-    reviewCashMovement(businessId, movement.id, "approve", accountCode).then((res) => {
+    // Kasbon: akun reklas dipaksa server-side ke "Piutang Karyawan" (lihat
+    // review_shift_cash_movement), tidak perlu kirim accountCode dari sini.
+    reviewCashMovement(businessId, movement.id, "approve", isKasbon ? undefined : accountCode).then((res) => {
       setPending(false);
       if (res.error) {
         setError(res.error);
@@ -92,6 +96,11 @@ export default function MovementCard({
                 {movement.category}
               </span>
             )}
+            {isKasbon && movement.employeeName && (
+              <span className="rounded-full bg-violet-50 px-1.5 py-0.5 font-medium text-violet-700">
+                👤 {movement.employeeName}
+              </span>
+            )}
             {movement.receiptUrl && (
               <a
                 href={movement.receiptUrl}
@@ -108,19 +117,25 @@ export default function MovementCard({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select
-          value={accountCode}
-          onChange={(e) => setAccountCode(e.target.value)}
-          disabled={pending}
-          className="flex-1 min-w-[180px] rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        >
-          <option value="" disabled>— Pilih akun —</option>
-          {accounts.map((a) => (
-            <option key={a.code} value={a.code}>
-              {a.code} — {a.name}
-            </option>
-          ))}
-        </select>
+        {isKasbon ? (
+          <span className="flex-1 min-w-[180px] rounded-lg bg-violet-50 px-2.5 py-2 text-xs font-medium text-violet-700">
+            → Piutang Karyawan (dipotong dari gaji berikutnya)
+          </span>
+        ) : (
+          <select
+            value={accountCode}
+            onChange={(e) => setAccountCode(e.target.value)}
+            disabled={pending}
+            className="flex-1 min-w-[180px] rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="" disabled>— Pilih akun —</option>
+            {accounts.map((a) => (
+              <option key={a.code} value={a.code}>
+                {a.code} — {a.name}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           onClick={handleApprove}
           disabled={pending}

@@ -36,6 +36,7 @@ type MovementRow = {
   origin: "kasir" | "admin";
   created_at: string;
   cashiers: { name: string } | null;
+  employees: { name: string } | null;
 };
 
 type TodayTunaiRow = {
@@ -126,6 +127,7 @@ export default async function KasKecilPage({
     { data: pendingRows },
     { data: historyRows },
     { data: accountRows },
+    { data: employeeRows },
     { data: allocationRows },
     { data: todayNotaRows },
     { data: debtNotePendingRows },
@@ -138,7 +140,7 @@ export default async function KasKecilPage({
     supabase
       .from("shift_cash_movements")
       .select(
-        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name)",
+        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name), employees(name)",
       )
       .eq("business_id", businessId)
       .eq("direction", "out")
@@ -147,24 +149,31 @@ export default async function KasKecilPage({
     supabase
       .from("shift_cash_movements")
       .select(
-        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name)",
+        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name), employees(name)",
       )
       .eq("business_id", businessId)
       .eq("direction", "out")
       .neq("status", "pending")
       .order("reviewed_at", { ascending: false })
       .limit(30),
-    // 1-050 (suspense kas kecil) dan 1-001 (Kas & Bank) dikeluarkan dari
-    // pilihan reklasifikasi — memilih salah satunya tidak masuk akal
-    // (uangnya justru sedang dikeluarkan DARI kas, bukan diklasifikasikan
-    // balik ke situ).
+    // 1-050 (suspense kas kecil), 1-001 (Kas & Bank), 1-060 (Piutang
+    // Karyawan) dikeluarkan dari pilihan reklasifikasi bebas — 1-060 khusus
+    // dipakai otomatis untuk Kasbon (lihat review_shift_cash_movement),
+    // bukan pilihan manual admin untuk kategori lain.
     supabase
       .from("accounts")
       .select("code, name")
       .eq("business_id", businessId)
       .neq("code", "1-050")
       .neq("code", "1-001")
+      .neq("code", "1-060")
       .order("code"),
+    supabase
+      .from("employees")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .eq("active", true)
+      .order("name"),
     supabase
       .from("petty_cash_allocations")
       .select("id, date, amount, note")
@@ -233,6 +242,7 @@ export default async function KasKecilPage({
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
   const history = (historyRows ?? []) as unknown as MovementRow[];
   const accounts = accountRows ?? [];
+  const employees = employeeRows ?? [];
   const totalPending = pending.reduce((s, m) => s + Number(m.amount), 0);
   const allocations = allocationRows ?? [];
   const totalAllocatedToday = allocations.reduce((s, a) => s + Number(a.amount), 0);
@@ -324,7 +334,7 @@ export default async function KasKecilPage({
           Pilih Tunai kalau uangnya sudah keluar dari petty cash, atau Hutang kalau nota supplier
           belum dibayar.
         </p>
-        <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} />
+        <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} employees={employees} />
       </div>
 
       {canVerify && (
@@ -345,6 +355,7 @@ export default async function KasKecilPage({
                 createdAt: m.created_at,
                 origin: m.origin,
                 cashierName: m.cashiers?.name ?? null,
+                employeeName: m.employees?.name ?? null,
               }}
             />
           ))

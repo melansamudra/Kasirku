@@ -55,6 +55,48 @@ export async function setAttendance(
   return { error: null };
 }
 
+// Input jam masuk/pulang manual (mis. karyawan lupa absen selfie, atau
+// bisnis belum pakai jalur selfie sama sekali) — menulis ke kolom yang sama
+// dipakai jalur /absen/[slug], jadi kalau hari itu sudah ada data selfie,
+// input manual admin akan menimpanya. Cuma isi kolom yang diberikan (kalau
+// jam pulang dikosongkan, check_out_at yang sudah ada TIDAK ikut kehapus —
+// upsert tidak menyentuh kolom yang tidak disertakan di payload) supaya
+// admin bisa isi jam masuk dulu, jam pulang menyusul nanti tanpa saling
+// menimpa. Tidak menyentuh foto/lokasi/late/overtime otomatis (kolom itu
+// murni milik jalur selfie).
+export async function setAttendanceTime(
+  businessId: string,
+  employeeId: string,
+  date: string,
+  checkInTime: string | null,
+  checkOutTime: string | null,
+): Promise<{ error: string | null }> {
+  if (!checkInTime && !checkOutTime) {
+    return { error: "Isi jam masuk atau jam pulang dulu." };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("attendance").upsert(
+    {
+      business_id: businessId,
+      employee_id: employeeId,
+      date,
+      status: "hadir",
+      ...(checkInTime ? { check_in_at: new Date(`${date}T${checkInTime}:00+07:00`).toISOString() } : {}),
+      ...(checkOutTime ? { check_out_at: new Date(`${date}T${checkOutTime}:00+07:00`).toISOString() } : {}),
+    },
+    { onConflict: "employee_id,date" },
+  );
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/attendance`);
+  return { error: null };
+}
+
 export async function setAttendanceLate(
   businessId: string,
   employeeId: string,

@@ -28,6 +28,17 @@ function formatTime(iso: string) {
   });
 }
 
+// HH:mm buat prefill <input type="time"> dari ISO — pakai en-GB (format
+// 24 jam) di zona WIB, bukan formatTime yang bertujuan tampilan (id-ID bisa
+// nyelip AM/PM tergantung locale environment).
+function toTimeInputValue(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export type SelfieInfo = {
   attendanceId: string;
   checkInAt: string | null;
@@ -56,6 +67,7 @@ export default function AttendanceRow({
   selfie,
   verifyAction,
   deleteSelfieAction,
+  timeAction,
 }: {
   employeeName: string;
   currentStatus: AttendanceStatus | null;
@@ -65,11 +77,29 @@ export default function AttendanceRow({
   selfie?: SelfieInfo | null;
   verifyAction?: () => Promise<{ error: string | null }>;
   deleteSelfieAction?: () => Promise<{ error: string | null }>;
+  timeAction?: (checkInTime: string | null, checkOutTime: string | null) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
+  const [checkInTime, setCheckInTime] = useState(selfie?.checkInAt ? toTimeInputValue(selfie.checkInAt) : "");
+  const [checkOutTime, setCheckOutTime] = useState(selfie?.checkOutAt ? toTimeInputValue(selfie.checkOutAt) : "");
+
+  function handleSaveTime() {
+    if (!timeAction) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await timeAction(checkInTime || null, checkOutTime || null);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setEditingTime(false);
+      router.refresh();
+    });
+  }
 
   function handleClick(status: AttendanceStatus) {
     setError(null);
@@ -126,20 +156,61 @@ export default function AttendanceRow({
     <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-zinc-900">{employeeName}</p>
-        {currentStatus === "hadir" && (
-          <button
-            onClick={handleToggleLate}
-            disabled={isPending}
-            className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
-              late
-                ? "border-amber-500 bg-amber-50 text-amber-700"
-                : "border-zinc-200 text-zinc-400 hover:border-zinc-300"
-            }`}
-          >
-            {late ? "⏰ Terlambat" : "Tandai Terlambat"}
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {timeAction && (
+            <button
+              onClick={() => setEditingTime((v) => !v)}
+              disabled={isPending}
+              className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-400 transition-colors hover:border-zinc-300 disabled:opacity-50"
+            >
+              🕒 Jam
+            </button>
+          )}
+          {currentStatus === "hadir" && (
+            <button
+              onClick={handleToggleLate}
+              disabled={isPending}
+              className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                late
+                  ? "border-amber-500 bg-amber-50 text-amber-700"
+                  : "border-zinc-200 text-zinc-400 hover:border-zinc-300"
+              }`}
+            >
+              {late ? "⏰ Terlambat" : "Tandai Terlambat"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {timeAction && editingTime && (
+        <div className="mt-2 flex items-end gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+          <div className="flex-1">
+            <label className="mb-1 block text-[10px] font-medium text-zinc-500">Jam Masuk</label>
+            <input
+              type="time"
+              value={checkInTime}
+              onChange={(e) => setCheckInTime(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-[10px] font-medium text-zinc-500">Jam Pulang</label>
+            <input
+              type="time"
+              value={checkOutTime}
+              onChange={(e) => setCheckOutTime(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          <button
+            onClick={handleSaveTime}
+            disabled={isPending}
+            className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+          >
+            Simpan
+          </button>
+        </div>
+      )}
 
       {selfie && (selfie.checkInAt || selfie.checkOutAt) && (
         <div className="mt-2 flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
@@ -172,7 +243,9 @@ export default function AttendanceRow({
               {selfie.overtimeHours > 0 && (
                 <span className="text-brand-700">Lembur {selfie.overtimeHours} jam</span>
               )}
-              {selfie.lateMinutes === 0 && selfie.overtimeHours === 0 && "Selfie absen"}
+              {selfie.lateMinutes === 0 &&
+                selfie.overtimeHours === 0 &&
+                (selfie.checkInPhotoUrl || selfie.checkOutPhotoUrl ? "Selfie absen" : "Jam manual")}
             </p>
             {(selfie.checkInLat !== null || selfie.checkOutLat !== null) && (
               <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11px]">

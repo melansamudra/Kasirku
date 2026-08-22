@@ -37,6 +37,41 @@ export async function reviewCashMovement(
   return { error: null };
 }
 
+// Kasbon karyawan -- terpisah dari addPettyCashExpense karena posting
+// jurnalnya beda (lihat post_petty_cash_kasbon: debit 1-050/kredit 1-001
+// sama, tapi reklas saat approve dipaksa ke "Piutang Karyawan", bukan akun
+// beban pilihan bebas admin seperti nota tunai biasa).
+export async function addPettyCashKasbon(
+  businessId: string,
+  employeeId: string,
+  amount: number,
+  note: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("post_petty_cash_kasbon", {
+    p_business_id: businessId,
+    p_employee_id: employeeId,
+    p_amount: amount,
+    p_note: note || null,
+  });
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Kasbon dicatat",
+    `Rp${amount.toLocaleString("id-ID")}`,
+  );
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  revalidatePath(`/business/${businessId}/kas-harian`);
+  revalidatePath(`/business/${businessId}/payroll`);
+  return { error: null };
+}
+
 export async function addPettyCashExpense(
   businessId: string,
   amount: number,

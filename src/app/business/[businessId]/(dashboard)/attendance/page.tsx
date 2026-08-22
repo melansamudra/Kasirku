@@ -6,6 +6,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import {
   setAttendance,
   setAttendanceLate,
+  setAttendanceTime,
   verifyAttendance,
   deleteAttendanceSelfie,
   type AttendanceStatus,
@@ -144,6 +145,7 @@ export default async function AttendancePage({
                 late={lateByEmployee.get(e.id) ?? false}
                 action={setAttendance.bind(null, businessId, e.id, date)}
                 lateAction={setAttendanceLate.bind(null, businessId, e.id, date)}
+                timeAction={setAttendanceTime.bind(null, businessId, e.id, date)}
                 selfie={selfieByEmployee.get(e.id) ?? null}
                 verifyAction={
                   selfieByEmployee.get(e.id)

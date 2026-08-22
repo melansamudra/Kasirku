@@ -2,27 +2,31 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addPettyCashExpense, addSupplierDebtNoteAdmin } from "./actions";
+import { addPettyCashExpense, addSupplierDebtNoteAdmin, addPettyCashKasbon } from "./actions";
 
 const TUNAI_CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku", "Lain-lain"];
 const HUTANG_CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku"] as const;
 
 type Supplier = { id: string; name: string };
+type Employee = { id: string; name: string };
 
 export default function AddExpenseQuickForm({
   businessId,
   suppliers,
+  employees,
 }: {
   businessId: string;
   suppliers: Supplier[];
+  employees: Employee[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"tunai" | "hutang">("tunai");
+  const [mode, setMode] = useState<"tunai" | "hutang" | "kasbon">("tunai");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState(TUNAI_CATEGORIES[0]);
   const [supplierId, setSupplierId] = useState("");
   const [supplierManual, setSupplierManual] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -35,13 +39,15 @@ export default function AddExpenseQuickForm({
     setCategory(mode === "tunai" ? TUNAI_CATEGORIES[0] : HUTANG_CATEGORIES[0]);
     setSupplierId("");
     setSupplierManual("");
+    setEmployeeId("");
     setReceiptFile(null);
     setReceiptPreview(null);
   }
 
-  function handleModeChange(next: "tunai" | "hutang") {
+  function handleModeChange(next: "tunai" | "hutang" | "kasbon") {
     setMode(next);
     setCategory(next === "tunai" ? TUNAI_CATEGORIES[0] : HUTANG_CATEGORIES[0]);
+    setEmployeeId("");
     setError(null);
   }
 
@@ -76,11 +82,15 @@ export default function AddExpenseQuickForm({
       setError("Pilih supplier atau ketik nama supplier.");
       return;
     }
+    if (mode === "kasbon" && !employeeId) {
+      setError("Pilih karyawan dulu.");
+      return;
+    }
 
     setPending(true);
 
     let receiptUrl: string | null = null;
-    if (receiptFile) {
+    if (receiptFile && mode !== "kasbon") {
       setUploading(true);
       const fd = new FormData();
       fd.append("file", receiptFile);
@@ -99,15 +109,17 @@ export default function AddExpenseQuickForm({
     const result =
       mode === "tunai"
         ? await addPettyCashExpense(businessId, amountNum, description.trim(), category, receiptUrl)
-        : await addSupplierDebtNoteAdmin(
-            businessId,
-            supplierId || null,
-            supplierId ? null : supplierManual.trim(),
-            category as (typeof HUTANG_CATEGORIES)[number],
-            amountNum,
-            description.trim() || null,
-            receiptUrl,
-          );
+        : mode === "hutang"
+          ? await addSupplierDebtNoteAdmin(
+              businessId,
+              supplierId || null,
+              supplierId ? null : supplierManual.trim(),
+              category as (typeof HUTANG_CATEGORIES)[number],
+              amountNum,
+              description.trim() || null,
+              receiptUrl,
+            )
+          : await addPettyCashKasbon(businessId, employeeId, amountNum, description.trim());
     setPending(false);
 
     if (result.error) {
@@ -140,12 +152,39 @@ export default function AddExpenseQuickForm({
         >
           Nota Hutang
         </button>
+        <button
+          type="button"
+          onClick={() => handleModeChange("kasbon")}
+          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+            mode === "kasbon" ? "bg-red-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          Kasbon
+        </button>
       </div>
       <p className="text-[11px] text-zinc-400">
         {mode === "tunai"
           ? "Uang keluar tunai — mengurangi petty cash, menunggu admin pilih akun."
-          : "Belum dibayar — tidak mengurangi petty cash, menunggu diverifikasi lalu dialihkan ke Pembelian & Hutang."}
+          : mode === "hutang"
+            ? "Belum dibayar — tidak mengurangi petty cash, menunggu diverifikasi lalu dialihkan ke Pembelian & Hutang."
+            : "Kasbon karyawan dari petty cash — beda dari nota tunai, dicatat sebagai Piutang Karyawan (bukan beban), otomatis kepotong dari gaji berikutnya."}
       </p>
+
+      {mode === "kasbon" && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Karyawan</label>
+          <select
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">— Pilih karyawan —</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {mode === "hutang" && (
         <div>
@@ -175,7 +214,7 @@ export default function AddExpenseQuickForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className={mode === "kasbon" ? "" : "grid grid-cols-2 gap-2.5"}>
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Jumlah (Rp)</label>
           <input
@@ -187,52 +226,58 @@ export default function AddExpenseQuickForm({
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Kategori</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          >
-            {(mode === "tunai" ? TUNAI_CATEGORIES : HUTANG_CATEGORIES).map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
+        {mode !== "kasbon" && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">Kategori</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              {(mode === "tunai" ? TUNAI_CATEGORIES : HUTANG_CATEGORIES).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div>
         <label className="mb-1 block text-xs font-medium text-zinc-600">
-          Keterangan{mode === "hutang" ? " (opsional)" : ""}
+          Keterangan{mode === "tunai" ? "" : " (opsional)"}
         </label>
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={mode === "tunai" ? "mis. Beli galon & kopi kantor" : "mis. Ayam potong 20kg"}
+          placeholder={
+            mode === "tunai" ? "mis. Beli galon & kopi kantor" : mode === "hutang" ? "mis. Ayam potong 20kg" : "mis. Kebutuhan mendesak"
+          }
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Foto Nota (opsional, maks 2 MB)</label>
-        <div className="flex items-center gap-3">
-          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 flex items-center justify-center text-2xl">
-            {receiptPreview ? (
-              <img src={receiptPreview} alt="preview nota" className="h-full w-full object-cover" />
-            ) : (
-              "🧾"
-            )}
+      {mode !== "kasbon" && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Foto Nota (opsional, maks 2 MB)</label>
+          <div className="flex items-center gap-3">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 flex items-center justify-center text-2xl">
+              {receiptPreview ? (
+                <img src={receiptPreview} alt="preview nota" className="h-full w-full object-cover" />
+              ) : (
+                "🧾"
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleReceiptChange}
+              disabled={uploading}
+              className="flex-1 text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
+            />
           </div>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleReceiptChange}
-            disabled={uploading}
-            className="flex-1 text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
-          />
         </div>
-      </div>
+      )}
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
 
@@ -241,7 +286,15 @@ export default function AddExpenseQuickForm({
         disabled={pending || uploading}
         className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {uploading ? "Mengupload nota…" : pending ? "Menyimpan…" : mode === "tunai" ? "+ Catat Nota Tunai" : "+ Catat Nota Hutang"}
+        {uploading
+          ? "Mengupload nota…"
+          : pending
+            ? "Menyimpan…"
+            : mode === "tunai"
+              ? "+ Catat Nota Tunai"
+              : mode === "hutang"
+                ? "+ Catat Nota Hutang"
+                : "+ Catat Kasbon"}
       </button>
     </div>
   );
