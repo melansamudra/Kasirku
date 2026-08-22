@@ -115,21 +115,37 @@ export async function deleteLateTier(businessId: string, tierId: string): Promis
 // Baris payslips sudah kadung ditandai dibayar di titik ini (lihat pemanggil)
 // — jadi kegagalan di sini tidak dibatalkan, hanya dilaporkan (lihat pola yang
 // sama di finance/actions.ts postExpenseJournal, [[mini-erp-scope]]).
+//
+// kasbonDeduction (kalau >0) BUKAN pengurang Beban Gaji -- itu pelunasan
+// piutang yang sudah didebit ke akun "1-060 Piutang Karyawan" waktu kasbon
+// diberikan (lihat review_shift_cash_movement di kas-kecil). Jadi Beban Gaji
+// tetap diposting SEBESAR gaji penuh (netAmount + kasbonDeduction), dan
+// selisihnya mengkredit 1-060 (bukan ikut mengecilkan bebannya) supaya
+// piutang itu lunas otomatis begitu payslip dibayar. Kalau ini tidak
+// dilakukan, saldo Piutang Karyawan akan menumpuk selamanya walau kasbonnya
+// sudah kepotong dari gaji, dan Beban Gaji jadi understated.
 async function postPayrollJournal(
   supabase: SupabaseServerClient,
   businessId: string,
   date: string,
   description: string,
-  amount: number,
+  netAmount: number,
+  kasbonDeduction: number,
 ): Promise<string | null> {
+  const lines: { account_code: string; debit: number; credit: number }[] = [
+    { account_code: "5-100", debit: netAmount + kasbonDeduction, credit: 0 },
+  ];
+  if (kasbonDeduction > 0) {
+    lines.push({ account_code: "1-060", debit: 0, credit: kasbonDeduction });
+  }
+  lines.push({ account_code: "1-001", debit: 0, credit: netAmount });
+
   const { error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: description,
-    p_lines: [
-      { account_code: "5-100", debit: amount, credit: 0 },
-      { account_code: "1-001", debit: 0, credit: amount },
-    ],
+    p_lines: lines,
+    p_source: "payroll",
   });
   return error?.message ?? null;
 }
@@ -360,6 +376,7 @@ export async function markPayslipPaid(
     payslip.period_end,
     `Gaji: ${employeeName}`,
     total,
+    Number(payslip.kasbon_deduction),
   );
 
   // Laporan → Laba Rugi (yang biasa dibuka lewat menu Laporan) baca dari

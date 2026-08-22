@@ -26,6 +26,10 @@ const EXPENSE_CATEGORY_ACCOUNT: Record<string, string> = {
 // Baris expenses sudah kadung tersimpan di titik ini (lihat pemanggil) — jadi
 // kegagalan di sini tidak dibatalkan, hanya dilaporkan supaya tidak diam-diam
 // bikin buku besar tidak lengkap (lihat [[mini-erp-scope]]).
+function expenseDebitAccount(category: string, isPurchase: boolean): string {
+  return isPurchase ? "1-200" : EXPENSE_CATEGORY_ACCOUNT[category] ?? "5-999";
+}
+
 async function postExpenseJournal(
   supabase: SupabaseServerClient,
   businessId: string,
@@ -34,15 +38,40 @@ async function postExpenseJournal(
   amount: number,
   isPurchase: boolean,
 ): Promise<string | null> {
-  const debitAccount = isPurchase ? "1-200" : EXPENSE_CATEGORY_ACCOUNT[category] ?? "5-999";
   const { error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: `Pengeluaran: ${category}`,
     p_lines: [
-      { account_code: debitAccount, debit: amount, credit: 0 },
+      { account_code: expenseDebitAccount(category, isPurchase), debit: amount, credit: 0 },
       { account_code: "1-001", debit: 0, credit: amount },
     ],
+    p_source: "beban",
+  });
+  return error?.message ?? null;
+}
+
+// Kebalikan persis postExpenseJournal -- dipanggil saat pengeluaran dihapus
+// supaya Akuntansi -> Jurnal/Laba Rugi (yang baca journal_entries) ikut
+// berkurang, bukan cuma Laporan -> Laba Rugi (yang baca tabel expenses).
+// Direkonstruksi dari category/amount yang tersimpan di baris expenses,
+// sama seperti voidPurchase merekonstruksi pembalik dari purchases.amount.
+async function reverseExpenseJournal(
+  supabase: SupabaseServerClient,
+  businessId: string,
+  category: string,
+  amount: number,
+  isPurchase: boolean,
+): Promise<string | null> {
+  const { error } = await supabase.rpc("post_journal_entry", {
+    p_business_id: businessId,
+    p_date: new Date().toISOString().slice(0, 10),
+    p_description: `Hapus pengeluaran: ${category}`,
+    p_lines: [
+      { account_code: "1-001", debit: amount, credit: 0 },
+      { account_code: expenseDebitAccount(category, isPurchase), debit: 0, credit: amount },
+    ],
+    p_source: "void",
   });
   return error?.message ?? null;
 }
@@ -214,13 +243,24 @@ export async function deleteExpense(businessId: string, expenseId: string) {
     .maybeSingle();
   await supabase.from("expenses").delete().eq("id", expenseId).eq("business_id", businessId);
   if (expense) {
+    const isPurchase =
+      expense.category === PURCHASE_INGREDIENT_CATEGORY || expense.category === PURCHASE_PRODUCT_CATEGORY;
+    const journalError = await reverseExpenseJournal(
+      supabase,
+      businessId,
+      expense.category,
+      Number(expense.amount),
+      isPurchase,
+    );
     await logActivity(
       supabase,
       businessId,
       "sistem",
       "warning",
       `Pengeluaran dihapus: ${expense.category}`,
-      `Rp${Number(expense.amount).toLocaleString("id-ID")}`,
+      journalError
+        ? `Rp${Number(expense.amount).toLocaleString("id-ID")} — GAGAL membalik jurnal: ${journalError}. Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
+        : `Rp${Number(expense.amount).toLocaleString("id-ID")}`,
     );
   }
   revalidatePath(`/business/${businessId}/finance`);

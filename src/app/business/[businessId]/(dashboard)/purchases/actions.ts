@@ -33,6 +33,7 @@ async function postPurchaseJournal(
     p_date: date,
     p_description: description,
     p_lines: lines,
+    p_source: "pembelian",
   });
   return error?.message ?? null;
 }
@@ -362,6 +363,7 @@ export async function voidPurchase(
       p_date: new Date().toISOString().slice(0, 10),
       p_description: `Batal pembelian: ${itemName}`,
       p_lines: reversalLines,
+      p_source: "void",
     });
     journalError = journalRpcError?.message ?? null;
   }

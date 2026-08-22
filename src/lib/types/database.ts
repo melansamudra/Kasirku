@@ -3287,6 +3287,7 @@ export type Database = {
           p_date: string;
           p_description: string;
           p_lines: Json;
+          p_source?: string;
         };
         Returns: string;
       };
