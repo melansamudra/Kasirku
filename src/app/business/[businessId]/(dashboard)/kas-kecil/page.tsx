@@ -7,6 +7,8 @@ import MovementCard from "./movement-card";
 import AddExpenseQuickForm from "./add-expense-quick-form";
 import PettyCashAllocationForm from "./petty-cash-allocation-form";
 import DebtNoteCard from "./debt-note-card";
+import ClosePettyCashForm from "./close-petty-cash-form";
+import PrintClosureButton from "./print-closure-button";
 
 type DebtNoteRow = {
   id: string;
@@ -130,6 +132,8 @@ export default async function KasKecilPage({
     { data: debtNoteHistoryRows },
     { data: supplierRows },
     { data: todayHutangRows },
+    { data: todayClosureRow },
+    { data: closureHistoryRows },
   ] = await Promise.all([
     supabase
       .from("shift_cash_movements")
@@ -205,6 +209,20 @@ export default async function KasKecilPage({
       .eq("business_id", businessId)
       .gte("created_at", todayFromIso ?? `${today}T00:00:00+07:00`)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("petty_cash_closures")
+      .select(
+        "id, total_allocated, total_tunai, total_hutang, hutang_count, expected_remaining, actual_remaining, difference",
+      )
+      .eq("business_id", businessId)
+      .eq("date", today)
+      .maybeSingle(),
+    supabase
+      .from("petty_cash_closures")
+      .select("id, date, total_tunai, total_hutang, expected_remaining, actual_remaining, difference, closed_at")
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .limit(20),
   ]);
 
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
@@ -224,6 +242,19 @@ export default async function KasKecilPage({
   const todayTunaiList = (todayNotaRows ?? []) as unknown as TodayTunaiRow[];
   const todayHutangList = (todayHutangRows ?? []) as unknown as TodayHutangRow[];
   const totalHutangToday = todayHutangList.reduce((s, n) => s + Number(n.amount), 0);
+  const todayClosure = todayClosureRow
+    ? {
+        id: todayClosureRow.id,
+        totalAllocated: Number(todayClosureRow.total_allocated),
+        totalTunai: Number(todayClosureRow.total_tunai),
+        totalHutang: Number(todayClosureRow.total_hutang),
+        hutangCount: todayClosureRow.hutang_count,
+        expectedRemaining: Number(todayClosureRow.expected_remaining),
+        actualRemaining: Number(todayClosureRow.actual_remaining),
+        difference: Number(todayClosureRow.difference),
+      }
+    : null;
+  const closureHistory = closureHistoryRows ?? [];
 
   return (
     <div className="w-full max-w-2xl">
@@ -267,6 +298,10 @@ export default async function KasKecilPage({
           ))}
         </div>
       )}
+
+      <div className="mt-4">
+        <ClosePettyCashForm businessId={businessId} date={today} existingClosure={todayClosure} />
+      </div>
 
       {canVerify && (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -490,6 +525,45 @@ export default async function KasKecilPage({
             ) : (
               <p className="py-8 text-center text-xs text-zinc-300">Belum ada nota hutang hari ini</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {closureHistory.length > 0 && (
+        <div className="mt-6 border-t border-zinc-200 pt-4">
+          <h2 className="text-sm font-bold text-zinc-900">🔒 Riwayat Penutupan Petty Cash</h2>
+          <div className="mt-3 overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="divide-y divide-zinc-100">
+              {closureHistory.map((c) => (
+                <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-zinc-900">
+                      {new Date(`${c.date}T00:00:00+07:00`).toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-400">
+                      <span>Tunai {formatRupiah(Number(c.total_tunai))}</span>
+                      {Number(c.total_hutang) > 0 && <span>· Hutang {formatRupiah(Number(c.total_hutang))}</span>}
+                      <span
+                        className={`font-medium ${
+                          Number(c.difference) === 0
+                            ? "text-zinc-500"
+                            : Number(c.difference) > 0
+                              ? "text-brand-700"
+                              : "text-red-600"
+                        }`}
+                      >
+                        Selisih {Number(c.difference) === 0 ? "Pas" : formatRupiah(Number(c.difference))}
+                      </span>
+                    </div>
+                  </div>
+                  <PrintClosureButton businessId={businessId} closureId={c.id} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

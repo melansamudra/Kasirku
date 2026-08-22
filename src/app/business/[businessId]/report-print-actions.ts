@@ -1,7 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { buildSettlementTicket, buildMenuSalesTicket, type SettlementShiftRow } from "@/lib/escpos";
+import {
+  buildSettlementTicket,
+  buildMenuSalesTicket,
+  buildPettyCashClosureTicket,
+  type SettlementShiftRow,
+} from "@/lib/escpos";
 import type { KitchenPrintJobPayload } from "@/lib/kitchen-print";
 
 export type BuildReportPrintResult =
@@ -228,6 +233,55 @@ export async function buildSingleShiftPrintJobs(
     txCount,
     voidCount,
     shifts: [shiftSummary],
+  });
+
+  return { success: true, jobs: toJobs(printers, buffer) };
+}
+
+// Cetak struk tutup petty cash (dari halaman Kas Kecil / Riwayat Penutupan).
+// Angka DIAMBIL dari row petty_cash_closures yang sudah tersimpan (snapshot
+// sekali cetak), tidak dihitung ulang di sini — beda dari settlement shift
+// yang selalu live, closure ini sengaja beku begitu ditutup.
+export async function buildPettyCashClosurePrintJobs(
+  businessId: string,
+  closureId: string,
+): Promise<BuildReportPrintResult> {
+  const supabase = await createClient();
+
+  const [{ data: business }, printers, { data: closure }] = await Promise.all([
+    supabase.from("businesses").select("name").eq("id", businessId).single(),
+    getReceiptPrinters(supabase, businessId),
+    supabase
+      .from("petty_cash_closures")
+      .select(
+        "date, total_allocated, total_tunai, total_hutang, hutang_count, expected_remaining, actual_remaining, difference, notes",
+      )
+      .eq("id", closureId)
+      .eq("business_id", businessId)
+      .single(),
+  ]);
+
+  if (!business || !closure) return { success: false, error: "Data tidak ditemukan." };
+  if (printers.length === 0) return { success: true, jobs: [] };
+
+  const dateLabel = new Date(`${closure.date}T00:00:00+07:00`).toLocaleDateString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  const buffer = buildPettyCashClosureTicket({
+    businessName: business.name,
+    dateLabel,
+    totalAllocated: Number(closure.total_allocated),
+    totalTunai: Number(closure.total_tunai),
+    totalHutang: Number(closure.total_hutang),
+    hutangCount: closure.hutang_count,
+    expectedRemaining: Number(closure.expected_remaining),
+    actualRemaining: Number(closure.actual_remaining),
+    difference: Number(closure.difference),
+    notes: closure.notes,
   });
 
   return { success: true, jobs: toJobs(printers, buffer) };

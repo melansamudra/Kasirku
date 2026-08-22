@@ -443,6 +443,70 @@ export function buildSettlementTicket(input: SettlementTicketInput): Buffer {
   return Buffer.concat(chunks);
 }
 
+export type PettyCashClosureTicketInput = {
+  businessName: string;
+  dateLabel: string;
+  totalAllocated: number;
+  totalTunai: number;
+  totalHutang: number;
+  hutangCount: number;
+  expectedRemaining: number;
+  actualRemaining: number;
+  difference: number;
+  notes?: string | null;
+  closedByName?: string | null;
+};
+
+// Struk tutup petty cash harian — sama fungsinya dengan buildSettlementTicket
+// untuk shift kasir, tapi untuk rekonsiliasi kas kecil (petty cash diberikan
+// vs nota tunai vs sisa fisik).
+export function buildPettyCashClosureTicket(input: PettyCashClosureTicketInput): Buffer {
+  const chunks: Buffer[] = [];
+  const push = (bytes: number[]) => chunks.push(Buffer.from(bytes));
+  const text = (s: string) => chunks.push(Buffer.from(`${s}\n`, "latin1"));
+  const divider = () => text("-".repeat(RECEIPT_WIDTH));
+
+  push([ESC, 0x40]); // initialize
+
+  push([ESC, 0x61, 0x01]); // center align
+  text(input.businessName.toUpperCase());
+  text("TUTUP KAS KECIL");
+  push([ESC, 0x61, 0x00]); // left align
+
+  divider();
+  text(padLine("Tanggal", input.dateLabel));
+  text(padLine("Dicetak", new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })));
+  if (input.closedByName) text(padLine("Ditutup oleh", input.closedByName));
+
+  divider();
+  text(padLine("Petty Cash Diberikan", formatRp(input.totalAllocated)));
+  text(padLine("Nota Tunai", `-${formatRp(input.totalTunai)}`));
+  push([ESC, 0x45, 0x01]);
+  text(padLine("Sisa Seharusnya", formatRp(input.expectedRemaining)));
+  push([ESC, 0x45, 0x00]);
+  text(padLine("Sisa Fisik Dihitung", formatRp(input.actualRemaining)));
+  const diffStr =
+    input.difference === 0 ? "Pas" : `${input.difference > 0 ? "+" : ""}${formatRp(input.difference)}`;
+  text(padLine("Selisih", diffStr));
+
+  divider();
+  text(padLine("Nota Hutang", `${input.hutangCount} nota`));
+  text(padLine("Total Nota Hutang", formatRp(input.totalHutang)));
+  text("(belum masuk hitungan sisa kas di atas)");
+
+  if (input.notes) {
+    divider();
+    text("Catatan:");
+    text(truncate(input.notes));
+  }
+
+  text("");
+  text("");
+  push([GS, 0x56, 0x42, 0x00]); // partial cut with feed
+
+  return Buffer.concat(chunks);
+}
+
 export type MenuSalesItem = { name: string; qty: number; amount: number };
 
 export type MenuSalesTicketInput = {

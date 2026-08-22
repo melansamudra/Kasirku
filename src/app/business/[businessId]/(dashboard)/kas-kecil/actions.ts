@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { getPeriodRange } from "../reports/period";
 
 export type ActionState = { error: string | null };
 
@@ -187,4 +188,78 @@ export async function deleteSupplierDebtNote(businessId: string, noteId: string)
 
   revalidatePath(`/business/${businessId}/kas-kecil`);
   return { error: null };
+}
+
+export type PettyCashClosureSummary = {
+  id: string;
+  date: string;
+  totalAllocated: number;
+  totalTunai: number;
+  totalHutang: number;
+  hutangCount: number;
+  expectedRemaining: number;
+  actualRemaining: number;
+  difference: number;
+};
+
+export type ClosePettyCashResult =
+  | { success: true; summary: PettyCashClosureSummary }
+  | { success: false; error: string };
+
+// "Tutup Petty Cash" hari itu — sama fungsinya dengan close_shift() untuk
+// shift kasir. Angka dihitung ulang di RPC (bukan dipercaya dari browser);
+// p_from/p_to dihitung di sini pakai getPeriodRange yang sama dipakai
+// halaman-halaman laporan lain, supaya logic batas hari WIB tidak
+// diduplikasi.
+export async function closePettyCash(
+  businessId: string,
+  date: string,
+  actualRemaining: number,
+  notes: string | null,
+): Promise<ClosePettyCashResult> {
+  const supabase = await createClient();
+  const { fromIso, toIsoExclusive } = getPeriodRange("custom", date, date);
+
+  const { data, error } = await supabase
+    .rpc("close_petty_cash", {
+      p_business_id: businessId,
+      p_date: date,
+      p_from: fromIso ?? `${date}T00:00:00+07:00`,
+      p_to: toIsoExclusive ?? `${date}T23:59:59+07:00`,
+      p_actual_remaining: actualRemaining,
+      p_notes: notes || null,
+    })
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Gagal menutup petty cash." };
+  }
+
+  const summary: PettyCashClosureSummary = {
+    id: data.id,
+    date: data.date,
+    totalAllocated: Number(data.total_allocated),
+    totalTunai: Number(data.total_tunai),
+    totalHutang: Number(data.total_hutang),
+    hutangCount: data.hutang_count,
+    expectedRemaining: Number(data.expected_remaining),
+    actualRemaining: Number(data.actual_remaining),
+    difference: Number(data.difference),
+  };
+
+  try {
+    await logActivity(
+      supabase,
+      businessId,
+      "sistem",
+      summary.difference === 0 ? "sukses" : "warning",
+      "Petty cash ditutup",
+      `${date} · Sisa ${summary.actualRemaining.toLocaleString("id-ID")} · Selisih ${summary.difference.toLocaleString("id-ID")}`,
+    );
+  } catch (err) {
+    console.error(`closePettyCash: closure ${summary.id} sukses tapi log aktivitas gagal:`, err);
+  }
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { success: true, summary };
 }

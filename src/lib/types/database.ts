@@ -1985,6 +1985,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      petty_cash_closures: {
+        Row: {
+          id: string;
+          business_id: string;
+          date: string;
+          total_allocated: number;
+          total_tunai: number;
+          total_hutang: number;
+          hutang_count: number;
+          expected_remaining: number;
+          actual_remaining: number;
+          difference: number;
+          notes: string | null;
+          closed_by: string | null;
+          closed_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          date: string;
+          total_allocated?: number;
+          total_tunai?: number;
+          total_hutang?: number;
+          hutang_count?: number;
+          expected_remaining?: number;
+          actual_remaining: number;
+          difference?: number;
+          notes?: string | null;
+          closed_by?: string | null;
+          closed_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          date?: string;
+          total_allocated?: number;
+          total_tunai?: number;
+          total_hutang?: number;
+          hutang_count?: number;
+          expected_remaining?: number;
+          actual_remaining?: number;
+          difference?: number;
+          notes?: string | null;
+          closed_by?: string | null;
+          closed_at?: string;
+        };
+        Relationships: [];
+      };
       purchase_requests: {
         Row: {
           id: string;
@@ -3132,6 +3180,31 @@ export type Database = {
           p_account_code?: string | null;
         };
         Returns: string;
+      };
+      close_petty_cash: {
+        Args: {
+          p_business_id: string;
+          p_date: string;
+          p_from: string;
+          p_to: string;
+          p_actual_remaining: number;
+          p_notes?: string | null;
+        };
+        Returns: {
+          id: string;
+          business_id: string;
+          date: string;
+          total_allocated: number;
+          total_tunai: number;
+          total_hutang: number;
+          hutang_count: number;
+          expected_remaining: number;
+          actual_remaining: number;
+          difference: number;
+          notes: string | null;
+          closed_by: string | null;
+          closed_at: string;
+        }[];
       };
       void_transaction: {
         Args: {
