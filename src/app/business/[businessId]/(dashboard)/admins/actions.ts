@@ -58,6 +58,8 @@ async function _inviteAdminInner(
   const name = (formData.get("name") as string)?.trim();
   const email = (formData.get("email") as string)?.trim().toLowerCase();
   const permissions = sanitizePermissions(formData.getAll("permissions"));
+  const roleRaw = formData.get("role") as string;
+  const role = roleRaw === "admin" ? "admin" : "kasir";
 
   if (!name) {
     return { error: "Nama admin wajib diisi." };
@@ -108,6 +110,7 @@ async function _inviteAdminInner(
     name,
     email,
     permissions,
+    role,
   });
 
   if (staffError) {
@@ -140,6 +143,8 @@ export async function updateAdminPermissions(
   formData: FormData,
 ): Promise<UpdatePermissionsState> {
   const permissions = sanitizePermissions(formData.getAll("permissions"));
+  const roleRaw = formData.get("role") as string;
+  const role = roleRaw === "admin" ? "admin" : "kasir";
 
   let supabase;
   try {
@@ -150,7 +155,7 @@ export async function updateAdminPermissions(
 
   const { error } = await supabase
     .from("business_staff")
-    .update({ permissions })
+    .update({ permissions, role })
     .eq("id", staffId)
     .eq("business_id", businessId);
 

@@ -31,7 +31,7 @@ export default async function AdminsPage({
 
   const { data: staffRows } = await supabase
     .from("business_staff")
-    .select("id, name, email, permissions, active")
+    .select("id, name, email, permissions, active, role")
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
@@ -62,6 +62,13 @@ export default async function AdminsPage({
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-3">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    s.role === "admin" ? "bg-brand-50 text-brand-700" : "bg-zinc-100 text-zinc-600"
+                  }`}
+                >
+                  {s.role === "admin" ? "⚙️ Admin" : "🧾 Kasir"}
+                </span>
                 {!s.active && (
                   <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
                     Nonaktif
@@ -69,6 +76,7 @@ export default async function AdminsPage({
                 )}
                 <EditPermissionsForm
                   currentPermissions={s.permissions}
+                  currentRole={s.role === "admin" ? "admin" : "kasir"}
                   action={updateAdminPermissions.bind(null, businessId, s.id)}
                 />
                 <ToggleActiveButton businessId={businessId} staffId={s.id} active={s.active} />

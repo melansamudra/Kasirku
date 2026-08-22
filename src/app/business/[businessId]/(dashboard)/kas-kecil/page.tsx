@@ -36,6 +36,39 @@ type MovementRow = {
   cashiers: { name: string } | null;
 };
 
+type TodayTunaiRow = {
+  id: string;
+  amount: number;
+  category: string | null;
+  description: string;
+  status: "pending" | "posted" | "rejected";
+  created_at: string;
+  cashiers: { name: string } | null;
+};
+
+type TodayHutangRow = {
+  id: string;
+  amount: number;
+  category: string;
+  note: string | null;
+  status: "pending" | "verified";
+  created_at: string;
+  suppliers: { name: string } | null;
+  supplier_name_manual: string | null;
+  cashiers: { name: string } | null;
+};
+
+const TUNAI_STATUS_LABEL: Record<TodayTunaiRow["status"], string> = {
+  pending: "Menunggu",
+  posted: "Disetujui",
+  rejected: "Ditolak",
+};
+const TUNAI_STATUS_TONE: Record<TodayTunaiRow["status"], "amber" | "green" | "red"> = {
+  pending: "amber",
+  posted: "green",
+  rejected: "red",
+};
+
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
@@ -58,15 +91,31 @@ export default async function KasKecilPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .single();
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!business) {
     notFound();
   }
+
+  const isOwner = business.owner_id === userData.user?.id;
+  let staffRole: "kasir" | "admin" = "kasir";
+  if (!isOwner && userData.user) {
+    const { data: staff } = await supabase
+      .from("business_staff")
+      .select("role")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    staffRole = (staff?.role as "kasir" | "admin" | undefined) ?? "kasir";
+  }
+  // Owner atau staff ber-role "admin" boleh Setujui/Tolak/Verifikasi — staff
+  // "kasir" cuma lihat ringkasan (tidak bisa ubah status apa pun dari sini).
+  // Ini cuma gating tampilan; RLS (owns_business) tetap jadi batas akses
+  // sesungguhnya di level database untuk siapa pun yang masih bisa masuk.
+  const canVerify = isOwner || staffRole === "admin";
 
   const today = todayWibDateString();
   const { fromIso: todayFromIso } = getPeriodRange("today");
@@ -80,6 +129,7 @@ export default async function KasKecilPage({
     { data: debtNotePendingRows },
     { data: debtNoteHistoryRows },
     { data: supplierRows },
+    { data: todayHutangRows },
   ] = await Promise.all([
     supabase
       .from("shift_cash_movements")
@@ -114,14 +164,16 @@ export default async function KasKecilPage({
       .order("created_at", { ascending: false }),
     // "Rejected" berarti uangnya sudah dikembalikan ke kas — tidak lagi
     // mengurangi petty cash yang sedang dipegang kasir, jadi dikeluarkan
-    // dari total nota hari ini.
+    // dari total nota hari ini. Kolom lengkap (bukan cuma amount) supaya
+    // bisa dipakai juga sebagai daftar "Transaksi Hari Ini" versi kasir.
     supabase
       .from("shift_cash_movements")
-      .select("amount")
+      .select("id, amount, category, description, status, created_at, cashiers(name)")
       .eq("business_id", businessId)
       .eq("direction", "out")
       .neq("status", "rejected")
-      .gte("created_at", todayFromIso ?? `${today}T00:00:00+07:00`),
+      .gte("created_at", todayFromIso ?? `${today}T00:00:00+07:00`)
+      .order("created_at", { ascending: false }),
     supabase
       .from("supplier_debt_notes")
       .select(
@@ -145,6 +197,14 @@ export default async function KasKecilPage({
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
+    supabase
+      .from("supplier_debt_notes")
+      .select(
+        "id, amount, category, note, status, created_at, suppliers(name), supplier_name_manual, cashiers(name)",
+      )
+      .eq("business_id", businessId)
+      .gte("created_at", todayFromIso ?? `${today}T00:00:00+07:00`)
+      .order("created_at", { ascending: false }),
   ]);
 
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
@@ -161,6 +221,9 @@ export default async function KasKecilPage({
   const debtNotesPending = (debtNotePendingRows ?? []) as unknown as DebtNoteRow[];
   const debtNotesHistory = (debtNoteHistoryRows ?? []) as unknown as DebtNoteRow[];
   const suppliers = supplierRows ?? [];
+  const todayTunaiList = (todayNotaRows ?? []) as unknown as TodayTunaiRow[];
+  const todayHutangList = (todayHutangRows ?? []) as unknown as TodayHutangRow[];
+  const totalHutangToday = todayHutangList.reduce((s, n) => s + Number(n.amount), 0);
 
   return (
     <div className="w-full max-w-2xl">
@@ -170,14 +233,16 @@ export default async function KasKecilPage({
         Laba Rugi (nota tunai) atau Pembelian & Hutang (nota hutang).
       </p>
 
-      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Petty Cash Diberikan</h2>
-        <p className="mb-3 text-xs text-zinc-500">
-          Catatan saja (tidak masuk jurnal) — jumlah petty cash yang diberikan ke kasir, dipakai
-          buat mengecek nota yang masuk cocok atau tidak dengan uang yang dikembalikan kasir.
-        </p>
-        <PettyCashAllocationForm businessId={businessId} today={today} />
-      </div>
+      {canVerify && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Petty Cash Diberikan</h2>
+          <p className="mb-3 text-xs text-zinc-500">
+            Catatan saja (tidak masuk jurnal) — jumlah petty cash yang diberikan ke kasir, dipakai
+            buat mengecek nota yang masuk cocok atau tidak dengan uang yang dikembalikan kasir.
+          </p>
+          <PettyCashAllocationForm businessId={businessId} today={today} />
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-3 gap-2.5">
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
@@ -205,13 +270,15 @@ export default async function KasKecilPage({
         </div>
       )}
 
-      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-        <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-amber-700">
-          Menunggu Diperiksa
-        </p>
-        <p className="text-xl font-bold text-amber-700">{formatRupiah(totalPending)}</p>
-        <p className="mt-1 text-[11px] text-amber-600">{pending.length} pengeluaran belum diklasifikasi</p>
-      </div>
+      {canVerify && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-amber-700">
+            Menunggu Diperiksa
+          </p>
+          <p className="text-xl font-bold text-amber-700">{formatRupiah(totalPending)}</p>
+          <p className="mt-1 text-[11px] text-amber-600">{pending.length} pengeluaran belum diklasifikasi</p>
+        </div>
+      )}
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Catat Nota</h2>
@@ -222,6 +289,8 @@ export default async function KasKecilPage({
         <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} />
       </div>
 
+      {canVerify && (
+      <>
       <div className="mt-4 space-y-2">
         {pending.length > 0 ? (
           pending.map((m) => (
@@ -341,6 +410,91 @@ export default async function KasKecilPage({
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {!canVerify && (
+        <div className="mt-6 border-t border-zinc-200 pt-4">
+          <h2 className="text-sm font-bold text-zinc-900">📋 Transaksi Hari Ini</h2>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Ringkasan saja — untuk Setujui/Tolak/Verifikasi, minta admin/pemilik toko buka halaman
+            ini.
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5">
+              <p className="mb-1 text-[10px] font-semibold uppercase text-red-600">Nota Tunai Hari Ini</p>
+              <p className="text-base font-bold text-red-600">{formatRupiah(totalNotaToday)}</p>
+              <p className="mt-0.5 text-[10.5px] text-red-500">{todayTunaiList.length} transaksi</p>
+            </div>
+            <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3.5">
+              <p className="mb-1 text-[10px] font-semibold uppercase text-violet-700">Nota Hutang Hari Ini</p>
+              <p className="text-base font-bold text-violet-700">{formatRupiah(totalHutangToday)}</p>
+              <p className="mt-0.5 text-[10.5px] text-violet-600">{todayHutangList.length} transaksi</p>
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-4 py-3">
+              <h3 className="text-sm font-bold text-zinc-900">Nota Tunai</h3>
+            </div>
+            {todayTunaiList.length > 0 ? (
+              <div className="divide-y divide-zinc-100">
+                {todayTunaiList.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium text-zinc-900">{m.description}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-zinc-400">{formatDateTime(m.created_at)}</span>
+                        {m.category && (
+                          <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                            {m.category}
+                          </span>
+                        )}
+                        <PillBadge tone={TUNAI_STATUS_TONE[m.status]}>{TUNAI_STATUS_LABEL[m.status]}</PillBadge>
+                      </div>
+                    </div>
+                    <p className="shrink-0 text-sm font-bold text-red-600">-{formatRupiah(Number(m.amount))}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-xs text-zinc-300">Belum ada nota tunai hari ini</p>
+            )}
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-4 py-3">
+              <h3 className="text-sm font-bold text-zinc-900">Nota Hutang</h3>
+            </div>
+            {todayHutangList.length > 0 ? (
+              <div className="divide-y divide-zinc-100">
+                {todayHutangList.map((n) => (
+                  <div key={n.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium text-zinc-900">
+                        {n.suppliers?.name ?? n.supplier_name_manual}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-zinc-400">{formatDateTime(n.created_at)}</span>
+                        <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                          {n.category}
+                        </span>
+                        <PillBadge tone={n.status === "verified" ? "green" : "amber"}>
+                          {n.status === "verified" ? "Diverifikasi" : "Menunggu"}
+                        </PillBadge>
+                      </div>
+                    </div>
+                    <p className="shrink-0 text-sm font-bold text-red-600">{formatRupiah(Number(n.amount))}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-xs text-zinc-300">Belum ada nota hutang hari ini</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

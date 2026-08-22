@@ -40,6 +40,7 @@ export default function InviteAdminForm({
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
+      <input type="hidden" name="role" value={role} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="name" className="mb-1 block text-xs font-medium text-zinc-600">

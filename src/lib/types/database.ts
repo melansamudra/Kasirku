@@ -244,6 +244,7 @@ export type Database = {
           email: string;
           permissions: string[];
           active: boolean;
+          role: string;
           created_at: string;
         };
         Insert: {
@@ -254,6 +255,7 @@ export type Database = {
           email: string;
           permissions?: string[];
           active?: boolean;
+          role?: string;
           created_at?: string;
         };
         Update: {
@@ -264,6 +266,7 @@ export type Database = {
           email?: string;
           permissions?: string[];
           active?: boolean;
+          role?: string;
           created_at?: string;
         };
         Relationships: [];
