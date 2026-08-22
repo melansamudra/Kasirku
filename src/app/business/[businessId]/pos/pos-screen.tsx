@@ -2576,7 +2576,7 @@ export default function PosScreen({
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
-                    {t.method === "Tunai" && tenders.length > 1 ? (
+                    {tenders.length > 1 ? (
                       <input
                         type="number"
                         min="0"
@@ -2635,8 +2635,11 @@ export default function PosScreen({
               ))}
             </div>
 
-            {/* Tambah cara bayar */}
-            {remaining > 0 && (
+            {/* Tambah cara bayar -- selalu ditawarkan selama masih 1 metode
+                (jumlahnya baru "penuh" karena dikunci ke total, bukan berarti
+                benar-benar tidak ada sisa buat dipecah), atau kalau memang
+                masih ada sisa yang belum tertagih setelah 2+ metode. */}
+            {(tenders.length === 1 || remaining > 0) && (
               <button
                 onClick={handleAddTender}
                 className="w-full rounded-xl border border-dashed border-zinc-300 py-2 text-xs text-zinc-500 hover:border-brand-400 hover:text-brand-600"
