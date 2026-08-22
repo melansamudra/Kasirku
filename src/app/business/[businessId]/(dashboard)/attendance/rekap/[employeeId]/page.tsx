@@ -212,7 +212,7 @@ export default async function EmployeeAttendanceRekapPage({
       </p>
       <p className="mt-0.5 hidden text-sm text-zinc-500 print:block">Slip Absensi {monthLabel(month)}</p>
 
-      <div className="mt-3 grid grid-cols-5 gap-1.5 print:mt-2 print:gap-1">
+      <div className="mt-4 grid grid-cols-5 gap-2 print:mt-3 print:gap-1.5">
         {[
           { label: "Hadir", value: counts.hadir, tone: "border-brand-200 bg-brand-50 text-brand-700" },
           { label: "Izin", value: counts.izin, tone: "border-amber-200 bg-amber-50 text-amber-700" },
@@ -222,49 +222,49 @@ export default async function EmployeeAttendanceRekapPage({
         ].map((c) => (
           <div
             key={c.label}
-            className={`rounded-lg border px-1.5 py-1 text-center print:rounded print:py-0.5 ${c.tone}`}
+            className={`rounded-lg border px-2 py-2 text-center print:py-1.5 ${c.tone}`}
           >
-            <p className="text-[8.5px] font-semibold uppercase">{c.label}</p>
-            <p className="text-sm font-bold">{c.value}</p>
+            <p className="text-[9px] font-semibold uppercase">{c.label}</p>
+            <p className="text-base font-bold">{c.value}</p>
           </div>
         ))}
       </div>
 
       {lateCount > 0 && (
-        <p className="mt-1.5 text-xs font-medium text-amber-600 print:mt-1">
+        <p className="mt-2 text-xs font-medium text-amber-600">
           ⏰ {lateCount} kali tercatat terlambat bulan ini
         </p>
       )}
 
-      <div className="mt-2 grid grid-cols-3 gap-1.5 print:mt-1.5 print:gap-1">
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 print:py-0.5">
-          <p className="text-[8.5px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
-          <p className="text-sm font-bold text-zinc-800">{formatJam(totalJamKerja)}</p>
+      <div className="mt-3 grid grid-cols-3 gap-2 print:mt-2.5 print:gap-1.5">
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 print:py-1.5">
+          <p className="text-[9px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
+          <p className="text-base font-bold text-zinc-800">{formatJam(totalJamKerja)}</p>
         </div>
-        <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 print:py-0.5">
-          <p className="text-[8.5px] font-semibold uppercase text-red-600">Potongan (Izin+Telat)</p>
-          <p className="text-sm font-bold text-red-600">{formatRupiah(totalPotongan)}</p>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 print:py-1.5">
+          <p className="text-[9px] font-semibold uppercase text-red-600">Potongan (Izin+Telat)</p>
+          <p className="text-base font-bold text-red-600">{formatRupiah(totalPotongan)}</p>
         </div>
-        <div className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 print:py-0.5">
-          <p className="text-[8.5px] font-semibold uppercase text-violet-700">Kasbon Bulan Ini</p>
-          <p className="text-sm font-bold text-violet-700">{formatRupiah(kasbonThisMonth)}</p>
+        <div className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 print:py-1.5">
+          <p className="text-[9px] font-semibold uppercase text-violet-700">Kasbon Bulan Ini</p>
+          <p className="text-base font-bold text-violet-700">{formatRupiah(kasbonThisMonth)}</p>
           {kasbonOutstanding > 0 && (
-            <p className="text-[8.5px] text-violet-600">Sisa: {formatRupiah(kasbonOutstanding)}</p>
+            <p className="text-[9px] text-violet-600">Sisa: {formatRupiah(kasbonOutstanding)}</p>
           )}
         </div>
       </div>
 
       {/* Ringkasan cetak per-hari -- versi polos tanpa tombol, hanya muncul
           saat print (lihat print:hidden di daftar interaktif di bawah). */}
-      <div className="mt-3 hidden overflow-hidden rounded-xl border border-zinc-200 print:mt-2 print:block">
+      <div className="mt-4 hidden overflow-hidden rounded-xl border border-zinc-200 print:mt-3 print:block">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-[10px] uppercase text-zinc-500">
-              <th className="px-2 py-1 print:py-0.5">Tanggal</th>
-              <th className="px-2 py-1 print:py-0.5">Status</th>
-              <th className="px-2 py-1 print:py-0.5">Masuk</th>
-              <th className="px-2 py-1 print:py-0.5">Pulang</th>
-              <th className="px-2 py-1 print:py-0.5 text-right">Jam Kerja</th>
+              <th className="px-2.5 py-1.5">Tanggal</th>
+              <th className="px-2.5 py-1.5">Status</th>
+              <th className="px-2.5 py-1.5">Masuk</th>
+              <th className="px-2.5 py-1.5">Pulang</th>
+              <th className="px-2.5 py-1.5 text-right">Jam Kerja</th>
             </tr>
           </thead>
           <tbody>
@@ -276,22 +276,22 @@ export default async function EmployeeAttendanceRekapPage({
                   : null;
               return (
                 <tr key={dateStr} className="border-b border-zinc-100 last:border-0">
-                  <td className="px-2 py-0.5 print:py-px">{formatDayLabel(dateStr)}</td>
-                  <td className="px-2 py-0.5 print:py-px capitalize">{row?.status ?? "—"}</td>
-                  <td className="px-2 py-0.5 print:py-px">{row?.check_in_at ? formatTime(row.check_in_at) : "—"}</td>
-                  <td className="px-2 py-0.5 print:py-px">{row?.check_out_at ? formatTime(row.check_out_at) : "—"}</td>
-                  <td className="px-2 py-0.5 print:py-px text-right">{durasi !== null ? formatJam(durasi) : "—"}</td>
+                  <td className="px-2.5 py-0.5">{formatDayLabel(dateStr)}</td>
+                  <td className="px-2.5 py-0.5 capitalize">{row?.status ?? "—"}</td>
+                  <td className="px-2.5 py-0.5">{row?.check_in_at ? formatTime(row.check_in_at) : "—"}</td>
+                  <td className="px-2.5 py-0.5">{row?.check_out_at ? formatTime(row.check_out_at) : "—"}</td>
+                  <td className="px-2.5 py-0.5 text-right">{durasi !== null ? formatJam(durasi) : "—"}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        <div className="border-t border-zinc-200 px-2 py-2 text-xs">
+        <div className="border-t border-zinc-200 px-2.5 py-2.5 text-xs space-y-0.5">
           <p>Total Jam Kerja: <span className="font-semibold">{formatJam(totalJamKerja)}</span></p>
           <p>Terlambat: <span className="font-semibold">{lateCount} kali</span> (potongan {formatRupiah(calc.lateDeduction)})</p>
           <p>Potongan Izin: <span className="font-semibold">{formatRupiah(calc.izinDeduction)}</span></p>
           <p className="font-semibold">Total Potongan: {formatRupiah(totalPotongan)}</p>
-          <p className="mt-1">Kasbon Bulan Ini: <span className="font-semibold">{formatRupiah(kasbonThisMonth)}</span></p>
+          <p className="pt-1">Kasbon Bulan Ini: <span className="font-semibold">{formatRupiah(kasbonThisMonth)}</span></p>
           {kasbonOutstanding > 0 && (
             <p>Sisa Kasbon Belum Terpotong: <span className="font-semibold">{formatRupiah(kasbonOutstanding)}</span></p>
           )}
