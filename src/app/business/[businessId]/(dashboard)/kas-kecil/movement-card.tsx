@@ -39,7 +39,10 @@ export default function MovementCard({
   };
 }) {
   const router = useRouter();
-  const [accountCode, setAccountCode] = useState(accounts[0]?.code ?? "");
+  // Sengaja tidak default ke accounts[0] — kalau admin tidak sadar dan
+  // langsung klik Setujui, pengeluaran ini harus tetap gagal (bukan
+  // kepilih akun sembarangan/pertama di daftar).
+  const [accountCode, setAccountCode] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmReject, setConfirmReject] = useState(false);
@@ -111,6 +114,7 @@ export default function MovementCard({
           disabled={pending}
           className="flex-1 min-w-[180px] rounded-lg border border-zinc-200 px-2.5 py-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         >
+          <option value="" disabled>— Pilih akun —</option>
           {accounts.map((a) => (
             <option key={a.code} value={a.code}>
               {a.code} — {a.name}

@@ -154,11 +154,16 @@ export default async function KasKecilPage({
       .neq("status", "pending")
       .order("reviewed_at", { ascending: false })
       .limit(30),
+    // 1-050 (suspense kas kecil) dan 1-001 (Kas & Bank) dikeluarkan dari
+    // pilihan reklasifikasi — memilih salah satunya tidak masuk akal
+    // (uangnya justru sedang dikeluarkan DARI kas, bukan diklasifikasikan
+    // balik ke situ).
     supabase
       .from("accounts")
       .select("code, name")
       .eq("business_id", businessId)
       .neq("code", "1-050")
+      .neq("code", "1-001")
       .order("code"),
     supabase
       .from("petty_cash_allocations")
