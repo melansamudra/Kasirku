@@ -221,39 +221,46 @@ export default async function ShiftsPage({
                     {formatDateTime(s.opened_at)} – {formatDateTime(s.closed_at)}
                   </p>
 
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                    <span>Modal Awal</span>
-                    <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.opening_cash))}</span>
-                    {Number(s.cash_sales) > 0 && (
-                      <>
-                        <span>Tunai</span>
-                        <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.cash_sales))}</span>
-                      </>
-                    )}
-                    {Number(s.non_cash_sales) > 0 && (
-                      <>
-                        <span>Non-Tunai</span>
-                        <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.non_cash_sales))}</span>
-                      </>
-                    )}
-                    <span>Transaksi</span>
-                    <span className="text-right font-medium text-zinc-900">{s.tx_count}</span>
-                    <span>Kas Diharapkan</span>
-                    <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.expected_cash))}</span>
-                    <span>Selisih</span>
-                    <span className={`text-right font-semibold ${diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}`}>
-                      {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
-                    </span>
-                  </div>
+                  <details className="group mt-1.5">
+                    <summary className="cursor-pointer list-none text-[11px] font-medium text-brand-600 hover:text-brand-700 [&::-webkit-details-marker]:hidden">
+                      <span className="group-open:hidden">Lihat detail ▾</span>
+                      <span className="hidden group-open:inline">Sembunyikan detail ▴</span>
+                    </summary>
 
-                  {isOwner && s.void_count > 0 && (
-                    <p className="mt-1.5 text-[11px] text-red-500">
-                      {s.void_count} transaksi dibatalkan
-                    </p>
-                  )}
-                  {s.close_notes && (
-                    <p className="mt-1.5 text-[11px] text-zinc-400">Catatan: {s.close_notes}</p>
-                  )}
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                      <span>Modal Awal</span>
+                      <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.opening_cash))}</span>
+                      {Number(s.cash_sales) > 0 && (
+                        <>
+                          <span>Tunai</span>
+                          <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.cash_sales))}</span>
+                        </>
+                      )}
+                      {Number(s.non_cash_sales) > 0 && (
+                        <>
+                          <span>Non-Tunai</span>
+                          <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.non_cash_sales))}</span>
+                        </>
+                      )}
+                      <span>Transaksi</span>
+                      <span className="text-right font-medium text-zinc-900">{s.tx_count}</span>
+                      <span>Kas Diharapkan</span>
+                      <span className="text-right font-medium text-zinc-900">{formatRupiah(Number(s.expected_cash))}</span>
+                      <span>Selisih</span>
+                      <span className={`text-right font-semibold ${diff === 0 ? "text-zinc-900" : diff > 0 ? "text-brand-700" : "text-red-600"}`}>
+                        {diff === 0 ? "Pas" : `${diff > 0 ? "+" : ""}${formatRupiah(diff)}`}
+                      </span>
+                    </div>
+
+                    {isOwner && s.void_count > 0 && (
+                      <p className="mt-1.5 text-[11px] text-red-500">
+                        {s.void_count} transaksi dibatalkan
+                      </p>
+                    )}
+                    {s.close_notes && (
+                      <p className="mt-1.5 text-[11px] text-zinc-400">Catatan: {s.close_notes}</p>
+                    )}
+                  </details>
                 </div>
               );
             })
