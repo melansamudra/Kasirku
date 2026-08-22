@@ -73,27 +73,42 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: "Link absen tidak valid." }, { status: 404 });
   }
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id, name")
-    .eq("id", employeeId)
-    .eq("business_id", business.id)
-    .eq("active", true)
-    .maybeSingle();
+  const date = todayWib();
+
+  // employee/existing-attendance/shift-assignment cuma butuh business.id —
+  // tidak saling bergantung, jadi ditembak bareng lewat Promise.all daripada
+  // 3 round-trip berurutan (ini penyumbang terbesar lambatnya submit absen
+  // di jaringan outlet yang kurang stabil). Upload foto SENGAJA tidak
+  // ditaruh di sini juga — baru dijalankan setelah validasi employee/
+  // sudah-absen lolos, supaya tap dobel/percobaan tidak valid tidak buang
+  // waktu+kuota upload foto yang ujung-ujungnya dibuang.
+  const [{ data: employee }, { data: existing }, { data: assignment }] = await Promise.all([
+    supabase
+      .from("employees")
+      .select("id, name")
+      .eq("id", employeeId)
+      .eq("business_id", business.id)
+      .eq("active", true)
+      .maybeSingle(),
+    supabase
+      .from("attendance")
+      .select("id, check_in_at, check_out_at, shift_template_id")
+      .eq("business_id", business.id)
+      .eq("employee_id", employeeId)
+      .eq("date", date)
+      .maybeSingle(),
+    supabase
+      .from("employee_shift_assignments")
+      .select("shift_template_id, shift_templates(start_time, end_time)")
+      .eq("business_id", business.id)
+      .eq("employee_id", employeeId)
+      .eq("date", date)
+      .maybeSingle(),
+  ]);
 
   if (!employee) {
     return Response.json({ ok: false, error: "Karyawan tidak ditemukan/tidak aktif." }, { status: 404 });
   }
-
-  const date = todayWib();
-
-  const { data: existing } = await supabase
-    .from("attendance")
-    .select("id, check_in_at, check_out_at, shift_template_id")
-    .eq("business_id", business.id)
-    .eq("employee_id", employeeId)
-    .eq("date", date)
-    .maybeSingle();
 
   if (action === "in" && existing?.check_in_at) {
     return Response.json({
@@ -110,14 +125,6 @@ export async function POST(request: Request) {
       message: `${employee.name} sudah absen pulang hari ini jam ${new Date(existing.check_out_at).toLocaleTimeString("id-ID", { timeZone: REPORT_TIMEZONE, hour: "2-digit", minute: "2-digit" })}.`,
     });
   }
-
-  const { data: assignment } = await supabase
-    .from("employee_shift_assignments")
-    .select("shift_template_id, shift_templates(start_time, end_time)")
-    .eq("business_id", business.id)
-    .eq("employee_id", employeeId)
-    .eq("date", date)
-    .maybeSingle();
 
   const shift = assignment?.shift_templates as unknown as
     | { start_time: string; end_time: string }

@@ -6,6 +6,37 @@ type Employee = { id: string; name: string };
 type CheckinResult = { ok: boolean; message?: string; error?: string };
 type LocationStatus = "pending" | "ok" | "denied" | "unsupported";
 
+// Foto langsung dari kamera HP bisa beberapa MB — di jaringan outlet yang
+// lemot ini penyumbang terbesar lambatnya submit absen. Kompres ke JPEG
+// max 1000px sisi terpanjang sebelum upload (cukup buat verifikasi wajah,
+// biasanya turun ke puluhan-ratusan KB). Kalau browser tidak dukung
+// createImageBitmap/canvas (jarang), fallback ke file asli daripada gagal.
+async function compressPhoto(file: File, maxDim = 1000, quality = 0.75): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    let { width, height } = bitmap;
+    if (width > maxDim || height > maxDim) {
+      const scale = maxDim / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality),
+    );
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export default function CheckinClient({
   slug,
   businessName,
@@ -18,6 +49,7 @@ export default function CheckinClient({
   const [employeeId, setEmployeeId] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [pending, setPending] = useState<"in" | "out" | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,12 +74,15 @@ export default function CheckinClient({
     );
   }, []);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhoto(file);
-    setPreview(URL.createObjectURL(file));
     setResult(null);
+    setCompressing(true);
+    const compressed = await compressPhoto(file);
+    setCompressing(false);
+    setPhoto(compressed);
+    setPreview(URL.createObjectURL(compressed));
   }
 
   function resetPhoto() {
@@ -128,7 +163,12 @@ export default function CheckinClient({
 
       <div className="mt-4">
         <label className="mb-1 block text-xs font-medium text-zinc-600">Foto Selfie</label>
-        {preview ? (
+        {compressing ? (
+          <div className="flex aspect-[3/4] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 text-zinc-400">
+            <span className="text-3xl">⏳</span>
+            <span className="mt-2 text-xs font-medium">Memproses foto…</span>
+          </div>
+        ) : preview ? (
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -173,14 +213,14 @@ export default function CheckinClient({
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           onClick={() => handleSubmit("in")}
-          disabled={pending !== null}
+          disabled={pending !== null || compressing}
           className="rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending === "in" ? "Mengirim…" : "Absen Masuk"}
         </button>
         <button
           onClick={() => handleSubmit("out")}
-          disabled={pending !== null}
+          disabled={pending !== null || compressing}
           className="rounded-xl bg-zinc-800 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending === "out" ? "Mengirim…" : "Absen Pulang"}
