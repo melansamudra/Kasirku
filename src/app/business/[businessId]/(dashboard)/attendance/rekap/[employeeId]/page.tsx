@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { StatCard } from "@/components/ui/stat-card";
-import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
 import { setAttendance, setAttendanceLate, setAttendanceTime, type AttendanceStatus } from "../../actions";
 import AttendanceRow from "../../attendance-row";
 import { calcPayslip } from "../../../payroll/calc";
@@ -76,7 +74,14 @@ export default async function EmployeeAttendanceRekapPage({
 
   const supabase = await createClient();
 
-  const [{ data: employee }, { data: business }, { data: lateTierRows }] = await Promise.all([
+  const [
+    { data: employee },
+    { data: business },
+    { data: lateTierRows },
+    { data: advancesThisMonth },
+    { data: allAdvances },
+    { data: paidSlips },
+  ] = await Promise.all([
     supabase
       .from("employees")
       .select("id, name, salary_type, daily_rate, monthly_rate")
@@ -92,6 +97,28 @@ export default async function EmployeeAttendanceRekapPage({
       .from("late_deduction_tiers")
       .select("threshold_minutes, amount")
       .eq("business_id", businessId),
+    supabase
+      .from("employee_advances")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
+    // Sisa kasbon dihitung sama seperti getOutstandingKasbon di
+    // payroll/actions.ts (total diberikan - total sudah kepotong dari slip
+    // yang sudah dibayar) — dihitung ulang di sini karena fungsi itu tidak
+    // di-export, supaya angkanya tetap konsisten dengan Payroll.
+    supabase
+      .from("employee_advances")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId),
+    supabase
+      .from("payslips")
+      .select("kasbon_deduction")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .not("paid_at", "is", null),
   ]);
 
   if (!employee || !business) {
@@ -141,6 +168,11 @@ export default async function EmployeeAttendanceRekapPage({
 
   const totalPotongan = calc.izinDeduction + calc.lateDeduction;
 
+  const kasbonThisMonth = (advancesThisMonth ?? []).reduce((s, a) => s + Number(a.amount), 0);
+  const kasbonGivenAll = (allAdvances ?? []).reduce((s, a) => s + Number(a.amount), 0);
+  const kasbonSettledAll = (paidSlips ?? []).reduce((s, p) => s + Number(p.kasbon_deduction), 0);
+  const kasbonOutstanding = Math.max(0, kasbonGivenAll - kasbonSettledAll);
+
   return (
     <div className="w-full max-w-2xl">
       <div className="flex items-center justify-between gap-2 print:hidden">
@@ -159,42 +191,59 @@ export default async function EmployeeAttendanceRekapPage({
       </p>
       <p className="mt-0.5 hidden text-sm text-zinc-500 print:block">Slip Absensi {monthLabel(month)}</p>
 
-      <div className="mt-4 grid grid-cols-5 gap-2">
-        <StatCard label="Hadir" value={String(counts.hadir)} icon={CalendarCheck} tone="brand" />
-        <StatCard label="Izin" value={String(counts.izin)} icon={Clock} tone="amber" />
-        <StatCard label="Sakit" value={String(counts.sakit)} icon={Thermometer} tone="blue" />
-        <StatCard label="Alpa" value={String(counts.alpa)} icon={UserX} tone="red" />
-        <StatCard label="Off" value={String(counts.off)} icon={CalendarOff} tone="zinc" />
+      <div className="mt-3 grid grid-cols-5 gap-1.5 print:mt-2 print:gap-1">
+        {[
+          { label: "Hadir", value: counts.hadir, tone: "border-brand-200 bg-brand-50 text-brand-700" },
+          { label: "Izin", value: counts.izin, tone: "border-amber-200 bg-amber-50 text-amber-700" },
+          { label: "Sakit", value: counts.sakit, tone: "border-blue-200 bg-blue-50 text-blue-700" },
+          { label: "Alpa", value: counts.alpa, tone: "border-red-200 bg-red-50 text-red-700" },
+          { label: "Off", value: counts.off, tone: "border-zinc-200 bg-zinc-100 text-zinc-600" },
+        ].map((c) => (
+          <div
+            key={c.label}
+            className={`rounded-lg border px-1.5 py-1 text-center print:rounded print:py-0.5 ${c.tone}`}
+          >
+            <p className="text-[8.5px] font-semibold uppercase">{c.label}</p>
+            <p className="text-sm font-bold">{c.value}</p>
+          </div>
+        ))}
       </div>
 
       {lateCount > 0 && (
-        <p className="mt-2 text-xs font-medium text-amber-600">
+        <p className="mt-1.5 text-xs font-medium text-amber-600 print:mt-1">
           ⏰ {lateCount} kali tercatat terlambat bulan ini
         </p>
       )}
 
-      <div className="mt-2 grid grid-cols-2 gap-2 print:mt-1.5 print:gap-1.5">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 print:rounded-lg print:px-2 print:py-1">
-          <p className="text-[9px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
+      <div className="mt-2 grid grid-cols-3 gap-1.5 print:mt-1.5 print:gap-1">
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 print:py-0.5">
+          <p className="text-[8.5px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
           <p className="text-sm font-bold text-zinc-800">{formatJam(totalJamKerja)}</p>
         </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 print:rounded-lg print:px-2 print:py-1">
-          <p className="text-[9px] font-semibold uppercase text-red-600">Potongan (Izin + Telat)</p>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 print:py-0.5">
+          <p className="text-[8.5px] font-semibold uppercase text-red-600">Potongan (Izin+Telat)</p>
           <p className="text-sm font-bold text-red-600">{formatRupiah(totalPotongan)}</p>
+        </div>
+        <div className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 print:py-0.5">
+          <p className="text-[8.5px] font-semibold uppercase text-violet-700">Kasbon Bulan Ini</p>
+          <p className="text-sm font-bold text-violet-700">{formatRupiah(kasbonThisMonth)}</p>
+          {kasbonOutstanding > 0 && (
+            <p className="text-[8.5px] text-violet-600">Sisa: {formatRupiah(kasbonOutstanding)}</p>
+          )}
         </div>
       </div>
 
       {/* Ringkasan cetak per-hari -- versi polos tanpa tombol, hanya muncul
           saat print (lihat print:hidden di daftar interaktif di bawah). */}
-      <div className="mt-4 hidden overflow-hidden rounded-xl border border-zinc-200 print:block">
+      <div className="mt-3 hidden overflow-hidden rounded-xl border border-zinc-200 print:mt-2 print:block">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-[10px] uppercase text-zinc-500">
-              <th className="px-2 py-1.5">Tanggal</th>
-              <th className="px-2 py-1.5">Status</th>
-              <th className="px-2 py-1.5">Masuk</th>
-              <th className="px-2 py-1.5">Pulang</th>
-              <th className="px-2 py-1.5 text-right">Jam Kerja</th>
+              <th className="px-2 py-1 print:py-0.5">Tanggal</th>
+              <th className="px-2 py-1 print:py-0.5">Status</th>
+              <th className="px-2 py-1 print:py-0.5">Masuk</th>
+              <th className="px-2 py-1 print:py-0.5">Pulang</th>
+              <th className="px-2 py-1 print:py-0.5 text-right">Jam Kerja</th>
             </tr>
           </thead>
           <tbody>
@@ -206,11 +255,11 @@ export default async function EmployeeAttendanceRekapPage({
                   : null;
               return (
                 <tr key={dateStr} className="border-b border-zinc-100 last:border-0">
-                  <td className="px-2 py-1">{formatDayLabel(dateStr)}</td>
-                  <td className="px-2 py-1 capitalize">{row?.status ?? "—"}</td>
-                  <td className="px-2 py-1">{row?.check_in_at ? formatTime(row.check_in_at) : "—"}</td>
-                  <td className="px-2 py-1">{row?.check_out_at ? formatTime(row.check_out_at) : "—"}</td>
-                  <td className="px-2 py-1 text-right">{durasi !== null ? formatJam(durasi) : "—"}</td>
+                  <td className="px-2 py-0.5 print:py-px">{formatDayLabel(dateStr)}</td>
+                  <td className="px-2 py-0.5 print:py-px capitalize">{row?.status ?? "—"}</td>
+                  <td className="px-2 py-0.5 print:py-px">{row?.check_in_at ? formatTime(row.check_in_at) : "—"}</td>
+                  <td className="px-2 py-0.5 print:py-px">{row?.check_out_at ? formatTime(row.check_out_at) : "—"}</td>
+                  <td className="px-2 py-0.5 print:py-px text-right">{durasi !== null ? formatJam(durasi) : "—"}</td>
                 </tr>
               );
             })}
@@ -220,7 +269,11 @@ export default async function EmployeeAttendanceRekapPage({
           <p>Total Jam Kerja: <span className="font-semibold">{formatJam(totalJamKerja)}</span></p>
           <p>Terlambat: <span className="font-semibold">{lateCount} kali</span> (potongan {formatRupiah(calc.lateDeduction)})</p>
           <p>Potongan Izin: <span className="font-semibold">{formatRupiah(calc.izinDeduction)}</span></p>
-          <p className="mt-1 font-semibold">Total Potongan: {formatRupiah(totalPotongan)}</p>
+          <p className="font-semibold">Total Potongan: {formatRupiah(totalPotongan)}</p>
+          <p className="mt-1">Kasbon Bulan Ini: <span className="font-semibold">{formatRupiah(kasbonThisMonth)}</span></p>
+          {kasbonOutstanding > 0 && (
+            <p>Sisa Kasbon Belum Terpotong: <span className="font-semibold">{formatRupiah(kasbonOutstanding)}</span></p>
+          )}
         </div>
       </div>
 
