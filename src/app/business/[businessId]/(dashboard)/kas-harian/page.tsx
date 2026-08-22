@@ -89,10 +89,22 @@ export default async function KasHarianPage({
 
   const supabase = await createClient();
 
-  const [{ data: business }, { data: userData }] = await Promise.all([
+  const [{ data: business }, { data: userData }, { data: cashFormAccountRows }] = await Promise.all([
     supabase.from("businesses").select("id, name, owner_id, mirroring_enabled").eq("id", businessId).single(),
     supabase.auth.getUser(),
+    // 1-001 (Kas & Bank) dikeluarkan dari pilihan — tidak masuk akal jadi
+    // sisi lain transaksi kas masuk/keluar yang justru menyentuh Kas & Bank
+    // itu sendiri. 1-050 (suspense Kas Kecil) juga dikeluarkan supaya tidak
+    // tercampur dengan alur approval Kas Kecil yang terpisah.
+    supabase
+      .from("accounts")
+      .select("code, name")
+      .eq("business_id", businessId)
+      .neq("code", "1-001")
+      .neq("code", "1-050")
+      .order("code"),
   ]);
+  const cashFormAccounts = cashFormAccountRows ?? [];
 
   if (!business) {
     notFound();
@@ -388,7 +400,7 @@ export default async function KasHarianPage({
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">+ Catat Kas Masuk/Keluar</h2>
-        <AddCashForm businessId={businessId} today={todayWibDateString()} />
+        <AddCashForm businessId={businessId} today={todayWibDateString()} accounts={cashFormAccounts} />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">

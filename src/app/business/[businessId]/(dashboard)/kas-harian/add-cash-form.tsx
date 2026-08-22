@@ -3,25 +3,43 @@
 import { useState, useTransition } from "react";
 import { addCashIn, addCashOut } from "./actions";
 
-export default function AddCashForm({ businessId, today }: { businessId: string; today: string }) {
+type Account = { code: string; name: string };
+
+export default function AddCashForm({
+  businessId,
+  today,
+  accounts,
+}: {
+  businessId: string;
+  today: string;
+  accounts: Account[];
+}) {
   const [direction, setDirection] = useState<"in" | "out">("in");
   const [date, setDate] = useState(today);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [accountCode, setAccountCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handleSubmit() {
     setError(null);
+
+    if (!accountCode) {
+      setError("Pilih akun dulu.");
+      return;
+    }
+
     startTransition(async () => {
       const action = direction === "in" ? addCashIn : addCashOut;
-      const result = await action(businessId, date, description, Number(amount));
+      const result = await action(businessId, date, description, Number(amount), accountCode);
       if (result.error) {
         setError(result.error);
         return;
       }
       setDescription("");
       setAmount("");
+      setAccountCode("");
     });
   }
 
@@ -30,7 +48,10 @@ export default function AddCashForm({ businessId, today }: { businessId: string;
       <div className="flex gap-1.5">
         <button
           type="button"
-          onClick={() => setDirection("in")}
+          onClick={() => {
+            setDirection("in");
+            setAccountCode("");
+          }}
           className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
             direction === "in"
               ? "bg-brand-600 text-white"
@@ -41,7 +62,10 @@ export default function AddCashForm({ businessId, today }: { businessId: string;
         </button>
         <button
           type="button"
-          onClick={() => setDirection("out")}
+          onClick={() => {
+            setDirection("out");
+            setAccountCode("");
+          }}
           className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
             direction === "out"
               ? "bg-red-600 text-white"
@@ -50,6 +74,22 @@ export default function AddCashForm({ businessId, today }: { businessId: string;
         >
           ↑ Kas Keluar
         </button>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          {direction === "in" ? "Sumber Dana (akun lawan)" : "Kategori (akun beban/lawan)"}
+        </label>
+        <select
+          value={accountCode}
+          onChange={(e) => setAccountCode(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="" disabled>— Pilih akun —</option>
+          {accounts.map((a) => (
+            <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">

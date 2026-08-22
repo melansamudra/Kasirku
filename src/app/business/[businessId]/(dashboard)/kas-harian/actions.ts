@@ -12,6 +12,7 @@ async function postCashEntry(
   description: string,
   amount: number,
   direction: "in" | "out",
+  accountCode: string,
 ): Promise<CashEntryResult> {
   const trimmedDescription = description.trim();
   if (!trimmedDescription) {
@@ -23,6 +24,9 @@ async function postCashEntry(
   if (!amount || Number.isNaN(amount) || amount <= 0) {
     return { error: "Jumlah harus angka lebih dari 0." };
   }
+  if (!accountCode) {
+    return { error: "Akun wajib dipilih." };
+  }
 
   const supabase = await createClient();
 
@@ -30,10 +34,10 @@ async function postCashEntry(
     direction === "in"
       ? [
           { account_code: "1-001", debit: amount, credit: 0 },
-          { account_code: "4-999", debit: 0, credit: amount },
+          { account_code: accountCode, debit: 0, credit: amount },
         ]
       : [
-          { account_code: "5-999", debit: amount, credit: 0 },
+          { account_code: accountCode, debit: amount, credit: 0 },
           { account_code: "1-001", debit: 0, credit: amount },
         ];
 
@@ -67,8 +71,9 @@ export async function addCashIn(
   date: string,
   description: string,
   amount: number,
+  accountCode: string,
 ): Promise<CashEntryResult> {
-  return postCashEntry(businessId, date, description, amount, "in");
+  return postCashEntry(businessId, date, description, amount, "in", accountCode);
 }
 
 export async function addCashOut(
@@ -76,6 +81,7 @@ export async function addCashOut(
   date: string,
   description: string,
   amount: number,
+  accountCode: string,
 ): Promise<CashEntryResult> {
-  return postCashEntry(businessId, date, description, amount, "out");
+  return postCashEntry(businessId, date, description, amount, "out", accountCode);
 }
