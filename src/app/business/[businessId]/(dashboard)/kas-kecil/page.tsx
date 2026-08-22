@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PillBadge } from "@/components/ui/pill-badge";
+import { todayWibDateString } from "@/lib/wib";
+import { getPeriodRange } from "../reports/period";
 import MovementCard from "./movement-card";
 import AddExpenseQuickForm from "./add-expense-quick-form";
+import PettyCashAllocationForm from "./petty-cash-allocation-form";
 
 type MovementRow = {
   id: string;
@@ -49,7 +52,16 @@ export default async function KasKecilPage({
     notFound();
   }
 
-  const [{ data: pendingRows }, { data: historyRows }, { data: accountRows }] = await Promise.all([
+  const today = todayWibDateString();
+  const { fromIso: todayFromIso } = getPeriodRange("today");
+
+  const [
+    { data: pendingRows },
+    { data: historyRows },
+    { data: accountRows },
+    { data: allocationRows },
+    { data: todayNotaRows },
+  ] = await Promise.all([
     supabase
       .from("shift_cash_movements")
       .select(
@@ -75,12 +87,35 @@ export default async function KasKecilPage({
       .eq("business_id", businessId)
       .neq("code", "1-050")
       .order("code"),
+    supabase
+      .from("petty_cash_allocations")
+      .select("id, date, amount, note")
+      .eq("business_id", businessId)
+      .eq("date", today)
+      .order("created_at", { ascending: false }),
+    // "Rejected" berarti uangnya sudah dikembalikan ke kas — tidak lagi
+    // mengurangi petty cash yang sedang dipegang kasir, jadi dikeluarkan
+    // dari total nota hari ini.
+    supabase
+      .from("shift_cash_movements")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("direction", "out")
+      .neq("status", "rejected")
+      .gte("created_at", todayFromIso ?? `${today}T00:00:00+07:00`),
   ]);
 
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
   const history = (historyRows ?? []) as unknown as MovementRow[];
   const accounts = accountRows ?? [];
   const totalPending = pending.reduce((s, m) => s + Number(m.amount), 0);
+  const allocations = allocationRows ?? [];
+  const totalAllocatedToday = allocations.reduce((s, a) => s + Number(a.amount), 0);
+  const totalNotaToday = ((todayNotaRows ?? []) as unknown as { amount: number }[]).reduce(
+    (s, m) => s + Number(m.amount),
+    0,
+  );
+  const sisaPettyCashToday = totalAllocatedToday - totalNotaToday;
 
   return (
     <div className="w-full max-w-2xl">
@@ -89,6 +124,41 @@ export default async function KasKecilPage({
         Pengeluaran petty cash dari kasir menunggu diperiksa di sini sebelum masuk Laporan Laba
         Rugi — pilih akun yang sesuai, lalu Setujui atau Tolak.
       </p>
+
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Petty Cash Diberikan</h2>
+        <p className="mb-3 text-xs text-zinc-500">
+          Catatan saja (tidak masuk jurnal) — jumlah petty cash yang diberikan ke kasir, dipakai
+          buat mengecek nota yang masuk cocok atau tidak dengan uang yang dikembalikan kasir.
+        </p>
+        <PettyCashAllocationForm businessId={businessId} today={today} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase text-emerald-700">Diberikan Hari Ini</p>
+          <p className="text-base font-bold text-emerald-700">{formatRupiah(totalAllocatedToday)}</p>
+        </div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase text-red-600">Total Nota Hari Ini</p>
+          <p className="text-base font-bold text-red-600">{formatRupiah(totalNotaToday)}</p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Sisa Seharusnya</p>
+          <p className={`text-base font-bold ${sisaPettyCashToday < 0 ? "text-red-600" : "text-zinc-700"}`}>
+            {formatRupiah(sisaPettyCashToday)}
+          </p>
+        </div>
+      </div>
+      {allocations.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {allocations.map((a) => (
+            <p key={a.id} className="text-[11px] text-zinc-400">
+              + {formatRupiah(Number(a.amount))}{a.note ? ` — ${a.note}` : ""}
+            </p>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
         <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-amber-700">

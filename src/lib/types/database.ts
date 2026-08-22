@@ -1895,6 +1895,36 @@ export type Database = {
           },
         ];
       };
+      petty_cash_allocations: {
+        Row: {
+          id: string;
+          business_id: string;
+          date: string;
+          amount: number;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          date: string;
+          amount: number;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          date?: string;
+          amount?: number;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       purchase_requests: {
         Row: {
           id: string;

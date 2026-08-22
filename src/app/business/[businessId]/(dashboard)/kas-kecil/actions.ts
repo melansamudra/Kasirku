@@ -67,3 +67,42 @@ export async function addPettyCashExpense(
   revalidatePath(`/business/${businessId}/kas-harian`);
   return { error: null };
 }
+
+// Catatan "petty cash diberikan ke kasir" — murni pembanding buat
+// rekonsiliasi admin (petty cash diberikan vs total nota vs uang fisik yang
+// dikembalikan kasir), tidak posting ke jurnal apa pun. Kalau perpindahan
+// kasnya juga mau resmi tercatat di pembukuan, itu tetap lewat "Kas Masuk"
+// biasa — ini cuma angka pembanding di halaman Kas Kecil.
+export async function addPettyCashAllocation(
+  businessId: string,
+  date: string,
+  amount: number,
+  note?: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("petty_cash_allocations").insert({
+    business_id: businessId,
+    date,
+    amount,
+    note: note?.trim() || null,
+    created_by: user?.id ?? null,
+  });
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Petty cash dicatat",
+    `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""} (${date})`,
+  );
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { error: null };
+}
