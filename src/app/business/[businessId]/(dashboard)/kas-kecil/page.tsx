@@ -233,16 +233,14 @@ export default async function KasKecilPage({
         Laba Rugi (nota tunai) atau Pembelian & Hutang (nota hutang).
       </p>
 
-      {canVerify && (
-        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Petty Cash Diberikan</h2>
-          <p className="mb-3 text-xs text-zinc-500">
-            Catatan saja (tidak masuk jurnal) — jumlah petty cash yang diberikan ke kasir, dipakai
-            buat mengecek nota yang masuk cocok atau tidak dengan uang yang dikembalikan kasir.
-          </p>
-          <PettyCashAllocationForm businessId={businessId} today={today} />
-        </div>
-      )}
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Petty Cash Diberikan</h2>
+        <p className="mb-3 text-xs text-zinc-500">
+          Catatan saja (tidak masuk jurnal) — jumlah petty cash yang diterima kasir hari ini,
+          dipakai buat mengecek nota yang masuk cocok atau tidak dengan uang yang dikembalikan.
+        </p>
+        <PettyCashAllocationForm businessId={businessId} today={today} />
+      </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2.5">
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
