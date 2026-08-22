@@ -2,20 +2,48 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addPettyCashExpense } from "./actions";
+import { addPettyCashExpense, addSupplierDebtNoteAdmin } from "./actions";
 
-const CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku", "Lain-lain"];
+const TUNAI_CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku", "Lain-lain"];
+const HUTANG_CATEGORIES = ["Bahan Baku", "Bukan Bahan Baku"] as const;
 
-export default function AddExpenseQuickForm({ businessId }: { businessId: string }) {
+type Supplier = { id: string; name: string };
+
+export default function AddExpenseQuickForm({
+  businessId,
+  suppliers,
+}: {
+  businessId: string;
+  suppliers: Supplier[];
+}) {
   const router = useRouter();
+  const [mode, setMode] = useState<"tunai" | "hutang">("tunai");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState(TUNAI_CATEGORIES[0]);
+  const [supplierId, setSupplierId] = useState("");
+  const [supplierManual, setSupplierManual] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function resetFields() {
+    setAmount("");
+    setDescription("");
+    setCategory(mode === "tunai" ? TUNAI_CATEGORIES[0] : HUTANG_CATEGORIES[0]);
+    setSupplierId("");
+    setSupplierManual("");
+    setReceiptFile(null);
+    setReceiptPreview(null);
+  }
+
+  function handleModeChange(next: "tunai" | "hutang") {
+    setMode(next);
+    setCategory(next === "tunai" ? TUNAI_CATEGORIES[0] : HUTANG_CATEGORIES[0]);
+    setError(null);
+  }
 
   function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -40,8 +68,12 @@ export default function AddExpenseQuickForm({ businessId }: { businessId: string
       setError("Jumlah harus angka lebih dari 0.");
       return;
     }
-    if (!description.trim()) {
+    if (mode === "tunai" && !description.trim()) {
       setError("Keterangan wajib diisi.");
+      return;
+    }
+    if (mode === "hutang" && !supplierId && !supplierManual.trim()) {
+      setError("Pilih supplier atau ketik nama supplier.");
       return;
     }
 
@@ -64,7 +96,18 @@ export default function AddExpenseQuickForm({ businessId }: { businessId: string
       receiptUrl = json.url;
     }
 
-    const result = await addPettyCashExpense(businessId, amountNum, description.trim(), category, receiptUrl);
+    const result =
+      mode === "tunai"
+        ? await addPettyCashExpense(businessId, amountNum, description.trim(), category, receiptUrl)
+        : await addSupplierDebtNoteAdmin(
+            businessId,
+            supplierId || null,
+            supplierId ? null : supplierManual.trim(),
+            category as (typeof HUTANG_CATEGORIES)[number],
+            amountNum,
+            description.trim() || null,
+            receiptUrl,
+          );
     setPending(false);
 
     if (result.error) {
@@ -72,16 +115,66 @@ export default function AddExpenseQuickForm({ businessId }: { businessId: string
       return;
     }
 
-    setAmount("");
-    setDescription("");
-    setCategory(CATEGORIES[0]);
-    setReceiptFile(null);
-    setReceiptPreview(null);
+    resetFields();
     router.refresh();
   }
 
   return (
     <div className="space-y-3">
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => handleModeChange("tunai")}
+          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+            mode === "tunai" ? "bg-red-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          Nota Tunai
+        </button>
+        <button
+          type="button"
+          onClick={() => handleModeChange("hutang")}
+          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+            mode === "hutang" ? "bg-red-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          Nota Hutang
+        </button>
+      </div>
+      <p className="text-[11px] text-zinc-400">
+        {mode === "tunai"
+          ? "Uang keluar tunai — mengurangi petty cash, menunggu admin pilih akun."
+          : "Belum dibayar — tidak mengurangi petty cash, menunggu diverifikasi lalu dialihkan ke Pembelian & Hutang."}
+      </p>
+
+      {mode === "hutang" && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Supplier</label>
+          <select
+            value={supplierId}
+            onChange={(e) => {
+              setSupplierId(e.target.value);
+              if (e.target.value) setSupplierManual("");
+            }}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">— Pilih supplier —</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          {!supplierId && (
+            <input
+              type="text"
+              value={supplierManual}
+              onChange={(e) => setSupplierManual(e.target.value)}
+              placeholder="Belum ada di daftar? Ketik nama supplier"
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2.5">
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Jumlah (Rp)</label>
@@ -101,7 +194,7 @@ export default function AddExpenseQuickForm({ businessId }: { businessId: string
             onChange={(e) => setCategory(e.target.value)}
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           >
-            {CATEGORIES.map((c) => (
+            {(mode === "tunai" ? TUNAI_CATEGORIES : HUTANG_CATEGORIES).map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
@@ -109,12 +202,14 @@ export default function AddExpenseQuickForm({ businessId }: { businessId: string
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Keterangan</label>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">
+          Keterangan{mode === "hutang" ? " (opsional)" : ""}
+        </label>
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="mis. Nota supplier ayam — CV Sumber Rejeki"
+          placeholder={mode === "tunai" ? "mis. Beli galon & kopi kantor" : "mis. Ayam potong 20kg"}
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
@@ -146,7 +241,7 @@ export default function AddExpenseQuickForm({ businessId }: { businessId: string
         disabled={pending || uploading}
         className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {uploading ? "Mengupload nota…" : pending ? "Menyimpan…" : "+ Catat Pengeluaran"}
+        {uploading ? "Mengupload nota…" : pending ? "Menyimpan…" : mode === "tunai" ? "+ Catat Nota Tunai" : "+ Catat Nota Hutang"}
       </button>
     </div>
   );

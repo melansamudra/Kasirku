@@ -79,6 +79,7 @@ export default async function KasKecilPage({
     { data: todayNotaRows },
     { data: debtNotePendingRows },
     { data: debtNoteHistoryRows },
+    { data: supplierRows },
   ] = await Promise.all([
     supabase
       .from("shift_cash_movements")
@@ -138,6 +139,12 @@ export default async function KasKecilPage({
       .eq("status", "verified")
       .order("verified_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("suppliers")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
   ]);
 
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
@@ -153,13 +160,14 @@ export default async function KasKecilPage({
   const sisaPettyCashToday = totalAllocatedToday - totalNotaToday;
   const debtNotesPending = (debtNotePendingRows ?? []) as unknown as DebtNoteRow[];
   const debtNotesHistory = (debtNoteHistoryRows ?? []) as unknown as DebtNoteRow[];
+  const suppliers = supplierRows ?? [];
 
   return (
     <div className="w-full max-w-2xl">
       <h1 className="text-lg font-bold text-zinc-900">Kas Kecil — {business.name}</h1>
       <p className="mt-0.5 text-xs text-zinc-500">
-        Pengeluaran petty cash dari kasir menunggu diperiksa di sini sebelum masuk Laporan Laba
-        Rugi — pilih akun yang sesuai, lalu Setujui atau Tolak.
+        Semua nota (tunai maupun hutang) dicatat di sini, menunggu diperiksa sebelum masuk Laporan
+        Laba Rugi (nota tunai) atau Pembelian & Hutang (nota hutang).
       </p>
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
@@ -206,12 +214,12 @@ export default async function KasKecilPage({
       </div>
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Nota Supplier / Pengeluaran Langsung</h2>
+        <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Catat Nota</h2>
         <p className="mb-3 text-xs text-zinc-500">
-          Untuk nota yang datang langsung ke admin (bukan dari kasir) — tetap masuk antrian di
-          bawah untuk ditandai akunnya.
+          Pilih Tunai kalau uangnya sudah keluar dari petty cash, atau Hutang kalau nota supplier
+          belum dibayar.
         </p>
-        <AddExpenseQuickForm businessId={businessId} />
+        <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} />
       </div>
 
       <div className="mt-4 space-y-2">

@@ -107,6 +107,51 @@ export async function addPettyCashAllocation(
   return { error: null };
 }
 
+// Input Nota Hutang dari admin (bukan kasir — kasir sudah tidak punya jalur
+// input di POS, semua lewat halaman ini). Insert biasa, sama seperti
+// addPettyCashAllocation — tidak posting ke jurnal apa pun, murni catatan
+// menunggu diverifikasi lalu dialihkan ke Pembelian & Hutang.
+export async function addSupplierDebtNoteAdmin(
+  businessId: string,
+  supplierId: string | null,
+  supplierNameManual: string | null,
+  category: "Bahan Baku" | "Bukan Bahan Baku",
+  amount: number,
+  note: string | null,
+  receiptUrl: string | null,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("supplier_debt_notes").insert({
+    business_id: businessId,
+    supplier_id: supplierId,
+    supplier_name_manual: supplierNameManual,
+    category,
+    amount,
+    note,
+    receipt_url: receiptUrl,
+    origin: "admin",
+    created_by_user_id: user?.id ?? null,
+  });
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    `Nota Hutang dicatat: ${supplierNameManual ?? "supplier terdaftar"}`,
+    `Rp${amount.toLocaleString("id-ID")} · ${category}`,
+  );
+
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { error: null };
+}
+
 export async function verifySupplierDebtNote(businessId: string, noteId: string): Promise<ActionState> {
   const supabase = await createClient();
   const {
