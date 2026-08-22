@@ -262,6 +262,14 @@ export default async function KasHarianPage({
     .reduce((s, l) => s + Number(l.credit), 0);
   const totalPendingPettyCash = pendingPettyCashLines.reduce((s, l) => s + Number(l.credit), 0);
 
+  // Penjualan tetap terhitung di kartu KAS MASUK di atas, tapi sengaja tidak
+  // dirinci satu-per-satu di "Riwayat Kas" — itu murni duplikat Riwayat
+  // Transaksi (yang detailnya lebih lengkap: item, metode bayar, dll) dan
+  // bikin daftar ini kepanjangan untuk toko yang ramai. Toggle mirror per
+  // baris juga sudah ada versinya sendiri di Riwayat Transaksi, jadi
+  // menampilkannya lagi di sini cuma duplikat kontrol yang sama.
+  const displayLines = nonVoidLines.filter((l) => l.journal_entries.source !== "penjualan");
+
   const renderCashRow = (l: CashLine) => {
     const isMasuk = Number(l.debit) > 0;
     const movement = shiftMovementByEntryId.get(l.journal_entries.id);
@@ -406,9 +414,13 @@ export default async function KasHarianPage({
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3">
           <h2 className="text-sm font-bold text-zinc-900">Riwayat Kas</h2>
+          <p className="mt-0.5 text-[11px] text-zinc-400">
+            Penjualan tidak dirinci di sini (tetap terhitung di kartu Kas Masuk) — cek detailnya di
+            Riwayat Transaksi.
+          </p>
         </div>
-        {nonVoidLines.length > 0 ? (
-          <div className="divide-y divide-zinc-100">{nonVoidLines.map(renderCashRow)}</div>
+        {displayLines.length > 0 ? (
+          <div className="divide-y divide-zinc-100">{displayLines.map(renderCashRow)}</div>
         ) : (
           <p className="py-10 text-center text-sm text-zinc-300">Belum ada transaksi kas di periode ini</p>
         )}
