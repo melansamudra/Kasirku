@@ -150,13 +150,19 @@ export default async function KasHarianPage({
       );
   }
 
-  // Kas keluar/masuk yang dicatat kasir lewat "Kas Masuk/Keluar" di POS
-  // (source='shift') bisa dilampiri kategori + foto nota — ambil metadatanya
-  // di sini supaya bisa ditampilkan di baris riwayat kas.
+  // Kas masuk/keluar dari Kas Kecil bisa dilampiri kategori + foto nota —
+  // ambil metadatanya di sini supaya bisa ditampilkan di baris riwayat kas
+  // DAN supaya bisa disaring kalau masih pending (lihat isPendingPettyCash
+  // di bawah). Dua source: 'shift' (asal kasir, post_shift_cash_movement)
+  // dan 'kas_kecil' (asal admin/nota tunai langsung, post_petty_cash_expense
+  // — SEBELUMNYA source ini kelewat di sini, jadi nota tunai admin yang
+  // masih "Menunggu Admin" salah tampil sebagai Kas Keluar resmi).
   const shiftEntryIds = Array.from(
     new Set(
       lines
-        .filter((l) => l.journal_entries.source === "shift")
+        .filter(
+          (l) => l.journal_entries.source === "shift" || l.journal_entries.source === "kas_kecil",
+        )
         .map((l) => l.journal_entries.id),
     ),
   );
