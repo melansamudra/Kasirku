@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertBusinessAccess } from "@/lib/route-auth";
+import { fetchAllRows } from "@/lib/pagination";
 import { toCsv } from "@/lib/csv";
 
 const HEADER = [
@@ -27,22 +28,40 @@ export async function GET(
 
   const supabase = await createClient();
 
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select(
-      "invoice_number, date, subtotal, total_item_disc, order_disc_amt, service, tax, total, voided, cashiers!transactions_cashier_id_fkey(name), customers(name), transaction_payments(method)",
-    )
-    .eq("business_id", businessId)
-    .order("date", { ascending: false });
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const transactions = await fetchAllRows<{
+    invoice_number: string;
+    date: string;
+    subtotal: number;
+    total_item_disc: number;
+    order_disc_amt: number;
+    service: number;
+    tax: number;
+    total: number;
+    voided: boolean;
+    cashiers: { name: string } | null;
+    customers: { name: string } | null;
+    transaction_payments: { method: string }[];
+  }>((rangeFrom, rangeTo) =>
+    supabase
+      .from("transactions")
+      .select(
+        "invoice_number, date, subtotal, total_item_disc, order_disc_amt, service, tax, total, voided, cashiers!transactions_cashier_id_fkey(name), customers(name), transaction_payments(method)",
+      )
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .range(rangeFrom, rangeTo),
+  );
 
   const rows: (string | number)[][] = [HEADER];
-  for (const t of transactions ?? []) {
+  for (const t of transactions) {
     rows.push([
       t.invoice_number,
       new Date(t.date).toLocaleString("id-ID"),
-      (t.cashiers as unknown as { name: string } | null)?.name ?? "",
-      (t.customers as unknown as { name: string } | null)?.name ?? "",
-      t.transaction_payments?.[0]?.method ?? "",
+      t.cashiers?.name ?? "",
+      t.customers?.name ?? "",
+      t.transaction_payments[0]?.method ?? "",
       Number(t.subtotal),
       Number(t.total_item_disc),
       Number(t.order_disc_amt),

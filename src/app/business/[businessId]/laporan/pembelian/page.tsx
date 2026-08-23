@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/pagination";
 
 function formatRupiah(v: number) {
   return `Rp${Math.round(v).toLocaleString("id-ID")}`;
@@ -44,11 +45,26 @@ export default async function MirrorPembelianPage({
 
   if (!p.show_purchases) notFound();
 
-  const { data: rows } = await service
-    .from("purchases")
-    .select("id, date, category, note, amount, paid_amount, suppliers(name)")
-    .eq("business_id", businessId)
-    .order("date", { ascending: false });
+  type RawPurchaseRow = {
+    id: string;
+    date: string;
+    category: string;
+    note: string | null;
+    amount: number;
+    paid_amount: number;
+    suppliers: { name: string } | null;
+  };
+
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const rows = await fetchAllRows<RawPurchaseRow>((rangeFrom, rangeTo) =>
+    service
+      .from("purchases")
+      .select("id, date, category, note, amount, paid_amount, suppliers(name)")
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .range(rangeFrom, rangeTo),
+  );
 
   type PurchaseRow = {
     id: string;
@@ -60,14 +76,14 @@ export default async function MirrorPembelianPage({
     supplier_name: string | null;
   };
 
-  const purchases: PurchaseRow[] = (rows ?? []).map((r) => ({
+  const purchases: PurchaseRow[] = rows.map((r) => ({
     id: r.id,
     date: r.date,
     category: r.category,
     note: r.note,
     amount: Number(r.amount),
     paid_amount: Number(r.paid_amount),
-    supplier_name: (r.suppliers as unknown as { name: string } | null)?.name ?? null,
+    supplier_name: r.suppliers?.name ?? null,
   }));
 
   const totalPurchase = purchases.reduce((s, r) => s + r.amount, 0);

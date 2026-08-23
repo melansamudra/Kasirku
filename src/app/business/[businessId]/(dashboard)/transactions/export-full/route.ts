@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertBusinessAccess } from "@/lib/route-auth";
+import { fetchAllRows } from "@/lib/pagination";
 import { toCsv } from "@/lib/csv";
 
 // Format kolom sama persis dengan format impor sehingga file ini bisa
@@ -16,23 +17,36 @@ export async function GET(
 
   const supabase = await createClient();
 
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select(
-      "invoice_number, date, voided, customers(name), transaction_payments(method), transaction_items(name, qty)",
-    )
-    .eq("business_id", businessId)
-    .eq("voided", false)
-    .order("date", { ascending: false });
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts)
+  // -- fitur ini namanya "export-full", jadi wajib benar-benar lengkap.
+  const transactions = await fetchAllRows<{
+    invoice_number: string;
+    date: string;
+    voided: boolean;
+    customers: { name: string } | null;
+    transaction_payments: { method: string }[];
+    transaction_items: { name: string; qty: number }[];
+  }>((rangeFrom, rangeTo) =>
+    supabase
+      .from("transactions")
+      .select(
+        "invoice_number, date, voided, customers(name), transaction_payments(method), transaction_items(name, qty)",
+      )
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .order("date", { ascending: false })
+      .range(rangeFrom, rangeTo),
+  );
 
   const rows: (string | number)[][] = [HEADER];
 
-  for (const t of transactions ?? []) {
+  for (const t of transactions) {
     const reference = t.invoice_number;
     const date = new Date(t.date).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-    const paymentMethod = (t.transaction_payments as { method: string }[])?.[0]?.method ?? "";
-    const customerName = (t.customers as unknown as { name: string } | null)?.name ?? "";
-    const items = (t.transaction_items as { name: string; qty: number }[]) ?? [];
+    const paymentMethod = t.transaction_payments[0]?.method ?? "";
+    const customerName = t.customers?.name ?? "";
+    const items = t.transaction_items;
 
     for (const item of items) {
       rows.push([reference, date, item.name, Number(item.qty), paymentMethod, customerName]);

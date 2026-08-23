@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
 import { assertBusinessAccess } from "@/lib/route-auth";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchAllRows } from "@/lib/pagination";
 import { PERIOD_DESCRIPTIONS, getPeriodRange, parsePeriod } from "../reports/period";
 
 type JournalLine = { debit: number; credit: number; account_id: string };
@@ -42,23 +43,37 @@ export async function GET(
   const accountById = new Map(accountRows.map((a) => [a.id, a]));
 
   // Jurnal — dibatasi periode yang dipilih, sama seperti accounting/jurnal.
-  let entryQuery = supabase
-    .from("journal_entries")
-    .select("date, description, source, journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .order("date", { ascending: true });
-  if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
-  if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-  const { data: periodEntries } = await entryQuery;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts)
+  // -- export ini dimaksudkan buat diserahkan ke akuntan, jadi harus lengkap.
+  const periodEntries = await fetchAllRows<{
+    date: string;
+    description: string;
+    source: string;
+    journal_lines: JournalLine[];
+  }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("journal_entries")
+      .select("date, description, source, journal_lines(debit, credit, account_id)")
+      .eq("business_id", businessId)
+      .order("date", { ascending: true })
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
   // Neraca — selalu per hari ini (posisi keuangan terkini), lepas dari filter
   // periode Jurnal/Laba Rugi di atas — sama seperti default accounting/neraca.
   const todayIso = `${todayWibDateString()}T23:59:59+07:00`;
-  const { data: allEntriesToDate } = await supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .lte("date", todayIso);
+  const allEntriesToDate = await fetchAllRows<{ journal_lines: JournalLine[] }>((rangeFrom, rangeTo) =>
+    supabase
+      .from("journal_entries")
+      .select("journal_lines(debit, credit, account_id)")
+      .eq("business_id", businessId)
+      .lte("date", todayIso)
+      .range(rangeFrom, rangeTo),
+  );
 
   function sumBalances(entries: { journal_lines: JournalLine[] }[]) {
     const balanceByAccount = new Map<string, number>();
@@ -71,12 +86,8 @@ export async function GET(
     return balanceByAccount;
   }
 
-  const periodBalances = sumBalances(
-    (periodEntries ?? []) as unknown as { journal_lines: JournalLine[] }[],
-  );
-  const nowBalances = sumBalances(
-    (allEntriesToDate ?? []) as unknown as { journal_lines: JournalLine[] }[],
-  );
+  const periodBalances = sumBalances(periodEntries);
+  const nowBalances = sumBalances(allEntriesToDate);
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "KasirKu";
@@ -95,8 +106,8 @@ export async function GET(
   const jurnalSheet = workbook.addWorksheet("Jurnal Transaksi");
   jurnalSheet.addRow(["Tanggal", "Keterangan", "Sumber", "Kode Akun", "Nama Akun", "Debit", "Kredit"]);
   jurnalSheet.getRow(1).font = { bold: true };
-  for (const e of periodEntries ?? []) {
-    const lines = e.journal_lines as unknown as JournalLine[];
+  for (const e of periodEntries) {
+    const lines = e.journal_lines;
     for (const l of lines) {
       const account = accountById.get(l.account_id);
       jurnalSheet.addRow([

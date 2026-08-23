@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { addSupplier, editSupplier } from "./actions";
 import AddSupplierForm from "./add-supplier-form";
 import EditSupplierForm from "./edit-supplier-form";
@@ -35,13 +36,19 @@ export default async function SuppliersPage({
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
-  const { data: purchases } = await supabase
-    .from("purchases")
-    .select("supplier_id, amount, paid_amount")
-    .eq("business_id", businessId);
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const purchases = await fetchAllRows<{ supplier_id: string | null; amount: number; paid_amount: number }>(
+    (rangeFrom, rangeTo) =>
+      supabase
+        .from("purchases")
+        .select("supplier_id, amount, paid_amount")
+        .eq("business_id", businessId)
+        .range(rangeFrom, rangeTo),
+  );
 
   const utangBySupplier = new Map<string, number>();
-  for (const p of purchases ?? []) {
+  for (const p of purchases) {
     if (!p.supplier_id) continue;
     const sisa = Number(p.amount) - Number(p.paid_amount);
     utangBySupplier.set(p.supplier_id, (utangBySupplier.get(p.supplier_id) ?? 0) + sisa);
