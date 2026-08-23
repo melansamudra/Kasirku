@@ -57,6 +57,7 @@ type CashLine = {
 
 type ShiftCashMovementMeta = {
   journal_entry_id: string;
+  reclass_journal_entry_id: string | null;
   category: string | null;
   receipt_url: string | null;
   direction: "in" | "out";
@@ -182,11 +183,22 @@ export default async function KasHarianPage({
     shiftEntryIds.length > 0
       ? await supabase
           .from("shift_cash_movements")
-          .select("journal_entry_id, category, receipt_url, direction, status")
+          .select("journal_entry_id, reclass_journal_entry_id, category, receipt_url, direction, status")
           .in("journal_entry_id", shiftEntryIds)
       : { data: [] as ShiftCashMovementMeta[] };
   const shiftMovementByEntryId = new Map(
     (shiftMovements ?? []).map((m) => [m.journal_entry_id, m as ShiftCashMovementMeta]),
+  );
+  // Sisi pembalikan (kredit->debit balik) dari kas kecil yang ditolak punya
+  // journal_entry_id SENDIRI (beda dari entri aslinya) -- shift_cash_movements
+  // tidak nunjuk balik ke situ lewat journal_entry_id, cuma lewat
+  // reclass_journal_entry_id. Perlu peta terpisah biar baris pembalikannya
+  // ikut kesaring di isRejectedPettyCash di bawah, bukan nongol polos sebagai
+  // "+Rp831.000" tanpa keterangan.
+  const rejectedReversalEntryIds = new Set(
+    (shiftMovements ?? [])
+      .filter((m) => m.status === "rejected" && m.reclass_journal_entry_id)
+      .map((m) => m.reclass_journal_entry_id as string),
   );
 
   const isOwner = business?.owner_id === userData.user?.id;
@@ -247,13 +259,29 @@ export default async function KasHarianPage({
     return !!m && m.direction === "out" && m.status === "pending";
   };
 
+  // Kas kecil yang ditolak admin sudah otomatis dibalik jurnalnya (entri
+  // aslinya -Rpxxx, entri pembalikannya "Tolak kas kecil: ..." +Rpxxx, net
+  // efeknya 0 -- tidak ada uang yang beneran keluar). Tapi keduanya tetap
+  // muncul sebagai 2 baris terpisah di Riwayat Kas kalau tidak disaring,
+  // bikin kelihatan seolah ada Rpxxx kas keluar padahal ditolak. Sama pola
+  // dengan void: disaring dari Kas Masuk/Keluar biasa, ditampilkan sendiri.
+  const isRejectedPettyCash = (l: CashLine) => {
+    const m = shiftMovementByEntryId.get(l.journal_entries.id);
+    return (m?.status === "rejected") || rejectedReversalEntryIds.has(l.journal_entries.id);
+  };
+
   // Void adalah pembalikan penjualan (koreksi omset), bukan beban usaha —
   // dipisah dari Kas Keluar/Kas Masuk biasa supaya keduanya mencerminkan
   // pergerakan kas yang masih berlaku, bukan tercampur dengan transaksi
   // yang dibatalkan.
   const voidLines = lines.filter(isVoidRelated);
   const pendingPettyCashLines = lines.filter((l) => !isVoidRelated(l) && isPendingPettyCash(l));
-  const nonVoidLines = lines.filter((l) => !isVoidRelated(l) && !isPendingPettyCash(l));
+  const rejectedPettyCashLines = lines.filter(
+    (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && isRejectedPettyCash(l),
+  );
+  const nonVoidLines = lines.filter(
+    (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && !isRejectedPettyCash(l),
+  );
 
   const totalMasuk = nonVoidLines.reduce((s, l) => s + Number(l.debit), 0);
   const totalKeluar = nonVoidLines.reduce((s, l) => s + Number(l.credit), 0);
@@ -261,6 +289,9 @@ export default async function KasHarianPage({
     .filter((l) => l.journal_entries.source === "void")
     .reduce((s, l) => s + Number(l.credit), 0);
   const totalPendingPettyCash = pendingPettyCashLines.reduce((s, l) => s + Number(l.credit), 0);
+  const totalDitolak = rejectedPettyCashLines
+    .filter((l) => Number(l.credit) > 0)
+    .reduce((s, l) => s + Number(l.credit), 0);
 
   // Penjualan tetap terhitung di kartu KAS MASUK di atas, tapi sengaja tidak
   // dirinci satu-per-satu di "Riwayat Kas" — itu murni duplikat Riwayat
@@ -406,6 +437,19 @@ export default async function KasHarianPage({
         </div>
       )}
 
+      {rejectedPettyCashLines.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-500">
+            Kas Kecil Ditolak
+          </p>
+          <p className="text-xl font-bold text-zinc-600">{formatRupiah(totalDitolak)}</p>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            Pengeluaran yang ditolak admin — uangnya otomatis kembali, tidak ikut dihitung di Kas
+            Masuk/Keluar di atas. Rinciannya di &quot;Riwayat Ditolak&quot; di bawah.
+          </p>
+        </div>
+      )}
+
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">+ Catat Kas Masuk/Keluar</h2>
         <AddCashForm businessId={businessId} today={todayWibDateString()} accounts={cashFormAccounts} />
@@ -436,6 +480,19 @@ export default async function KasHarianPage({
             </p>
           </div>
           <div className="divide-y divide-zinc-100">{voidLines.map(renderCashRow)}</div>
+        </div>
+      )}
+
+      {rejectedPettyCashLines.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+            <h2 className="text-sm font-bold text-zinc-700">Riwayat Ditolak</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              Pengeluaran kas kecil yang ditolak admin (pengajuan asli + pembalikannya) — dikeluarkan
+              dari Kas Masuk/Keluar di atas karena tidak ada uang yang beneran keluar.
+            </p>
+          </div>
+          <div className="divide-y divide-zinc-100">{rejectedPettyCashLines.map(renderCashRow)}</div>
         </div>
       )}
     </div>
