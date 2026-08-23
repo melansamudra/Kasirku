@@ -157,8 +157,16 @@ export default async function ReportsHarianPage({
   // Kas keluar yang beneran berlaku (void/pending/ditolak/transfer-antar-
   // rekening sudah dikecualikan oleh fetchKasBankLines) -- dipisah Tunai vs
   // Transfer dari payment_method (null diperlakukan tunai, sesuai konvensi
-  // Kas Kecil yang memang selalu kas fisik).
-  const kasKeluarLines = kasBank.displayLines.filter((l) => Number(l.credit) > 0);
+  // Kas Kecil yang memang selalu kas fisik). Kasbon (kategori "Kasbon" di
+  // shift_cash_movements) DIKECUALIKAN dari Pengeluaran -- kas fisik memang
+  // keluar dari laci, tapi secara akuntansi itu piutang karyawan (1-060,
+  // ditagih balik lewat potongan gaji), bukan beban yang boleh mengurangi
+  // Laba Bersih. Beda dengan Kas & Bank (kas-harian/page.tsx) yang memang
+  // menampilkan pergerakan kas fisik apa adanya, laporan ini P&L-style jadi
+  // harus ikut definisi akuntansi, bukan cuma "uang keluar dari laci".
+  const kasKeluarLines = kasBank.displayLines.filter(
+    (l) => Number(l.credit) > 0 && kasBank.movementByEntryId.get(l.journal_entries.id)?.category !== "Kasbon",
+  );
 
   const dayMap = new Map<string, DayData>();
   function ensure(key: string): DayData {
