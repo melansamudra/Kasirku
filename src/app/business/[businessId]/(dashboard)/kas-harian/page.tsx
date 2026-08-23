@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchAllRows } from "@/lib/pagination";
+import { fetchKasBankLines, type KasBankLine } from "@/lib/kas-bank";
 import MirrorKasToggle from "./mirror-kas-toggle";
 import {
   PERIOD_COOKIE_NAME,
@@ -48,28 +49,14 @@ function formatDate(iso: string) {
   });
 }
 
-type CashLine = {
-  id: string;
-  debit: number;
-  credit: number;
-  journal_entries: { id: string; date: string; description: string; source: string; source_id: string | null };
-};
+type CashLine = KasBankLine;
 
-type ShiftCashMovementMeta = {
-  journal_entry_id: string;
-  reclass_journal_entry_id: string | null;
-  category: string | null;
-  receipt_url: string | null;
-  direction: "in" | "out";
-  status: "pending" | "posted" | "rejected";
-};
-
-const STATUS_LABEL: Record<ShiftCashMovementMeta["status"], string> = {
+const STATUS_LABEL: Record<"pending" | "posted" | "rejected", string> = {
   pending: "Menunggu Admin",
   posted: "Disetujui",
   rejected: "Ditolak",
 };
-const STATUS_TONE: Record<ShiftCashMovementMeta["status"], "amber" | "green" | "red"> = {
+const STATUS_TONE: Record<"pending" | "posted" | "rejected", "amber" | "green" | "red"> = {
   pending: "amber",
   posted: "green",
   rejected: "red",
@@ -117,95 +104,15 @@ export default async function KasHarianPage({
     notFound();
   }
 
-  const { data: kasAccount } = await supabase
-    .from("accounts")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("code", "1-001")
-    .single();
-
-  // Sebuah jurnal manual yang sudah dibatalkan lewat "↩ Koreksi" (lihat halaman
-  // Jurnal Transaksi) plus jurnal koreksi-nya sendiri secara matematis saling
-  // meniadakan (net 0) — keduanya tetap muncul di Jurnal Transaksi sebagai
-  // jejak audit, tapi di sini (ringkasan kas harian untuk pemilik toko yang
-  // bukan akuntan) itu cuma bikin bingung: seolah ada uang masuk/keluar
-  // padahal transaksinya sudah dianulir. Disaring biar Kas Harian cuma
-  // menampilkan pergerakan kas yang benar-benar masih berlaku.
-  const { data: reversals } = await supabase
-    .from("journal_entries")
-    .select("source_id")
-    .eq("business_id", businessId)
-    .eq("source", "koreksi");
-  const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
-
-  let lines: CashLine[] = [];
-  if (kasAccount) {
-    // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
-    // tidak di-paginate — toko dengan riwayat kas (termasuk impor Moka) lebih
-    // dari 1000 baris per periode kehilangan sisanya tanpa ada error, bikin
-    // Kas Masuk/Keluar under-count dan tidak sinkron dengan Laporan. Lihat
-    // lib/pagination.ts.
-    const rawLines = await fetchAllRows<unknown>((rangeFrom, rangeTo) => {
-      let q = supabase
-        .from("journal_lines")
-        .select("id, debit, credit, journal_entries!inner(id, date, description, source, source_id, business_id)")
-        .eq("account_id", kasAccount.id)
-        .eq("journal_entries.business_id", businessId)
-        .order("id", { ascending: true })
-        .range(rangeFrom, rangeTo);
-      if (fromIso) q = q.gte("journal_entries.date", fromIso);
-      if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
-      return q;
-    });
-    lines = (rawLines as CashLine[])
-      .filter(
-        (l) =>
-          l.journal_entries.source !== "koreksi" &&
-          !reversedEntryIds.has(l.journal_entries.id),
-      )
-      .slice()
-      .sort(
-        (a, b) => new Date(b.journal_entries.date).getTime() - new Date(a.journal_entries.date).getTime(),
-      );
-  }
-
-  // Kas masuk/keluar dari Kas Kecil bisa dilampiri kategori + foto nota —
-  // ambil metadatanya di sini supaya bisa ditampilkan di baris riwayat kas
-  // DAN supaya bisa disaring kalau masih pending (lihat isPendingPettyCash
-  // di bawah). Dua source: 'shift' (asal kasir, post_shift_cash_movement)
-  // dan 'kas_kecil' (asal admin/nota tunai langsung, post_petty_cash_expense
-  // — SEBELUMNYA source ini kelewat di sini, jadi nota tunai admin yang
-  // masih "Menunggu Admin" salah tampil sebagai Kas Keluar resmi).
-  const shiftEntryIds = Array.from(
-    new Set(
-      lines
-        .filter(
-          (l) => l.journal_entries.source === "shift" || l.journal_entries.source === "kas_kecil",
-        )
-        .map((l) => l.journal_entries.id),
-    ),
-  );
-  const { data: shiftMovements } =
-    shiftEntryIds.length > 0
-      ? await supabase
-          .from("shift_cash_movements")
-          .select("journal_entry_id, reclass_journal_entry_id, category, receipt_url, direction, status")
-          .in("journal_entry_id", shiftEntryIds)
-      : { data: [] as ShiftCashMovementMeta[] };
-  const shiftMovementByEntryId = new Map(
-    (shiftMovements ?? []).map((m) => [m.journal_entry_id, m as ShiftCashMovementMeta]),
-  );
-  // Sisi pembalikan (kredit->debit balik) dari kas kecil yang ditolak punya
-  // journal_entry_id SENDIRI (beda dari entri aslinya) -- shift_cash_movements
-  // tidak nunjuk balik ke situ lewat journal_entry_id, cuma lewat
-  // reclass_journal_entry_id. Perlu peta terpisah biar baris pembalikannya
-  // ikut kesaring di isRejectedPettyCash di bawah, bukan nongol polos sebagai
-  // "+Rp831.000" tanpa keterangan.
-  const rejectedReversalEntryIds = new Set(
-    (shiftMovements ?? [])
-      .filter((m) => m.status === "rejected" && m.reclass_journal_entry_id)
-      .map((m) => m.reclass_journal_entry_id as string),
-  );
+  const {
+    nonVoidLines,
+    displayLines,
+    voidLines,
+    pendingPettyCashLines,
+    rejectedPettyCashLines,
+    movementByEntryId: shiftMovementByEntryId,
+    voidedSaleCount,
+  } = await fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive);
 
   const isOwner = business?.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business?.mirroring_enabled;
@@ -222,73 +129,6 @@ export default async function KasHarianPage({
 
   const visibleKasIds = new Set(visibleKasRows.map((r) => r.journal_line_id));
 
-  // Penjualan yang di-void belakangan tetap punya baris "penjualan" (debit)
-  // di sini — void cuma menambah baris pembalikan (source "void"), tidak
-  // menghapus baris aslinya. Laporan Laba Rugi/Penjualan sudah membuang
-  // transaksi voided sepenuhnya (cek transactions.voided saat ini, bukan
-  // "apakah pembalikannya jatuh di periode yang sama"), jadi supaya Kas
-  // Masuk nyambung ke Laporan, baris penjualan asli dari transaksi yang
-  // SAAT INI voided juga harus dikeluarkan dari Kas Masuk — bukan cuma
-  // baris pembalikannya. Ini penting terutama kalau penjualannya terjadi
-  // di periode ini tapi baru di-void belakangan (pembalikannya jatuh di
-  // periode lain, jadi tidak ketangkep filter tanggal Kas & Bank).
-  const saleSourceIds = Array.from(
-    new Set(
-      lines
-        .filter((l) => l.journal_entries.source === "penjualan" && l.journal_entries.source_id)
-        .map((l) => l.journal_entries.source_id as string),
-    ),
-  );
-  const { data: saleVoidStatus } =
-    saleSourceIds.length > 0
-      ? await supabase.from("transactions").select("id, voided").in("id", saleSourceIds)
-      : { data: [] as { id: string; voided: boolean }[] };
-  const voidedSaleIds = new Set(
-    (saleVoidStatus ?? []).filter((t) => t.voided).map((t) => t.id),
-  );
-
-  const isVoidRelated = (l: CashLine) =>
-    l.journal_entries.source === "void" ||
-    (l.journal_entries.source === "penjualan" &&
-      !!l.journal_entries.source_id &&
-      voidedSaleIds.has(l.journal_entries.source_id));
-
-  // Pengeluaran kas kecil yang masih "Menunggu Admin" sengaja belum masuk
-  // Kas & Bank sama sekali — halaman ini untuk pemilik toko yang bukan
-  // akuntan, dan pengeluaran yang belum diverifikasi admin belum resmi jadi
-  // beban usaha (persis pola Permintaan Barang: request belum jadi
-  // pembelian sampai diproses). Kas Kecil punya halamannya sendiri buat
-  // yang masih menunggu; begitu admin approve/tolak, baris ini otomatis
-  // muncul di sini seperti kas keluar biasa.
-  const isPendingPettyCash = (l: CashLine) => {
-    const m = shiftMovementByEntryId.get(l.journal_entries.id);
-    return !!m && m.direction === "out" && m.status === "pending";
-  };
-
-  // Kas kecil yang ditolak admin sudah otomatis dibalik jurnalnya (entri
-  // aslinya -Rpxxx, entri pembalikannya "Tolak kas kecil: ..." +Rpxxx, net
-  // efeknya 0 -- tidak ada uang yang beneran keluar). Tapi keduanya tetap
-  // muncul sebagai 2 baris terpisah di Riwayat Kas kalau tidak disaring,
-  // bikin kelihatan seolah ada Rpxxx kas keluar padahal ditolak. Sama pola
-  // dengan void: disaring dari Kas Masuk/Keluar biasa, ditampilkan sendiri.
-  const isRejectedPettyCash = (l: CashLine) => {
-    const m = shiftMovementByEntryId.get(l.journal_entries.id);
-    return (m?.status === "rejected") || rejectedReversalEntryIds.has(l.journal_entries.id);
-  };
-
-  // Void adalah pembalikan penjualan (koreksi omset), bukan beban usaha —
-  // dipisah dari Kas Keluar/Kas Masuk biasa supaya keduanya mencerminkan
-  // pergerakan kas yang masih berlaku, bukan tercampur dengan transaksi
-  // yang dibatalkan.
-  const voidLines = lines.filter(isVoidRelated);
-  const pendingPettyCashLines = lines.filter((l) => !isVoidRelated(l) && isPendingPettyCash(l));
-  const rejectedPettyCashLines = lines.filter(
-    (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && isRejectedPettyCash(l),
-  );
-  const nonVoidLines = lines.filter(
-    (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && !isRejectedPettyCash(l),
-  );
-
   const totalMasuk = nonVoidLines.reduce((s, l) => s + Number(l.debit), 0);
   const totalKeluar = nonVoidLines.reduce((s, l) => s + Number(l.credit), 0);
   const totalVoid = voidLines
@@ -298,14 +138,6 @@ export default async function KasHarianPage({
   const totalDitolak = rejectedPettyCashLines
     .filter((l) => Number(l.credit) > 0)
     .reduce((s, l) => s + Number(l.credit), 0);
-
-  // Penjualan tetap terhitung di kartu KAS MASUK di atas, tapi sengaja tidak
-  // dirinci satu-per-satu di "Riwayat Kas" — itu murni duplikat Riwayat
-  // Transaksi (yang detailnya lebih lengkap: item, metode bayar, dll) dan
-  // bikin daftar ini kepanjangan untuk toko yang ramai. Toggle mirror per
-  // baris juga sudah ada versinya sendiri di Riwayat Transaksi, jadi
-  // menampilkannya lagi di sini cuma duplikat kontrol yang sama.
-  const displayLines = nonVoidLines.filter((l) => l.journal_entries.source !== "penjualan");
 
   const renderCashRow = (l: CashLine) => {
     const isMasuk = Number(l.debit) > 0;
@@ -479,7 +311,7 @@ export default async function KasHarianPage({
       {voidLines.length > 0 && (
         <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-amber-100 bg-amber-50/60 px-4 py-3">
-            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidedSaleIds.size})</h2>
+            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidedSaleCount})</h2>
             <p className="mt-0.5 text-[11px] text-amber-600">
               Transaksi yang dibatalkan (penjualan asli + pembalikannya) — dikeluarkan dari Kas
               Masuk/Keluar di atas supaya sinkron dengan Laporan.

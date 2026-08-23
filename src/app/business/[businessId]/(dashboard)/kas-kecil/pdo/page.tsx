@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchKasBankLines } from "@/lib/kas-bank";
 import { addTransfer } from "../../accounting/transfer-kas/actions";
 import PdoForm from "./pdo-form";
 
@@ -10,6 +11,12 @@ const REKENING_OPERASIONAL_CODE = "1-002";
 
 function firstDayOfMonth(dateStr: string) {
   return `${dateStr.slice(0, 7)}-01`;
+}
+
+function nextDayStr(dateStr: string) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function formatDateLabel(dateStr: string) {
@@ -66,29 +73,29 @@ export default async function PdoPage({
     );
   }
 
-  // Nota Kas Kecil yang SUDAH disetujui (status 'posted') di periode ini --
-  // ini daftar yang dipakai admin buat MILIH SENDIRI mana yang mau dimasukkan
-  // ke perhitungan PDO (mis. sebagian sudah kepakai di permintaan sebelumnya,
-  // jangan sampai ke-double). Nota yang masih pending/ditolak sengaja tidak
-  // dihitung (belum tentu jadi beban beneran, atau sudah dibatalkan -- lihat
-  // fix kas-harian sebelumnya).
-  const { data: notaRows } = await supabase
-    .from("shift_cash_movements")
-    .select("id, description, amount, category, created_at")
-    .eq("business_id", businessId)
-    .eq("direction", "out")
-    .eq("status", "posted")
-    .gte("created_at", `${from}T00:00:00+07:00`)
-    .lt("created_at", `${to}T23:59:59.999+07:00`)
-    .order("created_at", { ascending: true });
+  // Diambil dari Kas & Bank (bukan langsung dari Kas Kecil) karena semua kas
+  // keluar akhirnya bermuara di situ -- bukan cuma Kas Kecil, tapi juga
+  // "Catat Kas Keluar" manual dkk. Pakai fungsi penyaring yang sama dengan
+  // halaman Kas & Bank (fetchKasBankLines) supaya definisi "kas keluar yang
+  // beneran berlaku" konsisten: void, kas kecil pending/ditolak, dan
+  // penjualan (bukan nota/beban) sudah otomatis dikeluarkan di situ.
+  const { displayLines, movementByEntryId } = await fetchKasBankLines(
+    supabase,
+    businessId,
+    `${from}T00:00:00+07:00`,
+    `${nextDayStr(to)}T00:00:00+07:00`,
+  );
 
-  const notaList = (notaRows ?? []) as {
-    id: string;
-    description: string;
-    amount: number;
-    category: string | null;
-    created_at: string;
-  }[];
+  const notaList = displayLines
+    .filter((l) => Number(l.credit) > 0) // kas KELUAR saja, bukan kas masuk/setoran
+    .map((l) => ({
+      id: l.id,
+      description: l.journal_entries.description,
+      amount: Number(l.credit),
+      category: movementByEntryId.get(l.journal_entries.id)?.category ?? null,
+      created_at: l.journal_entries.date,
+    }))
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const boundAddTransfer = addTransfer.bind(null, businessId);
 
@@ -97,7 +104,7 @@ export default async function PdoPage({
       <div className="print:hidden">
         <h1 className="text-lg font-bold text-zinc-900">Permintaan Dana Operasional (PDO)</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Ajukan top-up dari Rekening Utama ke Rekening Operasional sebesar nota Kas Kecil yang
+          Ajukan top-up dari Rekening Utama ke Rekening Operasional sebesar nota kas keluar yang
           sudah dipakai, lalu cetak slip permintaannya.
         </p>
 
@@ -142,11 +149,12 @@ export default async function PdoPage({
       />
 
       <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
-        Total nota di atas dihitung dari{" "}
-        <Link href={`/business/${businessId}/kas-kecil`} className="text-brand-600 hover:underline">
-          Kas Kecil
+        Daftar nota di atas ditarik dari{" "}
+        <Link href={`/business/${businessId}/kas-harian`} className="text-brand-600 hover:underline">
+          Kas & Bank
         </Link>{" "}
-        yang berstatus &quot;Disetujui&quot; di periode ini. Transfer yang tercatat bisa dicek di{" "}
+        (semua kas keluar yang beneran berlaku — Kas Kecil, Catat Kas Keluar manual, dll — void &amp;
+        yang masih menunggu/ditolak sudah dikecualikan). Transfer yang tercatat bisa dicek di{" "}
         <Link href={`/business/${businessId}/accounting/jurnal`} className="text-brand-600 hover:underline">
           Jurnal Transaksi
         </Link>
