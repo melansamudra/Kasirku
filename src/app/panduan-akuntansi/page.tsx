@@ -97,7 +97,7 @@ const ACCOUNT_GROUPS: AccountGroup[] = [
     accounts: [
       { code: "5-001", name: "Beban Pokok Penjualan (HPP)" },
       { code: "5-100", name: "Beban Gaji" },
-      { code: "5-101…105", name: "Listrik, Sewa, Marketing, Perlengkapan, Penyusutan" },
+      { code: "5-101…106", name: "Listrik, Sewa, Marketing, Perlengkapan, Penyusutan, Gas LPG" },
       { code: "5-999", name: "Beban Lain-lain" },
     ],
   },
