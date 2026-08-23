@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PillBadge } from "@/components/ui/pill-badge";
@@ -288,11 +289,23 @@ export default async function KasKecilPage({
 
   return (
     <div className="w-full max-w-2xl">
-      <h1 className="text-lg font-bold text-zinc-900">Kas Kecil — {business.name}</h1>
-      <p className="mt-0.5 text-xs text-zinc-500">
-        Semua nota (tunai maupun hutang) dicatat di sini, menunggu diperiksa sebelum masuk Laporan
-        Laba Rugi (nota tunai) atau Pembelian & Hutang (nota hutang).
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">Kas Kecil — {business.name}</h1>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Semua nota (tunai maupun hutang) dicatat di sini, menunggu diperiksa sebelum masuk Laporan
+            Laba Rugi (nota tunai) atau Pembelian & Hutang (nota hutang).
+          </p>
+        </div>
+        {canVerify && (
+          <Link
+            href={`/business/${businessId}/kas-kecil/pdo`}
+            className="shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+          >
+            📄 Form PDO
+          </Link>
+        )}
+      </div>
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-1 text-sm font-semibold text-zinc-900">+ Petty Cash Diberikan</h2>
