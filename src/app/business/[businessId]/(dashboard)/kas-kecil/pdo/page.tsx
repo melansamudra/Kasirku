@@ -28,6 +28,19 @@ function formatDateLabel(dateStr: string) {
   });
 }
 
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
+}
+
+function formatRupiah(value: number) {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
+
 export default async function PdoPage({
   params,
   searchParams,
@@ -97,6 +110,36 @@ export default async function PdoPage({
     }))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
+  // Riwayat permintaan PDO -- belum ada tabel khusus, tapi setiap PDO yang
+  // diajukan selalu lewat addTransfer() dengan deskripsi berpola
+  // "Transfer: PDO ..." (lihat pdo-form.tsx), jadi cukup ditelusuri dari
+  // Jurnal Transaksi lewat pola itu, bukan bikin tabel baru buat sesuatu
+  // yang sudah tercatat lengkap di jurnal.
+  const { data: pdoHistoryRows } = await supabase
+    .from("journal_entries")
+    .select("id, date, description, journal_lines(debit, accounts(code))")
+    .eq("business_id", businessId)
+    .ilike("description", "Transfer: PDO %")
+    .order("date", { ascending: false })
+    .limit(30);
+
+  const pdoHistory = (
+    (pdoHistoryRows ?? []) as {
+      id: string;
+      date: string;
+      description: string;
+      journal_lines: { debit: number; accounts: { code: string } | null }[];
+    }[]
+  ).map((row) => ({
+    id: row.id,
+    date: row.date,
+    amount:
+      row.journal_lines.find((l) => l.accounts?.code === REKENING_OPERASIONAL_CODE)?.debit ?? 0,
+    // Buang prefix "Transfer: " -- itu murni penanda teknis dari
+    // addTransfer(), tidak perlu ditampilkan ke admin.
+    detail: row.description.replace(/^Transfer:\s*/, ""),
+  }));
+
   const boundAddTransfer = addTransfer.bind(null, businessId);
 
   return (
@@ -160,6 +203,28 @@ export default async function PdoPage({
         </Link>
         .
       </p>
+
+      {pdoHistory.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white print:hidden">
+          <div className="border-b border-zinc-100 px-4 py-3">
+            <h2 className="text-sm font-bold text-zinc-900">Riwayat Permintaan</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              PDO yang sudah pernah diajukan & tercatat sebagai transfer.
+            </p>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {pdoHistory.map((h) => (
+              <div key={h.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-zinc-400">{formatDateTime(h.date)}</span>
+                  <span className="text-sm font-bold text-brand-700">{formatRupiah(h.amount)}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-600">{h.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
