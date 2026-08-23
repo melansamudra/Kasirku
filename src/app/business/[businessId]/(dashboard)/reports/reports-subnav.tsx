@@ -19,7 +19,7 @@ export default function ReportsSubnav({ businessId }: { businessId: string }) {
   const base = `/business/${businessId}/reports`;
 
   return (
-    <div className="mb-5 flex overflow-x-auto border-b border-zinc-200 bg-white">
+    <div className="mb-5 flex overflow-x-auto border-b border-zinc-200 bg-white print:hidden">
       {NAV_ITEMS.map((item) => {
         const href = `${base}${item.href}`;
         const isActive = item.href === ""
