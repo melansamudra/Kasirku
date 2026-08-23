@@ -816,7 +816,13 @@ export async function saveOpenBill(
 // manajer.
 export async function deleteOpenBillAfterPayment(businessId: string, billId: string) {
   const supabase = await createClient();
-  await supabase.from("open_bills").delete().eq("id", billId).eq("business_id", businessId);
+  const { error } = await supabase.from("open_bills").delete().eq("id", billId).eq("business_id", businessId);
+  if (error) {
+    // Best-effort by design (lihat komentar caller) -- bon yang gagal
+    // dihapus akan hilang sendiri saat refreshCatalog berikutnya. Tetap
+    // di-log supaya kegagalan diam-diam ini kelihatan di server logs.
+    console.error(`deleteOpenBillAfterPayment gagal untuk bill ${billId}:`, error);
+  }
   revalidatePath(`/business/${businessId}/pos`);
 }
 
@@ -1354,29 +1360,37 @@ export async function voidPosTransaction(
   return { success: true, voidedByName };
 }
 
+export type ToggleResult = { error: string | null };
+
+// businesses.self_order_enabled lewat RPC sempit (bukan .update() langsung)
+// -- RLS businesses sengaja cuma izinkan owner_id = auth.uid() (bukan
+// private.owns_business() yang staff-inclusive), jadi staff/kasir yang
+// toggle di POS akan kena filter RLS diam-diam kalau pakai .update() biasa.
 export async function setSelfOrderEnabled(
   businessId: string,
   enabled: boolean,
-): Promise<void> {
+): Promise<ToggleResult> {
   const supabase = await createClient();
-  await supabase
-    .from("businesses")
-    .update({ self_order_enabled: enabled })
-    .eq("id", businessId);
+  const { error } = await supabase.rpc("set_business_self_order_enabled", {
+    p_business_id: businessId,
+    p_enabled: enabled,
+  });
   revalidatePath(`/business/${businessId}/pos`);
+  return { error: error?.message ?? null };
 }
 
 export async function toggleSelfOrderVisibility(
   businessId: string,
   productId: string,
   show: boolean,
-): Promise<void> {
+): Promise<ToggleResult> {
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("products")
     .update({ show_in_self_order: show })
     .eq("id", productId)
     .eq("business_id", businessId);
   revalidatePath(`/business/${businessId}/pos`);
   revalidatePath(`/business/${businessId}/tables`);
+  return { error: error?.message ?? null };
 }

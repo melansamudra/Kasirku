@@ -135,11 +135,14 @@ export async function setEmployeeActive(businessId: string, employeeId: string, 
     .eq("business_id", businessId)
     .maybeSingle();
 
-  await supabase
+  const { error } = await supabase
     .from("employees")
     .update({ active })
     .eq("id", employeeId)
     .eq("business_id", businessId);
+  if (error) {
+    console.error(`setEmployeeActive gagal untuk employee ${employeeId}:`, error);
+  }
 
   if (employee) {
     await logActivity(

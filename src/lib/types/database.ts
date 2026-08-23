@@ -3339,6 +3339,13 @@ export type Database = {
         };
         Returns: undefined;
       };
+      set_business_self_order_enabled: {
+        Args: {
+          p_business_id: string;
+          p_enabled: boolean;
+        };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

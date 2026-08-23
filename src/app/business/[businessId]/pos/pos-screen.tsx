@@ -301,12 +301,22 @@ export default function PosScreen({
 
   async function handleSelfOrderToggle(productId: string, show: boolean) {
     setSelfOrderProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, show } : p)));
-    await toggleSelfOrderVisibility(businessId, productId, show);
+    const result = await toggleSelfOrderVisibility(businessId, productId, show);
+    if (result.error) {
+      // Revert optimistic update -- gagal tersimpan, jangan biarkan UI
+      // menampilkan status yang sebenarnya tidak benar di database.
+      setSelfOrderProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, show: !show } : p)));
+      alert(`Gagal ubah tampilan menu: ${result.error}`);
+    }
   }
 
   async function handleSelfOrderEnabled(enabled: boolean) {
     setSelfOrderEnabledLocal(enabled);
-    await setSelfOrderEnabled(businessId, enabled);
+    const result = await setSelfOrderEnabled(businessId, enabled);
+    if (result.error) {
+      setSelfOrderEnabledLocal(!enabled);
+      alert(`Gagal ubah status Self Order: ${result.error}`);
+    }
   }
 
   // Tidak lagi datang dari props server (page.tsx tidak fetch ini lagi) —

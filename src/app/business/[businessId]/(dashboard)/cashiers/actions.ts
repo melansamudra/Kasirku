@@ -97,11 +97,14 @@ export async function setCashierActive(businessId: string, cashierId: string, ac
     .eq("business_id", businessId)
     .maybeSingle();
 
-  await supabase
+  const { error } = await supabase
     .from("cashiers")
     .update({ active })
     .eq("id", cashierId)
     .eq("business_id", businessId);
+  if (error) {
+    console.error(`setCashierActive gagal untuk cashier ${cashierId}:`, error);
+  }
 
   if (cashier) {
     await logActivity(

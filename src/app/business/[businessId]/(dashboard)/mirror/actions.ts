@@ -127,11 +127,18 @@ export async function updateMirrorPermissions(
     show_cashier: formData.get("show_cashier") === "on",
   };
 
-  await supabase
+  const { error } = await supabase
     .from("mirror_accounts")
     .update({ permissions })
     .eq("id", mirrorAccountId)
     .eq("business_id", businessId);
+  if (error) {
+    // Ini jalur penurunan hak akses mirror (read-only investor/partner) --
+    // kalau gagal diam-diam, mirror user tetap pegang akses lama yang lebih
+    // luas dari yang dimaksud owner. Di-log biar kelihatan, bukan hilang
+    // tanpa jejak.
+    console.error(`updateMirrorPermissions gagal untuk mirror account ${mirrorAccountId}:`, error);
+  }
 
   revalidatePath(`/business/${businessId}/mirror`);
 }

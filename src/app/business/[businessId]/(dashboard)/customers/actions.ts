@@ -85,10 +85,13 @@ export async function editCustomer(
 
 export async function deleteCustomer(businessId: string, customerId: string) {
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("customers")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", customerId)
     .eq("business_id", businessId);
+  if (error) {
+    console.error(`deleteCustomer gagal untuk customer ${customerId}:`, error);
+  }
   revalidatePath(`/business/${businessId}/customers`);
 }

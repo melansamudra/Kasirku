@@ -13,7 +13,10 @@ export async function recalculateProductCost(supabase: SupabaseServerClient, pro
     return sum + Number(ingredient?.unit_cost ?? 0) * Number(item.qty);
   }, 0);
 
-  await supabase.from("products").update({ cost: totalCost }).eq("id", productId);
+  const { error } = await supabase.from("products").update({ cost: totalCost }).eq("id", productId);
+  if (error) {
+    console.error(`recalculateProductCost gagal untuk product ${productId}:`, error);
+  }
 }
 
 // Bahan baku dipakai di banyak resep produk — dipanggil setiap kali
