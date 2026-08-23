@@ -176,7 +176,13 @@ export default async function ReportsPage({
   const bestDay = dayList.length > 0 ? dayList.reduce((m, d) => d.rev > m.rev ? d : m, dayList[0]) : null;
 
   const n = dayList.length;
-  const W = 560, H = 110, PX = 8, PY = 14;
+  // W dulu di-hardcode 560 sementara lebar CSS SVG-nya (minWidth di bawah)
+  // sudah melebar sesuai n -- dua-duanya harus sinkron, kalau tidak jarak
+  // antar titik di sistem koordinat viewBox tetap sama walau piksel di
+  // layar melebar (skala ikut membesar proporsional, jadi rasio lebar
+  // label-vs-jarak-antar-titik TIDAK berubah), makanya label tanggal
+  // numpuk begitu harinya banyak (mis. 24 hari sebulan). Samakan rumusnya.
+  const W = Math.max(280, n * 36), H = 110, PX = 8, PY = 14;
   const chartW = W - PX * 2, chartH = H - PY * 2;
   const maxRev = Math.max(...dayList.map((d) => d.rev), 1);
   const minRev = Math.min(...dayList.map((d) => d.rev), 0);
@@ -275,7 +281,7 @@ export default async function ReportsPage({
             <div className="overflow-hidden rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Tren Pendapatan Harian</p>
               <div className="overflow-x-auto">
-                <svg viewBox={`0 0 ${W} ${H + 20}`} width="100%" style={{ minWidth: Math.max(280, n * 36) }} className="block">
+                <svg viewBox={`0 0 ${W} ${H + 20}`} width="100%" style={{ minWidth: W }} className="block">
                   <defs>
                     <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#16a34a" stopOpacity="0.18" />
