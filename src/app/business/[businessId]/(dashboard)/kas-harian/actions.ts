@@ -59,11 +59,21 @@ async function postCashEntry(
 
   // post_journal_entry() belum punya parameter payment_method (lihat bug
   // overload 2026-08-23 -- nambah parameter baru bikin dua fungsi ter-
-  // overload, jadi tidak diulang lagi) -- diisi lewat update terpisah
-  // setelah entrinya jadi. Laporan Harian pakai kolom ini buat pisahin
-  // Pengeluaran Tunai vs Transfer.
+  // overload, jadi tidak diulang lagi) -- diisi lewat RPC terpisah setelah
+  // entrinya jadi. Laporan Harian pakai kolom ini buat pisahin Pengeluaran
+  // Tunai vs Transfer. Bukan `.update()` langsung -- journal_entries cuma
+  // punya policy SELECT (disengaja, kolom finansial immutable setelah
+  // diposting), jadi update langsung dari client kena filter RLS diam-diam
+  // (0 baris ke-update, tidak ada error) -- makanya lewat RPC security
+  // definer sempit yang cuma boleh nyentuh kolom payment_method.
   if (entryId) {
-    await supabase.from("journal_entries").update({ payment_method: paymentMethod }).eq("id", entryId);
+    const { error: paymentMethodError } = await supabase.rpc("set_journal_entry_payment_method", {
+      p_entry_id: entryId,
+      p_payment_method: paymentMethod,
+    });
+    if (paymentMethodError) {
+      return { error: paymentMethodError.message };
+    }
   }
 
   // Best-effort (lihat komentar di activity-log.ts) -- dipindah ke after()

@@ -3323,6 +3323,13 @@ export type Database = {
         };
         Returns: string;
       };
+      set_journal_entry_payment_method: {
+        Args: {
+          p_entry_id: string;
+          p_payment_method: string;
+        };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

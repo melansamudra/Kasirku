@@ -90,7 +90,7 @@ export default async function ReportsHarianPage({
     ? new Date(new Date(toIsoExclusive).getTime() - 1).toISOString().slice(0, 10)
     : null;
 
-  const [txRows, { data: ojolAccounts }, kasBank, { data: allPurchases }, { data: allPayments }] =
+  const [txRows, { data: ojolAccounts }, kasBank, allPurchases, allPayments] =
     await Promise.all([
       // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
       // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts)
@@ -100,7 +100,6 @@ export default async function ReportsHarianPage({
       fetchAllRows<{
         date: string;
         total: number;
-        subtotal: number;
         total_item_disc: number | null;
         order_disc_amt: number | null;
         service: number | null;
@@ -108,7 +107,7 @@ export default async function ReportsHarianPage({
       }>((rangeFrom, rangeTo) => {
         let q = supabase
           .from("transactions")
-          .select("date, total, subtotal, total_item_disc, order_disc_amt, service, tax, voided")
+          .select("date, total, total_item_disc, order_disc_amt, service, tax, voided")
           .eq("business_id", businessId)
           .eq("voided", false)
           .range(rangeFrom, rangeTo);
@@ -118,16 +117,18 @@ export default async function ReportsHarianPage({
       }),
       supabase.from("accounts").select("id, code").eq("business_id", businessId).in("code", OJOL_ACCOUNT_CODES),
       fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive),
-      (() => {
-        let q = supabase.from("purchases").select("date, amount").eq("business_id", businessId).order("date");
+      // Sama seperti transactions -- purchases/purchase_payments bisa nembus
+      // 1000 baris juga di bisnis yang sudah lama jalan, jadi wajib fetchAllRows.
+      fetchAllRows<{ date: string; amount: number }>((rangeFrom, rangeTo) => {
+        let q = supabase.from("purchases").select("date, amount").eq("business_id", businessId).order("date").range(rangeFrom, rangeTo);
         if (purchasesUpperBound) q = q.lte("date", purchasesUpperBound);
         return q;
-      })(),
-      (() => {
-        let q = supabase.from("purchase_payments").select("date, amount").eq("business_id", businessId).order("date");
+      }),
+      fetchAllRows<{ date: string; amount: number }>((rangeFrom, rangeTo) => {
+        let q = supabase.from("purchase_payments").select("date, amount").eq("business_id", businessId).order("date").range(rangeFrom, rangeTo);
         if (purchasesUpperBound) q = q.lte("date", purchasesUpperBound);
         return q;
-      })(),
+      }),
     ]);
 
   // Pendapatan Gofood/Grabfood/Lain-lain -- dicatat lewat akun 4-003/4-004/
@@ -137,15 +138,20 @@ export default async function ReportsHarianPage({
   const accountIdToCode = new Map((ojolAccounts ?? []).map((a) => [a.id, a.code]));
   let ojolRows: { credit: number; account_id: string; journal_entries: { date: string } }[] = [];
   if (ojolAccounts && ojolAccounts.length > 0) {
-    let q = supabase
-      .from("journal_lines")
-      .select("credit, account_id, journal_entries!inner(date, business_id)")
-      .in("account_id", ojolAccounts.map((a) => a.id))
-      .eq("journal_entries.business_id", businessId);
-    if (fromIso) q = q.gte("journal_entries.date", fromIso);
-    if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
-    const { data } = await q;
-    ojolRows = (data ?? []) as typeof ojolRows;
+    const ojolAccountIds = ojolAccounts.map((a) => a.id);
+    ojolRows = await fetchAllRows<{ credit: number; account_id: string; journal_entries: { date: string } }>(
+      (rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("journal_lines")
+          .select("credit, account_id, journal_entries!inner(date, business_id)")
+          .in("account_id", ojolAccountIds)
+          .eq("journal_entries.business_id", businessId)
+          .range(rangeFrom, rangeTo);
+        if (fromIso) q = q.gte("journal_entries.date", fromIso);
+        if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
+        return q;
+      },
+    );
   }
 
   // Kas keluar yang beneran berlaku (void/pending/ditolak/transfer-antar-
@@ -188,16 +194,24 @@ export default async function ReportsHarianPage({
       e.pengeluaranTunai += Number(l.credit);
     }
   }
-  for (const p of allPayments ?? []) {
-    if ((from && p.date < from) || (to && p.date > to)) continue;
+  // `from`/`to` (searchParams mentah) cuma keisi kalau period === "custom" --
+  // untuk Hari Ini/7 Hari/Bulan Ini/Semua dulu selalu undefined, jadi filter
+  // ini dulu no-op dan histori pembayaran hutang dari awal waktu ikut
+  // kebucket ke dayMap walau periode yang dipilih cuma 1 hari. Pakai
+  // fromIso/purchasesUpperBound (sudah dihitung benar untuk semua jenis
+  // periode) supaya konsisten.
+  const hutangDibayarLowerBound = fromIso ? fromIso.slice(0, 10) : null;
+  for (const p of allPayments) {
+    if (hutangDibayarLowerBound && p.date < hutangDibayarLowerBound) continue;
+    if (purchasesUpperBound && p.date > purchasesUpperBound) continue;
     ensure(p.date).hutangDibayar += Number(p.amount);
   }
 
   function sisaHutangAsOf(dateKey: string) {
-    const totalPurchases = (allPurchases ?? [])
+    const totalPurchases = allPurchases
       .filter((p) => p.date <= dateKey)
       .reduce((s, p) => s + Number(p.amount), 0);
-    const totalPaid = (allPayments ?? [])
+    const totalPaid = allPayments
       .filter((p) => p.date <= dateKey)
       .reduce((s, p) => s + Number(p.amount), 0);
     return totalPurchases - totalPaid;
@@ -244,7 +258,14 @@ export default async function ReportsHarianPage({
     },
   );
   const totalsPersenBeban = totals.totalPendapatan > 0 ? Math.round((totals.totalPengeluaran / totals.totalPendapatan) * 100) : 0;
-  const sisaHutangTerakhir = dayList[0]?.sisaHutang ?? sisaHutangAsOf(to ?? new Date().toISOString().slice(0, 10));
+  // Sisa Hutang Terkini harus "per akhir periode" (atau hari ini kalau
+  // periodenya open-ended kayak Bulan Ini/Semua) -- BUKAN dayList[0], karena
+  // dayList cuma keisi dari hari yang ada transaksi/kas/pendapatan Ojol/
+  // pembayaran hutang; hari yang cuma ada pembelian baru (nambah hutang)
+  // tanpa aktivitas lain tidak pernah masuk dayMap dan bikin kartu ini basi.
+  const todayWib = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const sisaHutangAsOfDate = purchasesUpperBound ?? todayWib;
+  const sisaHutangTerakhir = sisaHutangAsOf(sisaHutangAsOfDate);
 
   const hasDiskon = dayList.some((d) => d.diskon > 0);
   const hasService = dayList.some((d) => d.service > 0);
@@ -252,7 +273,7 @@ export default async function ReportsHarianPage({
   const hasGofood = dayList.some((d) => d.pendapatanGofood > 0);
   const hasGrabfood = dayList.some((d) => d.pendapatanGrabfood > 0);
   const hasPendapatanLain = dayList.some((d) => d.pendapatanLain > 0);
-  const hasHutang = (allPurchases ?? []).length > 0;
+  const hasHutang = allPurchases.length > 0;
   const basePath = `/business/${businessId}/reports/harian`;
   const highlightLabel =
     period === "custom" && from && to
@@ -317,7 +338,7 @@ export default async function ReportsHarianPage({
               <p className="text-[10px] font-semibold uppercase text-amber-700">Sisa Hutang Terkini</p>
               <p className="text-xl font-bold text-amber-700">{fmt(sisaHutangTerakhir)}</p>
               <p className="mt-1 text-[11px] text-amber-600">
-                Per {fmtDateShort(to ?? new Date().toISOString().slice(0, 10))} — dari{" "}
+                Per {fmtDateShort(sisaHutangAsOfDate)} — dari{" "}
                 <Link href={`/business/${businessId}/purchases`} className="underline">Pembelian &amp; Hutang</Link>.
               </p>
             </div>
