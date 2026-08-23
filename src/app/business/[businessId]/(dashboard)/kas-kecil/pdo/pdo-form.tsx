@@ -38,6 +38,9 @@ function SlipSummary({
   jumlahDiminta,
   catatan,
   selectedNotas,
+  bankName,
+  bankAccountNumber,
+  bankAccountHolder,
 }: {
   businessName: string;
   fromLabel: string;
@@ -50,7 +53,12 @@ function SlipSummary({
   jumlahDiminta: number;
   catatan: string;
   selectedNotas: Nota[];
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolder: string | null;
 }) {
+  const hasBankDetails = !!(bankName || bankAccountNumber || bankAccountHolder);
+
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-6 print:border-0 print:p-0">
       <div className="text-center">
@@ -58,6 +66,18 @@ function SlipSummary({
         <h2 className="mt-1 text-lg font-bold text-zinc-900">Slip Permintaan Dana Operasional</h2>
         <p className="mt-0.5 text-xs text-zinc-500">Periode nota: {fromLabel} – {toLabel}</p>
       </div>
+
+      {hasBankDetails && (
+        <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50 px-3.5 py-2.5 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-500">
+            Transfer ke rekening
+          </p>
+          <p className="mt-0.5 text-sm font-bold text-brand-700">
+            {bankName || "—"} {bankAccountNumber || ""}
+          </p>
+          {bankAccountHolder && <p className="text-xs text-brand-600">a.n. {bankAccountHolder}</p>}
+        </div>
+      )}
 
       <div className="mt-4 space-y-1.5 border-t border-dashed border-zinc-300 pt-3 text-sm">
         <div className="flex justify-between">
@@ -125,6 +145,9 @@ export default function PdoForm({
   rekeningUtamaCode,
   rekeningOperasionalCode,
   rekeningOperasionalName,
+  bankName,
+  bankAccountNumber,
+  bankAccountHolder,
 }: {
   action: (state: TransferState, formData: FormData) => Promise<TransferState>;
   today: string;
@@ -135,6 +158,9 @@ export default function PdoForm({
   rekeningUtamaCode: string;
   rekeningOperasionalCode: string;
   rekeningOperasionalName: string;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolder: string | null;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [modalTunai, setModalTunai] = useState("");
@@ -189,6 +215,9 @@ export default function PdoForm({
     jumlahDiminta: Number(jumlahDiminta) || 0,
     catatan,
     selectedNotas,
+    bankName,
+    bankAccountNumber,
+    bankAccountHolder,
   };
 
   if (submitted) {

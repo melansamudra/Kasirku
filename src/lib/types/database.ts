@@ -68,6 +68,9 @@ export type Database = {
           normal_balance: string;
           is_system: boolean;
           created_at: string;
+          bank_name: string | null;
+          bank_account_number: string | null;
+          bank_account_holder: string | null;
         };
         Insert: {
           id?: string;
@@ -78,6 +81,9 @@ export type Database = {
           normal_balance: string;
           is_system?: boolean;
           created_at?: string;
+          bank_name?: string | null;
+          bank_account_number?: string | null;
+          bank_account_holder?: string | null;
         };
         Update: {
           id?: string;
@@ -88,6 +94,9 @@ export type Database = {
           normal_balance?: string;
           is_system?: boolean;
           created_at?: string;
+          bank_name?: string | null;
+          bank_account_number?: string | null;
+          bank_account_holder?: string | null;
         };
         Relationships: [];
       };

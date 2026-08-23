@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchKasBankLines } from "@/lib/kas-bank";
 import { addTransfer } from "../../accounting/transfer-kas/actions";
+import { updateAccountBankDetails } from "./actions";
 import PdoForm from "./pdo-form";
+import BankDetailsForm from "./bank-details-form";
 
 const REKENING_UTAMA_CODE = "1-001";
 const REKENING_OPERASIONAL_CODE = "1-002";
@@ -60,7 +62,7 @@ export default async function PdoPage({
     supabase.from("businesses").select("id, name").eq("id", businessId).single(),
     supabase
       .from("accounts")
-      .select("code, name")
+      .select("code, name, bank_name, bank_account_number, bank_account_holder")
       .eq("business_id", businessId)
       .in("code", [REKENING_UTAMA_CODE, REKENING_OPERASIONAL_CODE]),
   ]);
@@ -141,6 +143,7 @@ export default async function PdoPage({
   }));
 
   const boundAddTransfer = addTransfer.bind(null, businessId);
+  const boundUpdateBankDetails = updateAccountBankDetails.bind(null, businessId, REKENING_OPERASIONAL_CODE);
 
   return (
     <div className="w-full max-w-xl">
@@ -179,6 +182,18 @@ export default async function PdoPage({
         </form>
       </div>
 
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 print:hidden">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+          Info Rekening Tujuan ({rekeningOperasional.name})
+        </h2>
+        <BankDetailsForm
+          action={boundUpdateBankDetails}
+          bankName={rekeningOperasional.bank_name ?? ""}
+          accountNumber={rekeningOperasional.bank_account_number ?? ""}
+          accountHolder={rekeningOperasional.bank_account_holder ?? ""}
+        />
+      </div>
+
       <PdoForm
         action={boundAddTransfer}
         today={today}
@@ -189,6 +204,9 @@ export default async function PdoPage({
         rekeningUtamaCode={REKENING_UTAMA_CODE}
         rekeningOperasionalCode={REKENING_OPERASIONAL_CODE}
         rekeningOperasionalName={rekeningOperasional.name}
+        bankName={rekeningOperasional.bank_name}
+        bankAccountNumber={rekeningOperasional.bank_account_number}
+        bankAccountHolder={rekeningOperasional.bank_account_holder}
       />
 
       <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
