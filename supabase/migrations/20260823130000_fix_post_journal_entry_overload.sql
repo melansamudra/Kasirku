@@ -1,0 +1,15 @@
+-- Bug ditemukan 2026-08-23: migration 20260823100000 nambah parameter
+-- p_source (dengan default) ke post_journal_entry() pakai `create or replace`.
+-- Di Postgres, menambah parameter mengubah "identitas" fungsi -- jadi bukan
+-- menggantikan fungsi lama, malah bikin fungsi kedua yang ter-overload
+-- bareng yang lama. Efeknya: PostgREST tidak bisa milih mana yang dipanggil
+-- begitu ada 2 kandidat sama validnya (dipanggil dengan 4 argumen dasar,
+-- cocok baik ke versi 4-parameter APA ADANYA maupun versi 5-parameter yang
+-- p_source-nya pakai default) -- error "Could not choose the best candidate
+-- function", dan SEMUA pencatatan jurnal manual (termasuk Catat Kas
+-- Masuk/Keluar di halaman Kas & Bank) gagal total.
+--
+-- Fix: hapus versi lama (4-parameter), sisakan cuma versi 5-parameter yang
+-- p_source-nya punya default 'manual' -- backward compatible buat semua
+-- caller lama yang cuma kirim 4 argumen.
+drop function if exists public.post_journal_entry(uuid, timestamptz, text, jsonb);
