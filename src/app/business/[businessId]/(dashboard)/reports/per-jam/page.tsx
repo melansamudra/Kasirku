@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { PERIOD_COOKIE_NAME, getPeriodRange, parsePeriod } from "../period";
 import PeriodTabs from "../period-tabs";
 
@@ -26,19 +27,24 @@ export default async function ReportsPerJamPage({
   const { data: biz } = await supabase.from("businesses").select("id").eq("id", businessId).maybeSingle();
   if (!biz) notFound();
 
-  let q = supabase
-    .from("transactions")
-    .select("date, total")
-    .eq("business_id", businessId)
-    .eq("voided", false);
-  if (fromIso) q = q.gte("date", fromIso);
-  if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
-  const { data: rows } = await q;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const rows = await fetchAllRows<{ date: string; total: number }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select("date, total")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
   const hourMap = new Map<number, { count: number; revenue: number }>();
   for (let h = 0; h < 24; h++) hourMap.set(h, { count: 0, revenue: 0 });
 
-  for (const t of rows ?? []) {
+  for (const t of rows) {
     const wib = new Date(new Date(t.date).getTime() + 7 * 3600000);
     const h = wib.getUTCHours();
     const e = hourMap.get(h)!;

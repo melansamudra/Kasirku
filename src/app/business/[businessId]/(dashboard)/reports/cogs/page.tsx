@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -59,15 +60,23 @@ export default async function CogsReportPage({
     notFound();
   }
 
-  let txQuery = supabase
-    .from("transactions")
-    .select("voided, transaction_items(product_id, name, category, price, cost, qty)")
-    .eq("business_id", businessId);
-  if (fromIso) txQuery = txQuery.gte("date", fromIso);
-  if (toIsoExclusive) txQuery = txQuery.lt("date", toIsoExclusive);
-  const { data: transactions } = await txQuery;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const transactions = await fetchAllRows<{
+    voided: boolean;
+    transaction_items: { product_id: string | null; name: string; category: string | null; price: number; cost: number | null; qty: number }[];
+  }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select("voided, transaction_items(product_id, name, category, price, cost, qty)")
+      .eq("business_id", businessId)
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
-  const validTx = (transactions ?? []).filter((t) => !t.voided);
+  const validTx = transactions.filter((t) => !t.voided);
 
   const byProduct = new Map<string, Row>();
   const byCategory = new Map<string, Row>();

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -42,16 +43,21 @@ export default async function LabaRugiPage({
     notFound();
   }
 
-  let txQuery = supabase
-    .from("transactions")
-    .select("total")
-    .eq("business_id", businessId)
-    .eq("voided", false);
-  if (fromIso) txQuery = txQuery.gte("date", fromIso);
-  if (toIsoExclusive) txQuery = txQuery.lt("date", toIsoExclusive);
-  const { data: transactions } = await txQuery;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const transactions = await fetchAllRows<{ total: number }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select("total")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
-  const revenue = (transactions ?? []).reduce((s, t) => s + Number(t.total), 0);
+  const revenue = transactions.reduce((s, t) => s + Number(t.total), 0);
 
   // expenses.date is a plain date column; timestamptz bounds are trimmed to
   // their date part so both queries stay aligned to the same WIB period.

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { PERIOD_COOKIE_NAME, getPeriodRange, parsePeriod } from "../period";
 import PeriodTabs from "../period-tabs";
 
@@ -25,17 +26,26 @@ export default async function ReportsPerMenuPage({
   const { data: biz } = await supabase.from("businesses").select("id").eq("id", businessId).maybeSingle();
   if (!biz) notFound();
 
-  let q = supabase
-    .from("transactions")
-    .select("date, voided, transaction_items(name, qty, price, product_id)")
-    .eq("business_id", businessId)
-    .eq("voided", false);
-  if (fromIso) q = q.gte("date", fromIso);
-  if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
-  const { data: rows } = await q;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const rows = await fetchAllRows<{
+    date: string;
+    voided: boolean;
+    transaction_items: { name: string; qty: number; price: number; product_id: string | null }[];
+  }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select("date, voided, transaction_items(name, qty, price, product_id)")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
   const menuMap = new Map<string, { qty: number; revenue: number; productId: string | null }>();
-  for (const t of rows ?? []) {
+  for (const t of rows) {
     for (const item of t.transaction_items ?? []) {
       const name = item.name ?? "—";
       const qty = Number(item.qty);

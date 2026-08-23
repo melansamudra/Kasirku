@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { PERIOD_COOKIE_NAME, getPeriodRange, parsePeriod } from "../period";
 import PeriodTabs from "../period-tabs";
 
@@ -37,17 +38,22 @@ export default async function ReportsTrenPage({
   const { data: biz } = await supabase.from("businesses").select("id").eq("id", businessId).maybeSingle();
   if (!biz) notFound();
 
-  let q = supabase
-    .from("transactions")
-    .select("date, total")
-    .eq("business_id", businessId)
-    .eq("voided", false);
-  if (fromIso) q = q.gte("date", fromIso);
-  if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
-  const { data: rows } = await q;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const rows = await fetchAllRows<{ date: string; total: number }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select("date, total")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
   const dayMap = new Map<string, { count: number; revenue: number }>();
-  for (const t of rows ?? []) {
+  for (const t of rows) {
     const key = toDateWib(t.date);
     const e = dayMap.get(key) ?? { count: 0, revenue: 0 };
     e.count += 1;

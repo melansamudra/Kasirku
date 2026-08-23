@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { PERIOD_COOKIE_NAME, getPeriodRange, parsePeriod, REPORT_TIMEZONE } from "../period";
 import PeriodTabs from "../period-tabs";
 
@@ -29,17 +30,35 @@ export default async function ReportsPerTransaksiPage({
   const { data: biz } = await supabase.from("businesses").select("id").eq("id", businessId).maybeSingle();
   if (!biz) notFound();
 
-  let q = supabase
-    .from("transactions")
-    .select("id, invoice_number, date, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, total, voided, transaction_items(qty)")
-    .eq("business_id", businessId)
-    .eq("voided", false)
-    .order("date", { ascending: false });
-  if (fromIso) q = q.gte("date", fromIso);
-  if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
-  const { data: rows } = await q;
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const rows = await fetchAllRows<{
+    id: string;
+    invoice_number: string;
+    date: string;
+    subtotal_raw: number | null;
+    subtotal: number | null;
+    total_item_disc: number | null;
+    order_disc_amt: number | null;
+    service: number | null;
+    tax: number | null;
+    total: number;
+    voided: boolean;
+    transaction_items: { qty: number }[];
+  }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("transactions")
+      .select("id, invoice_number, date, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, total, voided, transaction_items(qty)")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .order("date", { ascending: false })
+      .range(rangeFrom, rangeTo);
+    if (fromIso) q = q.gte("date", fromIso);
+    if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+    return q;
+  });
 
-  const txList = (rows ?? []).map((t) => ({
+  const txList = rows.map((t) => ({
     id: t.id,
     invoiceNumber: t.invoice_number,
     date: t.date,
