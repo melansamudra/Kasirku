@@ -102,7 +102,9 @@ export default async function PayrollRekapPage({
       .lte("date", monthEnd),
     supabase
       .from("payslips")
-      .select("id, employee_id")
+      .select(
+        "id, employee_id, base_pay, izin_deduction, late_deduction, lembur_amount, thr_amount, kasbon_deduction, payslip_adjustments(type, amount)",
+      )
       .eq("business_id", businessId)
       .eq("period_start", monthStart)
       .eq("period_end", monthEnd),
@@ -124,6 +126,40 @@ export default async function PayrollRekapPage({
   }
 
   const existingSlipByEmployee = new Map((existingSlips ?? []).map((s) => [s.employee_id, s.id]));
+
+  // Slip yang sudah dibuat punya angka final (lembur/THR/insentif/kasbon
+  // sudah dilengkapi admin) -- dipakai gantiin estimasi kasar dari calcPayslip
+  // di tabel/PDF supaya rekap yang dilaporkan ke owner akurat, bukan cuma
+  // gaji pokok + potongan izin/telat kayak sebelum slip dibuat.
+  const finalByEmployee = new Map(
+    (existingSlips ?? []).map((s) => {
+      const adjustments = (s.payslip_adjustments ?? []) as { type: string; amount: number }[];
+      const tunjanganTotal = adjustments
+        .filter((a) => a.type === "tunjangan")
+        .reduce((sum, a) => sum + Number(a.amount), 0);
+      const potonganLainTotal = adjustments
+        .filter((a) => a.type === "potongan")
+        .reduce((sum, a) => sum + Number(a.amount), 0);
+      const lemburAmount = Number(s.lembur_amount);
+      const thrAmount = Number(s.thr_amount);
+      const kasbonDeduction = Number(s.kasbon_deduction);
+      const izinDeduction = Number(s.izin_deduction);
+      const lateDeduction = Number(s.late_deduction);
+      const totalDiterima =
+        Number(s.base_pay) +
+        lemburAmount +
+        thrAmount +
+        tunjanganTotal -
+        potonganLainTotal -
+        izinDeduction -
+        lateDeduction -
+        kasbonDeduction;
+      return [
+        s.employee_id,
+        { izinDeduction, lateDeduction, lemburAmount, thrAmount, tunjanganTotal, potonganLainTotal, kasbonDeduction, totalDiterima },
+      ];
+    }),
+  );
 
   const settings = {
     izinDeductionWeekday: Number(business.izin_deduction_weekday),
@@ -147,10 +183,15 @@ export default async function PayrollRekapPage({
       },
       settings,
     );
-    return { employee: e, calc, existingSlipId: existingSlipByEmployee.get(e.id) ?? null };
+    return {
+      employee: e,
+      calc,
+      existingSlipId: existingSlipByEmployee.get(e.id) ?? null,
+      final: finalByEmployee.get(e.id) ?? null,
+    };
   });
 
-  const totalEstimasi = rows.reduce((s, r) => s + r.calc.estimatedTotal, 0);
+  const totalEstimasi = rows.reduce((s, r) => s + (r.final?.totalDiterima ?? r.calc.estimatedTotal), 0);
 
   return (
     <div className="w-full max-w-2xl print:max-w-none">
@@ -196,11 +237,12 @@ export default async function PayrollRekapPage({
 
       <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4 print:hidden">
         <p className="text-[10.5px] font-semibold uppercase text-brand-700">
-          Total Estimasi Gaji {monthLabel(month)}
+          Total Gaji {monthLabel(month)}
         </p>
         <p className="mt-1 text-xl font-bold text-brand-700">{formatRupiah(totalEstimasi)}</p>
         <p className="mt-1 text-[11px] text-brand-600">
-          Belum termasuk lembur/THR/tunjangan/kasbon — itu ditambahkan per slip setelah dibuat.
+          Karyawan yang slip-nya sudah dibuat: angka final (termasuk lembur/THR/insentif/kasbon).
+          Yang belum: estimasi kasar dari absensi saja.
         </p>
       </div>
 
@@ -222,46 +264,61 @@ export default async function PayrollRekapPage({
               <th className="px-2.5 py-1.5 text-center">Telat</th>
               <th className="px-2.5 py-1.5 text-right">Pot. Izin</th>
               <th className="px-2.5 py-1.5 text-right">Pot. Telat</th>
-              <th className="px-2.5 py-1.5 text-right">Estimasi Gaji</th>
+              <th className="px-2.5 py-1.5 text-right">+Lembur/Insentif</th>
+              <th className="px-2.5 py-1.5 text-right">Pot. Kasbon</th>
+              <th className="px-2.5 py-1.5 text-right">Total Gaji</th>
+              <th className="px-2.5 py-1.5 text-center">Status</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ employee: e, calc }) => (
-              <tr key={e.id} className="border-b border-zinc-100 last:border-0">
-                <td className="px-2.5 py-1">
-                  {e.name}
-                  {!e.active && " (nonaktif)"}
-                </td>
-                <td className="px-2.5 py-1">{e.salary_type === "bulanan" ? "Bulanan" : "Harian"}</td>
-                <td className="px-2.5 py-1 text-center">{calc.hadirCount}</td>
-                <td className="px-2.5 py-1 text-center">{calc.izinCount}</td>
-                <td className="px-2.5 py-1 text-center">{calc.sakitCount}</td>
-                <td className="px-2.5 py-1 text-center">{calc.alpaCount}</td>
-                <td className="px-2.5 py-1 text-center">{calc.offCount}</td>
-                <td className="px-2.5 py-1 text-center">{calc.lateCount}x</td>
-                <td className="px-2.5 py-1 text-right">{formatRupiah(calc.izinDeduction)}</td>
-                <td className="px-2.5 py-1 text-right">{formatRupiah(calc.lateDeduction)}</td>
-                <td className="px-2.5 py-1 text-right font-semibold">{formatRupiah(calc.estimatedTotal)}</td>
-              </tr>
-            ))}
+            {rows.map(({ employee: e, calc, final }) => {
+              const izinDeduction = final?.izinDeduction ?? calc.izinDeduction;
+              const lateDeduction = final?.lateDeduction ?? calc.lateDeduction;
+              const extras = final ? final.lemburAmount + final.thrAmount + final.tunjanganTotal - final.potonganLainTotal : 0;
+              const kasbonDeduction = final?.kasbonDeduction ?? 0;
+              const total = final?.totalDiterima ?? calc.estimatedTotal;
+              return (
+                <tr key={e.id} className="border-b border-zinc-100 last:border-0">
+                  <td className="px-2.5 py-1">
+                    {e.name}
+                    {!e.active && " (nonaktif)"}
+                  </td>
+                  <td className="px-2.5 py-1">{e.salary_type === "bulanan" ? "Bulanan" : "Harian"}</td>
+                  <td className="px-2.5 py-1 text-center">{calc.hadirCount}</td>
+                  <td className="px-2.5 py-1 text-center">{calc.izinCount}</td>
+                  <td className="px-2.5 py-1 text-center">{calc.sakitCount}</td>
+                  <td className="px-2.5 py-1 text-center">{calc.alpaCount}</td>
+                  <td className="px-2.5 py-1 text-center">{calc.offCount}</td>
+                  <td className="px-2.5 py-1 text-center">{calc.lateCount}x</td>
+                  <td className="px-2.5 py-1 text-right">{formatRupiah(izinDeduction)}</td>
+                  <td className="px-2.5 py-1 text-right">{formatRupiah(lateDeduction)}</td>
+                  <td className="px-2.5 py-1 text-right">{extras > 0 ? formatRupiah(extras) : "-"}</td>
+                  <td className="px-2.5 py-1 text-right">{kasbonDeduction > 0 ? formatRupiah(kasbonDeduction) : "-"}</td>
+                  <td className="px-2.5 py-1 text-right font-semibold">{formatRupiah(total)}</td>
+                  <td className="px-2.5 py-1 text-center">{final ? "Final" : "Estimasi"}</td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold">
-              <td className="px-2.5 py-1.5" colSpan={10}>
-                Total Estimasi Gaji {monthLabel(month)}
+              <td className="px-2.5 py-1.5" colSpan={12}>
+                Total Gaji {monthLabel(month)}
               </td>
               <td className="px-2.5 py-1.5 text-right">{formatRupiah(totalEstimasi)}</td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
         <p className="border-t border-zinc-200 px-2.5 py-2 text-[10px] text-zinc-500">
-          Belum termasuk lembur/THR/tunjangan/kasbon — ditambahkan per slip setelah dibuat.
+          Status &quot;Final&quot;: slip sudah dibuat & lengkap (lembur/THR/insentif/kasbon sudah
+          masuk). Status &quot;Estimasi&quot;: slip belum dibuat, angka cuma dari data absensi.
         </p>
       </div>
 
       <div className="mt-4 space-y-2 print:hidden">
         {rows.length > 0 ? (
-          rows.map(({ employee: e, calc, existingSlipId }) => (
+          rows.map(({ employee: e, calc, existingSlipId, final }) => (
             <div key={e.id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -285,15 +342,25 @@ export default async function PayrollRekapPage({
                       {calc.lateDeduction > 0 && <>− Potongan telat {formatRupiah(calc.lateDeduction)}</>}
                     </p>
                   )}
-                  {(overtimeByEmployee.get(e.id) ?? 0) > 0 && (
+                  {final && (final.lemburAmount + final.thrAmount + final.tunjanganTotal > 0 || final.kasbonDeduction > 0) && (
+                    <p className="mt-0.5 text-[11px] text-brand-600">
+                      {final.lemburAmount + final.thrAmount + final.tunjanganTotal > 0 && (
+                        <>+ Lembur/THR/insentif {formatRupiah(final.lemburAmount + final.thrAmount + final.tunjanganTotal)} </>
+                      )}
+                      {final.kasbonDeduction > 0 && <>− Potongan kasbon {formatRupiah(final.kasbonDeduction)}</>}
+                    </p>
+                  )}
+                  {!final && (overtimeByEmployee.get(e.id) ?? 0) > 0 && (
                     <p className="mt-0.5 text-[11px] text-brand-600">
                       ⏰ {overtimeByEmployee.get(e.id)} jam lembur terdeteksi dari absen selfie
                     </p>
                   )}
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-bold text-zinc-900">{formatRupiah(calc.estimatedTotal)}</p>
-                  <p className="text-[10px] text-zinc-400">estimasi gaji pokok</p>
+                  <p className="text-sm font-bold text-zinc-900">
+                    {formatRupiah(final?.totalDiterima ?? calc.estimatedTotal)}
+                  </p>
+                  <p className="text-[10px] text-zinc-400">{final ? "total diterima (final)" : "estimasi gaji pokok"}</p>
                 </div>
               </div>
               <div className="mt-2 border-t border-zinc-100 pt-2 text-right">
