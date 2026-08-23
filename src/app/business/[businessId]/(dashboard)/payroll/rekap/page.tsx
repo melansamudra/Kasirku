@@ -249,7 +249,9 @@ export default async function PayrollRekapPage({
       {/* Tabel ringkas khusus cetak/PDF -- versi polos tanpa tombol, cuma
           muncul saat print (lihat print:hidden di daftar interaktif di
           bawah), satu halaman berisi semua karyawan sekaligus buat dilaporkan
-          ke owner. */}
+          ke owner. Landscape karena kolomnya banyak (14 kolom) -- portrait
+          bikin kolom kanan (Total Gaji/Status) kepotong. */}
+      <style>{"@media print { @page { size: landscape; } }"}</style>
       <div className="mt-4 hidden overflow-hidden rounded-xl border border-zinc-200 print:block">
         <table className="w-full text-xs">
           <thead>
