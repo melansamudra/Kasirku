@@ -30,6 +30,13 @@ export default function AddCashForm({
       return;
     }
 
+    // Nyimpen kas keluar/masuk memicu revalidatePath, yang di Next.js
+    // dianggap "seeded navigation" ke rute yang sama -- efeknya halaman
+    // lompat scroll ke atas tiap kali submit, ganggu banget kalau lagi input
+    // cepat berturut-turut (harus scroll turun lagi ke form tiap kali).
+    // Simpan posisi sebelum submit, kembalikan setelah selesai.
+    const scrollY = window.scrollY;
+
     startTransition(async () => {
       const action = direction === "in" ? addCashIn : addCashOut;
       const result = await action(businessId, date, description, Number(amount), accountCode);
@@ -40,6 +47,7 @@ export default function AddCashForm({
       setDescription("");
       setAmount("");
       setAccountCode("");
+      requestAnimationFrame(() => window.scrollTo(0, scrollY));
     });
   }
 

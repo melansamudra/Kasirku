@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
@@ -52,13 +53,19 @@ async function postCashEntry(
     return { error: error.message };
   }
 
-  await logActivity(
-    supabase,
-    businessId,
-    "sistem",
-    "sukses",
-    direction === "in" ? `Kas Masuk: ${trimmedDescription}` : `Kas Keluar: ${trimmedDescription}`,
-    `Rp${amount.toLocaleString("id-ID")}`,
+  // Best-effort (lihat komentar di activity-log.ts) -- dipindah ke after()
+  // supaya tidak ikut memperlambat respons ke kasir/admin yang lagi input
+  // cepat berturut-turut. Tetap dijamin jalan (bukan fire-and-forget yang
+  // bisa mati kepotong kalau function serverless-nya keburu selesai).
+  after(() =>
+    logActivity(
+      supabase,
+      businessId,
+      "sistem",
+      "sukses",
+      direction === "in" ? `Kas Masuk: ${trimmedDescription}` : `Kas Keluar: ${trimmedDescription}`,
+      `Rp${amount.toLocaleString("id-ID")}`,
+    ),
   );
 
   revalidatePath(`/business/${businessId}/kas-harian`);
