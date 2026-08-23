@@ -66,21 +66,29 @@ export default async function PdoPage({
     );
   }
 
-  // Total nota Kas Kecil yang SUDAH disetujui (status 'posted') di periode
-  // ini -- ini yang dipakai sebagai dasar "berapa yang sudah kepakai, perlu
-  // ditransfer balik dari Rekening Utama ke Rekening Operasional". Nota yang
-  // masih pending/ditolak sengaja tidak dihitung (belum tentu jadi beban
-  // beneran, atau sudah dibatalkan -- lihat fix kas-harian sebelumnya).
+  // Nota Kas Kecil yang SUDAH disetujui (status 'posted') di periode ini --
+  // ini daftar yang dipakai admin buat MILIH SENDIRI mana yang mau dimasukkan
+  // ke perhitungan PDO (mis. sebagian sudah kepakai di permintaan sebelumnya,
+  // jangan sampai ke-double). Nota yang masih pending/ditolak sengaja tidak
+  // dihitung (belum tentu jadi beban beneran, atau sudah dibatalkan -- lihat
+  // fix kas-harian sebelumnya).
   const { data: notaRows } = await supabase
     .from("shift_cash_movements")
-    .select("amount")
+    .select("id, description, amount, category, created_at")
     .eq("business_id", businessId)
     .eq("direction", "out")
     .eq("status", "posted")
     .gte("created_at", `${from}T00:00:00+07:00`)
-    .lt("created_at", `${to}T23:59:59.999+07:00`);
+    .lt("created_at", `${to}T23:59:59.999+07:00`)
+    .order("created_at", { ascending: true });
 
-  const totalNota = ((notaRows ?? []) as { amount: number }[]).reduce((s, r) => s + Number(r.amount), 0);
+  const notaList = (notaRows ?? []) as {
+    id: string;
+    description: string;
+    amount: number;
+    category: string | null;
+    created_at: string;
+  }[];
 
   const boundAddTransfer = addTransfer.bind(null, businessId);
 
@@ -126,7 +134,7 @@ export default async function PdoPage({
         today={today}
         fromLabel={formatDateLabel(from)}
         toLabel={formatDateLabel(to)}
-        totalNota={totalNota}
+        notaList={notaList}
         businessName={business.name}
         rekeningUtamaCode={REKENING_UTAMA_CODE}
         rekeningOperasionalCode={REKENING_OPERASIONAL_CODE}

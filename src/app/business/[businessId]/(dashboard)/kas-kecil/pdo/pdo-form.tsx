@@ -1,13 +1,29 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import type { TransferState } from "../../accounting/transfer-kas/actions";
 
 const initialState: TransferState = { error: null };
 
+type Nota = {
+  id: string;
+  description: string;
+  amount: number;
+  category: string | null;
+  created_at: string;
+};
+
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
   return `${sign}Rp${Math.round(Math.abs(value)).toLocaleString("id-ID")}`;
+}
+
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+  });
 }
 
 export default function PdoForm({
@@ -15,7 +31,7 @@ export default function PdoForm({
   today,
   fromLabel,
   toLabel,
-  totalNota,
+  notaList,
   businessName,
   rekeningUtamaCode,
   rekeningOperasionalCode,
@@ -25,7 +41,7 @@ export default function PdoForm({
   today: string;
   fromLabel: string;
   toLabel: string;
-  totalNota: number;
+  notaList: Nota[];
   businessName: string;
   rekeningUtamaCode: string;
   rekeningOperasionalCode: string;
@@ -34,7 +50,10 @@ export default function PdoForm({
   const [state, formAction, pending] = useActionState(action, initialState);
   const [modalTunai, setModalTunai] = useState("");
   const [modalRekening, setModalRekening] = useState("");
-  const [jumlahDiminta, setJumlahDiminta] = useState(String(totalNota || ""));
+  // Default: semua nota kecentang -- admin boleh uncheck yang nggak mau
+  // dimasukkan (mis. sudah kepakai di permintaan PDO sebelumnya).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(notaList.map((n) => n.id)));
+  const [amountOverride, setAmountOverride] = useState<string | null>(null);
   const [catatan, setCatatan] = useState("");
   const [attempted, setAttempted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -44,10 +63,26 @@ export default function PdoForm({
   // render, jadi tidak perlu efek yang manggil setState lagi setelahnya.
   const submitted = attempted && !pending && !state.error;
 
+  const selectedNotas = useMemo(() => notaList.filter((n) => selectedIds.has(n.id)), [notaList, selectedIds]);
+  const totalNota = selectedNotas.reduce((s, n) => s + n.amount, 0);
+  // Jumlah Diminta ikut Total Nota otomatis selama admin belum pernah ubah
+  // manual -- begitu diubah manual, nilai itu yang dipakai terus walau
+  // centang berubah (dianggap keputusan sadar admin).
+  const jumlahDiminta = amountOverride ?? String(totalNota || "");
+
+  function toggleNota(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const totalModalAwal = (Number(modalTunai) || 0) + (Number(modalRekening) || 0);
   const sisaSaldo = totalModalAwal - totalNota;
   const description =
-    `PDO ${fromLabel} - ${toLabel} — Total Nota ${formatRupiah(totalNota)}, ` +
+    `PDO ${fromLabel} - ${toLabel} — Total Nota ${formatRupiah(totalNota)} (${selectedNotas.length}/${notaList.length} nota dipilih), ` +
     `Modal Awal ${formatRupiah(totalModalAwal)} (Tunai ${formatRupiah(Number(modalTunai) || 0)} + ` +
     `Rekening ${formatRupiah(Number(modalRekening) || 0)})` +
     (catatan.trim() ? ` — ${catatan.trim()}` : "");
@@ -81,7 +116,7 @@ export default function PdoForm({
               <span>{formatRupiah(totalModalAwal)}</span>
             </div>
             <div className="flex justify-between pt-1.5">
-              <span className="text-zinc-500">Total Nota Dibayarkan</span>
+              <span className="text-zinc-500">Total Nota Dibayarkan ({selectedNotas.length} nota)</span>
               <span className="font-medium text-red-600">{formatRupiah(totalNota)}</span>
             </div>
             <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
@@ -96,6 +131,20 @@ export default function PdoForm({
               <p className="pt-1 text-xs text-zinc-500">Catatan: {catatan.trim()}</p>
             )}
           </div>
+
+          {selectedNotas.length > 0 && (
+            <div className="mt-4 border-t border-dashed border-zinc-300 pt-3">
+              <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Rincian Nota</p>
+              <div className="space-y-1 text-xs">
+                {selectedNotas.map((n) => (
+                  <div key={n.id} className="flex justify-between text-zinc-600">
+                    <span className="truncate pr-2">{formatDateShort(n.created_at)} — {n.description}</span>
+                    <span className="shrink-0 font-medium">{formatRupiah(n.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-8 grid grid-cols-2 gap-6 text-center text-xs text-zinc-500">
             <div>
@@ -124,7 +173,8 @@ export default function PdoForm({
               setModalTunai("");
               setModalRekening("");
               setCatatan("");
-              setJumlahDiminta(String(totalNota || ""));
+              setAmountOverride(null);
+              setSelectedIds(new Set(notaList.map((n) => n.id)));
             }}
             className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
           >
@@ -147,11 +197,59 @@ export default function PdoForm({
       <input type="hidden" name="toCode" value={rekeningOperasionalCode} />
       <input type="hidden" name="description" value={description} />
 
-      <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-3.5 py-2.5 text-sm">
-        <div className="flex justify-between text-zinc-500">
-          <span>Total Nota Dibayarkan (Kas Kecil, {fromLabel} – {toLabel})</span>
+      <div className="overflow-hidden rounded-xl border border-zinc-100">
+        <div className="flex items-center justify-between bg-zinc-50 px-3.5 py-2 text-xs">
+          <span className="font-medium text-zinc-600">
+            Nota Kas Kecil ({fromLabel} – {toLabel}) — {selectedNotas.length}/{notaList.length} dipilih
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set(notaList.map((n) => n.id)))}
+              className="font-semibold text-brand-600 hover:underline"
+            >
+              Pilih semua
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="font-semibold text-zinc-400 hover:underline"
+            >
+              Kosongkan
+            </button>
+          </div>
         </div>
-        <p className="mt-0.5 text-lg font-bold text-red-600">{formatRupiah(totalNota)}</p>
+        {notaList.length === 0 ? (
+          <p className="px-3.5 py-4 text-center text-xs text-zinc-300">
+            Tidak ada nota Kas Kecil disetujui di periode ini.
+          </p>
+        ) : (
+          <div className="max-h-56 divide-y divide-zinc-50 overflow-y-auto">
+            {notaList.map((n) => (
+              <label
+                key={n.id}
+                className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2 text-xs hover:bg-zinc-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(n.id)}
+                  onChange={() => toggleNota(n.id)}
+                  className="h-3.5 w-3.5 rounded border-zinc-300 text-brand-600 focus:ring-brand-500"
+                />
+                <span className="w-11 shrink-0 text-zinc-400">{formatDateShort(n.created_at)}</span>
+                <span className="min-w-0 flex-1 truncate text-zinc-700">
+                  {n.description}
+                  {n.category && <span className="ml-1 text-zinc-400">({n.category})</span>}
+                </span>
+                <span className="shrink-0 font-medium text-zinc-800">{formatRupiah(n.amount)}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-3.5 py-2">
+          <span className="text-xs font-medium text-zinc-500">Total Nota Terpilih</span>
+          <span className="text-base font-bold text-red-600">{formatRupiah(totalNota)}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -199,12 +297,13 @@ export default function PdoForm({
           name="amount"
           min="0"
           value={jumlahDiminta}
-          onChange={(e) => setJumlahDiminta(e.target.value)}
+          onChange={(e) => setAmountOverride(e.target.value)}
           required
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <p className="mt-1 text-[11px] text-zinc-400">
-          Default = Total Nota Dibayarkan (biar saldo balik ke Modal Awal) — bisa diubah kalau perlu.
+          Otomatis ikut Total Nota Terpilih di atas — kalau diubah manual, nilainya tidak lagi ikut
+          berubah walau centang nota diubah.
         </p>
       </div>
 
