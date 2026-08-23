@@ -88,10 +88,14 @@ function formatDateTime(iso: string) {
 
 export default async function KasKecilPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const { businessId } = await params;
+  const { date: historyDateParam } = await searchParams;
+  const historyDate = /^\d{4}-\d{2}-\d{2}$/.test(historyDateParam ?? "") ? historyDateParam : undefined;
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }] = await Promise.all([
@@ -146,16 +150,27 @@ export default async function KasKecilPage({
       .eq("direction", "out")
       .eq("status", "pending")
       .order("created_at", { ascending: true }),
-    supabase
-      .from("shift_cash_movements")
-      .select(
-        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name), employees(name)",
-      )
-      .eq("business_id", businessId)
-      .eq("direction", "out")
-      .neq("status", "pending")
-      .order("reviewed_at", { ascending: false })
-      .limit(30),
+    (() => {
+      const q = supabase
+        .from("shift_cash_movements")
+        .select(
+          "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name), employees(name)",
+        )
+        .eq("business_id", businessId)
+        .eq("direction", "out")
+        .neq("status", "pending");
+      // Tanpa filter tanggal: default 30 terakhir (ringkasan cepat). Dengan
+      // filter tanggal (dipilih lewat form di bawah "Riwayat Diperiksa"):
+      // semua pengeluaran yang DIAJUKAN (created_at) di tanggal itu, tidak
+      // dibatasi 30 -- biar bisa benar-benar dicek riwayat satu hari penuh.
+      if (historyDate) {
+        return q
+          .gte("created_at", `${historyDate}T00:00:00+07:00`)
+          .lt("created_at", `${historyDate}T23:59:59.999+07:00`)
+          .order("created_at", { ascending: false });
+      }
+      return q.order("reviewed_at", { ascending: false }).limit(30);
+    })(),
     // 1-050 (suspense kas kecil), 1-001 (Kas & Bank), 1-060 (Piutang
     // Karyawan) dikeluarkan dari pilihan reklasifikasi bebas — 1-060 khusus
     // dipakai otomatis untuk Kasbon (lihat review_shift_cash_movement),
@@ -366,11 +381,40 @@ export default async function KasKecilPage({
         )}
       </div>
 
-      {history.length > 0 && (
-        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-4 py-3">
+      <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+          <div>
             <h2 className="text-sm font-bold text-zinc-900">Riwayat Diperiksa</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              {historyDate
+                ? `Tanggal ${new Date(`${historyDate}T00:00:00Z`).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" })}`
+                : "30 terakhir — pilih tanggal untuk lihat riwayat lengkap satu hari"}
+            </p>
           </div>
+          <form method="get" className="flex items-center gap-1.5">
+            <input
+              type="date"
+              name="date"
+              defaultValue={historyDate ?? ""}
+              className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              Cek
+            </button>
+            {historyDate && (
+              <a
+                href={`/business/${businessId}/kas-kecil`}
+                className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-50"
+              >
+                Reset
+              </a>
+            )}
+          </form>
+        </div>
+        {history.length > 0 ? (
           <div className="divide-y divide-zinc-100">
             {history.map((m) => (
               <div key={m.id} className="flex items-center gap-3 px-4 py-3">
@@ -395,8 +439,12 @@ export default async function KasKecilPage({
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="py-10 text-center text-xs text-zinc-300">
+            {historyDate ? "Tidak ada riwayat kas kecil di tanggal ini." : "Belum ada riwayat diperiksa."}
+          </p>
+        )}
+      </div>
 
       <div className="mt-6 border-t border-zinc-200 pt-4">
         <h2 className="text-sm font-bold text-zinc-900">📄 Nota Hutang</h2>
