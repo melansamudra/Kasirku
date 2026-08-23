@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { fetchKasBankLines } from "@/lib/kas-bank";
-import { PERIOD_COOKIE_NAME, getPeriodRange, parsePeriod } from "../period";
+import { PERIOD_COOKIE_NAME, PERIOD_DESCRIPTIONS, getPeriodRange, parsePeriod } from "../period";
 import PeriodTabs from "../period-tabs";
 import PrintHarianButton from "./print-harian-button";
 
@@ -15,11 +15,6 @@ function fmt(v: number) {
 }
 function toDateWib(iso: string) {
   return new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 10);
-}
-function fmtDateFull(d: string) {
-  return new Date(d).toLocaleDateString("id-ID", {
-    weekday: "long", day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Jakarta",
-  });
 }
 function fmtDateShort(d: string) {
   return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", timeZone: "Asia/Jakarta" });
@@ -240,6 +235,10 @@ export default async function ReportsHarianPage({
   const hasPendapatanLain = dayList.some((d) => d.pendapatanLain > 0);
   const hasHutang = (allPurchases ?? []).length > 0;
   const basePath = `/business/${businessId}/reports/harian`;
+  const highlightLabel =
+    period === "custom" && from && to
+      ? `${fmtDateShort(from)} – ${fmtDateShort(to)}`
+      : PERIOD_DESCRIPTIONS[period];
 
   return (
     <div className="w-full max-w-6xl">
@@ -273,28 +272,26 @@ export default async function ReportsHarianPage({
         </div>
       ) : (
         <>
-          {/* Highlight hari pertama (terbaru) */}
-          {dayList[0] && (
-            <div className="mt-5 rounded-xl border border-brand-100 bg-brand-50 p-4 print:hidden">
-              <p className="text-xs font-semibold text-brand-700">{fmtDateFull(dayList[0].date)}</p>
-              <div className="mt-2 flex flex-wrap gap-4">
-                <div>
-                  <p className="text-[10px] text-brand-400 uppercase tracking-wide">Total Pendapatan</p>
-                  <p className="text-xl font-bold text-brand-700">{fmt(dayList[0].totalPendapatan)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-brand-400 uppercase tracking-wide">Total Pengeluaran</p>
-                  <p className="text-xl font-bold text-red-600">{fmt(dayList[0].totalPengeluaran)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-brand-400 uppercase tracking-wide">Laba Bersih</p>
-                  <p className={`text-xl font-bold ${dayList[0].labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>
-                    {fmt(dayList[0].labaBersih)}
-                  </p>
-                </div>
+          {/* Ringkasan total untuk seluruh periode yang dipilih (bukan cuma 1 hari) */}
+          <div className="mt-5 rounded-xl border border-brand-100 bg-brand-50 p-4 print:hidden">
+            <p className="text-xs font-semibold text-brand-700">{highlightLabel} — {dayList.length} hari</p>
+            <div className="mt-2 flex flex-wrap gap-4">
+              <div>
+                <p className="text-[10px] text-brand-400 uppercase tracking-wide">Total Pendapatan</p>
+                <p className="text-xl font-bold text-brand-700">{fmt(totals.totalPendapatan)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-brand-400 uppercase tracking-wide">Total Pengeluaran</p>
+                <p className="text-xl font-bold text-red-600">{fmt(totals.totalPengeluaran)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-brand-400 uppercase tracking-wide">Laba Bersih</p>
+                <p className={`text-xl font-bold ${totals.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>
+                  {fmt(totals.labaBersih)}
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
           {hasHutang && (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 print:hidden">
