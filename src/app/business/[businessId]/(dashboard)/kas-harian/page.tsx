@@ -96,13 +96,19 @@ export default async function KasHarianPage({
     // 1-001 (Kas & Bank) dikeluarkan dari pilihan — tidak masuk akal jadi
     // sisi lain transaksi kas masuk/keluar yang justru menyentuh Kas & Bank
     // itu sendiri. 1-050 (suspense Kas Kecil) juga dikeluarkan supaya tidak
-    // tercampur dengan alur approval Kas Kecil yang terpisah.
+    // tercampur dengan alur approval Kas Kecil yang terpisah. 1-060 (Piutang
+    // Karyawan) dikeluarkan juga -- sama alasan seperti di Kas Kecil
+    // (post_petty_cash_kasbon): akun ini khusus dipakai OTOMATIS lewat alur
+    // Kasbon yang mewajibkan pilih nama karyawan, supaya nyambung ke
+    // employee_advances/sisa kasbon Payroll. Kalau dipilih manual di sini,
+    // jurnalnya tetap balance tapi TIDAK terhubung ke karyawan manapun.
     supabase
       .from("accounts")
       .select("code, name")
       .eq("business_id", businessId)
       .neq("code", "1-001")
       .neq("code", "1-050")
+      .neq("code", "1-060")
       .order("code"),
   ]);
   const cashFormAccounts = cashFormAccountRows ?? [];
