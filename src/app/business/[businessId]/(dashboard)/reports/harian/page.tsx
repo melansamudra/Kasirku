@@ -136,37 +136,61 @@ export default async function ReportsHarianPage({
   // yang sesuai sebagai Sumber Dana). Bukan fitur input baru, cuma dibaca
   // ulang di sini dan dipisah per akun.
   const accountIdToCode = new Map((ojolAccounts ?? []).map((a) => [a.id, a.code]));
-  let ojolRows: { credit: number; account_id: string; journal_entries: { date: string } }[] = [];
+  let ojolRows: { credit: number; account_id: string; journal_entries: { id: string; date: string; source: string } }[] = [];
   if (ojolAccounts && ojolAccounts.length > 0) {
     const ojolAccountIds = ojolAccounts.map((a) => a.id);
-    ojolRows = await fetchAllRows<{ credit: number; account_id: string; journal_entries: { date: string } }>(
-      (rangeFrom, rangeTo) => {
-        let q = supabase
-          .from("journal_lines")
-          .select("credit, account_id, journal_entries!inner(date, business_id)")
-          .in("account_id", ojolAccountIds)
-          .eq("journal_entries.business_id", businessId)
-          .range(rangeFrom, rangeTo);
-        if (fromIso) q = q.gte("journal_entries.date", fromIso);
-        if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
-        return q;
-      },
+    const rawOjolRows = await fetchAllRows<{
+      credit: number;
+      account_id: string;
+      journal_entries: { id: string; date: string; source: string };
+    }>((rangeFrom, rangeTo) => {
+      let q = supabase
+        .from("journal_lines")
+        .select("credit, account_id, journal_entries!inner(id, date, source, business_id)")
+        .in("account_id", ojolAccountIds)
+        .eq("journal_entries.business_id", businessId)
+        .range(rangeFrom, rangeTo);
+      if (fromIso) q = q.gte("journal_entries.date", fromIso);
+      if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
+      return q;
+    });
+
+    // Entri yang sudah dibatalkan lewat "↩ Koreksi" (mis. salah pilih akun
+    // saat Catat Kas Masuk) dan jurnal koreksi-nya sendiri sama-sama
+    // dikeluarkan -- kalau tidak, baris kredit ASLI tetap kehitung penuh
+    // sementara koreksinya (yang menukar debit/kredit) diabaikan karena di
+    // sini cuma credit yang dijumlah, jadi pendapatan permanen overstate.
+    const { data: ojolReversals } = await supabase
+      .from("journal_entries")
+      .select("source_id")
+      .eq("business_id", businessId)
+      .eq("source", "koreksi");
+    const ojolReversedEntryIds = new Set((ojolReversals ?? []).map((r) => r.source_id));
+    ojolRows = rawOjolRows.filter(
+      (r) => r.journal_entries.source !== "koreksi" && !ojolReversedEntryIds.has(r.journal_entries.id),
     );
   }
 
   // Kas keluar yang beneran berlaku (void/pending/ditolak/transfer-antar-
   // rekening sudah dikecualikan oleh fetchKasBankLines) -- dipisah Tunai vs
   // Transfer dari payment_method (null diperlakukan tunai, sesuai konvensi
-  // Kas Kecil yang memang selalu kas fisik). Kasbon (kategori "Kasbon" di
-  // shift_cash_movements) DIKECUALIKAN dari Pengeluaran -- kas fisik memang
-  // keluar dari laci, tapi secara akuntansi itu piutang karyawan (1-060,
-  // ditagih balik lewat potongan gaji), bukan beban yang boleh mengurangi
-  // Laba Bersih. Beda dengan Kas & Bank (kas-harian/page.tsx) yang memang
-  // menampilkan pergerakan kas fisik apa adanya, laporan ini P&L-style jadi
-  // harus ikut definisi akuntansi, bukan cuma "uang keluar dari laci".
-  const kasKeluarLines = kasBank.displayLines.filter(
-    (l) => Number(l.credit) > 0 && kasBank.movementByEntryId.get(l.journal_entries.id)?.category !== "Kasbon",
-  );
+  // Kas Kecil yang memang selalu kas fisik). Tiga hal DIKECUALIKAN dari
+  // Pengeluaran karena bukan beban secara akuntansi (cuma tukar aset/lunasi
+  // kewajiban, sama sekali tidak mengurangi laba) -- beda dengan Kas & Bank
+  // (kas-harian/page.tsx) yang memang menampilkan pergerakan kas fisik apa
+  // adanya, laporan ini P&L-style jadi harus ikut definisi akuntansi:
+  //  - Kasbon (kategori "Kasbon" di shift_cash_movements) -> piutang karyawan
+  //  - Pembelian bahan baku/barang tunai (source "pembelian") -> Persediaan
+  //  - Pelunasan hutang dagang (deskripsi persis "Bayar utang dagang" dari
+  //    addPurchasePayment) -> Hutang Dagang, sudah punya baris sendiri
+  //    "Hutang Dibayar" di laporan ini, jangan sampai dobel kehitung.
+  const kasKeluarLines = kasBank.displayLines.filter((l) => {
+    if (Number(l.credit) <= 0) return false;
+    if (kasBank.movementByEntryId.get(l.journal_entries.id)?.category === "Kasbon") return false;
+    if (l.journal_entries.source === "pembelian") return false;
+    if (l.journal_entries.description === "Bayar utang dagang") return false;
+    return true;
+  });
 
   const dayMap = new Map<string, DayData>();
   function ensure(key: string): DayData {
