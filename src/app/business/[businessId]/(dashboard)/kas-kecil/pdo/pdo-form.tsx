@@ -26,6 +26,95 @@ function formatDateShort(iso: string) {
   });
 }
 
+function SlipSummary({
+  businessName,
+  fromLabel,
+  toLabel,
+  modalTunai,
+  modalRekening,
+  totalModalAwal,
+  totalNota,
+  sisaSaldo,
+  jumlahDiminta,
+  catatan,
+  selectedNotas,
+}: {
+  businessName: string;
+  fromLabel: string;
+  toLabel: string;
+  modalTunai: number;
+  modalRekening: number;
+  totalModalAwal: number;
+  totalNota: number;
+  sisaSaldo: number;
+  jumlahDiminta: number;
+  catatan: string;
+  selectedNotas: Nota[];
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6 print:border-0 print:p-0">
+      <div className="text-center">
+        <p className="text-xs font-semibold uppercase text-zinc-400">{businessName}</p>
+        <h2 className="mt-1 text-lg font-bold text-zinc-900">Slip Permintaan Dana Operasional</h2>
+        <p className="mt-0.5 text-xs text-zinc-500">Periode nota: {fromLabel} – {toLabel}</p>
+      </div>
+
+      <div className="mt-4 space-y-1.5 border-t border-dashed border-zinc-300 pt-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-zinc-500">Modal Awal — Tunai</span>
+          <span className="font-medium text-zinc-900">{formatRupiah(modalTunai)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-zinc-500">Modal Awal — Rekening</span>
+          <span className="font-medium text-zinc-900">{formatRupiah(modalRekening)}</span>
+        </div>
+        <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
+          <span>Total Modal Awal</span>
+          <span>{formatRupiah(totalModalAwal)}</span>
+        </div>
+        <div className="flex justify-between pt-1.5">
+          <span className="text-zinc-500">Total Nota Dibayarkan ({selectedNotas.length} nota)</span>
+          <span className="font-medium text-red-600">{formatRupiah(totalNota)}</span>
+        </div>
+        <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
+          <span>Sisa Saldo</span>
+          <span>{formatRupiah(sisaSaldo)}</span>
+        </div>
+        <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-base font-bold text-brand-700">
+          <span>Jumlah Diminta (Transfer)</span>
+          <span>{formatRupiah(jumlahDiminta)}</span>
+        </div>
+        {catatan.trim() && <p className="pt-1 text-xs text-zinc-500">Catatan: {catatan.trim()}</p>}
+      </div>
+
+      {selectedNotas.length > 0 && (
+        <div className="mt-4 border-t border-dashed border-zinc-300 pt-3">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Rincian Nota</p>
+          <div className="space-y-1 text-xs">
+            {selectedNotas.map((n) => (
+              <div key={n.id} className="flex justify-between text-zinc-600">
+                <span className="truncate pr-2">{formatDateShort(n.created_at)} — {n.description}</span>
+                <span className="shrink-0 font-medium">{formatRupiah(n.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-8 grid grid-cols-2 gap-6 text-center text-xs text-zinc-500">
+        <div>
+          <div className="h-14" />
+          <p className="border-t border-zinc-300 pt-1.5">Diajukan oleh (Admin)</p>
+        </div>
+        <div>
+          <div className="h-14" />
+          <p className="border-t border-zinc-300 pt-1.5">Disetujui oleh (Owner)</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PdoForm({
   action,
   today,
@@ -55,6 +144,7 @@ export default function PdoForm({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(notaList.map((n) => n.id)));
   const [amountOverride, setAmountOverride] = useState<string | null>(null);
   const [catatan, setCatatan] = useState("");
+  const [previewMode, setPreviewMode] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -87,6 +177,20 @@ export default function PdoForm({
     `Rekening ${formatRupiah(Number(modalRekening) || 0)})` +
     (catatan.trim() ? ` — ${catatan.trim()}` : "");
 
+  const summaryProps = {
+    businessName,
+    fromLabel,
+    toLabel,
+    modalTunai: Number(modalTunai) || 0,
+    modalRekening: Number(modalRekening) || 0,
+    totalModalAwal,
+    totalNota,
+    sisaSaldo,
+    jumlahDiminta: Number(jumlahDiminta) || 0,
+    catatan,
+    selectedNotas,
+  };
+
   if (submitted) {
     return (
       <div className="mt-4">
@@ -95,67 +199,8 @@ export default function PdoForm({
           {rekeningOperasionalCode}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 print:border-0 print:p-0">
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase text-zinc-400">{businessName}</p>
-            <h2 className="mt-1 text-lg font-bold text-zinc-900">Slip Permintaan Dana Operasional</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">Periode nota: {fromLabel} – {toLabel}</p>
-          </div>
-
-          <div className="mt-4 space-y-1.5 border-t border-dashed border-zinc-300 pt-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Modal Awal — Tunai</span>
-              <span className="font-medium text-zinc-900">{formatRupiah(Number(modalTunai) || 0)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Modal Awal — Rekening</span>
-              <span className="font-medium text-zinc-900">{formatRupiah(Number(modalRekening) || 0)}</span>
-            </div>
-            <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
-              <span>Total Modal Awal</span>
-              <span>{formatRupiah(totalModalAwal)}</span>
-            </div>
-            <div className="flex justify-between pt-1.5">
-              <span className="text-zinc-500">Total Nota Dibayarkan ({selectedNotas.length} nota)</span>
-              <span className="font-medium text-red-600">{formatRupiah(totalNota)}</span>
-            </div>
-            <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
-              <span>Sisa Saldo</span>
-              <span>{formatRupiah(sisaSaldo)}</span>
-            </div>
-            <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-base font-bold text-brand-700">
-              <span>Jumlah Diminta (Transfer)</span>
-              <span>{formatRupiah(Number(jumlahDiminta) || 0)}</span>
-            </div>
-            {catatan.trim() && (
-              <p className="pt-1 text-xs text-zinc-500">Catatan: {catatan.trim()}</p>
-            )}
-          </div>
-
-          {selectedNotas.length > 0 && (
-            <div className="mt-4 border-t border-dashed border-zinc-300 pt-3">
-              <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Rincian Nota</p>
-              <div className="space-y-1 text-xs">
-                {selectedNotas.map((n) => (
-                  <div key={n.id} className="flex justify-between text-zinc-600">
-                    <span className="truncate pr-2">{formatDateShort(n.created_at)} — {n.description}</span>
-                    <span className="shrink-0 font-medium">{formatRupiah(n.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-8 grid grid-cols-2 gap-6 text-center text-xs text-zinc-500">
-            <div>
-              <div className="h-14" />
-              <p className="border-t border-zinc-300 pt-1.5">Diajukan oleh (Admin)</p>
-            </div>
-            <div>
-              <div className="h-14" />
-              <p className="border-t border-zinc-300 pt-1.5">Disetujui oleh (Owner)</p>
-            </div>
-          </div>
+        <div className="mt-4">
+          <SlipSummary {...summaryProps} />
         </div>
 
         <div className="mt-4 flex gap-2 print:hidden">
@@ -170,6 +215,7 @@ export default function PdoForm({
             type="button"
             onClick={() => {
               setAttempted(false);
+              setPreviewMode(false);
               setModalTunai("");
               setModalRekening("");
               setCatatan("");
@@ -190,143 +236,173 @@ export default function PdoForm({
       ref={formRef}
       action={formAction}
       onSubmit={() => setAttempted(true)}
-      className="mt-4 space-y-3 rounded-2xl border border-zinc-200 bg-white p-5"
+      className="mt-4 space-y-3"
     >
       <input type="hidden" name="date" value={today} />
       <input type="hidden" name="fromCode" value={rekeningUtamaCode} />
       <input type="hidden" name="toCode" value={rekeningOperasionalCode} />
       <input type="hidden" name="description" value={description} />
+      <input type="hidden" name="amount" value={jumlahDiminta} />
 
-      <div className="overflow-hidden rounded-xl border border-zinc-100">
-        <div className="flex items-center justify-between bg-zinc-50 px-3.5 py-2 text-xs">
-          <span className="font-medium text-zinc-600">
-            Nota Kas Keluar ({fromLabel} – {toLabel}) — {selectedNotas.length}/{notaList.length} dipilih
-          </span>
+      {previewMode ? (
+        <>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-center text-xs font-medium text-amber-700">
+            Pratinjau — belum tercatat. Cek dulu sebelum diajukan.
+          </div>
+
+          <SlipSummary {...summaryProps} />
+
+          {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>}
+
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setSelectedIds(new Set(notaList.map((n) => n.id)))}
-              className="font-semibold text-brand-600 hover:underline"
+              onClick={() => setPreviewMode(false)}
+              disabled={pending}
+              className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Pilih semua
+              ← Kembali
             </button>
             <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="font-semibold text-zinc-400 hover:underline"
+              type="submit"
+              disabled={pending}
+              className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Kosongkan
+              {pending ? "Memproses…" : "Ajukan & Catat Transfer"}
             </button>
           </div>
-        </div>
-        {notaList.length === 0 ? (
-          <p className="px-3.5 py-4 text-center text-xs text-zinc-300">
-            Tidak ada nota kas keluar di periode ini.
-          </p>
-        ) : (
-          <div className="max-h-56 divide-y divide-zinc-50 overflow-y-auto">
-            {notaList.map((n) => (
-              <label
-                key={n.id}
-                className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2 text-xs hover:bg-zinc-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(n.id)}
-                  onChange={() => toggleNota(n.id)}
-                  className="h-3.5 w-3.5 rounded border-zinc-300 text-brand-600 focus:ring-brand-500"
-                />
-                <span className="w-11 shrink-0 text-zinc-400">{formatDateShort(n.created_at)}</span>
-                <span className="min-w-0 flex-1 truncate text-zinc-700">
-                  {n.description}
-                  {n.category && <span className="ml-1 text-zinc-400">({n.category})</span>}
-                </span>
-                <span className="shrink-0 font-medium text-zinc-800">{formatRupiah(n.amount)}</span>
-              </label>
-            ))}
+        </>
+      ) : (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
+          <div className="overflow-hidden rounded-xl border border-zinc-100">
+            <div className="flex items-center justify-between bg-zinc-50 px-3.5 py-2 text-xs">
+              <span className="font-medium text-zinc-600">
+                Nota Kas Keluar ({fromLabel} – {toLabel}) — {selectedNotas.length}/{notaList.length} dipilih
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set(notaList.map((n) => n.id)))}
+                  className="font-semibold text-brand-600 hover:underline"
+                >
+                  Pilih semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="font-semibold text-zinc-400 hover:underline"
+                >
+                  Kosongkan
+                </button>
+              </div>
+            </div>
+            {notaList.length === 0 ? (
+              <p className="px-3.5 py-4 text-center text-xs text-zinc-300">
+                Tidak ada nota kas keluar di periode ini.
+              </p>
+            ) : (
+              <div className="max-h-56 divide-y divide-zinc-50 overflow-y-auto">
+                {notaList.map((n) => (
+                  <label
+                    key={n.id}
+                    className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2 text-xs hover:bg-zinc-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(n.id)}
+                      onChange={() => toggleNota(n.id)}
+                      className="h-3.5 w-3.5 rounded border-zinc-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="w-11 shrink-0 text-zinc-400">{formatDateShort(n.created_at)}</span>
+                    <span className="min-w-0 flex-1 truncate text-zinc-700">
+                      {n.description}
+                      {n.category && <span className="ml-1 text-zinc-400">({n.category})</span>}
+                    </span>
+                    <span className="shrink-0 font-medium text-zinc-800">{formatRupiah(n.amount)}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-3.5 py-2">
+              <span className="text-xs font-medium text-zinc-500">Total Nota Terpilih</span>
+              <span className="text-base font-bold text-red-600">{formatRupiah(totalNota)}</span>
+            </div>
           </div>
-        )}
-        <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-3.5 py-2">
-          <span className="text-xs font-medium text-zinc-500">Total Nota Terpilih</span>
-          <span className="text-base font-bold text-red-600">{formatRupiah(totalNota)}</span>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600">Modal Awal — Tunai (Rp)</label>
+              <input
+                type="number"
+                min="0"
+                value={modalTunai}
+                onChange={(e) => setModalTunai(e.target.value)}
+                placeholder="mis. 2000000"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600">Modal Awal — Rekening (Rp)</label>
+              <input
+                type="number"
+                min="0"
+                value={modalRekening}
+                onChange={(e) => setModalRekening(e.target.value)}
+                placeholder="mis. 10000000"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 text-sm">
+            <div className="rounded-xl border border-zinc-100 px-3 py-2">
+              <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Total Modal Awal</p>
+              <p className="font-bold text-zinc-900">{formatRupiah(totalModalAwal)}</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 px-3 py-2">
+              <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Sisa Saldo</p>
+              <p className={`font-bold ${sisaSaldo < 0 ? "text-red-600" : "text-zinc-900"}`}>{formatRupiah(sisaSaldo)}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">
+              Jumlah Diminta / Ditransfer ke {rekeningOperasionalName} (Rp)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={jumlahDiminta}
+              onChange={(e) => setAmountOverride(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Otomatis ikut Total Nota Terpilih di atas — kalau diubah manual, nilainya tidak lagi ikut
+              berubah walau centang nota diubah.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">Catatan (opsional)</label>
+            <input
+              type="text"
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+              placeholder="mis. Top-up mingguan"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPreviewMode(true)}
+            disabled={!jumlahDiminta || Number(jumlahDiminta) <= 0}
+            className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Lihat Preview →
+          </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Modal Awal — Tunai (Rp)</label>
-          <input
-            type="number"
-            min="0"
-            value={modalTunai}
-            onChange={(e) => setModalTunai(e.target.value)}
-            placeholder="mis. 2000000"
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Modal Awal — Rekening (Rp)</label>
-          <input
-            type="number"
-            min="0"
-            value={modalRekening}
-            onChange={(e) => setModalRekening(e.target.value)}
-            placeholder="mis. 10000000"
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5 text-sm">
-        <div className="rounded-xl border border-zinc-100 px-3 py-2">
-          <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Total Modal Awal</p>
-          <p className="font-bold text-zinc-900">{formatRupiah(totalModalAwal)}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-100 px-3 py-2">
-          <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Sisa Saldo</p>
-          <p className={`font-bold ${sisaSaldo < 0 ? "text-red-600" : "text-zinc-900"}`}>{formatRupiah(sisaSaldo)}</p>
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">
-          Jumlah Diminta / Ditransfer ke {rekeningOperasionalName} (Rp)
-        </label>
-        <input
-          type="number"
-          name="amount"
-          min="0"
-          value={jumlahDiminta}
-          onChange={(e) => setAmountOverride(e.target.value)}
-          required
-          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-        <p className="mt-1 text-[11px] text-zinc-400">
-          Otomatis ikut Total Nota Terpilih di atas — kalau diubah manual, nilainya tidak lagi ikut
-          berubah walau centang nota diubah.
-        </p>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Catatan (opsional)</label>
-        <input
-          type="text"
-          value={catatan}
-          onChange={(e) => setCatatan(e.target.value)}
-          placeholder="mis. Top-up mingguan"
-          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </div>
-
-      {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>}
-
-      <button
-        type="submit"
-        disabled={pending || !jumlahDiminta || Number(jumlahDiminta) <= 0}
-        className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pending ? "Memproses…" : "Ajukan & Catat Transfer"}
-      </button>
+      )}
     </form>
   );
 }
