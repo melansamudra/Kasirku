@@ -37,6 +37,8 @@ type DayData = {
   service: number;
   tax: number;
   pendapatanPenjualan: number;
+  pendapatanGofood: number;
+  pendapatanGrabfood: number;
   pendapatanLain: number;
   pengeluaranTunai: number;
   pengeluaranTransfer: number;
@@ -50,12 +52,19 @@ function emptyDay(): DayData {
     service: 0,
     tax: 0,
     pendapatanPenjualan: 0,
+    pendapatanGofood: 0,
+    pendapatanGrabfood: 0,
     pendapatanLain: 0,
     pengeluaranTunai: 0,
     pengeluaranTransfer: 0,
     hutangDibayar: 0,
   };
 }
+
+// Kode akun pendapatan non-penjualan yang direct dari "Catat Kas Masuk" di
+// Kas & Bank -- Gofood/Grabfood dipisah biar kelihatan kontribusi tiap
+// platform ojol, 4-999 tetap jadi tampungan pendapatan lain di luar itu.
+const OJOL_ACCOUNT_CODES = ["4-003", "4-004", "4-999"] as const;
 
 export default async function ReportsHarianPage({
   params,
@@ -81,7 +90,7 @@ export default async function ReportsHarianPage({
     ? new Date(new Date(toIsoExclusive).getTime() - 1).toISOString().slice(0, 10)
     : null;
 
-  const [txRows, { data: pendapatanLainAccount }, kasBank, { data: allPurchases }, { data: allPayments }] =
+  const [txRows, { data: ojolAccounts }, kasBank, { data: allPurchases }, { data: allPayments }] =
     await Promise.all([
       // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
       // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts)
@@ -107,7 +116,7 @@ export default async function ReportsHarianPage({
         if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
         return q;
       }),
-      supabase.from("accounts").select("id").eq("business_id", businessId).eq("code", "4-999").maybeSingle(),
+      supabase.from("accounts").select("id, code").eq("business_id", businessId).in("code", OJOL_ACCOUNT_CODES),
       fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive),
       (() => {
         let q = supabase.from("purchases").select("date, amount").eq("business_id", businessId).order("date");
@@ -121,20 +130,22 @@ export default async function ReportsHarianPage({
       })(),
     ]);
 
-  // Pendapatan Lain-lain (mis. Ojol) -- dicatat lewat akun 4-999, biasanya
-  // diinput via "Catat Kas Masuk" di halaman Kas & Bank (pilih akun 4-999
-  // sebagai Sumber Dana). Bukan fitur input baru, cuma dibaca ulang di sini.
-  let pendapatanLainRows: { credit: number; journal_entries: { date: string } }[] = [];
-  if (pendapatanLainAccount) {
+  // Pendapatan Gofood/Grabfood/Lain-lain -- dicatat lewat akun 4-003/4-004/
+  // 4-999, diinput via "Catat Kas Masuk" di halaman Kas & Bank (pilih akun
+  // yang sesuai sebagai Sumber Dana). Bukan fitur input baru, cuma dibaca
+  // ulang di sini dan dipisah per akun.
+  const accountIdToCode = new Map((ojolAccounts ?? []).map((a) => [a.id, a.code]));
+  let ojolRows: { credit: number; account_id: string; journal_entries: { date: string } }[] = [];
+  if (ojolAccounts && ojolAccounts.length > 0) {
     let q = supabase
       .from("journal_lines")
-      .select("credit, journal_entries!inner(date, business_id)")
-      .eq("account_id", pendapatanLainAccount.id)
+      .select("credit, account_id, journal_entries!inner(date, business_id)")
+      .in("account_id", ojolAccounts.map((a) => a.id))
       .eq("journal_entries.business_id", businessId);
     if (fromIso) q = q.gte("journal_entries.date", fromIso);
     if (toIsoExclusive) q = q.lt("journal_entries.date", toIsoExclusive);
     const { data } = await q;
-    pendapatanLainRows = (data ?? []) as typeof pendapatanLainRows;
+    ojolRows = (data ?? []) as typeof ojolRows;
   }
 
   // Kas keluar yang beneran berlaku (void/pending/ditolak/transfer-antar-
@@ -162,8 +173,12 @@ export default async function ReportsHarianPage({
     e.service += Number(t.service ?? 0);
     e.tax += Number(t.tax ?? 0);
   }
-  for (const r of pendapatanLainRows) {
-    ensure(toDateWib(r.journal_entries.date)).pendapatanLain += Number(r.credit);
+  for (const r of ojolRows) {
+    const code = accountIdToCode.get(r.account_id);
+    const e = ensure(toDateWib(r.journal_entries.date));
+    if (code === "4-003") e.pendapatanGofood += Number(r.credit);
+    else if (code === "4-004") e.pendapatanGrabfood += Number(r.credit);
+    else e.pendapatanLain += Number(r.credit);
   }
   for (const l of kasKeluarLines) {
     const e = ensure(toDateWib(l.journal_entries.date));
@@ -190,7 +205,7 @@ export default async function ReportsHarianPage({
 
   const dayList = Array.from(dayMap.entries())
     .map(([date, v]) => {
-      const totalPendapatan = v.pendapatanPenjualan + v.pendapatanLain;
+      const totalPendapatan = v.pendapatanPenjualan + v.pendapatanGofood + v.pendapatanGrabfood + v.pendapatanLain;
       const totalPengeluaran = v.pengeluaranTunai + v.pengeluaranTransfer;
       return {
         date,
@@ -211,6 +226,8 @@ export default async function ReportsHarianPage({
       service: acc.service + d.service,
       tax: acc.tax + d.tax,
       pendapatanPenjualan: acc.pendapatanPenjualan + d.pendapatanPenjualan,
+      pendapatanGofood: acc.pendapatanGofood + d.pendapatanGofood,
+      pendapatanGrabfood: acc.pendapatanGrabfood + d.pendapatanGrabfood,
       pendapatanLain: acc.pendapatanLain + d.pendapatanLain,
       totalPendapatan: acc.totalPendapatan + d.totalPendapatan,
       pengeluaranTunai: acc.pengeluaranTunai + d.pengeluaranTunai,
@@ -221,7 +238,7 @@ export default async function ReportsHarianPage({
     }),
     {
       count: 0, diskon: 0, service: 0, tax: 0,
-      pendapatanPenjualan: 0, pendapatanLain: 0, totalPendapatan: 0,
+      pendapatanPenjualan: 0, pendapatanGofood: 0, pendapatanGrabfood: 0, pendapatanLain: 0, totalPendapatan: 0,
       pengeluaranTunai: 0, pengeluaranTransfer: 0, totalPengeluaran: 0,
       hutangDibayar: 0, labaBersih: 0,
     },
@@ -232,6 +249,8 @@ export default async function ReportsHarianPage({
   const hasDiskon = dayList.some((d) => d.diskon > 0);
   const hasService = dayList.some((d) => d.service > 0);
   const hasTax = dayList.some((d) => d.tax > 0);
+  const hasGofood = dayList.some((d) => d.pendapatanGofood > 0);
+  const hasGrabfood = dayList.some((d) => d.pendapatanGrabfood > 0);
   const hasPendapatanLain = dayList.some((d) => d.pendapatanLain > 0);
   const hasHutang = (allPurchases ?? []).length > 0;
   const basePath = `/business/${businessId}/reports/harian`;
@@ -304,66 +323,72 @@ export default async function ReportsHarianPage({
             </div>
           )}
 
-          <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white print:overflow-visible print:rounded-none print:border-0">
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full text-sm print:text-[9px]">
                 <thead className="border-b border-zinc-100 bg-zinc-50">
-                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                    <th className="px-3 py-3">Tanggal</th>
-                    <th className="px-3 py-3 text-right">Transaksi</th>
-                    {hasDiskon && <th className="px-3 py-3 text-right">Diskon</th>}
-                    {hasService && <th className="px-3 py-3 text-right">Service</th>}
-                    {hasTax && <th className="px-3 py-3 text-right">Tax</th>}
-                    <th className="px-3 py-3 text-right">Pendapatan Penjualan</th>
-                    {hasPendapatanLain && <th className="px-3 py-3 text-right">Pendapatan Lain</th>}
-                    <th className="px-3 py-3 text-right">Total Pendapatan</th>
-                    <th className="px-3 py-3 text-right">Pengeluaran Tunai</th>
-                    <th className="px-3 py-3 text-right">Pengeluaran Transfer</th>
-                    <th className="px-3 py-3 text-right">Total Pengeluaran</th>
-                    <th className="px-3 py-3 text-right">% Beban</th>
-                    {hasHutang && <th className="px-3 py-3 text-right">Hutang Dibayar</th>}
-                    {hasHutang && <th className="px-3 py-3 text-right">Sisa Hutang</th>}
-                    <th className="px-3 py-3 text-right">Laba Bersih</th>
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400 print:text-[8px]">
+                    <th className="px-3 py-3 print:px-1 print:py-1">Tanggal</th>
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Transaksi</th>
+                    {hasDiskon && <th className="px-3 py-3 text-right print:px-1 print:py-1">Diskon</th>}
+                    {hasService && <th className="px-3 py-3 text-right print:px-1 print:py-1">Service</th>}
+                    {hasTax && <th className="px-3 py-3 text-right print:px-1 print:py-1">Tax</th>}
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Pendapatan Penjualan</th>
+                    {hasGofood && <th className="px-3 py-3 text-right print:px-1 print:py-1">Gofood</th>}
+                    {hasGrabfood && <th className="px-3 py-3 text-right print:px-1 print:py-1">Grabfood</th>}
+                    {hasPendapatanLain && <th className="px-3 py-3 text-right print:px-1 print:py-1">Pendapatan Lain</th>}
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Total Pendapatan</th>
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Tunai</th>
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Transfer</th>
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Total Pengeluaran</th>
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">% Beban</th>
+                    {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Hutang Dibayar</th>}
+                    {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Sisa Hutang</th>}
+                    <th className="px-3 py-3 text-right print:px-1 print:py-1">Laba Bersih</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dayList.map((d, i) => (
                     <tr key={d.date} className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
-                      <td className="px-3 py-2.5 text-xs font-medium text-zinc-700 whitespace-nowrap">{fmtDateShort(d.date)}</td>
-                      <td className="px-3 py-2.5 text-right text-xs text-zinc-600">{d.count}</td>
-                      {hasDiskon && <td className="px-3 py-2.5 text-right text-xs text-red-500">{d.diskon > 0 ? `−${fmt(d.diskon)}` : <span className="text-zinc-300">—</span>}</td>}
-                      {hasService && <td className="px-3 py-2.5 text-right text-xs text-zinc-500">{d.service > 0 ? fmt(d.service) : <span className="text-zinc-300">—</span>}</td>}
-                      {hasTax && <td className="px-3 py-2.5 text-right text-xs text-zinc-500">{d.tax > 0 ? fmt(d.tax) : <span className="text-zinc-300">—</span>}</td>}
-                      <td className="px-3 py-2.5 text-right text-xs text-zinc-700">{fmt(d.pendapatanPenjualan)}</td>
-                      {hasPendapatanLain && <td className="px-3 py-2.5 text-right text-xs text-zinc-700">{d.pendapatanLain > 0 ? fmt(d.pendapatanLain) : <span className="text-zinc-300">—</span>}</td>}
-                      <td className="px-3 py-2.5 text-right text-xs font-bold text-zinc-900">{fmt(d.totalPendapatan)}</td>
-                      <td className="px-3 py-2.5 text-right text-xs text-red-500">{d.pengeluaranTunai > 0 ? fmt(d.pengeluaranTunai) : <span className="text-zinc-300">—</span>}</td>
-                      <td className="px-3 py-2.5 text-right text-xs text-red-500">{d.pengeluaranTransfer > 0 ? fmt(d.pengeluaranTransfer) : <span className="text-zinc-300">—</span>}</td>
-                      <td className="px-3 py-2.5 text-right text-xs font-bold text-red-600">{fmt(d.totalPengeluaran)}</td>
-                      <td className="px-3 py-2.5 text-right text-xs text-zinc-500">{d.persenBeban}%</td>
-                      {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-amber-600">{d.hutangDibayar > 0 ? fmt(d.hutangDibayar) : <span className="text-zinc-300">—</span>}</td>}
-                      {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-zinc-500">{fmt(d.sisaHutang)}</td>}
-                      <td className={`px-3 py-2.5 text-right text-xs font-bold ${d.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(d.labaBersih)}</td>
+                      <td className="px-3 py-2.5 text-xs font-medium text-zinc-700 whitespace-nowrap print:px-1 print:py-0.5">{fmtDateShort(d.date)}</td>
+                      <td className="px-3 py-2.5 text-right text-xs text-zinc-600 print:px-1 print:py-0.5">{d.count}</td>
+                      {hasDiskon && <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.diskon > 0 ? `−${fmt(d.diskon)}` : <span className="text-zinc-300">—</span>}</td>}
+                      {hasService && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.service > 0 ? fmt(d.service) : <span className="text-zinc-300">—</span>}</td>}
+                      {hasTax && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.tax > 0 ? fmt(d.tax) : <span className="text-zinc-300">—</span>}</td>}
+                      <td className="px-3 py-2.5 text-right text-xs text-zinc-700 print:px-1 print:py-0.5">{fmt(d.pendapatanPenjualan)}</td>
+                      {hasGofood && <td className="px-3 py-2.5 text-right text-xs text-zinc-700 print:px-1 print:py-0.5">{d.pendapatanGofood > 0 ? fmt(d.pendapatanGofood) : <span className="text-zinc-300">—</span>}</td>}
+                      {hasGrabfood && <td className="px-3 py-2.5 text-right text-xs text-zinc-700 print:px-1 print:py-0.5">{d.pendapatanGrabfood > 0 ? fmt(d.pendapatanGrabfood) : <span className="text-zinc-300">—</span>}</td>}
+                      {hasPendapatanLain && <td className="px-3 py-2.5 text-right text-xs text-zinc-700 print:px-1 print:py-0.5">{d.pendapatanLain > 0 ? fmt(d.pendapatanLain) : <span className="text-zinc-300">—</span>}</td>}
+                      <td className="px-3 py-2.5 text-right text-xs font-bold text-zinc-900 print:px-1 print:py-0.5">{fmt(d.totalPendapatan)}</td>
+                      <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.pengeluaranTunai > 0 ? fmt(d.pengeluaranTunai) : <span className="text-zinc-300">—</span>}</td>
+                      <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.pengeluaranTransfer > 0 ? fmt(d.pengeluaranTransfer) : <span className="text-zinc-300">—</span>}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-bold text-red-600 print:px-1 print:py-0.5">{fmt(d.totalPengeluaran)}</td>
+                      <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.persenBeban}%</td>
+                      {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.hutangDibayar > 0 ? fmt(d.hutangDibayar) : <span className="text-zinc-300">—</span>}</td>}
+                      {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{fmt(d.sisaHutang)}</td>}
+                      <td className={`px-3 py-2.5 text-right text-xs font-bold print:px-1 print:py-0.5 ${d.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(d.labaBersih)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="border-t-2 border-zinc-200 bg-zinc-50">
                   <tr>
-                    <td className="px-3 py-3 text-xs font-bold text-zinc-700">Total ({dayList.length} hari)</td>
-                    <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800">{totals.count}</td>
-                    {hasDiskon && <td className="px-3 py-3 text-right text-xs font-bold text-red-500">{totals.diskon > 0 ? `−${fmt(totals.diskon)}` : "—"}</td>}
-                    {hasService && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500">{totals.service > 0 ? fmt(totals.service) : "—"}</td>}
-                    {hasTax && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500">{totals.tax > 0 ? fmt(totals.tax) : "—"}</td>}
-                    <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800">{fmt(totals.pendapatanPenjualan)}</td>
-                    {hasPendapatanLain && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800">{fmt(totals.pendapatanLain)}</td>}
-                    <td className="px-3 py-3 text-right text-sm font-bold text-zinc-900">{fmt(totals.totalPendapatan)}</td>
-                    <td className="px-3 py-3 text-right text-xs font-bold text-red-500">{fmt(totals.pengeluaranTunai)}</td>
-                    <td className="px-3 py-3 text-right text-xs font-bold text-red-500">{fmt(totals.pengeluaranTransfer)}</td>
-                    <td className="px-3 py-3 text-right text-sm font-bold text-red-600">{fmt(totals.totalPengeluaran)}</td>
-                    <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500">{totalsPersenBeban}%</td>
-                    {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600">{fmt(totals.hutangDibayar)}</td>}
-                    {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500">{fmt(sisaHutangTerakhir)}</td>}
-                    <td className={`px-3 py-3 text-right text-sm font-bold ${totals.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(totals.labaBersih)}</td>
+                    <td className="px-3 py-3 text-xs font-bold text-zinc-700 print:px-1 print:py-1">Total ({dayList.length} hari)</td>
+                    <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800 print:px-1 print:py-1">{totals.count}</td>
+                    {hasDiskon && <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{totals.diskon > 0 ? `−${fmt(totals.diskon)}` : "—"}</td>}
+                    {hasService && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totals.service > 0 ? fmt(totals.service) : "—"}</td>}
+                    {hasTax && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totals.tax > 0 ? fmt(totals.tax) : "—"}</td>}
+                    <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800 print:px-1 print:py-1">{fmt(totals.pendapatanPenjualan)}</td>
+                    {hasGofood && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800 print:px-1 print:py-1">{fmt(totals.pendapatanGofood)}</td>}
+                    {hasGrabfood && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800 print:px-1 print:py-1">{fmt(totals.pendapatanGrabfood)}</td>}
+                    {hasPendapatanLain && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-800 print:px-1 print:py-1">{fmt(totals.pendapatanLain)}</td>}
+                    <td className="px-3 py-3 text-right text-sm font-bold text-zinc-900 print:px-1 print:py-1 print:text-[9px]">{fmt(totals.totalPendapatan)}</td>
+                    <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{fmt(totals.pengeluaranTunai)}</td>
+                    <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{fmt(totals.pengeluaranTransfer)}</td>
+                    <td className="px-3 py-3 text-right text-sm font-bold text-red-600 print:px-1 print:py-1 print:text-[9px]">{fmt(totals.totalPengeluaran)}</td>
+                    <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totalsPersenBeban}%</td>
+                    {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.hutangDibayar)}</td>}
+                    {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(sisaHutangTerakhir)}</td>}
+                    <td className={`px-3 py-3 text-right text-sm font-bold print:px-1 print:py-1 print:text-[9px] ${totals.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(totals.labaBersih)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -373,8 +398,9 @@ export default async function ReportsHarianPage({
           <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
             Pengeluaran ditarik dari{" "}
             <Link href={`/business/${businessId}/kas-harian`} className="text-brand-600 hover:underline">Kas &amp; Bank</Link>
-            {" "}(sudah dikecualikan void/pending/ditolak/transfer antar rekening). Pendapatan Lain-lain (mis. Ojol) diinput
-            lewat &quot;Catat Kas Masuk&quot; di Kas &amp; Bank, pilih akun 4-999 — Pendapatan Lain-lain.
+            {" "}(sudah dikecualikan void/pending/ditolak/transfer antar rekening). Pendapatan Gofood/Grabfood/Lain-lain
+            diinput lewat &quot;Catat Kas Masuk&quot; di Kas &amp; Bank, pilih akun 4-003 — Pendapatan Gofood, 4-004 —
+            Pendapatan Grabfood, atau 4-999 — Pendapatan Lain-lain sesuai sumbernya.
           </p>
         </>
       )}

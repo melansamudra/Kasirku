@@ -84,6 +84,8 @@ const ACCOUNT_GROUPS: AccountGroup[] = [
     accounts: [
       { code: "4-001", name: "Pendapatan Penjualan" },
       { code: "4-002", name: "Pendapatan Tiket" },
+      { code: "4-003", name: "Pendapatan Gofood" },
+      { code: "4-004", name: "Pendapatan Grabfood" },
       { code: "4-999", name: "Pendapatan Lain-lain" },
     ],
   },
