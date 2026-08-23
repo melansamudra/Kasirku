@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchAllRows } from "@/lib/pagination";
 import { addAccountReconciliation } from "./actions";
 import ReconciliationForm from "./reconciliation-form";
 
@@ -64,23 +65,24 @@ export default async function RekonsiliasiPage({
   const selectedAccount =
     accounts.find((a) => a.id === accountParam) ?? accounts[0];
 
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .lte("date", asOfIso);
+  // Difilter server-side ke baris akun ini saja (journal_lines!inner) dan
+  // dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
+  const entries = await fetchAllRows<{ journal_lines: { debit: number; credit: number }[] }>(
+    (from, to) =>
+      supabase
+        .from("journal_entries")
+        .select("journal_lines!inner(debit, credit)")
+        .eq("business_id", businessId)
+        .eq("journal_lines.account_id", selectedAccount.id)
+        .lte("date", asOfIso)
+        .range(from, to),
+  );
 
   let raw = 0;
-  for (const entry of entries ?? []) {
-    const lines = entry.journal_lines as unknown as {
-      debit: number;
-      credit: number;
-      account_id: string;
-    }[];
-    for (const l of lines) {
-      if (l.account_id === selectedAccount.id) {
-        raw += Number(l.debit) - Number(l.credit);
-      }
+  for (const entry of entries) {
+    for (const l of entry.journal_lines) {
+      raw += Number(l.debit) - Number(l.credit);
     }
   }
   const bookBalance = selectedAccount.normal_balance === "debit" ? raw : -raw;
@@ -97,24 +99,33 @@ export default async function RekonsiliasiPage({
   const windowFromDate = lastRecon ? addDays(lastRecon.statement_date, 1) : addDays(asOfDate, -30);
   const windowFromIso = `${windowFromDate}T00:00:00+07:00`;
 
-  const { data: windowEntries } = await supabase
-    .from("journal_entries")
-    .select("date, description, journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .gte("date", windowFromIso)
-    .lte("date", asOfIso)
-    .order("date", { ascending: false });
+  // Sama seperti bookBalance -- difilter server-side ke baris akun ini saja
+  // dan dibungkus fetchAllRows, karena volume jurnal harian bisnis ini bisa
+  // saja lebih dari 1000 dalam jendela 30 hari.
+  const windowEntries = await fetchAllRows<{
+    date: string;
+    description: string;
+    journal_lines: { debit: number; credit: number }[];
+  }>((from, to) =>
+    supabase
+      .from("journal_entries")
+      .select("date, description, journal_lines!inner(debit, credit)")
+      .eq("business_id", businessId)
+      .eq("journal_lines.account_id", selectedAccount.id)
+      .gte("date", windowFromIso)
+      .lte("date", asOfIso)
+      .order("date", { ascending: false })
+      .range(from, to),
+  );
 
-  const mutations = (windowEntries ?? []).flatMap((e) => {
-    const lines = e.journal_lines as unknown as {
-      debit: number;
-      credit: number;
-      account_id: string;
-    }[];
-    return lines
-      .filter((l) => l.account_id === selectedAccount.id)
-      .map((l) => ({ date: e.date, description: e.description, debit: Number(l.debit), credit: Number(l.credit) }));
-  });
+  const mutations = windowEntries.flatMap((e) =>
+    e.journal_lines.map((l) => ({
+      date: e.date,
+      description: e.description,
+      debit: Number(l.debit),
+      credit: Number(l.credit),
+    })),
+  );
 
   const boundAddReconciliation = addAccountReconciliation.bind(null, businessId);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });

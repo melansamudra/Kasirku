@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
@@ -34,19 +35,23 @@ async function totalModalAsOf(
 ): Promise<number> {
   if (strictlyBeforeIso === null) return 0;
 
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .lt("date", strictlyBeforeIso);
+  // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
+  // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts) --
+  // tanpa ini Modal Awal/Akhir bisa salah begitu bisnis punya lebih dari
+  // 1000 baris jurnal.
+  const entries = await fetchAllRows<{ journal_lines: { debit: number; credit: number; account_id: string }[] }>(
+    (from, to) =>
+      supabase
+        .from("journal_entries")
+        .select("journal_lines(debit, credit, account_id)")
+        .eq("business_id", businessId)
+        .lt("date", strictlyBeforeIso)
+        .range(from, to),
+  );
 
   const balanceByAccount = new Map<string, number>();
-  for (const entry of entries ?? []) {
-    const lines = entry.journal_lines as unknown as {
-      debit: number;
-      credit: number;
-      account_id: string;
-    }[];
+  for (const entry of entries) {
+    const lines = entry.journal_lines;
     for (const l of lines) {
       const cur = balanceByAccount.get(l.account_id) ?? 0;
       balanceByAccount.set(l.account_id, cur + Number(l.debit) - Number(l.credit));
@@ -112,22 +117,24 @@ export default async function LaporanPerubahanModalPage({
   let setoran = 0;
   let prive = 0;
   if (modalPemilikAccount) {
-    let periodQuery = supabase
-      .from("journal_entries")
-      .select("journal_lines(debit, credit, account_id)")
-      .eq("business_id", businessId);
-    if (fromIso) periodQuery = periodQuery.gte("date", fromIso);
-    if (toIsoExclusive) periodQuery = periodQuery.lt("date", toIsoExclusive);
-    const { data: periodEntries } = await periodQuery;
+    // Difilter server-side ke baris akun Modal Pemilik saja (journal_lines!inner)
+    // dan dibungkus fetchAllRows -- sama alasan seperti totalModalAsOf di atas.
+    const periodEntries = await fetchAllRows<{ journal_lines: { debit: number; credit: number }[] }>(
+      (from, to) => {
+        let q = supabase
+          .from("journal_entries")
+          .select("journal_lines!inner(debit, credit)")
+          .eq("business_id", businessId)
+          .eq("journal_lines.account_id", modalPemilikAccount.id)
+          .range(from, to);
+        if (fromIso) q = q.gte("date", fromIso);
+        if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+        return q;
+      },
+    );
 
-    for (const entry of periodEntries ?? []) {
-      const lines = entry.journal_lines as unknown as {
-        debit: number;
-        credit: number;
-        account_id: string;
-      }[];
-      for (const l of lines) {
-        if (l.account_id !== modalPemilikAccount.id) continue;
+    for (const entry of periodEntries) {
+      for (const l of entry.journal_lines) {
         setoran += Number(l.credit);
         prive += Number(l.debit);
       }

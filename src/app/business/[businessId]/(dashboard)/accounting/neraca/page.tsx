@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Landmark, Scale3D, Wallet, CheckCircle2, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -31,19 +32,28 @@ export default async function NeracaPage({
   const supabase = await createClient();
 
   // Ketiga query ini tidak saling bergantung — dijalankan paralel supaya
-  // waktu tunggu halaman = query terlama, bukan jumlah semuanya.
-  const [{ data: business }, { data: accounts }, { data: entries }] = await Promise.all([
+  // waktu tunggu halaman = query terlama, bukan jumlah semuanya. Query
+  // journal_entries dibungkus fetchAllRows karena Supabase/PostgREST diam-diam
+  // memotong hasil di 1000 baris kalau tidak di-paginate — bisnis dengan
+  // riwayat jurnal lebih dari 1000 kehilangan baris tanpa error (lihat
+  // lib/pagination.ts). Ketahuan waktu Piutang Karyawan tampil Rp0 padahal
+  // ada Rp12,9jt tercatat.
+  const [{ data: business }, { data: accounts }, entries] = await Promise.all([
     supabase.from("businesses").select("id, name").eq("id", businessId).single(),
     supabase
       .from("accounts")
       .select("id, code, name, type, normal_balance")
       .eq("business_id", businessId)
       .order("code", { ascending: true }),
-    supabase
-      .from("journal_entries")
-      .select("journal_lines(debit, credit, account_id)")
-      .eq("business_id", businessId)
-      .lte("date", asOfIso),
+    fetchAllRows<{ journal_lines: { debit: number; credit: number; account_id: string }[] }>(
+      (from, to) =>
+        supabase
+          .from("journal_entries")
+          .select("journal_lines(debit, credit, account_id)")
+          .eq("business_id", businessId)
+          .lte("date", asOfIso)
+          .range(from, to),
+    ),
   ]);
 
   if (!business) {
@@ -51,7 +61,7 @@ export default async function NeracaPage({
   }
 
   const balanceByAccount = new Map<string, number>();
-  for (const entry of entries ?? []) {
+  for (const entry of entries) {
     const lines = entry.journal_lines as unknown as {
       debit: number;
       credit: number;

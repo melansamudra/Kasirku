@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { TrendingUp, TrendingDown, Receipt, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
@@ -34,23 +35,30 @@ export default async function LabaRugiAkrualPage({
 
   const supabase = await createClient();
 
-  let entryQuery = supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId);
-  if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
-  if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-
   // Ketiga query ini tidak saling bergantung — dijalankan paralel supaya
-  // waktu tunggu halaman = query terlama, bukan jumlah semuanya.
-  const [{ data: business }, { data: accounts }, { data: entries }] = await Promise.all([
+  // waktu tunggu halaman = query terlama, bukan jumlah semuanya. Query
+  // journal_entries dibungkus fetchAllRows karena Supabase/PostgREST diam-diam
+  // memotong hasil di 1000 baris kalau tidak di-paginate (lihat
+  // lib/pagination.ts) -- kena terutama di periode "Semua Waktu".
+  const [{ data: business }, { data: accounts }, entries] = await Promise.all([
     supabase.from("businesses").select("id, name").eq("id", businessId).single(),
     supabase
       .from("accounts")
       .select("id, code, name, type, normal_balance")
       .eq("business_id", businessId)
       .in("type", ["pendapatan", "beban"]),
-    entryQuery,
+    fetchAllRows<{ journal_lines: { debit: number; credit: number; account_id: string }[] }>(
+      (from, to) => {
+        let q = supabase
+          .from("journal_entries")
+          .select("journal_lines(debit, credit, account_id)")
+          .eq("business_id", businessId)
+          .range(from, to);
+        if (fromIso) q = q.gte("date", fromIso);
+        if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+        return q;
+      },
+    ),
   ]);
 
   if (!business) {
@@ -58,7 +66,7 @@ export default async function LabaRugiAkrualPage({
   }
 
   const balanceByAccount = new Map<string, number>();
-  for (const entry of entries ?? []) {
+  for (const entry of entries) {
     const lines = entry.journal_lines as unknown as {
       debit: number;
       credit: number;

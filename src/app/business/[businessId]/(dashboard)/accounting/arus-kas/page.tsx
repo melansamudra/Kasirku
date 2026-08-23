@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
@@ -53,39 +54,51 @@ export default async function ArusKasPage({
   // Saldo kas sebelum periode ini (untuk saldo awal) — difilter ke baris
   // akun Kas & Bank saja di level query (`journal_lines!inner` + filter
   // account_id) supaya tidak menarik seluruh baris jurnal semua akun dari
-  // awal pencatatan, cuma yang menyentuh akun Kas.
-  let openingQuery = null;
-  if (kasAccountId && fromIso) {
-    openingQuery = supabase
-      .from("journal_entries")
-      .select("journal_lines!inner(debit, credit, account_id)")
-      .eq("business_id", businessId)
-      .eq("journal_lines.account_id", kasAccountId)
-      .lt("date", fromIso);
-  }
-
+  // awal pencatatan, cuma yang menyentuh akun Kas. Dibungkus fetchAllRows
+  // karena Supabase/PostgREST diam-diam memotong hasil di 1000 baris kalau
+  // tidak di-paginate (lihat lib/pagination.ts) -- volume harian bisnis ini
+  // bisa saja lebih dari 1000 baris Kas & Bank sepanjang riwayatnya.
   // Arus kas di periode ini. Setiap entry jurnal yang punya baris Kas & Bank
   // diklasifikasikan Operasional/Investasi/Pendanaan berdasarkan akun
   // lawannya (bukan `journal_entries.source`, karena RPC manual-entry yang
   // dipakai pembelian & pengeluaran selalu menulis source='manual' — lihat
-  // catatan di [[mini-erp-scope]] soal bug ini).
-  let entryQuery = supabase
-    .from("journal_entries")
-    .select("description, journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId);
-  if (fromIso) entryQuery = entryQuery.gte("date", fromIso);
-  if (toIsoExclusive) entryQuery = entryQuery.lt("date", toIsoExclusive);
-
-  // Saldo awal & arus kas periode ini tidak saling bergantung — paralel.
-  const [openingResult, { data: entries }] = await Promise.all([
-    openingQuery ?? Promise.resolve({ data: null as { journal_lines: { debit: number; credit: number; account_id: string }[] }[] | null }),
-    entryQuery,
+  // catatan di [[mini-erp-scope]] soal bug ini). TIDAK difilter ke baris Kas
+  // & Bank saja di level query (beda dari openingBalance di atas) karena
+  // baris akun lawannya perlu ikut ditarik buat menentukan kategori/label --
+  // filter kas-nya baru diterapkan di JS lewat kasLines di bawah.
+  //
+  // Kedua query dibungkus fetchAllRows karena Supabase/PostgREST diam-diam
+  // memotong hasil di 1000 baris kalau tidak di-paginate (lihat
+  // lib/pagination.ts), dan dijalankan paralel karena tidak saling bergantung.
+  const [openingEntries, entries] = await Promise.all([
+    kasAccountId && fromIso
+      ? fetchAllRows<{ journal_lines: { debit: number; credit: number }[] }>((from, to) =>
+          supabase
+            .from("journal_entries")
+            .select("journal_lines!inner(debit, credit)")
+            .eq("business_id", businessId)
+            .eq("journal_lines.account_id", kasAccountId)
+            .lt("date", fromIso)
+            .range(from, to),
+        )
+      : Promise.resolve([]),
+    fetchAllRows<{ description: string; journal_lines: { debit: number; credit: number; account_id: string }[] }>(
+      (from, to) => {
+        let q = supabase
+          .from("journal_entries")
+          .select("description, journal_lines(debit, credit, account_id)")
+          .eq("business_id", businessId)
+          .range(from, to);
+        if (fromIso) q = q.gte("date", fromIso);
+        if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+        return q;
+      },
+    ),
   ]);
 
   let openingBalance = 0;
-  for (const e of openingResult.data ?? []) {
-    const lines = e.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
-    for (const l of lines) {
+  for (const e of openingEntries) {
+    for (const l of e.journal_lines) {
       openingBalance += Number(l.debit) - Number(l.credit);
     }
   }
@@ -97,12 +110,11 @@ export default async function ArusKasPage({
     ["pendanaan", new Map()],
   ]);
 
-  for (const e of entries ?? []) {
-    const lines = e.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
-    const kasLines = lines.filter((l) => l.account_id === kasAccountId);
+  for (const e of entries) {
+    const kasLines = e.journal_lines.filter((l) => l.account_id === kasAccountId);
     if (kasLines.length === 0) continue;
 
-    const counterpartAccounts = lines
+    const counterpartAccounts = e.journal_lines
       .filter((l) => l.account_id !== kasAccountId)
       .map((l) => accountMap.get(l.account_id))
       .filter((a): a is NonNullable<typeof a> => !!a);

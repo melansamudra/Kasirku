@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 
 export type AddReconciliationState = { error: string | null; resetToken: number };
 
@@ -44,24 +45,27 @@ export async function addAccountReconciliation(
     return fail("Akun tidak ditemukan.");
   }
 
+  // Difilter server-side ke baris akun ini saja (journal_lines!inner) supaya
+  // tidak menarik jurnal seluruh akun lain -- dan tetap dibungkus fetchAllRows
+  // karena Supabase/PostgREST diam-diam memotong hasil di 1000 baris kalau
+  // tidak di-paginate (lihat lib/pagination.ts). Bug ini pernah bikin saldo
+  // buku yang tersimpan di riwayat rekonsiliasi salah.
   const asOfIso = `${statementDate}T23:59:59+07:00`;
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .lte("date", asOfIso);
+  const entries = await fetchAllRows<{ journal_lines: { debit: number; credit: number }[] }>(
+    (from, to) =>
+      supabase
+        .from("journal_entries")
+        .select("journal_lines!inner(debit, credit)")
+        .eq("business_id", businessId)
+        .eq("journal_lines.account_id", accountId)
+        .lte("date", asOfIso)
+        .range(from, to),
+  );
 
   let raw = 0;
-  for (const entry of entries ?? []) {
-    const lines = entry.journal_lines as unknown as {
-      debit: number;
-      credit: number;
-      account_id: string;
-    }[];
-    for (const l of lines) {
-      if (l.account_id === accountId) {
-        raw += Number(l.debit) - Number(l.credit);
-      }
+  for (const entry of entries) {
+    for (const l of entry.journal_lines) {
+      raw += Number(l.debit) - Number(l.credit);
     }
   }
   const bookBalance = account.normal_balance === "debit" ? raw : -raw;

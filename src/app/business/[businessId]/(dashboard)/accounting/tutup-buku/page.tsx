@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Wallet, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { closePeriod } from "./actions";
 import ClosePeriodForm from "./close-period-form";
@@ -51,17 +52,25 @@ export default async function TutupBukuPage({
   const today = todayStr();
   const asOfIso = `${today}T23:59:59+07:00`;
 
-  const [{ data: accounts }, { data: entries }, { data: closings }] = await Promise.all([
+  // Query journal_entries dibungkus fetchAllRows karena Supabase/PostgREST
+  // diam-diam memotong hasil di 1000 baris kalau tidak di-paginate (lihat
+  // lib/pagination.ts) -- tanpa ini "Laba Berjalan" bisa salah begitu bisnis
+  // punya lebih dari 1000 baris jurnal.
+  const [{ data: accounts }, entries, { data: closings }] = await Promise.all([
     supabase
       .from("accounts")
       .select("id, type, normal_balance")
       .eq("business_id", businessId)
       .in("type", ["pendapatan", "beban"]),
-    supabase
-      .from("journal_entries")
-      .select("journal_lines(debit, credit, account_id)")
-      .eq("business_id", businessId)
-      .lte("date", asOfIso),
+    fetchAllRows<{ journal_lines: { debit: number; credit: number; account_id: string }[] }>(
+      (from, to) =>
+        supabase
+          .from("journal_entries")
+          .select("journal_lines(debit, credit, account_id)")
+          .eq("business_id", businessId)
+          .lte("date", asOfIso)
+          .range(from, to),
+    ),
     supabase
       .from("period_closings")
       .select("id, period_end, net_income, closed_at")
@@ -71,7 +80,7 @@ export default async function TutupBukuPage({
   ]);
 
   const balanceByAccount = new Map<string, number>();
-  for (const entry of entries ?? []) {
+  for (const entry of entries) {
     const lines = entry.journal_lines as unknown as {
       debit: number;
       credit: number;
