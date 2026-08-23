@@ -26,13 +26,15 @@ export type KasBankMovementMeta = {
 };
 
 export type KasBankResult = {
-  /** Non-void, non-kas-kecil-pending, non-kas-kecil-ditolak -- TERMASUK penjualan. Dasar buat total Kas Masuk/Keluar. */
+  /** Non-void, non-kas-kecil-pending, non-kas-kecil-ditolak, non-transfer-antar-rekening -- TERMASUK penjualan. Dasar buat total Kas Masuk/Keluar. */
   nonVoidLines: KasBankLine[];
   /** Sama seperti nonVoidLines, tapi penjualan dikeluarkan -- buat daftar "Riwayat Kas" yang dirinci satu-satu (penjualan sudah ada halamannya sendiri di Riwayat Transaksi). */
   displayLines: KasBankLine[];
   voidLines: KasBankLine[];
   pendingPettyCashLines: KasBankLine[];
   rejectedPettyCashLines: KasBankLine[];
+  /** Transfer antar akun kas/bank milik sendiri (mis. Rekening Utama -> Rekening Operasional lewat Transfer Kas/Bank atau PDO) -- bukan beban/pendapatan, cuma uang pindah tempat. */
+  transferLines: KasBankLine[];
   movementByEntryId: Map<string, KasBankMovementMeta>;
   voidedSaleCount: number;
 };
@@ -49,6 +51,7 @@ export async function fetchKasBankLines(
     voidLines: [],
     pendingPettyCashLines: [],
     rejectedPettyCashLines: [],
+    transferLines: [],
     movementByEntryId: new Map(),
     voidedSaleCount: 0,
   };
@@ -153,13 +156,30 @@ export async function fetchKasBankLines(
     return m?.status === "rejected" || rejectedReversalEntryIds.has(l.journal_entries.id);
   };
 
+  // Transfer antar akun kas/bank (mis. PDO: Rekening Utama -> Rekening
+  // Operasional) selalu ditulis lewat addTransfer() dengan deskripsi
+  // berpola "Transfer: ..." atau default "Transfer antar akun kas/bank" --
+  // ini satu-satunya jalur kode yang bikin pola ini, jadi aman dipakai buat
+  // mendeteksi. Bukan beban/pendapatan (cuma uang pindah tempat sendiri),
+  // jadi dikeluarkan dari Kas Keluar/Masuk & daftar nota PDO -- kalau tidak,
+  // transfer PDO minggu ini bisa ke-double-hitung sebagai "nota" di PDO
+  // berikutnya.
+  const isTransferRelated = (l: KasBankLine) =>
+    l.journal_entries.source === "manual" &&
+    (l.journal_entries.description === "Transfer antar akun kas/bank" ||
+      l.journal_entries.description.startsWith("Transfer: "));
+
   const voidLines = lines.filter(isVoidRelated);
   const pendingPettyCashLines = lines.filter((l) => !isVoidRelated(l) && isPendingPettyCash(l));
   const rejectedPettyCashLines = lines.filter(
     (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && isRejectedPettyCash(l),
   );
+  const transferLines = lines.filter(
+    (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && !isRejectedPettyCash(l) && isTransferRelated(l),
+  );
   const nonVoidLines = lines.filter(
-    (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && !isRejectedPettyCash(l),
+    (l) =>
+      !isVoidRelated(l) && !isPendingPettyCash(l) && !isRejectedPettyCash(l) && !isTransferRelated(l),
   );
   // Penjualan tidak dirinci -- itu murni duplikat Riwayat Transaksi.
   const displayLines = nonVoidLines.filter((l) => l.journal_entries.source !== "penjualan");
@@ -170,6 +190,7 @@ export async function fetchKasBankLines(
     voidLines,
     pendingPettyCashLines,
     rejectedPettyCashLines,
+    transferLines,
     movementByEntryId,
     voidedSaleCount: voidedSaleIds.size,
   };

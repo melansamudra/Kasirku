@@ -110,6 +110,7 @@ export default async function KasHarianPage({
     voidLines,
     pendingPettyCashLines,
     rejectedPettyCashLines,
+    transferLines,
     movementByEntryId: shiftMovementByEntryId,
     voidedSaleCount,
   } = await fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive);
@@ -136,6 +137,9 @@ export default async function KasHarianPage({
     .reduce((s, l) => s + Number(l.credit), 0);
   const totalPendingPettyCash = pendingPettyCashLines.reduce((s, l) => s + Number(l.credit), 0);
   const totalDitolak = rejectedPettyCashLines
+    .filter((l) => Number(l.credit) > 0)
+    .reduce((s, l) => s + Number(l.credit), 0);
+  const totalTransfer = transferLines
     .filter((l) => Number(l.credit) > 0)
     .reduce((s, l) => s + Number(l.credit), 0);
 
@@ -288,6 +292,19 @@ export default async function KasHarianPage({
         </div>
       )}
 
+      {transferLines.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-sky-700">
+            Transfer Antar Rekening
+          </p>
+          <p className="text-xl font-bold text-sky-700">{formatRupiah(totalTransfer)}</p>
+          <p className="mt-1 text-[11px] text-sky-600">
+            Uang pindah antar rekening sendiri (mis. PDO) — bukan beban, tidak ikut dihitung di Kas
+            Masuk/Keluar di atas. Rinciannya di &quot;Riwayat Transfer&quot; di bawah.
+          </p>
+        </div>
+      )}
+
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">+ Catat Kas Masuk/Keluar</h2>
         <AddCashForm businessId={businessId} today={todayWibDateString()} accounts={cashFormAccounts} />
@@ -331,6 +348,19 @@ export default async function KasHarianPage({
             </p>
           </div>
           <div className="divide-y divide-zinc-100">{rejectedPettyCashLines.map(renderCashRow)}</div>
+        </div>
+      )}
+
+      {transferLines.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="border-b border-sky-100 bg-sky-50/60 px-4 py-3">
+            <h2 className="text-sm font-bold text-sky-800">Riwayat Transfer</h2>
+            <p className="mt-0.5 text-[11px] text-sky-600">
+              Perpindahan uang antar rekening kas/bank sendiri (mis. PDO ke Rekening Operasional) —
+              dikeluarkan dari Kas Masuk/Keluar di atas karena bukan beban/pendapatan.
+            </p>
+          </div>
+          <div className="divide-y divide-zinc-100">{transferLines.map(renderCashRow)}</div>
         </div>
       )}
     </div>
