@@ -1,10 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PillBadge } from "@/components/ui/pill-badge";
 import { createPayslip } from "../actions";
 import { calcPayslip, effectiveLemburRate } from "../calc";
 import CreateSlipButton from "./create-slip-button";
+import PrintRekapButton from "./print-rekap-button";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
 
@@ -34,6 +36,26 @@ function monthLabel(month: string) {
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
+
+// Judul tab/dokumen saat cetak -- sama pola dengan slip absensi & slip
+// payroll individual (ganti "CreateImpact" default dari root layout).
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ month?: string }>;
+}): Promise<Metadata> {
+  const { businessId } = await params;
+  const { month: monthParam } = await searchParams;
+  const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonthStr();
+  const supabase = await createClient();
+
+  const { data: business } = await supabase.from("businesses").select("name").eq("id", businessId).maybeSingle();
+
+  const title = business ? `Rekap Payroll ${monthLabel(month)} - ${business.name}` : "Rekap Payroll";
+  return { title };
 }
 
 export default async function PayrollRekapPage({
@@ -131,14 +153,22 @@ export default async function PayrollRekapPage({
   const totalEstimasi = rows.reduce((s, r) => s + r.calc.estimatedTotal, 0);
 
   return (
-    <div className="w-full max-w-2xl">
-      <h1 className="text-lg font-bold text-zinc-900">Rekap Payroll — {business.name}</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Estimasi gaji semua karyawan untuk periode ini, dihitung langsung dari data Absensi —
-        belum jadi slip beneran sampai Anda klik &quot;Buat Slip&quot;.
-      </p>
+    <div className="w-full max-w-2xl print:max-w-none">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">Rekap Payroll — {business.name}</h1>
+          <p className="mt-1 text-sm text-zinc-500 print:hidden">
+            Estimasi gaji semua karyawan untuk periode ini, dihitung langsung dari data Absensi —
+            belum jadi slip beneran sampai Anda klik &quot;Buat Slip&quot;.
+          </p>
+          <p className="mt-0.5 hidden text-sm text-zinc-500 print:block">{monthLabel(month)}</p>
+        </div>
+        <div className="shrink-0 print:hidden">
+          <PrintRekapButton />
+        </div>
+      </div>
 
-      <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
+      <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2.5 print:hidden">
         <Link
           href={`/business/${businessId}/payroll/rekap?month=${addMonthsStr(month, -1)}`}
           className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100"
@@ -164,7 +194,7 @@ export default async function PayrollRekapPage({
         </Link>
       </div>
 
-      <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4">
+      <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4 print:hidden">
         <p className="text-[10.5px] font-semibold uppercase text-brand-700">
           Total Estimasi Gaji {monthLabel(month)}
         </p>
@@ -174,7 +204,62 @@ export default async function PayrollRekapPage({
         </p>
       </div>
 
-      <div className="mt-4 space-y-2">
+      {/* Tabel ringkas khusus cetak/PDF -- versi polos tanpa tombol, cuma
+          muncul saat print (lihat print:hidden di daftar interaktif di
+          bawah), satu halaman berisi semua karyawan sekaligus buat dilaporkan
+          ke owner. */}
+      <div className="mt-4 hidden overflow-hidden rounded-xl border border-zinc-200 print:block">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-[10px] uppercase text-zinc-500">
+              <th className="px-2.5 py-1.5">Nama</th>
+              <th className="px-2.5 py-1.5">Tipe</th>
+              <th className="px-2.5 py-1.5 text-center">Hadir</th>
+              <th className="px-2.5 py-1.5 text-center">Izin</th>
+              <th className="px-2.5 py-1.5 text-center">Sakit</th>
+              <th className="px-2.5 py-1.5 text-center">Alpa</th>
+              <th className="px-2.5 py-1.5 text-center">Off</th>
+              <th className="px-2.5 py-1.5 text-center">Telat</th>
+              <th className="px-2.5 py-1.5 text-right">Pot. Izin</th>
+              <th className="px-2.5 py-1.5 text-right">Pot. Telat</th>
+              <th className="px-2.5 py-1.5 text-right">Estimasi Gaji</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ employee: e, calc }) => (
+              <tr key={e.id} className="border-b border-zinc-100 last:border-0">
+                <td className="px-2.5 py-1">
+                  {e.name}
+                  {!e.active && " (nonaktif)"}
+                </td>
+                <td className="px-2.5 py-1">{e.salary_type === "bulanan" ? "Bulanan" : "Harian"}</td>
+                <td className="px-2.5 py-1 text-center">{calc.hadirCount}</td>
+                <td className="px-2.5 py-1 text-center">{calc.izinCount}</td>
+                <td className="px-2.5 py-1 text-center">{calc.sakitCount}</td>
+                <td className="px-2.5 py-1 text-center">{calc.alpaCount}</td>
+                <td className="px-2.5 py-1 text-center">{calc.offCount}</td>
+                <td className="px-2.5 py-1 text-center">{calc.lateCount}x</td>
+                <td className="px-2.5 py-1 text-right">{formatRupiah(calc.izinDeduction)}</td>
+                <td className="px-2.5 py-1 text-right">{formatRupiah(calc.lateDeduction)}</td>
+                <td className="px-2.5 py-1 text-right font-semibold">{formatRupiah(calc.estimatedTotal)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold">
+              <td className="px-2.5 py-1.5" colSpan={10}>
+                Total Estimasi Gaji {monthLabel(month)}
+              </td>
+              <td className="px-2.5 py-1.5 text-right">{formatRupiah(totalEstimasi)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p className="border-t border-zinc-200 px-2.5 py-2 text-[10px] text-zinc-500">
+          Belum termasuk lembur/THR/tunjangan/kasbon — ditambahkan per slip setelah dibuat.
+        </p>
+      </div>
+
+      <div className="mt-4 space-y-2 print:hidden">
         {rows.length > 0 ? (
           rows.map(({ employee: e, calc, existingSlipId }) => (
             <div key={e.id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
