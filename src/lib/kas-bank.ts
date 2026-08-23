@@ -13,7 +13,14 @@ export type KasBankLine = {
   id: string;
   debit: number;
   credit: number;
-  journal_entries: { id: string; date: string; description: string; source: string; source_id: string | null };
+  journal_entries: {
+    id: string;
+    date: string;
+    description: string;
+    source: string;
+    source_id: string | null;
+    payment_method: "tunai" | "transfer" | null;
+  };
 };
 
 export type KasBankMovementMeta = {
@@ -80,7 +87,9 @@ export async function fetchKasBankLines(
   const rawLines = await fetchAllRows<unknown>((rangeFrom, rangeTo) => {
     let q = supabase
       .from("journal_lines")
-      .select("id, debit, credit, journal_entries!inner(id, date, description, source, source_id, business_id)")
+      .select(
+        "id, debit, credit, journal_entries!inner(id, date, description, source, source_id, payment_method, business_id)",
+      )
       .eq("account_id", kasAccount.id)
       .eq("journal_entries.business_id", businessId)
       .order("id", { ascending: true })

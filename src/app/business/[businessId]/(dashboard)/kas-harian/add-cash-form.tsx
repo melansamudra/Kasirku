@@ -19,6 +19,7 @@ export default function AddCashForm({
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [accountCode, setAccountCode] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "transfer">("tunai");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -39,7 +40,7 @@ export default function AddCashForm({
 
     startTransition(async () => {
       const action = direction === "in" ? addCashIn : addCashOut;
-      const result = await action(businessId, date, description, Number(amount), accountCode);
+      const result = await action(businessId, date, description, Number(amount), accountCode, paymentMethod);
       if (result.error) {
         setError(result.error);
         return;
@@ -121,6 +122,34 @@ export default function AddCashForm({
             placeholder="mis. 50000"
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Metode</label>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("tunai")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+              paymentMethod === "tunai"
+                ? "bg-zinc-800 text-white"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            💵 Tunai
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("transfer")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+              paymentMethod === "transfer"
+                ? "bg-zinc-800 text-white"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            🏦 Transfer
+          </button>
         </div>
       </div>
 

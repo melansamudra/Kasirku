@@ -1024,6 +1024,7 @@ export type Database = {
           description: string;
           source: string;
           source_id: string | null;
+          payment_method: "tunai" | "transfer" | null;
           created_at: string;
         };
         Insert: {
@@ -1033,6 +1034,7 @@ export type Database = {
           description: string;
           source?: string;
           source_id?: string | null;
+          payment_method?: "tunai" | "transfer" | null;
           created_at?: string;
         };
         Update: {
@@ -1042,6 +1044,7 @@ export type Database = {
           description?: string;
           source?: string;
           source_id?: string | null;
+          payment_method?: "tunai" | "transfer" | null;
           created_at?: string;
         };
         Relationships: [];

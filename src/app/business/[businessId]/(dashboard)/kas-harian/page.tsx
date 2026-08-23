@@ -166,6 +166,11 @@ export default async function KasHarianPage({
                 {movement.category}
               </span>
             )}
+            {l.journal_entries.payment_method && (
+              <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                {l.journal_entries.payment_method === "tunai" ? "💵 Tunai" : "🏦 Transfer"}
+              </span>
+            )}
             {movement?.direction === "out" && (
               <PillBadge tone={STATUS_TONE[movement.status]}>{STATUS_LABEL[movement.status]}</PillBadge>
             )}

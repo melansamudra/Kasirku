@@ -14,6 +14,7 @@ async function postCashEntry(
   amount: number,
   direction: "in" | "out",
   accountCode: string,
+  paymentMethod: "tunai" | "transfer",
 ): Promise<CashEntryResult> {
   const trimmedDescription = description.trim();
   if (!trimmedDescription) {
@@ -27,6 +28,9 @@ async function postCashEntry(
   }
   if (!accountCode) {
     return { error: "Akun wajib dipilih." };
+  }
+  if (paymentMethod !== "tunai" && paymentMethod !== "transfer") {
+    return { error: "Metode pembayaran wajib dipilih." };
   }
 
   const supabase = await createClient();
@@ -42,7 +46,7 @@ async function postCashEntry(
           { account_code: "1-001", debit: 0, credit: amount },
         ];
 
-  const { error } = await supabase.rpc("post_journal_entry", {
+  const { data: entryId, error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: trimmedDescription,
@@ -51,6 +55,15 @@ async function postCashEntry(
 
   if (error) {
     return { error: error.message };
+  }
+
+  // post_journal_entry() belum punya parameter payment_method (lihat bug
+  // overload 2026-08-23 -- nambah parameter baru bikin dua fungsi ter-
+  // overload, jadi tidak diulang lagi) -- diisi lewat update terpisah
+  // setelah entrinya jadi. Laporan Harian pakai kolom ini buat pisahin
+  // Pengeluaran Tunai vs Transfer.
+  if (entryId) {
+    await supabase.from("journal_entries").update({ payment_method: paymentMethod }).eq("id", entryId);
   }
 
   // Best-effort (lihat komentar di activity-log.ts) -- dipindah ke after()
@@ -79,8 +92,9 @@ export async function addCashIn(
   description: string,
   amount: number,
   accountCode: string,
+  paymentMethod: "tunai" | "transfer",
 ): Promise<CashEntryResult> {
-  return postCashEntry(businessId, date, description, amount, "in", accountCode);
+  return postCashEntry(businessId, date, description, amount, "in", accountCode, paymentMethod);
 }
 
 export async function addCashOut(
@@ -89,6 +103,7 @@ export async function addCashOut(
   description: string,
   amount: number,
   accountCode: string,
+  paymentMethod: "tunai" | "transfer",
 ): Promise<CashEntryResult> {
-  return postCashEntry(businessId, date, description, amount, "out", accountCode);
+  return postCashEntry(businessId, date, description, amount, "out", accountCode, paymentMethod);
 }
