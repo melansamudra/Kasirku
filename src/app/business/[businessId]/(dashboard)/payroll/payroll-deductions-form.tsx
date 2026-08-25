@@ -96,6 +96,10 @@ export default function PayrollDeductionsForm({
             ? "Izin sekarang tetap dihitung sebagai hari kerja di gaji pokok, tapi kena potongan tetap ini per hari izin — menggantikan cara lama (izin = tidak dibayar sama sekali)."
             : "Ditambahkan di atas potongan 1 hari gaji penuh, khusus izin yang jatuh di Sabtu/Minggu."}
         </p>
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Kecuali izin weekend yang diisi keterangan di halaman Absensi — dianggap dispensasi,
+          dipotong seperti izin hari biasa (tanpa denda tambahan).
+        </p>
       </div>
       <div className="border-t border-zinc-100 pt-4">
         <label htmlFor="lateDeductionPerOccurrence" className="mb-1 block text-xs font-medium text-zinc-600">

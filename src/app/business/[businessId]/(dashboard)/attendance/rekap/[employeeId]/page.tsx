@@ -148,7 +148,7 @@ export default async function EmployeeAttendanceRekapPage({
 
   const { data: rows } = await supabase
     .from("attendance")
-    .select("date, status, late, late_minutes, check_in_at, check_out_at")
+    .select("date, status, late, late_minutes, check_in_at, check_out_at, note")
     .eq("business_id", businessId)
     .eq("employee_id", employeeId)
     .gte("date", monthStart)

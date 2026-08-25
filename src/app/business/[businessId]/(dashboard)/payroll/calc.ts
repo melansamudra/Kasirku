@@ -4,7 +4,16 @@
 // tempat itu selalu pakai formula yang sama persis, nggak ada risiko
 // ketinggalan sinkron kalau formulanya berubah lagi nanti.
 
-export type AttendanceForCalc = { date: string; status: string; late: boolean; lateMinutes: number };
+export type AttendanceForCalc = {
+  date: string;
+  status: string;
+  late: boolean;
+  lateMinutes: number;
+  // Izin weekend dengan keterangan jelas (note terisi) dianggap dispensasi
+  // resmi -- dipotong seperti izin hari biasa (tanpa denda tambahan
+  // weekend), bukan berarti hari itu jadi bukan izin.
+  note: string | null;
+};
 
 export type LateTier = { thresholdMinutes: number; amount: number };
 
@@ -88,7 +97,12 @@ export function calcPayslip(
     if (r.status in counts) counts[r.status as keyof typeof counts] += 1;
     if (r.status === "izin") {
       const dow = new Date(`${r.date}T00:00:00Z`).getUTCDay(); // 0 = Minggu, 6 = Sabtu
-      if (dow === 0 || dow === 6) izinWeekendCount += 1;
+      const isWeekend = dow === 0 || dow === 6;
+      const hasNote = !!r.note && r.note.trim().length > 0;
+      // Weekend + keterangan jelas = dispensasi, dipotong seperti hari
+      // biasa (tanpa denda tambahan weekend) -- lihat catatan di
+      // AttendanceForCalc.note.
+      if (isWeekend && !hasNote) izinWeekendCount += 1;
       else izinWeekdayCount += 1;
     }
     if (r.late) {

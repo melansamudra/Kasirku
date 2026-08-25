@@ -203,7 +203,7 @@ export async function createPayslip(
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
-    .select("date, status, late, late_minutes")
+    .select("date, status, late, late_minutes, note")
     .eq("business_id", businessId)
     .eq("employee_id", employeeId)
     .gte("date", periodStart)

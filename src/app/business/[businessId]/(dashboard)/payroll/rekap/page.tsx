@@ -96,7 +96,7 @@ export default async function PayrollRekapPage({
   const [{ data: attendanceRows }, { data: existingSlips }] = await Promise.all([
     supabase
       .from("attendance")
-      .select("employee_id, date, status, late, late_minutes, overtime_hours")
+      .select("employee_id, date, status, late, late_minutes, overtime_hours, note")
       .eq("business_id", businessId)
       .gte("date", monthStart)
       .lte("date", monthEnd),
@@ -112,12 +112,12 @@ export default async function PayrollRekapPage({
 
   const attendanceByEmployee = new Map<
     string,
-    { date: string; status: string; late: boolean; lateMinutes: number }[]
+    { date: string; status: string; late: boolean; lateMinutes: number; note: string | null }[]
   >();
   const overtimeByEmployee = new Map<string, number>();
   for (const r of attendanceRows ?? []) {
     const list = attendanceByEmployee.get(r.employee_id) ?? [];
-    list.push({ date: r.date, status: r.status, late: r.late, lateMinutes: r.late_minutes });
+    list.push({ date: r.date, status: r.status, late: r.late, lateMinutes: r.late_minutes, note: r.note });
     attendanceByEmployee.set(r.employee_id, list);
     overtimeByEmployee.set(
       r.employee_id,

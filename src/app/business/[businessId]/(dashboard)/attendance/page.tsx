@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   setAttendance,
+  setAttendanceNote,
   setAttendanceLate,
   setAttendanceTime,
   verifyAttendance,
@@ -63,7 +64,7 @@ export default async function AttendancePage({
   const { data: attendanceRows } = await supabase
     .from("attendance")
     .select(
-      "id, employee_id, status, late, check_in_at, check_in_photo_url, check_in_lat, check_in_lng, check_out_at, check_out_photo_url, check_out_lat, check_out_lng, late_minutes, overtime_hours, verified_by_admin",
+      "id, employee_id, status, late, note, check_in_at, check_in_photo_url, check_in_lat, check_in_lng, check_out_at, check_out_photo_url, check_out_lat, check_out_lng, late_minutes, overtime_hours, verified_by_admin",
     )
     .eq("business_id", businessId)
     .eq("date", date);
@@ -72,6 +73,7 @@ export default async function AttendancePage({
     (attendanceRows ?? []).map((r) => [r.employee_id, r.status as AttendanceStatus]),
   );
   const lateByEmployee = new Map((attendanceRows ?? []).map((r) => [r.employee_id, r.late]));
+  const noteByEmployee = new Map((attendanceRows ?? []).map((r) => [r.employee_id, r.note]));
   const selfieByEmployee = new Map<string, SelfieInfo>(
     (attendanceRows ?? []).map((r) => [
       r.employee_id,
@@ -143,7 +145,9 @@ export default async function AttendancePage({
                 employeeName={e.name}
                 currentStatus={statusByEmployee.get(e.id) ?? null}
                 late={lateByEmployee.get(e.id) ?? false}
+                note={noteByEmployee.get(e.id) ?? null}
                 action={setAttendance.bind(null, businessId, e.id, date)}
+                noteAction={setAttendanceNote.bind(null, businessId, e.id, date)}
                 lateAction={setAttendanceLate.bind(null, businessId, e.id, date)}
                 timeAction={setAttendanceTime.bind(null, businessId, e.id, date)}
                 selfie={selfieByEmployee.get(e.id) ?? null}

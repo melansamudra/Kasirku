@@ -97,6 +97,43 @@ export async function setAttendanceTime(
   return { error: null };
 }
 
+// Keterangan izin -- terutama dipakai buat izin weekend: kalau diisi (mis.
+// "izin resmi cuti tahunan"), dianggap dispensasi dan dipotong seperti izin
+// hari biasa saat hitung gaji (bukan kena denda tambahan weekend). Lihat
+// calcPayslip di payroll/calc.ts.
+export async function setAttendanceNote(
+  businessId: string,
+  employeeId: string,
+  date: string,
+  note: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("attendance")
+    .select("id, status")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId)
+    .eq("date", date)
+    .maybeSingle();
+
+  if (!existing || existing.status !== "izin") {
+    return { error: "Tandai Izin dulu sebelum isi keterangan." };
+  }
+
+  const { error } = await supabase
+    .from("attendance")
+    .update({ note: note.trim() || null })
+    .eq("id", existing.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/attendance`);
+  return { error: null };
+}
+
 export async function setAttendanceLate(
   businessId: string,
   employeeId: string,

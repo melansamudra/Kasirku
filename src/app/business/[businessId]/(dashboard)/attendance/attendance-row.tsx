@@ -62,7 +62,9 @@ export default function AttendanceRow({
   employeeName,
   currentStatus,
   late,
+  note,
   action,
+  noteAction,
   lateAction,
   selfie,
   verifyAction,
@@ -72,7 +74,9 @@ export default function AttendanceRow({
   employeeName: string;
   currentStatus: AttendanceStatus | null;
   late: boolean;
+  note?: string | null;
   action: (status: AttendanceStatus) => Promise<{ error: string | null }>;
+  noteAction?: (note: string) => Promise<{ error: string | null }>;
   lateAction: (late: boolean) => Promise<{ error: string | null }>;
   selfie?: SelfieInfo | null;
   verifyAction?: () => Promise<{ error: string | null }>;
@@ -86,6 +90,8 @@ export default function AttendanceRow({
   const [editingTime, setEditingTime] = useState(false);
   const [checkInTime, setCheckInTime] = useState(selfie?.checkInAt ? toTimeInputValue(selfie.checkInAt) : "");
   const [checkOutTime, setCheckOutTime] = useState(selfie?.checkOutAt ? toTimeInputValue(selfie.checkOutAt) : "");
+  const [noteDraft, setNoteDraft] = useState(note ?? "");
+  const [noteSaved, setNoteSaved] = useState(true);
 
   function handleSaveTime() {
     if (!timeAction) return;
@@ -109,6 +115,20 @@ export default function AttendanceRow({
         setError(result.error);
         return;
       }
+      router.refresh();
+    });
+  }
+
+  function handleSaveNote() {
+    if (!noteAction) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await noteAction(noteDraft);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setNoteSaved(true);
       router.refresh();
     });
   }
@@ -330,6 +350,37 @@ export default function AttendanceRow({
           </button>
         ))}
       </div>
+
+      {currentStatus === "izin" && noteAction && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <input
+            type="text"
+            value={noteDraft}
+            onChange={(e) => {
+              setNoteDraft(e.target.value);
+              setNoteSaved(false);
+            }}
+            placeholder="Keterangan izin (opsional, mis. izin resmi cuti)"
+            className="flex-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          {!noteSaved && (
+            <button
+              onClick={handleSaveNote}
+              disabled={isPending}
+              className="shrink-0 rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+            >
+              Simpan
+            </button>
+          )}
+        </div>
+      )}
+      {currentStatus === "izin" && note && (
+        <p className="mt-1 text-[11px] text-amber-600">
+          ℹ️ Ada keterangan — kalau izin ini jatuh di weekend, dianggap dispensasi (dipotong seperti
+          hari biasa, tanpa denda tambahan weekend).
+        </p>
+      )}
+
       {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
     </div>
   );
