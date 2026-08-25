@@ -362,7 +362,7 @@ export default async function KasKecilPage({
           Pilih Tunai kalau uangnya sudah keluar dari petty cash, atau Hutang kalau nota supplier
           belum dibayar.
         </p>
-        <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} employees={employees} />
+        <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} employees={employees} today={today} />
       </div>
 
       {canVerify && (

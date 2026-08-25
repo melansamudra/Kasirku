@@ -14,10 +14,12 @@ export default function AddExpenseQuickForm({
   businessId,
   suppliers,
   employees,
+  today,
 }: {
   businessId: string;
   suppliers: Supplier[];
   employees: Employee[];
+  today: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"tunai" | "hutang" | "kasbon">("tunai");
@@ -27,6 +29,7 @@ export default function AddExpenseQuickForm({
   const [supplierId, setSupplierId] = useState("");
   const [supplierManual, setSupplierManual] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [kasbonDate, setKasbonDate] = useState(today);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -40,6 +43,7 @@ export default function AddExpenseQuickForm({
     setSupplierId("");
     setSupplierManual("");
     setEmployeeId("");
+    setKasbonDate(today);
     setReceiptFile(null);
     setReceiptPreview(null);
   }
@@ -119,7 +123,7 @@ export default function AddExpenseQuickForm({
               description.trim() || null,
               receiptUrl,
             )
-          : await addPettyCashKasbon(businessId, employeeId, amountNum, description.trim());
+          : await addPettyCashKasbon(businessId, employeeId, amountNum, description.trim(), kasbonDate);
     setPending(false);
 
     if (result.error) {
@@ -183,6 +187,23 @@ export default function AddExpenseQuickForm({
               <option key={e.id} value={e.id}>{e.name}</option>
             ))}
           </select>
+        </div>
+      )}
+
+      {mode === "kasbon" && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Tanggal Kasbon</label>
+          <input
+            type="date"
+            value={kasbonDate}
+            max={today}
+            onChange={(e) => setKasbonDate(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Kosongkan default hari ini — ganti kalau kasbonnya baru dicatat telat dari kejadian
+            aslinya.
+          </p>
         </div>
       )}
 

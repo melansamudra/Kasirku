@@ -46,6 +46,7 @@ export async function addPettyCashKasbon(
   employeeId: string,
   amount: number,
   note: string,
+  date: string,
 ): Promise<ActionState> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("post_petty_cash_kasbon", {
@@ -53,6 +54,7 @@ export async function addPettyCashKasbon(
     p_employee_id: employeeId,
     p_amount: amount,
     p_note: note || null,
+    p_date: date || null,
   });
 
   if (error) return { error: error.message };
