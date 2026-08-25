@@ -77,7 +77,7 @@ export default async function PayrollRekapPage({
     supabase
       .from("businesses")
       .select(
-        "name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+        "name, izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
       )
       .eq("id", businessId)
       .single(),
@@ -162,6 +162,7 @@ export default async function PayrollRekapPage({
   );
 
   const settings = {
+    izinDeductionMode: business.izin_deduction_mode === "full_day" ? ("full_day" as const) : ("flat" as const),
     izinDeductionWeekday: Number(business.izin_deduction_weekday),
     izinDeductionWeekend: Number(business.izin_deduction_weekend),
     lateDeductionPerOccurrence: Number(business.late_deduction_per_occurrence),

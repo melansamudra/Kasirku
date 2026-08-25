@@ -14,6 +14,7 @@ export async function updatePayrollDeductions(
   _prevState: PayrollDeductionsState,
   formData: FormData,
 ): Promise<PayrollDeductionsState> {
+  const izinMode = formData.get("izinDeductionMode") === "full_day" ? "full_day" : "flat";
   const izinWeekday = Number(formData.get("izinDeductionWeekday"));
   const izinWeekend = Number(formData.get("izinDeductionWeekend"));
   const latePerOccurrence = Number(formData.get("lateDeductionPerOccurrence"));
@@ -36,6 +37,7 @@ export async function updatePayrollDeductions(
   const { error } = await supabase
     .from("businesses")
     .update({
+      izin_deduction_mode: izinMode,
       izin_deduction_weekday: izinWeekday,
       izin_deduction_weekend: izinWeekend,
       late_deduction_per_occurrence: latePerOccurrence,
@@ -53,7 +55,9 @@ export async function updatePayrollDeductions(
     "pengaturan",
     "sukses",
     "Pengaturan payroll diperbarui",
-    `Izin hari biasa Rp${izinWeekday.toLocaleString("id-ID")} · Izin weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")} · Lembur Rp${lemburRate.toLocaleString("id-ID")}/jam`,
+    izinMode === "full_day"
+      ? `Izin = potong 1 hari gaji + denda weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")} · Lembur Rp${lemburRate.toLocaleString("id-ID")}/jam`
+      : `Izin hari biasa Rp${izinWeekday.toLocaleString("id-ID")} · Izin weekend Rp${izinWeekend.toLocaleString("id-ID")} · Per telat Rp${latePerOccurrence.toLocaleString("id-ID")} · Lembur Rp${lemburRate.toLocaleString("id-ID")}/jam`,
   );
   revalidatePath(`/business/${businessId}/payroll`);
   return { error: null, saved: true };
@@ -179,7 +183,9 @@ export async function createPayslip(
       .maybeSingle(),
     supabase
       .from("businesses")
-      .select("izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour")
+      .select(
+        "izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+      )
       .eq("id", businessId)
       .single(),
     supabase
@@ -213,6 +219,7 @@ export async function createPayslip(
     (attendanceRows ?? []).map((r) => ({ ...r, lateMinutes: r.late_minutes })),
     { salaryType, dailyRate, monthlyRate },
     {
+      izinDeductionMode: business.izin_deduction_mode === "full_day" ? "full_day" : "flat",
       izinDeductionWeekday: Number(business.izin_deduction_weekday),
       izinDeductionWeekend: Number(business.izin_deduction_weekend),
       lateDeductionPerOccurrence: Number(business.late_deduction_per_occurrence),

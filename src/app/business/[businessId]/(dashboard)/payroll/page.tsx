@@ -106,7 +106,7 @@ export default async function PayrollPage({
   const { data: business } = await supabase
     .from("businesses")
     .select(
-      "id, name, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+      "id, name, izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
     )
     .eq("id", businessId)
     .single();
@@ -281,6 +281,7 @@ export default async function PayrollPage({
           <div className="mt-4">
             <PayrollDeductionsForm
               action={updatePayrollDeductions.bind(null, businessId)}
+              izinDeductionMode={business.izin_deduction_mode === "full_day" ? "full_day" : "flat"}
               izinDeductionWeekday={Number(business.izin_deduction_weekday)}
               izinDeductionWeekend={Number(business.izin_deduction_weekend)}
               lateDeductionPerOccurrence={Number(business.late_deduction_per_occurrence)}

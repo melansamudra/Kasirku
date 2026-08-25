@@ -9,6 +9,12 @@ export type AttendanceForCalc = { date: string; status: string; late: boolean; l
 export type LateTier = { thresholdMinutes: number; amount: number };
 
 export type PayrollSettings = {
+  // "flat": izinDeductionWeekday/Weekend dipakai apa adanya (nominal Rp
+  // tetap, diisi manual). "full_day": potongan izin weekday = 1 hari gaji
+  // penuh (dihitung otomatis dari rate karyawan, ikut naik-turun kalau
+  // gajinya berubah), weekend = 1 hari gaji penuh + izinDeductionWeekend
+  // sebagai denda tambahan. izinDeductionWeekday diabaikan di mode ini.
+  izinDeductionMode: "flat" | "full_day";
   izinDeductionWeekday: number;
   izinDeductionWeekend: number;
   // Dipakai kalau lateTiers kosong (bisnis belum sempat atur tingkatan
@@ -109,7 +115,9 @@ export function calcPayslip(
   const basePay = dailyEquivalent * (counts.hadir + counts.izin);
 
   const izinDeduction =
-    izinWeekdayCount * settings.izinDeductionWeekday + izinWeekendCount * settings.izinDeductionWeekend;
+    settings.izinDeductionMode === "full_day"
+      ? izinWeekdayCount * dailyEquivalent + izinWeekendCount * (dailyEquivalent + settings.izinDeductionWeekend)
+      : izinWeekdayCount * settings.izinDeductionWeekday + izinWeekendCount * settings.izinDeductionWeekend;
 
   return {
     hadirCount: counts.hadir,

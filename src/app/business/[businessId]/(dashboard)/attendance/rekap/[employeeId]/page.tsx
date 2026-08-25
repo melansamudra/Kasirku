@@ -111,7 +111,7 @@ export default async function EmployeeAttendanceRekapPage({
       .maybeSingle(),
     supabase
       .from("businesses")
-      .select("izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
+      .select("izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
       .eq("id", businessId)
       .single(),
     supabase
@@ -177,6 +177,7 @@ export default async function EmployeeAttendanceRekapPage({
       monthlyRate: Number(employee.monthly_rate),
     },
     {
+      izinDeductionMode: business.izin_deduction_mode === "full_day" ? "full_day" : "flat",
       izinDeductionWeekday: Number(business.izin_deduction_weekday),
       izinDeductionWeekend: Number(business.izin_deduction_weekend),
       lateDeductionPerOccurrence: Number(business.late_deduction_per_occurrence),

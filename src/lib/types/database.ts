@@ -302,6 +302,7 @@ export type Database = {
           self_order_banner: string | null;
           self_order_enabled: boolean;
           mirroring_enabled: boolean;
+          izin_deduction_mode: string;
           izin_deduction_weekday: number;
           izin_deduction_weekend: number;
           late_deduction_per_occurrence: number;
@@ -330,6 +331,7 @@ export type Database = {
           self_order_banner?: string | null;
           self_order_enabled?: boolean;
           mirroring_enabled?: boolean;
+          izin_deduction_mode?: string;
           izin_deduction_weekday?: number;
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
@@ -358,6 +360,7 @@ export type Database = {
           self_order_banner?: string | null;
           self_order_enabled?: boolean;
           mirroring_enabled?: boolean;
+          izin_deduction_mode?: string;
           izin_deduction_weekday?: number;
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
