@@ -18,6 +18,7 @@ const EXPENSE_CATEGORY_ACCOUNT: Record<string, string> = {
   "Gaji & Upah": "5-100",
   "Listrik & Air": "5-101",
   "Gas LPG": "5-106",
+  Konsumsi: "5-107",
   Marketing: "5-103",
   Perlengkapan: "5-104",
   "Lain-lain": "5-999",

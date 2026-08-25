@@ -10,6 +10,7 @@ const OTHER_CATEGORIES = [
   "Gaji & Upah",
   "Listrik & Air",
   "Gas LPG",
+  "Konsumsi",
   "Marketing",
   "Perlengkapan",
   "Lain-lain",
