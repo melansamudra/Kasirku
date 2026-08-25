@@ -20,6 +20,15 @@ function formatDateTime(iso: string) {
   });
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default function MovementCard({
   businessId,
   accounts,
@@ -34,6 +43,7 @@ export default function MovementCard({
     description: string;
     receiptUrl: string | null;
     createdAt: string;
+    transactionDate: string | null;
     origin: "kasir" | "admin";
     cashierName: string | null;
     employeeName?: string | null;
@@ -88,7 +98,17 @@ export default function MovementCard({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-zinc-900">{movement.description}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-400">
-            <span>{formatDateTime(movement.createdAt)}</span>
+            {isKasbon && movement.transactionDate ? (
+              <>
+                <span className="font-medium text-zinc-500">
+                  Tanggal kasbon: {formatDate(movement.transactionDate)}
+                </span>
+                <span>·</span>
+                <span>diinput {formatDateTime(movement.createdAt)}</span>
+              </>
+            ) : (
+              <span>{formatDateTime(movement.createdAt)}</span>
+            )}
             <span>·</span>
             <span>{movement.origin === "admin" ? "Input Admin" : movement.cashierName ?? "Kasir"}</span>
             {movement.category && (

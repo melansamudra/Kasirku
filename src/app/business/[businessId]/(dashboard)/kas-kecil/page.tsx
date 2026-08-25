@@ -36,6 +36,7 @@ type MovementRow = {
   account_code: string | null;
   origin: "kasir" | "admin";
   created_at: string;
+  journal_entry_id: string | null;
   cashiers: { name: string } | null;
   employees: { name: string } | null;
 };
@@ -84,6 +85,15 @@ function formatDateTime(iso: string) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
@@ -145,7 +155,7 @@ export default async function KasKecilPage({
     supabase
       .from("shift_cash_movements")
       .select(
-        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name), employees(name)",
+        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees(name)",
       )
       .eq("business_id", businessId)
       .eq("direction", "out")
@@ -155,7 +165,7 @@ export default async function KasKecilPage({
       const q = supabase
         .from("shift_cash_movements")
         .select(
-          "id, amount, category, description, receipt_url, status, account_code, origin, created_at, cashiers(name), employees(name)",
+          "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees(name)",
         )
         .eq("business_id", businessId)
         .eq("direction", "out")
@@ -257,6 +267,21 @@ export default async function KasKecilPage({
 
   const pending = (pendingRows ?? []) as unknown as MovementRow[];
   const history = (historyRows ?? []) as unknown as MovementRow[];
+
+  // Kasbon bisa dicatat dengan tanggal transaksi mundur (lihat
+  // post_petty_cash_kasbon p_date), beda dari created_at yang selalu "saat
+  // diinput". Ambil tanggal asli dari journal_entries.date (posting awal ke
+  // 1-050) biar kartu Kasbon di sini nampilin tanggal kejadiannya, bukan
+  // tanggal input.
+  const journalEntryIds = Array.from(
+    new Set([...pending, ...history].map((m) => m.journal_entry_id).filter((id): id is string => !!id)),
+  );
+  const { data: journalDateRows } =
+    journalEntryIds.length > 0
+      ? await supabase.from("journal_entries").select("id, date").in("id", journalEntryIds)
+      : { data: [] as { id: string; date: string }[] };
+  const transactionDateByEntryId = new Map((journalDateRows ?? []).map((j) => [j.id, j.date]));
+
   const accounts = accountRows ?? [];
   const employees = employeeRows ?? [];
   const totalPending = pending.reduce((s, m) => s + Number(m.amount), 0);
@@ -381,6 +406,9 @@ export default async function KasKecilPage({
                 description: m.description,
                 receiptUrl: m.receipt_url,
                 createdAt: m.created_at,
+                transactionDate: m.journal_entry_id
+                  ? (transactionDateByEntryId.get(m.journal_entry_id) ?? null)
+                  : null,
                 origin: m.origin,
                 cashierName: m.cashiers?.name ?? null,
                 employeeName: m.employees?.name ?? null,
@@ -434,7 +462,11 @@ export default async function KasKecilPage({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-medium text-zinc-900">{m.description}</p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] text-zinc-400">{formatDateTime(m.created_at)}</span>
+                    <span className="text-[11px] text-zinc-400">
+                      {m.category === "Kasbon" && m.journal_entry_id && transactionDateByEntryId.get(m.journal_entry_id)
+                        ? `Tanggal kasbon: ${formatDate(transactionDateByEntryId.get(m.journal_entry_id) as string)}`
+                        : formatDateTime(m.created_at)}
+                    </span>
                     <span className="text-[11px] text-zinc-400">
                       {m.origin === "admin" ? "Input Admin" : m.cashiers?.name ?? "Kasir"}
                     </span>
