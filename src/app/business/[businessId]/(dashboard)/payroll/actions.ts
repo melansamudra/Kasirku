@@ -595,28 +595,60 @@ export async function addEmployeeAdvance(
     return { error: "Karyawan tidak ditemukan." };
   }
 
+  const trimmedNote = note.trim() || null;
   const { error } = await supabase.from("employee_advances").insert({
     business_id: businessId,
     employee_id: employeeId,
     date,
     amount,
-    note: note.trim() || null,
+    note: trimmedNote,
   });
 
   if (error) {
     return { error: error.message };
   }
 
+  // Kasbon lewat halaman Payroll ini dulunya cuma catatan piutang, tidak
+  // pernah menyentuh kas/jurnal -- beda dari kasbon lewat Kas Kecil yang
+  // lewat suspense 1-050 + approval (lihat post_petty_cash_kasbon). Efeknya
+  // kasbon yang dicatat di sini tidak pernah kelihatan di Buku Besar 1-060
+  // walau uangnya nyata. Posting LANGSUNG ke 1-060 (bukan lewat 1-050 kayak
+  // Kas Kecil) karena ini input admin langsung yang tidak butuh direview --
+  // dan supaya admin bisa pilih tanggal manapun (form Kas Kecil dikunci ke
+  // hari ini saja).
+  const description = `Kasbon: ${employee.name}${trimmedNote ? ` — ${trimmedNote}` : ""}`;
+  const { error: journalError } = await supabase.rpc("post_journal_entry", {
+    p_business_id: businessId,
+    p_date: date,
+    p_description: description,
+    p_lines: [
+      { account_code: "1-060", debit: amount, credit: 0 },
+      { account_code: "1-001", debit: 0, credit: amount },
+    ],
+    p_source: "payroll",
+  });
+
   await logActivity(
     supabase,
     businessId,
     "sistem",
-    "info",
+    journalError ? "warning" : "info",
     `Kasbon dicatat: ${employee.name}`,
-    `Rp${amount.toLocaleString("id-ID")}`,
+    journalError
+      ? `Rp${amount.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError.message}`
+      : `Rp${amount.toLocaleString("id-ID")}`,
   );
 
   revalidatePath(`/business/${businessId}/payroll`);
+  revalidatePath(`/business/${businessId}/kas-harian`);
+  revalidatePath(`/business/${businessId}/accounting/jurnal`);
+  revalidatePath(`/business/${businessId}/accounting/buku-besar`);
+
+  if (journalError) {
+    return {
+      error: `Kasbon dicatat, tapi gagal posting ke jurnal (${journalError.message}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`,
+    };
+  }
   return { error: null };
 }
 
