@@ -7,14 +7,12 @@ import { StatCard } from "@/components/ui/stat-card";
 import { PillBadge } from "@/components/ui/pill-badge";
 import {
   createPayslip,
-  addEmployeeAdvance,
   updatePayrollDeductions,
   addLateTier,
   deleteLateTier,
 } from "./actions";
 import CreatePayslipForm from "./create-payslip-form";
 import DeletePayslipButton from "./delete-payslip-button";
-import AddAdvanceForm from "./add-advance-form";
 import PayrollDeductionsForm from "./payroll-deductions-form";
 import AddLateTierForm from "./add-late-tier-form";
 import DeleteLateTierButton from "./delete-late-tier-button";
@@ -154,7 +152,6 @@ export default async function PayrollPage({
   const defaultStart = `${today.slice(0, 7)}-01`;
 
   const boundCreatePayslip = createPayslip.bind(null, businessId);
-  const boundAddAdvance = addEmployeeAdvance.bind(null, businessId);
 
   const activeEmployeeCount = (employees ?? []).filter((e) => e.active).length;
 
@@ -354,7 +351,12 @@ export default async function PayrollPage({
                         {e.salary_type === "bulanan" ? "Bulanan" : "Harian"} · {rate}
                       </p>
                     </div>
-                    <AddAdvanceForm today={today} action={boundAddAdvance.bind(null, e.id)} />
+                    <Link
+                      href={`/business/${businessId}/kas-kecil`}
+                      className="shrink-0 text-xs font-medium text-amber-600 hover:underline"
+                    >
+                      + Kasbon (lewat Kas Kecil)
+                    </Link>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
                     <span>
