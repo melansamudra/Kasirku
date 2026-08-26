@@ -10,7 +10,7 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // Return value: pesan error kalau posting jurnal gagal, null kalau sukses —
 // baris purchases sudah kadung tersimpan di titik pemanggilan, jadi kegagalan
 // di sini hanya dilaporkan, bukan membatalkan pembelian (lihat [[mini-erp-scope]]).
-async function postPurchaseJournal(
+export async function postPurchaseJournal(
   supabase: SupabaseServerClient,
   businessId: string,
   date: string,

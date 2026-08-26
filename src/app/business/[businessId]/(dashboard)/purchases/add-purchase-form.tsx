@@ -22,7 +22,6 @@ export type PurchasePrefill = {
   note?: string;
   supplierId?: string;
   qtyUnit?: string;
-  paymentMode?: "utang" | "sebagian";
   fromAllocationId?: string;
 };
 
@@ -89,9 +88,7 @@ function PurchaseFormFields({
     prefill?.category === "Bahan Baku" ? prefill.itemId : ingredients[0]?.id ?? "",
   );
   const [amount, setAmount] = useState(prefill && prefill.amount > 0 ? String(prefill.amount) : "");
-  const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">(
-    prefill?.paymentMode ?? "lunas",
-  );
+  const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
   const [stockOnly, setStockOnly] = useState(false);
   // Qty selalu diketik dalam satuan yang lagi dipilih (satuan stok, atau

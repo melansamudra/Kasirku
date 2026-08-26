@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifySupplierDebtNote, deleteSupplierDebtNote } from "./actions";
+import { verifyDebtNoteAsPurchase, deleteSupplierDebtNote } from "./actions";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -41,27 +41,17 @@ export default function DebtNoteCard({
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  function handleVerifyAndRedirect() {
+  function handleVerify() {
     setError(null);
     setPending(true);
-    verifySupplierDebtNote(businessId, note.id)
+    verifyDebtNoteAsPurchase(businessId, note.id)
       .then((res) => {
+        setPending(false);
         if (res.error) {
-          setPending(false);
           setError(res.error);
           return;
         }
-        const params = new URLSearchParams({
-          prefillAmount: String(note.amount),
-          prefillCategory: note.category === "Bahan Baku" ? "Bahan Baku" : "",
-          // Nota Hutang = belum dibayar ke supplier — jangan biarkan form
-          // jatuh ke default "Lunas Sekarang", nanti utangnya hilang diam-diam.
-          prefillPaymentMode: "utang",
-        });
-        if (note.supplierId) params.set("prefillSupplierId", note.supplierId);
-        const noteParts = [note.supplierName ? `Supplier: ${note.supplierName}` : null, note.note].filter(Boolean);
-        if (noteParts.length > 0) params.set("prefillNote", noteParts.join(" — "));
-        router.push(`/business/${businessId}/purchases?${params.toString()}`);
+        router.refresh();
       })
       .catch(() => {
         setPending(false);
@@ -119,11 +109,11 @@ export default function DebtNoteCard({
 
       <div className="mt-3 flex items-center gap-2">
         <button
-          onClick={handleVerifyAndRedirect}
+          onClick={handleVerify}
           disabled={pending}
           className="flex-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
         >
-          {pending ? "Memproses…" : "✔️ Verifikasi & Alihkan ke Pembelian →"}
+          {pending ? "Memproses…" : "✔️ Verifikasi → Masuk Utang Dagang"}
         </button>
         {confirmDelete ? (
           <span className="flex shrink-0 items-center gap-1.5 text-[11px]">

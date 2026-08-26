@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { getPeriodRange } from "../reports/period";
+import { todayWibDateString } from "@/lib/wib";
+import { postPurchaseJournal } from "../purchases/actions";
 
 export type ActionState = { error: string | null };
 
@@ -190,24 +192,91 @@ export async function addSupplierDebtNoteAdmin(
   return { error: null };
 }
 
-export async function verifySupplierDebtNote(businessId: string, noteId: string): Promise<ActionState> {
+// Verifikasi = langsung tercatat sebagai pembelian kategori "Lainnya" (tanpa
+// item/qty — nota hutang cuma catatan nominal, bukan per-item) berstatus
+// utang penuh, biar admin bisa verifikasi cepat 1-klik per nota tanpa mampir
+// ke form. Efek sampingnya: stok bahan baku TIDAK ikut ter-update otomatis
+// dari nota ini (beda dari alur "Permintaan Barang -> Catat sebagai
+// Pembelian") — kalau perlu, dicatat manual terpisah lewat Pembelian & Hutang.
+//
+// Insert pembelian dulu baru tandai nota terverifikasi (bukan sebaliknya):
+// kalau langkah kedua gagal, nota tetap "pending" dan admin akan lihat masih
+// perlu diverifikasi (aman, walau retry-nya bisa dobel-insert pembelian —
+// best-effort, sama seperti posting jurnal di addPurchase, lihat [[mini-erp-scope]]).
+export async function verifyDebtNoteAsPurchase(businessId: string, noteId: string): Promise<ActionState> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase
+  const { data: noteRow, error: fetchError } = await supabase
+    .from("supplier_debt_notes")
+    .select("id, supplier_id, supplier_name_manual, amount, note, suppliers(name)")
+    .eq("id", noteId)
+    .eq("business_id", businessId)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (fetchError) return { error: fetchError.message };
+  if (!noteRow) return { error: "Nota tidak ditemukan atau sudah diproses." };
+
+  const note = noteRow as unknown as {
+    id: string;
+    supplier_id: string | null;
+    supplier_name_manual: string | null;
+    amount: number;
+    note: string | null;
+    suppliers: { name: string } | null;
+  };
+
+  const supplierName = note.suppliers?.name ?? note.supplier_name_manual;
+  const noteParts = [supplierName ? `Supplier: ${supplierName}` : null, note.note].filter(Boolean);
+  const purchaseNote = noteParts.length > 0 ? noteParts.join(" — ") : null;
+  const amount = Number(note.amount);
+  const itemName = purchaseNote || "Pembelian";
+  const date = todayWibDateString();
+
+  const { error: insertError } = await supabase.from("purchases").insert({
+    business_id: businessId,
+    supplier_id: note.supplier_id,
+    date,
+    due_date: null,
+    category: "Lainnya",
+    ingredient_id: null,
+    product_id: null,
+    qty: 0,
+    note: purchaseNote,
+    amount,
+    paid_amount: 0,
+    stock_only: false,
+  });
+
+  if (insertError) return { error: insertError.message };
+
+  const journalError = await postPurchaseJournal(supabase, businessId, date, `Pembelian: ${itemName}`, amount, 0);
+
+  const { error: verifyError } = await supabase
     .from("supplier_debt_notes")
     .update({ status: "verified", verified_by: user?.id ?? null, verified_at: new Date().toISOString() })
     .eq("id", noteId)
     .eq("business_id", businessId)
     .eq("status", "pending");
 
-  if (error) return { error: error.message };
+  if (verifyError) return { error: verifyError.message };
 
-  await logActivity(supabase, businessId, "sistem", "sukses", "Nota hutang diverifikasi");
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    journalError ? "warning" : "sukses",
+    `Nota hutang dialihkan ke Pembelian: ${itemName}`,
+    journalError
+      ? `Rp${amount.toLocaleString("id-ID")} — GAGAL posting ke jurnal: ${journalError}`
+      : `Rp${amount.toLocaleString("id-ID")} · masuk sebagai Utang Dagang`,
+  );
 
   revalidatePath(`/business/${businessId}/kas-kecil`);
+  revalidatePath(`/business/${businessId}/purchases`);
   return { error: null };
 }
 

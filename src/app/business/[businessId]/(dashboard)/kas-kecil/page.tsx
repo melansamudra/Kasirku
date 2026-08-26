@@ -494,8 +494,8 @@ export default async function KasKecilPage({
       <div className="mt-6 border-t border-zinc-200 pt-4">
         <h2 className="text-sm font-bold text-zinc-900">📄 Nota Hutang</h2>
         <p className="mt-0.5 text-xs text-zinc-500">
-          Nota supplier yang datang secara hutang — verifikasi lalu alihkan ke Pembelian & Hutang
-          untuk dicatat resmi (update stok, jatuh tempo, Utang Dagang).
+          Nota supplier yang datang secara hutang — verifikasi untuk langsung dicatat sebagai
+          Utang Dagang di Pembelian &amp; Hutang (stok tidak ikut ter-update otomatis dari sini).
         </p>
 
         <div className="mt-3 space-y-2">

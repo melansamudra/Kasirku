@@ -65,7 +65,6 @@ export default async function PurchasesPage({
     prefillSupplierId?: string;
     prefillAmount?: string;
     prefillNote?: string;
-    prefillPaymentMode?: string;
     fromAllocationId?: string;
   }>;
 }) {
@@ -174,10 +173,6 @@ export default async function PurchasesPage({
         amount: sp.prefillAmount ? Number(sp.prefillAmount) : 0,
         note: sp.prefillNote || undefined,
         supplierId: sp.prefillSupplierId || undefined,
-        paymentMode:
-          sp.prefillPaymentMode === "utang" || sp.prefillPaymentMode === "sebagian"
-            ? sp.prefillPaymentMode
-            : undefined,
         fromAllocationId: sp.fromAllocationId || undefined,
       }
     : null;
