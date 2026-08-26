@@ -920,6 +920,7 @@ export type Database = {
           min_stock: number;
           department: string | null;
           warehouse_id: string | null;
+          barcode: string | null;
         };
         Insert: {
           id?: string;
@@ -932,6 +933,7 @@ export type Database = {
           min_stock?: number;
           department?: string | null;
           warehouse_id?: string | null;
+          barcode?: string | null;
         };
         Update: {
           id?: string;
@@ -944,6 +946,7 @@ export type Database = {
           min_stock?: number;
           department?: string | null;
           warehouse_id?: string | null;
+          barcode?: string | null;
         };
         Relationships: [];
       };

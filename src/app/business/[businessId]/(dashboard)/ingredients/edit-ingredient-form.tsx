@@ -9,12 +9,14 @@ export default function EditIngredientForm({
   unit,
   unitCost,
   minStock,
+  barcode,
   action,
 }: {
   name: string;
   unit: string;
   unitCost: number;
   minStock: number;
+  barcode?: string | null;
   action: (state: EditIngredientState, formData: FormData) => Promise<EditIngredientState>;
 }) {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function EditIngredientForm({
     unit,
     unitCost: String(unitCost),
     minStock: String(minStock),
+    barcode: barcode ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -47,6 +50,7 @@ export default function EditIngredientForm({
     formData.set("unit", values.unit);
     formData.set("unitCost", values.unitCost);
     formData.set("minStock", values.minStock);
+    formData.set("barcode", values.barcode);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -91,6 +95,15 @@ export default function EditIngredientForm({
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Barcode (opsional)</label>
+        <input
+          type="text"
+          value={values.barcode}
+          onChange={(e) => setValues((v) => ({ ...v, barcode: e.target.value }))}
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-zinc-600">

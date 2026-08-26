@@ -5,7 +5,7 @@ import { submitWarehouseRequest } from "./actions";
 
 type Warehouse = { id: string; name: string };
 type Employee = { id: string; name: string };
-type MasterItem = { id: string; name: string; unit: string; warehouseId: string };
+type MasterItem = { id: string; name: string; unit: string; warehouseId: string; barcode: string | null };
 
 type CartRow = { key: string; itemId: string; qtyRequested: string };
 
@@ -33,8 +33,47 @@ export default function RequestClient({
   const [rows, setRows] = useState<CartRow[]>([emptyRow()]);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [scanInput, setScanInput] = useState("");
+  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
 
   const itemsForWarehouse = items.filter((i) => i.warehouseId === warehouseId);
+
+  // Barcode scanner bekerja seperti keyboard: ketik kode lalu Enter. Cocokkan
+  // ke katalog, otomatis pilih gudang dari bahan itu kalau belum dipilih, dan
+  // tambahkan sebagai baris baru — sama pola dengan pencarian barcode di POS.
+  function handleScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const code = scanInput.trim();
+    if (!code) return;
+
+    const match = items.find((i) => i.barcode === code);
+    if (!match) {
+      setScanFeedback(`Barcode "${code}" tidak ditemukan.`);
+      setScanInput("");
+      return;
+    }
+
+    if (!warehouseId) {
+      setWarehouseId(match.warehouseId);
+    } else if (warehouseId !== match.warehouseId) {
+      setScanFeedback(`${match.name} terdaftar di gudang lain, bukan gudang yang sedang dipilih.`);
+      setScanInput("");
+      return;
+    }
+
+    setScanFeedback(null);
+    setScanInput("");
+    setRows((prev) => {
+      const lastRow = prev[prev.length - 1];
+      if (lastRow && !lastRow.itemId) {
+        const updated = [...prev];
+        updated[updated.length - 1] = { ...lastRow, itemId: match.id };
+        return updated;
+      }
+      return [...prev, { key: crypto.randomUUID(), itemId: match.id, qtyRequested: "" }];
+    });
+  }
 
   function updateRow(key: string, patch: Partial<CartRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -131,6 +170,22 @@ export default function RequestClient({
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Scan Barcode (opsional)</label>
+          <input
+            type="text"
+            value={scanInput}
+            onChange={(e) => {
+              setScanInput(e.target.value);
+              setScanFeedback(null);
+            }}
+            onKeyDown={handleScanKeyDown}
+            placeholder="Arahkan scanner ke sini lalu scan…"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          {scanFeedback && <p className="mt-1 text-[11px] text-red-600">{scanFeedback}</p>}
         </div>
 
         {warehouseId && (

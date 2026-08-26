@@ -77,6 +77,7 @@ export async function addIngredient(
   const unitCostRaw = formData.get("unitCost") as string;
   const stockRaw = formData.get("stock") as string;
   const minStockRaw = formData.get("minStock") as string;
+  const barcode = (formData.get("barcode") as string)?.trim() || null;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -110,12 +111,13 @@ export async function addIngredient(
       unit_cost: unitCost,
       stock,
       min_stock: minStock,
+      barcode,
     })
     .select("id")
     .single();
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message.includes("duplicate") ? "Barcode ini sudah dipakai bahan lain." : error.message };
   }
 
   await supabase.from("ingredient_price_history").insert({
@@ -149,6 +151,7 @@ export async function editIngredient(
   const unit = (formData.get("unit") as string)?.trim();
   const unitCostRaw = formData.get("unitCost") as string;
   const minStockRaw = formData.get("minStock") as string;
+  const barcode = (formData.get("barcode") as string)?.trim() || null;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -183,12 +186,13 @@ export async function editIngredient(
       unit,
       unit_cost: unitCost,
       min_stock: minStock,
+      barcode,
     })
     .eq("id", ingredientId)
     .eq("business_id", businessId);
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message.includes("duplicate") ? "Barcode ini sudah dipakai bahan lain." : error.message };
   }
 
   if (existing && Number(existing.unit_cost) !== unitCost) {

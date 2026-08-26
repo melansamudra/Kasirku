@@ -7,7 +7,7 @@ type WarehouseRequestInfo = {
   business_name: string;
   warehouses: { id: string; name: string }[];
   employees: { id: string; name: string }[];
-  items: { id: string; name: string; unit: string; warehouseId: string }[];
+  items: { id: string; name: string; unit: string; warehouseId: string; barcode: string | null }[];
 };
 
 export default async function PermintaanGudangPublicPage({

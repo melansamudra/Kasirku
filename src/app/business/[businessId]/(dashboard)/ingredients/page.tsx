@@ -43,7 +43,7 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, department, warehouse_id")
+    .select("id, name, unit, unit_cost, stock, min_stock, department, warehouse_id, barcode")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -166,6 +166,7 @@ export default async function IngredientsPage({
                   unit={i.unit}
                   unitCost={Number(i.unit_cost)}
                   minStock={Number(i.min_stock)}
+                  barcode={i.barcode}
                   action={editIngredient.bind(null, businessId, i.id)}
                 />
                 <AdjustStockForm
