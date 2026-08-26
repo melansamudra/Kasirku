@@ -438,45 +438,33 @@ function SidebarContent({
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {costControlEnabled ? (
           // Sistem "berdiri sendiri" — bukan menu fnb Kasirku yang dipangkas.
-          // Section statis (tidak collapsible) + penomoran urut, meniru
-          // struktur prototipe simulasi Cost Control yang owner sudah setujui.
-          (() => {
-            let itemIndex = -1;
-            return groups.map((group) => (
-              <div key={group.title} className="mb-4">
-                <p className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
-                  {group.title}
-                </p>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    itemIndex += 1;
-                    const number = String(itemIndex).padStart(2, "0");
-                    const isActive = activeHref === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onNavigate}
-                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                          isActive ? "bg-amber-50 text-amber-800" : "text-zinc-600 hover:bg-zinc-50"
-                        }`}
-                      >
-                        <span
-                          className={`shrink-0 font-mono text-[11px] ${
-                            isActive ? "text-amber-700" : "text-zinc-400"
-                          }`}
-                        >
-                          {number}
-                        </span>
-                        {item.label}
-                        <NavPendingHint />
-                      </Link>
-                    );
-                  })}
-                </div>
+          // Section statis (tidak collapsible), meniru struktur prototipe
+          // simulasi Cost Control yang owner sudah setujui.
+          groups.map((group) => (
+            <div key={group.title} className="mb-4">
+              <p className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
+                {group.title}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = activeHref === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
+                        isActive ? "bg-amber-50 text-amber-800" : "text-zinc-600 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {item.label}
+                      <NavPendingHint />
+                    </Link>
+                  );
+                })}
               </div>
-            ));
-          })()
+            </div>
+          ))
         ) : (
           groups.map((group) => {
           const isOpen = openGroup === group.title;
