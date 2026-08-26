@@ -145,14 +145,19 @@ export async function addPurchase(
           .eq("kind", "purchasing")
           .maybeSingle();
 
-        const { data: bufferRow } = purchasingWarehouse
-          ? await supabase
-              .from("warehouse_stock")
-              .select("id, stock")
-              .eq("warehouse_id", purchasingWarehouse.id)
-              .eq("ingredient_id", ingredientId)
-              .maybeSingle()
-          : { data: null };
+        // Kalau baris "Gudang Purchasing" entah kenapa tidak ada (mis.
+        // migration belum jalan), gagal eksplisit — jangan lanjut update
+        // unit_cost seolah qty-nya sudah tercatat padahal nyasar ke mana pun.
+        if (!purchasingWarehouse) {
+          return fail("Gudang Purchasing tidak ditemukan. Hubungi admin untuk migrasi data gudang.");
+        }
+
+        const { data: bufferRow } = await supabase
+          .from("warehouse_stock")
+          .select("id, stock")
+          .eq("warehouse_id", purchasingWarehouse.id)
+          .eq("ingredient_id", ingredientId)
+          .maybeSingle();
 
         const bufferBefore = Number(bufferRow?.stock ?? 0);
         const totalOwnedBefore = Number(ingredient.stock) + bufferBefore;
@@ -161,25 +166,23 @@ export async function addPurchase(
         newUnitCost =
           newTotalOwned > 0 ? Math.round((oldValue + amount) / newTotalOwned) : Number(ingredient.unit_cost);
 
+        const bufferError = bufferRow
+          ? (await supabase.from("warehouse_stock").update({ stock: bufferBefore + qty }).eq("id", bufferRow.id)).error
+          : (
+              await supabase.from("warehouse_stock").insert({
+                business_id: businessId,
+                warehouse_id: purchasingWarehouse.id,
+                ingredient_id: ingredientId,
+                stock: qty,
+              })
+            ).error;
+        if (bufferError) return fail(bufferError.message);
+
         const { error: costError } = await supabase
           .from("ingredients")
           .update({ unit_cost: newUnitCost })
           .eq("id", ingredientId);
         if (costError) return fail(costError.message);
-
-        if (purchasingWarehouse) {
-          const bufferError = bufferRow
-            ? (await supabase.from("warehouse_stock").update({ stock: bufferBefore + qty }).eq("id", bufferRow.id)).error
-            : (
-                await supabase.from("warehouse_stock").insert({
-                  business_id: businessId,
-                  warehouse_id: purchasingWarehouse.id,
-                  ingredient_id: ingredientId,
-                  stock: qty,
-                })
-              ).error;
-          if (bufferError) return fail(bufferError.message);
-        }
       } else {
         const oldValue = Number(ingredient.stock) * Number(ingredient.unit_cost);
         const newStock = Number(ingredient.stock) + qty;
