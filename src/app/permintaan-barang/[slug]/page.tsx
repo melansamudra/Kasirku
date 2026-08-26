@@ -13,6 +13,7 @@ type PurchaseRequestInfo = {
     unit: string;
     stock: number;
     department: string | null;
+    barcode: string | null;
     purchase_units: { unitName: string; conversion: number }[];
   }[];
 };
@@ -46,6 +47,7 @@ export default async function PermintaanBarangPage({
           unit: i.unit,
           stock: i.stock,
           department: i.department,
+          barcode: i.barcode,
           purchaseUnits: i.purchase_units ?? [],
         }))}
       />
