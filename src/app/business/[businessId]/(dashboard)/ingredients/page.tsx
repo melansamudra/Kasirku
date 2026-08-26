@@ -16,6 +16,7 @@ import DeleteIngredientButton from "./delete-ingredient-button";
 import DepartmentSelect from "./department-select";
 import WarehouseSelect from "./warehouse-select";
 import EditIngredientForm from "./edit-ingredient-form";
+import GenerateBarcodesButton from "./generate-barcodes-button";
 import ImportIngredientsForm from "./import-ingredients-form";
 import PurchaseUnitsManager from "./purchase-units-manager";
 
@@ -93,12 +94,15 @@ export default async function IngredientsPage({
               Daftar bahan baku, dipakai untuk hitung HPP resep produk.
             </p>
           </div>
-          <a
-            href={`/business/${businessId}/ingredients/export`}
-            className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-          >
-            ⬇️ Ekspor Excel
-          </a>
+          <div className="flex shrink-0 gap-2">
+            <GenerateBarcodesButton businessId={businessId} />
+            <a
+              href={`/business/${businessId}/ingredients/export`}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              ⬇️ Ekspor Excel
+            </a>
+          </div>
         </div>
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

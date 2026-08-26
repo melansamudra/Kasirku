@@ -7,6 +7,14 @@ import { parseCsv } from "@/lib/csv";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 import ExcelJS from "exceljs";
 
+// Kode internal buat bahan yang tidak punya barcode pabrik asli (mis. ikan,
+// sayur, bumbu curah) — supaya tetap bisa discan & dipakai di alur Permintaan
+// Gudang/Order Barang. CODE128 (dipakai jsbarcode) terima karakter apa saja,
+// jadi tidak perlu murni angka.
+function generateBarcodeCode(): string {
+  return `IG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+}
+
 // Pengelompokan bahan per departemen (dapur/bar/front) — biar admin yang
 // scan/lihat order Permintaan Barang langsung tahu ini buat departemen mana.
 export async function updateIngredientDepartment(
@@ -65,6 +73,45 @@ export async function updateIngredientWarehouse(
   return { error: null };
 }
 
+// Isi barcode buat semua bahan yang belum punya — dipakai tombol "Generate &
+// Cetak Barcode" di halaman Bahan Baku, supaya bahan lama (dibuat sebelum
+// kolom barcode ada) ikut kebagian kode tanpa perlu diedit satu-satu.
+export async function generateMissingBarcodes(businessId: string): Promise<{ error: string | null; count: number }> {
+  const supabase = await createClient();
+
+  const { data: ingredients } = await supabase
+    .from("ingredients")
+    .select("id")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .is("barcode", null);
+
+  if (!ingredients || ingredients.length === 0) {
+    return { error: null, count: 0 };
+  }
+
+  let count = 0;
+  for (const ing of ingredients) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { error } = await supabase
+        .from("ingredients")
+        .update({ barcode: generateBarcodeCode() })
+        .eq("id", ing.id)
+        .is("barcode", null);
+      if (!error) {
+        count++;
+        break;
+      }
+      if (!error.message.includes("duplicate")) {
+        return { error: error.message, count };
+      }
+    }
+  }
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null, count };
+}
+
 export type AddIngredientState = { error: string | null };
 
 export async function addIngredient(
@@ -77,7 +124,7 @@ export async function addIngredient(
   const unitCostRaw = formData.get("unitCost") as string;
   const stockRaw = formData.get("stock") as string;
   const minStockRaw = formData.get("minStock") as string;
-  const barcode = (formData.get("barcode") as string)?.trim() || null;
+  const providedBarcode = (formData.get("barcode") as string)?.trim() || null;
 
   if (!name) {
     return { error: "Nama bahan wajib diisi." };
@@ -102,22 +149,36 @@ export async function addIngredient(
   }
 
   const supabase = await createClient();
-  const { data: inserted, error } = await supabase
-    .from("ingredients")
-    .insert({
-      business_id: businessId,
-      name,
-      unit,
-      unit_cost: unitCost,
-      stock,
-      min_stock: minStock,
-      barcode,
-    })
-    .select("id")
-    .single();
 
-  if (error) {
-    return { error: error.message.includes("duplicate") ? "Barcode ini sudah dipakai bahan lain." : error.message };
+  // Barcode auto-generate kalau tidak diisi manual — retry sekali kalau
+  // kebetulan bentrok (peluangnya sangat kecil, cuma jaga-jaga). Barcode yang
+  // DIISI MANUAL tidak pernah diregenerasi ulang — bentrok di situ tetap
+  // dilaporkan sebagai error ke user.
+  let barcode = providedBarcode ?? generateBarcodeCode();
+  let inserted: { id: string } | null = null;
+  let error: { message: string } | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await supabase
+      .from("ingredients")
+      .insert({
+        business_id: businessId,
+        name,
+        unit,
+        unit_cost: unitCost,
+        stock,
+        min_stock: minStock,
+        barcode,
+      })
+      .select("id")
+      .single();
+    inserted = result.data;
+    error = result.error;
+    if (!error || providedBarcode || !error.message.includes("duplicate")) break;
+    barcode = generateBarcodeCode();
+  }
+
+  if (error || !inserted) {
+    return { error: error?.message.includes("duplicate") ? "Barcode ini sudah dipakai bahan lain." : (error?.message ?? "Gagal menyimpan.") };
   }
 
   await supabase.from("ingredient_price_history").insert({
