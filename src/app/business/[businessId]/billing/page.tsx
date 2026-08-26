@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionAccess } from "@/lib/billing/status";
@@ -51,6 +52,14 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
+      {!access.locked && (
+        <Link
+          href={`/business/${businessId}`}
+          className="mb-3 inline-block text-xs font-medium text-zinc-500 hover:text-zinc-700"
+        >
+          ← Kembali ke Dashboard
+        </Link>
+      )}
       <h1 className="text-lg font-bold text-zinc-900">Langganan — {business.name}</h1>
       <p className="mt-0.5 text-xs text-zinc-500">
         Pilih paket untuk mengaktifkan/memperpanjang akses dashboard &amp; kasir.
