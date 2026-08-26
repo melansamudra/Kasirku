@@ -47,6 +47,7 @@ import {
   Layers,
   ChevronRight,
   PiggyBank,
+  ChefHat,
   type LucideIcon,
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -350,6 +351,7 @@ function SidebarContent({
   activeHref,
   isFinanceOnly,
   canAccessPos,
+  costControlEnabled = false,
   onNavigate,
   showLogout = true,
 }: {
@@ -360,6 +362,7 @@ function SidebarContent({
   activeHref: string | null;
   isFinanceOnly: boolean;
   canAccessPos: boolean;
+  costControlEnabled?: boolean;
   onNavigate?: () => void;
   showLogout?: boolean;
 }) {
@@ -378,12 +381,22 @@ function SidebarContent({
   return (
     <div className="flex h-full flex-col bg-white">
       <div className="flex items-center gap-2.5 border-b border-zinc-100 px-5 py-5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600">
-          <span className="text-sm font-bold text-white">K</span>
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+            costControlEnabled ? "bg-amber-800" : "bg-brand-600"
+          }`}
+        >
+          {costControlEnabled ? (
+            <ChefHat className="h-[18px] w-[18px] text-amber-50" aria-hidden="true" />
+          ) : (
+            <span className="text-sm font-bold text-white">K</span>
+          )}
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
-          <p className="text-[11px] text-zinc-400">{BUSINESS_TYPE_SUBTITLE[businessType]}</p>
+          <p className="text-[11px] text-zinc-400">
+            {costControlEnabled ? "Dapur Pusat" : BUSINESS_TYPE_SUBTITLE[businessType]}
+          </p>
         </div>
       </div>
 
@@ -428,13 +441,19 @@ function SidebarContent({
                         onClick={onNavigate}
                         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
                           isActive
-                            ? "bg-brand-50 text-brand-700"
+                            ? costControlEnabled
+                              ? "bg-amber-50 text-amber-800"
+                              : "bg-brand-50 text-brand-700"
                             : "text-zinc-600 hover:bg-zinc-50"
                         }`}
                       >
                         <Icon
                           className={`h-[18px] w-[18px] shrink-0 ${
-                            isActive ? "text-brand-600" : "text-zinc-400"
+                            isActive
+                              ? costControlEnabled
+                                ? "text-amber-700"
+                                : "text-brand-600"
+                              : "text-zinc-400"
                           }`}
                           strokeWidth={isActive ? 2.25 : 1.75}
                           aria-hidden="true"
@@ -465,7 +484,15 @@ function SidebarContent({
   );
 }
 
-function Topbar({ businessName, userEmail }: { businessName: string; userEmail: string }) {
+function Topbar({
+  businessName,
+  userEmail,
+  costControlEnabled = false,
+}: {
+  businessName: string;
+  userEmail: string;
+  costControlEnabled?: boolean;
+}) {
   const today = new Date().toLocaleDateString("id-ID", {
     weekday: "long",
     day: "numeric",
@@ -481,7 +508,11 @@ function Topbar({ businessName, userEmail }: { businessName: string; userEmail: 
         <p className="text-[11.5px] text-zinc-400">{today}</p>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+            costControlEnabled ? "bg-amber-100 text-amber-800" : "bg-brand-100 text-brand-700"
+          }`}
+        >
           {initial}
         </div>
         {userEmail && <p className="max-w-[180px] truncate text-sm text-zinc-600">{userEmail}</p>}
@@ -618,6 +649,7 @@ export default function DashboardShell({
             activeHref={activeHref}
             isFinanceOnly={isFinanceOnly}
             canAccessPos={!costControlEnabled && (isOwner || permissions.includes("pos"))}
+            costControlEnabled={costControlEnabled}
             showLogout={false}
           />
         </div>
@@ -639,6 +671,7 @@ export default function DashboardShell({
               activeHref={activeHref}
               isFinanceOnly={isFinanceOnly}
               canAccessPos={!costControlEnabled && (isOwner || permissions.includes("pos"))}
+              costControlEnabled={costControlEnabled}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </div>
@@ -646,7 +679,7 @@ export default function DashboardShell({
       )}
 
       <div className="min-w-0 flex-1 overflow-y-auto h-dvh">
-        <Topbar businessName={businessName} userEmail={userEmail} />
+        <Topbar businessName={businessName} userEmail={userEmail} costControlEnabled={costControlEnabled} />
 
         <div className="flex items-center gap-3 bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] md:hidden print:hidden">
           <button
