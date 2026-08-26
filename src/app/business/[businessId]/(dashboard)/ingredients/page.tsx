@@ -8,11 +8,13 @@ import {
   editIngredient,
   importIngredients,
   updateIngredientDepartment,
+  updateIngredientWarehouse,
 } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
 import DepartmentSelect from "./department-select";
+import WarehouseSelect from "./warehouse-select";
 import EditIngredientForm from "./edit-ingredient-form";
 import ImportIngredientsForm from "./import-ingredients-form";
 import PurchaseUnitsManager from "./purchase-units-manager";
@@ -31,7 +33,7 @@ export default async function IngredientsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, cost_control_enabled")
     .eq("id", businessId)
     .single();
 
@@ -41,7 +43,7 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, department")
+    .select("id, name, unit, unit_cost, stock, min_stock, department, warehouse")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -123,6 +125,13 @@ export default async function IngredientsPage({
                       department={i.department}
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
+                    {business.cost_control_enabled && (
+                      <WarehouseSelect
+                        ingredientId={i.id}
+                        warehouse={i.warehouse}
+                        action={updateIngredientWarehouse.bind(null, businessId)}
+                      />
+                    )}
                   </div>
                   <p className="text-xs text-zinc-500">
                     Stok {i.stock} {i.unit}

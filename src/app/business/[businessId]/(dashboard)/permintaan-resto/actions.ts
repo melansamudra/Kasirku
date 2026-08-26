@@ -22,7 +22,7 @@ export async function approveOutletRequest(
 
   const { data: request } = await supabase
     .from("outlet_requests")
-    .select("id, status, outlet_name")
+    .select("id, status, outlet_id, outlet_name")
     .eq("id", requestId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -86,6 +86,31 @@ export async function approveOutletRequest(
         .update({ stock: (stockById.get(item.id) ?? 0) - qty })
         .eq("id", item.semi_finished_item_id)
         .eq("business_id", businessId);
+
+      // Saldo "Stock Resto/Bar" — bertambah di outlet tujuan setiap kali
+      // permintaan disetujui. Terpisah dari stok gudang pusat di atas.
+      if (request.outlet_id) {
+        const { data: existing } = await supabase
+          .from("outlet_stock")
+          .select("id, stock")
+          .eq("outlet_id", request.outlet_id)
+          .eq("semi_finished_item_id", item.semi_finished_item_id)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("outlet_stock")
+            .update({ stock: Number(existing.stock) + qty })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("outlet_stock").insert({
+            business_id: businessId,
+            outlet_id: request.outlet_id,
+            semi_finished_item_id: item.semi_finished_item_id,
+            stock: qty,
+          });
+        }
+      }
     }
   }
 
@@ -105,6 +130,7 @@ export async function approveOutletRequest(
 
   revalidatePath(`/business/${businessId}/permintaan-resto`);
   revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/outlets`);
   return { error: null };
 }
 

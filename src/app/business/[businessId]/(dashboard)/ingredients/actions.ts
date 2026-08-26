@@ -31,6 +31,31 @@ export async function updateIngredientDepartment(
   return { error: null };
 }
 
+// Gudang fisik tempat bahan disimpan (Gudang Kering/Basah) — cost-control
+// only, mirip pola department di atas. Satu bahan cuma satu gudang; stoknya
+// tetap satu angka (kolom `stock` yang sudah ada), ini murni label kategori.
+export async function updateIngredientWarehouse(
+  businessId: string,
+  ingredientId: string,
+  warehouse: string,
+): Promise<{ error: string | null }> {
+  if (warehouse && !["Gudang Kering", "Gudang Basah"].includes(warehouse)) {
+    return { error: "Gudang tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ingredients")
+    .update({ warehouse: warehouse || null })
+    .eq("id", ingredientId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
 export type AddIngredientState = { error: string | null };
 
 export async function addIngredient(

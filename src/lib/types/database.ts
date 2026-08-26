@@ -916,6 +916,7 @@ export type Database = {
           deleted_at: string | null;
           min_stock: number;
           department: string | null;
+          warehouse: string | null;
         };
         Insert: {
           id?: string;
@@ -927,6 +928,7 @@ export type Database = {
           deleted_at?: string | null;
           min_stock?: number;
           department?: string | null;
+          warehouse?: string | null;
         };
         Update: {
           id?: string;
@@ -938,6 +940,7 @@ export type Database = {
           deleted_at?: string | null;
           min_stock?: number;
           department?: string | null;
+          warehouse?: string | null;
         };
         Relationships: [];
       };
@@ -2330,6 +2333,33 @@ export type Database = {
           address?: string | null;
           active?: boolean;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      outlet_stock: {
+        Row: {
+          id: string;
+          business_id: string;
+          outlet_id: string;
+          semi_finished_item_id: string;
+          stock: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          outlet_id: string;
+          semi_finished_item_id: string;
+          stock?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          outlet_id?: string;
+          semi_finished_item_id?: string;
+          stock?: number;
+          updated_at?: string;
         };
         Relationships: [];
       };
