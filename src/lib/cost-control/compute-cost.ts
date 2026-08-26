@@ -22,10 +22,20 @@ export type CostBreakdownLine = {
   children?: CostBreakdownLine[];
 };
 
-export type CostResult = { unitCost: number; breakdown: CostBreakdownLine[] };
+// `unitCost` sudah termasuk buffer fluctuation (dipakai di semua tempat lain
+// — konsumsi produksi, biaya komponen di resep parent, dst). `rawCost` &
+// `fluctuationPct` disimpan terpisah murni untuk transparansi tampilan
+// (breakdown "Sub total → Fluctuation → Total" persis seperti kartu resep
+// Excel yang jadi acuan Lauk Nusantara).
+export type CostResult = {
+  unitCost: number;
+  rawCost: number;
+  fluctuationPct: number;
+  breakdown: CostBreakdownLine[];
+};
 
 type IngredientRow = { id: string; name: string; unit: string; unit_cost: number };
-type SemiFinishedRow = { id: string; name: string; unit: string };
+type SemiFinishedRow = { id: string; name: string; unit: string; fluctuation_pct: number };
 type SemiFinishedRecipeRow = {
   semi_finished_item_id: string;
   component_type: "ingredient" | "semi_finished";
@@ -62,7 +72,7 @@ async function loadCostGraph(supabase: SupabaseServerClient, businessId: string)
       .is("deleted_at", null),
     supabase
       .from("semi_finished_items")
-      .select("id, name, unit")
+      .select("id, name, unit, fluctuation_pct")
       .eq("business_id", businessId)
       .is("deleted_at", null),
     supabase
@@ -101,7 +111,7 @@ function resolveSemiFinished(
 
   const lines = graph.recipesByItem.get(itemId) ?? [];
   const breakdown: CostBreakdownLine[] = [];
-  let unitCost = 0;
+  let rawCost = 0;
 
   for (const line of lines) {
     const qty = Number(line.qty);
@@ -110,7 +120,7 @@ function resolveSemiFinished(
       const ingredient = graph.ingredientMap.get(line.ingredient_id);
       const componentUnitCost = Number(ingredient?.unit_cost ?? 0);
       const subtotal = componentUnitCost * qty;
-      unitCost += subtotal;
+      rawCost += subtotal;
       breakdown.push({
         componentType: "ingredient",
         id: line.ingredient_id,
@@ -123,7 +133,7 @@ function resolveSemiFinished(
     } else if (line.component_type === "semi_finished" && line.component_semi_finished_id) {
       const child = resolveSemiFinished(line.component_semi_finished_id, graph, memo, visiting);
       const subtotal = child.unitCost * qty;
-      unitCost += subtotal;
+      rawCost += subtotal;
       breakdown.push({
         componentType: "semi_finished",
         id: line.component_semi_finished_id,
@@ -138,7 +148,9 @@ function resolveSemiFinished(
   }
 
   visiting.delete(itemId);
-  const result: CostResult = { unitCost, breakdown };
+  const fluctuationPct = Number(graph.itemMap.get(itemId)?.fluctuation_pct ?? 0);
+  const unitCost = rawCost * (1 + fluctuationPct / 100);
+  const result: CostResult = { unitCost, rawCost, fluctuationPct, breakdown };
   memo.set(itemId, result);
   return result;
 }
@@ -176,9 +188,10 @@ async function resolveFinishedProductRows(
   graph: CostGraph,
   semiMemo: Map<string, CostResult>,
   rows: FinishedRecipeRow[],
+  fluctuationPct: number,
 ): Promise<CostResult> {
   const breakdown: CostBreakdownLine[] = [];
-  let unitCost = 0;
+  let rawCost = 0;
 
   for (const line of rows) {
     const qty = Number(line.qty);
@@ -187,7 +200,7 @@ async function resolveFinishedProductRows(
       const ingredient = graph.ingredientMap.get(line.ingredient_id);
       const componentUnitCost = Number(ingredient?.unit_cost ?? 0);
       const subtotal = componentUnitCost * qty;
-      unitCost += subtotal;
+      rawCost += subtotal;
       breakdown.push({
         componentType: "ingredient",
         id: line.ingredient_id,
@@ -200,7 +213,7 @@ async function resolveFinishedProductRows(
     } else if (line.component_type === "semi_finished" && line.semi_finished_item_id) {
       const child = resolveSemiFinished(line.semi_finished_item_id, graph, semiMemo, new Set());
       const subtotal = child.unitCost * qty;
-      unitCost += subtotal;
+      rawCost += subtotal;
       breakdown.push({
         componentType: "semi_finished",
         id: line.semi_finished_item_id,
@@ -214,7 +227,8 @@ async function resolveFinishedProductRows(
     }
   }
 
-  return { unitCost, breakdown };
+  const unitCost = rawCost * (1 + fluctuationPct / 100);
+  return { unitCost, rawCost, fluctuationPct, breakdown };
 }
 
 // HPP live satu produk jadi, per 1 unit. Cabang semi_finished dihitung lewat
@@ -225,11 +239,19 @@ export async function computeFinishedProductCost(
   finishedProductId: string,
 ): Promise<CostResult> {
   const graph = await loadCostGraph(supabase, businessId);
-  const { data: recipeRows } = await supabase
-    .from("finished_product_recipes")
-    .select("finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
-    .eq("business_id", businessId)
-    .eq("finished_product_id", finishedProductId);
+  const [{ data: recipeRows }, { data: product }] = await Promise.all([
+    supabase
+      .from("finished_product_recipes")
+      .select("finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
+      .eq("business_id", businessId)
+      .eq("finished_product_id", finishedProductId),
+    supabase
+      .from("finished_products")
+      .select("fluctuation_pct")
+      .eq("id", finishedProductId)
+      .eq("business_id", businessId)
+      .maybeSingle(),
+  ]);
 
   return resolveFinishedProductRows(
     supabase,
@@ -237,6 +259,7 @@ export async function computeFinishedProductCost(
     graph,
     new Map(),
     (recipeRows ?? []) as FinishedRecipeRow[],
+    Number(product?.fluctuation_pct ?? 0),
   );
 }
 
@@ -246,10 +269,15 @@ export async function computeAllFinishedProductCosts(
   businessId: string,
 ): Promise<Map<string, CostResult>> {
   const graph = await loadCostGraph(supabase, businessId);
-  const { data: recipeRows } = await supabase
-    .from("finished_product_recipes")
-    .select("finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
-    .eq("business_id", businessId);
+  const [{ data: recipeRows }, { data: products }] = await Promise.all([
+    supabase
+      .from("finished_product_recipes")
+      .select("finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
+      .eq("business_id", businessId),
+    supabase.from("finished_products").select("id, fluctuation_pct").eq("business_id", businessId),
+  ]);
+
+  const fluctuationById = new Map((products ?? []).map((p) => [p.id, Number(p.fluctuation_pct ?? 0)]));
 
   const rowsByProduct = new Map<string, FinishedRecipeRow[]>();
   for (const row of (recipeRows ?? []) as FinishedRecipeRow[]) {
@@ -261,7 +289,10 @@ export async function computeAllFinishedProductCosts(
   const semiMemo = new Map<string, CostResult>();
   const results = new Map<string, CostResult>();
   for (const [productId, rows] of rowsByProduct) {
-    results.set(productId, await resolveFinishedProductRows(supabase, businessId, graph, semiMemo, rows));
+    results.set(
+      productId,
+      await resolveFinishedProductRows(supabase, businessId, graph, semiMemo, rows, fluctuationById.get(productId) ?? 0),
+    );
   }
   return results;
 }

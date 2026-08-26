@@ -58,7 +58,7 @@ export default async function FinishedProductDetailPage({
 
   const { data: product } = await supabase
     .from("finished_products")
-    .select("id, name, category, selling_price")
+    .select("id, name, category, selling_price, fluctuation_pct, target_food_cost_pct")
     .eq("id", id)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -93,6 +93,10 @@ export default async function FinishedProductDetailPage({
 
   const cost = await computeFinishedProductCost(supabase, businessId, id);
   const margin = product.selling_price != null ? product.selling_price - cost.unitCost : null;
+  const suggestedPrice =
+    product.target_food_cost_pct != null && product.target_food_cost_pct > 0
+      ? cost.unitCost / (product.target_food_cost_pct / 100)
+      : null;
 
   const boundUpdate = updateFinishedProduct.bind(null, businessId, id);
   const boundAddComponent = addRecipeComponent.bind(null, businessId, id);
@@ -116,6 +120,12 @@ export default async function FinishedProductDetailPage({
           </>
         )}
       </p>
+      {suggestedPrice != null && (
+        <p className="mt-1 text-xs text-zinc-400">
+          Saran harga jual (food cost {product.target_food_cost_pct}%):{" "}
+          <span className="font-medium text-zinc-600">{formatRupiah(suggestedPrice)}</span>
+        </p>
+      )}
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Resep (per 1 unit)</h2>
@@ -136,6 +146,22 @@ export default async function FinishedProductDetailPage({
                 ))}
               </tbody>
               <tfoot className="bg-zinc-50">
+                <tr>
+                  <td colSpan={2} className="px-3 py-2 text-right text-xs text-zinc-500">
+                    Sub total
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs text-zinc-600">{formatRupiah(cost.rawCost)}</td>
+                </tr>
+                {cost.fluctuationPct > 0 && (
+                  <tr>
+                    <td colSpan={2} className="px-3 py-2 text-right text-xs text-zinc-500">
+                      Fluctuation ({cost.fluctuationPct}%)
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs text-zinc-600">
+                      {formatRupiah(cost.unitCost - cost.rawCost)}
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td colSpan={2} className="px-3 py-2 text-right text-xs font-semibold text-zinc-600">
                     Total HPP per unit
@@ -192,7 +218,13 @@ export default async function FinishedProductDetailPage({
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Ubah Data</h2>
         <ProductForm
           action={boundUpdate}
-          defaultValues={{ name: product.name, category: product.category, sellingPrice: product.selling_price }}
+          defaultValues={{
+            name: product.name,
+            category: product.category,
+            sellingPrice: product.selling_price,
+            fluctuationPct: product.fluctuation_pct,
+            targetFoodCostPct: product.target_food_cost_pct,
+          }}
           submitLabel="Simpan Perubahan"
           resetOnSuccess={false}
         />

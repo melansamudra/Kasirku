@@ -12,7 +12,7 @@ export default function ItemForm({
   resetOnSuccess = true,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  defaultValues?: { name: string; unit: string; minStock: number };
+  defaultValues?: { name: string; unit: string; minStock: number; fluctuationPct?: number };
   submitLabel: string;
   resetOnSuccess?: boolean;
 }) {
@@ -70,6 +70,25 @@ export default function ItemForm({
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+      </div>
+      <div>
+        <label htmlFor="fluctuationPct" className="mb-1 block text-xs font-medium text-zinc-600">
+          Fluctuation % (buffer susut/fluktuasi harga)
+        </label>
+        <input
+          id="fluctuationPct"
+          name="fluctuationPct"
+          type="number"
+          step="0.01"
+          min="0"
+          max="99"
+          placeholder="0"
+          defaultValue={defaultValues?.fluctuationPct ?? 0}
+          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Ditambahkan di atas jumlah bahan mentah sebelum jadi HPP final — mis. isi 15 untuk buffer 15%.
+        </p>
       </div>
 
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>}

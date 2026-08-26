@@ -16,12 +16,17 @@ export async function addSemiFinishedItem(
   const unit = (formData.get("unit") as string)?.trim();
   const minStockRaw = formData.get("minStock") as string;
   const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  const fluctuationRaw = formData.get("fluctuationPct") as string;
+  const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
   }
   if (!(minStock >= 0)) {
     return { error: "Stok minimum tidak valid." };
+  }
+  if (!(fluctuationPct >= 0) || fluctuationPct >= 100) {
+    return { error: "Fluctuation % harus antara 0-99." };
   }
 
   const supabase = await createClient();
@@ -30,6 +35,7 @@ export async function addSemiFinishedItem(
     name,
     unit,
     min_stock: minStock,
+    fluctuation_pct: fluctuationPct,
   });
 
   if (error) {
@@ -51,6 +57,8 @@ export async function updateSemiFinishedItem(
   const unit = (formData.get("unit") as string)?.trim();
   const minStockRaw = formData.get("minStock") as string;
   const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  const fluctuationRaw = formData.get("fluctuationPct") as string;
+  const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -58,11 +66,14 @@ export async function updateSemiFinishedItem(
   if (!(minStock >= 0)) {
     return { error: "Stok minimum tidak valid." };
   }
+  if (!(fluctuationPct >= 0) || fluctuationPct >= 100) {
+    return { error: "Fluctuation % harus antara 0-99." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("semi_finished_items")
-    .update({ name, unit, min_stock: minStock })
+    .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct })
     .eq("id", itemId)
     .eq("business_id", businessId);
 

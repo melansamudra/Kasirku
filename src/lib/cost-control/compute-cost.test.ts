@@ -6,6 +6,7 @@ type FakeTables = {
   semi_finished_items?: Record<string, unknown>[];
   semi_finished_recipes?: Record<string, unknown>[];
   finished_product_recipes?: Record<string, unknown>[];
+  finished_products?: Record<string, unknown>[];
 };
 
 // Supabase client palsu yang cuma cukup untuk menjalankan chain
@@ -26,6 +27,9 @@ function fakeSupabase(tables: FakeTables) {
         is(key: string, value: unknown) {
           rows = rows.filter((row) => row[key] === value);
           return builder;
+        },
+        maybeSingle() {
+          return Promise.resolve({ data: rows[0] ?? null, error: null });
         },
         then(resolve: (result: { data: Record<string, unknown>[]; error: null }) => void) {
           resolve({ data: rows, error: null });
@@ -57,7 +61,28 @@ describe("computeSemiFinishedItemCost", () => {
 
     // 1kg*38000 + 0.01kg*8000 = 38000 + 80 = 38080
     expect(result.unitCost).toBe(38080);
+    expect(result.rawCost).toBe(38080);
+    expect(result.fluctuationPct).toBe(0);
     expect(result.breakdown).toHaveLength(2);
+  });
+
+  it("menerapkan buffer fluctuation di atas jumlah bahan mentah", async () => {
+    const supabase = fakeSupabase({
+      ingredients: [{ id: "kelapa", business_id: BIZ, name: "Kelapa Parut", unit: "gr", unit_cost: 34.68, deleted_at: null }],
+      semi_finished_items: [
+        { id: "serundeng", business_id: BIZ, name: "Serundeng Kelapa", unit: "porsi", fluctuation_pct: 25, deleted_at: null },
+      ],
+      semi_finished_recipes: [
+        { semi_finished_item_id: "serundeng", business_id: BIZ, component_type: "ingredient", ingredient_id: "kelapa", component_semi_finished_id: null, qty: 1000, unit: "gr" },
+      ],
+    });
+
+    const result = await computeSemiFinishedItemCost(supabase, BIZ, "serundeng");
+
+    // rawCost = 1000*34.68 = 34680; +25% fluctuation = 43350
+    expect(result.rawCost).toBe(34680);
+    expect(result.fluctuationPct).toBe(25);
+    expect(result.unitCost).toBeCloseTo(43350, 5);
   });
 
   it("menghitung HPP berjenjang (semi-jadi pakai semi-jadi lain)", async () => {

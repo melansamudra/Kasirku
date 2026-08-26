@@ -2062,6 +2062,7 @@ export type Database = {
           unit: string;
           stock: number;
           min_stock: number;
+          fluctuation_pct: number;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2073,6 +2074,7 @@ export type Database = {
           unit: string;
           stock?: number;
           min_stock?: number;
+          fluctuation_pct?: number;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2084,6 +2086,7 @@ export type Database = {
           unit?: string;
           stock?: number;
           min_stock?: number;
+          fluctuation_pct?: number;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2133,6 +2136,8 @@ export type Database = {
           name: string;
           category: string | null;
           selling_price: number | null;
+          fluctuation_pct: number;
+          target_food_cost_pct: number | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2143,6 +2148,8 @@ export type Database = {
           name: string;
           category?: string | null;
           selling_price?: number | null;
+          fluctuation_pct?: number;
+          target_food_cost_pct?: number | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2153,6 +2160,8 @@ export type Database = {
           name?: string;
           category?: string | null;
           selling_price?: number | null;
+          fluctuation_pct?: number;
+          target_food_cost_pct?: number | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;

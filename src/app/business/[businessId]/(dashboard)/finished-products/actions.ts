@@ -15,12 +15,22 @@ export async function addFinishedProduct(
   const category = (formData.get("category") as string)?.trim();
   const sellingPriceRaw = formData.get("sellingPrice") as string;
   const sellingPrice = sellingPriceRaw ? Number(sellingPriceRaw) : null;
+  const fluctuationRaw = formData.get("fluctuationPct") as string;
+  const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
+  const targetFoodCostRaw = formData.get("targetFoodCostPct") as string;
+  const targetFoodCostPct = targetFoodCostRaw ? Number(targetFoodCostRaw) : null;
 
   if (!name) {
     return { error: "Nama produk jadi wajib diisi." };
   }
   if (sellingPrice !== null && !(sellingPrice >= 0)) {
     return { error: "Harga jual tidak valid." };
+  }
+  if (!(fluctuationPct >= 0) || fluctuationPct >= 100) {
+    return { error: "Fluctuation % harus antara 0-99." };
+  }
+  if (targetFoodCostPct !== null && !(targetFoodCostPct > 0 && targetFoodCostPct <= 100)) {
+    return { error: "Target food cost % harus antara 1-100." };
   }
 
   const supabase = await createClient();
@@ -29,6 +39,8 @@ export async function addFinishedProduct(
     name,
     category: category || null,
     selling_price: sellingPrice,
+    fluctuation_pct: fluctuationPct,
+    target_food_cost_pct: targetFoodCostPct,
   });
 
   if (error) {
@@ -50,6 +62,10 @@ export async function updateFinishedProduct(
   const category = (formData.get("category") as string)?.trim();
   const sellingPriceRaw = formData.get("sellingPrice") as string;
   const sellingPrice = sellingPriceRaw ? Number(sellingPriceRaw) : null;
+  const fluctuationRaw = formData.get("fluctuationPct") as string;
+  const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
+  const targetFoodCostRaw = formData.get("targetFoodCostPct") as string;
+  const targetFoodCostPct = targetFoodCostRaw ? Number(targetFoodCostRaw) : null;
 
   if (!name) {
     return { error: "Nama produk jadi wajib diisi." };
@@ -57,11 +73,23 @@ export async function updateFinishedProduct(
   if (sellingPrice !== null && !(sellingPrice >= 0)) {
     return { error: "Harga jual tidak valid." };
   }
+  if (!(fluctuationPct >= 0) || fluctuationPct >= 100) {
+    return { error: "Fluctuation % harus antara 0-99." };
+  }
+  if (targetFoodCostPct !== null && !(targetFoodCostPct > 0 && targetFoodCostPct <= 100)) {
+    return { error: "Target food cost % harus antara 1-100." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("finished_products")
-    .update({ name, category: category || null, selling_price: sellingPrice })
+    .update({
+      name,
+      category: category || null,
+      selling_price: sellingPrice,
+      fluctuation_pct: fluctuationPct,
+      target_food_cost_pct: targetFoodCostPct,
+    })
     .eq("id", productId)
     .eq("business_id", businessId);
 

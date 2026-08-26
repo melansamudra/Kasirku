@@ -58,7 +58,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, stock, min_stock")
+    .select("id, name, unit, stock, min_stock, fluctuation_pct")
     .eq("id", id)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -137,6 +137,22 @@ export default async function SemiFinishedItemDetailPage({
               </tbody>
               <tfoot className="bg-zinc-50">
                 <tr>
+                  <td colSpan={2} className="px-3 py-2 text-right text-xs text-zinc-500">
+                    Sub total
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs text-zinc-600">{formatRupiah(cost.rawCost)}</td>
+                </tr>
+                {cost.fluctuationPct > 0 && (
+                  <tr>
+                    <td colSpan={2} className="px-3 py-2 text-right text-xs text-zinc-500">
+                      Fluctuation ({cost.fluctuationPct}%)
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs text-zinc-600">
+                      {formatRupiah(cost.unitCost - cost.rawCost)}
+                    </td>
+                  </tr>
+                )}
+                <tr>
                   <td colSpan={2} className="px-3 py-2 text-right text-xs font-semibold text-zinc-600">
                     Total HPP per {item.unit}
                   </td>
@@ -192,7 +208,12 @@ export default async function SemiFinishedItemDetailPage({
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Ubah Data</h2>
         <ItemForm
           action={boundUpdate}
-          defaultValues={{ name: item.name, unit: item.unit, minStock: item.min_stock }}
+          defaultValues={{
+            name: item.name,
+            unit: item.unit,
+            minStock: item.min_stock,
+            fluctuationPct: item.fluctuation_pct,
+          }}
           submitLabel="Simpan Perubahan"
           resetOnSuccess={false}
         />
