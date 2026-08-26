@@ -417,7 +417,7 @@ function SidebarContent({
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-zinc-800">{businessName}</p>
           <p className="text-[11px] text-zinc-400">
-            {costControlEnabled ? "Dapur Pusat" : BUSINESS_TYPE_SUBTITLE[businessType]}
+            {costControlEnabled ? "Cost Control" : BUSINESS_TYPE_SUBTITLE[businessType]}
           </p>
         </div>
       </div>
