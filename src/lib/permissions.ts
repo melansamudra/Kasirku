@@ -65,6 +65,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "production-runs", label: "Produksi" },
       { key: "outlets", label: "Outlet" },
       { key: "outlet-requests", label: "Permintaan Resto" },
+      { key: "warehouse-requests", label: "Permintaan Gudang" },
     ],
   },
   {

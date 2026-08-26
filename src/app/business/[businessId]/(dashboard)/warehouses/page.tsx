@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PicSelect from "@/components/pic-select";
-import { addWarehouse, distributeToWarehouse, updateWarehousePic } from "./actions";
+import { addWarehouse, distributeToWarehouse, regenerateWarehouseRequestSlug, updateWarehousePic } from "./actions";
 import WarehouseForm from "./warehouse-form";
 import DistributeForm from "./distribute-form";
+import WarehouseRequestLinkSection from "./link-section";
 
 export default async function WarehousesPage({
   params,
@@ -16,7 +17,7 @@ export default async function WarehousesPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, warehouse_request_slug")
     .eq("id", businessId)
     .single();
 
@@ -74,13 +75,32 @@ export default async function WarehousesPage({
 
   const boundAddWarehouse = addWarehouse.bind(null, businessId);
   const boundDistribute = distributeToWarehouse.bind(null, businessId);
+  const boundRegenerateSlug = regenerateWarehouseRequestSlug.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
-      <h1 className="text-lg font-bold text-zinc-900">Gudang — {business.name}</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Tiap gudang punya penanggung jawab (PIC) dan daftar stoknya sendiri.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">Gudang — {business.name}</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Tiap gudang punya penanggung jawab (PIC) dan daftar stoknya sendiri.
+          </p>
+        </div>
+        <Link
+          href={`/business/${businessId}/permintaan-gudang`}
+          className="shrink-0 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+        >
+          Lihat Permintaan Gudang →
+        </Link>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">Link Permintaan Gudang</h2>
+        <WarehouseRequestLinkSection
+          initialSlug={business.warehouse_request_slug ?? ""}
+          regenerateAction={boundRegenerateSlug}
+        />
+      </div>
 
       {purchasingWarehouse && (
         <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">

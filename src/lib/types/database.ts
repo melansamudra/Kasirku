@@ -311,6 +311,7 @@ export type Database = {
           purchase_request_slug: string | null;
           cost_control_enabled: boolean;
           outlet_request_slug: string | null;
+          warehouse_request_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -342,6 +343,7 @@ export type Database = {
           purchase_request_slug?: string | null;
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
+          warehouse_request_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -373,6 +375,7 @@ export type Database = {
           purchase_request_slug?: string | null;
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
+          warehouse_request_slug?: string | null;
         };
         Relationships: [];
       };
@@ -2366,6 +2369,84 @@ export type Database = {
         };
         Relationships: [];
       };
+      warehouse_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          warehouse_id: string | null;
+          warehouse_name: string;
+          employee_id: string | null;
+          employee_name: string;
+          status: string;
+          note: string | null;
+          reject_reason: string | null;
+          created_at: string;
+          decided_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          warehouse_id?: string | null;
+          warehouse_name: string;
+          employee_id?: string | null;
+          employee_name: string;
+          status?: string;
+          note?: string | null;
+          reject_reason?: string | null;
+          created_at?: string;
+          decided_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          warehouse_id?: string | null;
+          warehouse_name?: string;
+          employee_id?: string | null;
+          employee_name?: string;
+          status?: string;
+          note?: string | null;
+          reject_reason?: string | null;
+          created_at?: string;
+          decided_at?: string | null;
+        };
+        Relationships: [];
+      };
+      warehouse_request_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          warehouse_request_id: string;
+          ingredient_id: string | null;
+          item_name: string;
+          unit: string;
+          qty_requested: number;
+          qty_fulfilled: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          warehouse_request_id: string;
+          ingredient_id?: string | null;
+          item_name: string;
+          unit: string;
+          qty_requested: number;
+          qty_fulfilled?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          warehouse_request_id?: string;
+          ingredient_id?: string | null;
+          item_name?: string;
+          unit?: string;
+          qty_requested?: number;
+          qty_fulfilled?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       warehouses: {
         Row: {
           id: string;
@@ -3564,6 +3645,20 @@ export type Database = {
         Args: {
           p_slug: string;
           p_outlet_id: string;
+          p_employee_id: string;
+          p_note: string | null;
+          p_items: Json;
+        };
+        Returns: string;
+      };
+      get_warehouse_request_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_warehouse_request: {
+        Args: {
+          p_slug: string;
+          p_warehouse_id: string;
           p_employee_id: string;
           p_note: string | null;
           p_items: Json;

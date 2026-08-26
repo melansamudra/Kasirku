@@ -114,6 +114,7 @@ function buildCostControlNavGroups(base: string, mirroringEnabled: boolean): Nav
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
+        { key: "warehouse-requests", href: `${base}/permintaan-gudang`, label: "Permintaan Gudang", icon: ClipboardList },
       ],
     },
     {

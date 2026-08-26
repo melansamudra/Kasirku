@@ -113,6 +113,24 @@ export async function distributeToWarehouse(
   return { error: null };
 }
 
+export type RegenerateSlugState = { error: string | null; slug: string | null };
+
+export async function regenerateWarehouseRequestSlug(businessId: string): Promise<RegenerateSlugState> {
+  const supabase = await createClient();
+  const slug = crypto.randomUUID().replace(/-/g, "");
+
+  const { error } = await supabase
+    .from("businesses")
+    .update({ warehouse_request_slug: slug })
+    .eq("id", businessId);
+
+  if (error) return { error: error.message, slug: null };
+
+  await logActivity(supabase, businessId, "pengaturan", "warning", "Link permintaan gudang diganti");
+  revalidatePath(`/business/${businessId}/warehouses`);
+  return { error: null, slug };
+}
+
 export async function updateWarehousePic(
   businessId: string,
   warehouseId: string,
