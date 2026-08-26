@@ -211,7 +211,7 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
 
   const { data: noteRow, error: fetchError } = await supabase
     .from("supplier_debt_notes")
-    .select("id, supplier_id, supplier_name_manual, amount, note, suppliers(name)")
+    .select("id, supplier_id, supplier_name_manual, category, amount, note, suppliers(name)")
     .eq("id", noteId)
     .eq("business_id", businessId)
     .eq("status", "pending")
@@ -224,6 +224,7 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
     id: string;
     supplier_id: string | null;
     supplier_name_manual: string | null;
+    category: "Bahan Baku" | "Bukan Bahan Baku";
     amount: number;
     note: string | null;
     suppliers: { name: string } | null;
@@ -235,13 +236,17 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
   const amount = Number(note.amount);
   const itemName = purchaseNote || "Pembelian";
   const date = todayWibDateString();
+  // Kategori akun ikut nota aslinya biar laporan pembelian bahan baku tetap
+  // akurat — cuma "Bahan Baku" tanpa ingredient_id/qty (kolom itu boleh
+  // null, lihat purchases_category_check), jadi stok tetap tidak tersentuh.
+  const category = note.category === "Bahan Baku" ? "Bahan Baku" : "Lainnya";
 
   const { error: insertError } = await supabase.from("purchases").insert({
     business_id: businessId,
     supplier_id: note.supplier_id,
     date,
     due_date: null,
-    category: "Lainnya",
+    category,
     ingredient_id: null,
     product_id: null,
     qty: 0,
