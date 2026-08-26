@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import CostControlDashboard from "./cost-control-dashboard";
 
 const PURCHASE_CATEGORIES = new Set(["Pembelian Bahan Baku", "Pembelian Barang Dagang"]);
 const REPORT_TIMEZONE = "Asia/Jakarta";
@@ -41,6 +42,20 @@ export default async function BusinessDashboardPage({
 }) {
   const { businessId } = await params;
   const supabase = await createClient();
+
+  // Dicek duluan, terpisah dari Promise.all di bawah — business dengan
+  // cost_control_enabled (dapur pusat, tidak jual lewat POS) dialihkan ke
+  // dashboard sendiri sebelum query-query khusus POS (transaksi/kasir/dst)
+  // di bawah ini sempat dijalankan sama sekali.
+  const { data: businessFlag } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled")
+    .eq("id", businessId)
+    .single();
+
+  if (businessFlag?.cost_control_enabled) {
+    return <CostControlDashboard businessId={businessId} />;
+  }
 
   const today = todayStr();
   const monthStart = `${today.slice(0, 7)}-01`;
