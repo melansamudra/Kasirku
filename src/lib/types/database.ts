@@ -916,7 +916,7 @@ export type Database = {
           deleted_at: string | null;
           min_stock: number;
           department: string | null;
-          warehouse: string | null;
+          warehouse_id: string | null;
         };
         Insert: {
           id?: string;
@@ -928,7 +928,7 @@ export type Database = {
           deleted_at?: string | null;
           min_stock?: number;
           department?: string | null;
-          warehouse?: string | null;
+          warehouse_id?: string | null;
         };
         Update: {
           id?: string;
@@ -940,7 +940,7 @@ export type Database = {
           deleted_at?: string | null;
           min_stock?: number;
           department?: string | null;
-          warehouse?: string | null;
+          warehouse_id?: string | null;
         };
         Relationships: [];
       };
@@ -2316,6 +2316,7 @@ export type Database = {
           name: string;
           address: string | null;
           active: boolean;
+          pic_employee_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -2324,6 +2325,7 @@ export type Database = {
           name: string;
           address?: string | null;
           active?: boolean;
+          pic_employee_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -2332,6 +2334,34 @@ export type Database = {
           name?: string;
           address?: string | null;
           active?: boolean;
+          pic_employee_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      warehouses: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          kind: string;
+          pic_employee_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          kind?: string;
+          pic_employee_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          kind?: string;
+          pic_employee_id?: string | null;
           created_at?: string;
         };
         Relationships: [];

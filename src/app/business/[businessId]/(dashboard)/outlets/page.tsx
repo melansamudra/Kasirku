@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addOutlet, regenerateOutletRequestSlug, updateOutlet } from "./actions";
+import PicSelect from "@/components/pic-select";
+import { addOutlet, regenerateOutletRequestSlug, updateOutlet, updateOutletPic } from "./actions";
 import OutletForm from "./outlet-form";
 import EditOutletForm from "./edit-outlet-form";
 import OutletRequestLinkSection from "./link-section";
@@ -24,10 +25,10 @@ export default async function OutletsPage({
     notFound();
   }
 
-  const [{ data: outlets }, { data: stockRows }, { data: semiItems }] = await Promise.all([
+  const [{ data: outlets }, { data: stockRows }, { data: semiItems }, { data: employees }] = await Promise.all([
     supabase
       .from("outlets")
-      .select("id, name, address, active")
+      .select("id, name, address, active, pic_employee_id")
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
     supabase
@@ -38,6 +39,12 @@ export default async function OutletsPage({
       .from("semi_finished_items")
       .select("id, name, unit")
       .eq("business_id", businessId),
+    supabase
+      .from("employees")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .eq("active", true)
+      .order("name", { ascending: true }),
   ]);
 
   const semiById = new Map((semiItems ?? []).map((i) => [i.id, i]));
@@ -84,6 +91,12 @@ export default async function OutletsPage({
                     <p className="text-sm font-medium text-zinc-900">{outlet.name}</p>
                     {outlet.address && <p className="text-xs text-zinc-500">{outlet.address}</p>}
                   </div>
+                  <PicSelect
+                    id={outlet.id}
+                    picEmployeeId={outlet.pic_employee_id}
+                    employees={employees ?? []}
+                    action={updateOutletPic.bind(null, businessId)}
+                  />
                   <ToggleActiveButton businessId={businessId} outletId={outlet.id} active={outlet.active} />
                   <EditOutletForm
                     name={outlet.name}

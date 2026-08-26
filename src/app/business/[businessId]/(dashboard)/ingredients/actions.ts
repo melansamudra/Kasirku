@@ -31,22 +31,31 @@ export async function updateIngredientDepartment(
   return { error: null };
 }
 
-// Gudang fisik tempat bahan disimpan (Gudang Kering/Basah) — cost-control
-// only, mirip pola department di atas. Satu bahan cuma satu gudang; stoknya
-// tetap satu angka (kolom `stock` yang sudah ada), ini murni label kategori.
+// Gudang fisik tempat bahan disimpan (Gudang Kering/Basah, entitas sendiri
+// di tabel warehouses — lihat halaman /warehouses) — cost-control only,
+// interaksinya mirip pola department di atas. Satu bahan cuma satu gudang;
+// stoknya tetap satu angka (kolom `stock` yang sudah ada).
 export async function updateIngredientWarehouse(
   businessId: string,
   ingredientId: string,
-  warehouse: string,
+  warehouseId: string,
 ): Promise<{ error: string | null }> {
-  if (warehouse && !["Gudang Kering", "Gudang Basah"].includes(warehouse)) {
-    return { error: "Gudang tidak valid." };
+  const supabase = await createClient();
+
+  if (warehouseId) {
+    const { data: warehouse } = await supabase
+      .from("warehouses")
+      .select("id")
+      .eq("id", warehouseId)
+      .eq("business_id", businessId)
+      .eq("kind", "bahan_baku")
+      .maybeSingle();
+    if (!warehouse) return { error: "Gudang tidak valid." };
   }
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from("ingredients")
-    .update({ warehouse: warehouse || null })
+    .update({ warehouse_id: warehouseId || null })
     .eq("id", ingredientId)
     .eq("business_id", businessId);
 

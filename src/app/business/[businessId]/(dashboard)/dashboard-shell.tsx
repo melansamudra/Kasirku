@@ -48,6 +48,7 @@ import {
   ChevronRight,
   PiggyBank,
   ChefHat,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -93,6 +94,7 @@ function buildCostControlNavGroups(base: string, mirroringEnabled: boolean): Nav
     {
       title: "Master & HPP",
       items: [
+        { key: "warehouses", href: `${base}/warehouses`, label: "Gudang", icon: Warehouse },
         { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
         { key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: Beaker },
         { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },

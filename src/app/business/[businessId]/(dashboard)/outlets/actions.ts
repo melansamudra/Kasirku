@@ -64,6 +64,24 @@ export async function updateOutlet(
   return { error: null };
 }
 
+export async function updateOutletPic(
+  businessId: string,
+  outletId: string,
+  employeeId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("outlets")
+    .update({ pic_employee_id: employeeId || null })
+    .eq("id", outletId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/outlets`);
+  return { error: null };
+}
+
 export async function toggleOutletActive(businessId: string, outletId: string, active: boolean) {
   const supabase = await createClient();
   await supabase

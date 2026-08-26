@@ -3,23 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const WAREHOUSE_LABELS: Record<string, string> = {
-  "": "— Gudang —",
-  "Gudang Kering": "🌾 Gudang Kering",
-  "Gudang Basah": "💧 Gudang Basah",
-};
-
 export default function WarehouseSelect({
   ingredientId,
-  warehouse,
+  warehouseId,
+  warehouses,
   action,
 }: {
   ingredientId: string;
-  warehouse: string | null;
-  action: (ingredientId: string, warehouse: string) => Promise<{ error: string | null }>;
+  warehouseId: string | null;
+  warehouses: { id: string; name: string }[];
+  action: (ingredientId: string, warehouseId: string) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
-  const [value, setValue] = useState(warehouse ?? "");
+  const [value, setValue] = useState(warehouseId ?? "");
   const [pending, setPending] = useState(false);
 
   function handleChange(next: string) {
@@ -38,9 +34,10 @@ export default function WarehouseSelect({
       disabled={pending}
       className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10.5px] text-zinc-500 focus:border-brand-600 focus:outline-none disabled:opacity-50"
     >
-      {Object.entries(WAREHOUSE_LABELS).map(([value_, label]) => (
-        <option key={value_} value={value_}>
-          {label}
+      <option value="">— Gudang —</option>
+      {warehouses.map((w) => (
+        <option key={w.id} value={w.id}>
+          {w.name}
         </option>
       ))}
     </select>

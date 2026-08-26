@@ -43,10 +43,19 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, department, warehouse")
+    .select("id, name, unit, unit_cost, stock, min_stock, department, warehouse_id")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
+
+  const { data: warehouses } = business.cost_control_enabled
+    ? await supabase
+        .from("warehouses")
+        .select("id, name")
+        .eq("business_id", businessId)
+        .eq("kind", "bahan_baku")
+        .order("name", { ascending: true })
+    : { data: [] };
 
   const { data: purchaseUnits } = await supabase
     .from("ingredient_purchase_units")
@@ -128,7 +137,8 @@ export default async function IngredientsPage({
                     {business.cost_control_enabled && (
                       <WarehouseSelect
                         ingredientId={i.id}
-                        warehouse={i.warehouse}
+                        warehouseId={i.warehouse_id}
+                        warehouses={warehouses ?? []}
                         action={updateIngredientWarehouse.bind(null, businessId)}
                       />
                     )}
