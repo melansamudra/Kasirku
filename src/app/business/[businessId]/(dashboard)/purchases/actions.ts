@@ -120,18 +120,79 @@ export async function addPurchase(
       }
       itemName = ingredient.name;
 
-      const oldValue = Number(ingredient.stock) * Number(ingredient.unit_cost);
-      const newStock = Number(ingredient.stock) + qty;
-      const newUnitCost =
-        newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(ingredient.unit_cost);
+      // Business cost-control: pembelian bahan baku singgah dulu di buffer
+      // "Gudang Purchasing" (warehouse_stock) — BUKAN langsung menambah
+      // ingredients.stock, yang tetap berarti "siap pakai di Gudang
+      // Kering/Basah" dan dipakai apa adanya oleh HPP/Produksi. Baru jadi
+      // siap pakai setelah "Gudang minta barang" menyalurkannya (lihat
+      // warehouses/actions.ts distributeToWarehouse). unit_cost tetap
+      // dihitung rata-rata tertimbang dari TOTAL yang dimiliki (buffer +
+      // gudang), supaya HPP selalu mencerminkan harga blended yang benar
+      // terlepas bahan itu fisiknya masih di buffer atau sudah di gudang.
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("cost_control_enabled")
+        .eq("id", businessId)
+        .single();
 
-      const { error: updateError } = await supabase
-        .from("ingredients")
-        .update({ stock: newStock, unit_cost: newUnitCost })
-        .eq("id", ingredientId);
+      let newUnitCost: number;
 
-      if (updateError) {
-        return fail(updateError.message);
+      if (business?.cost_control_enabled) {
+        const { data: purchasingWarehouse } = await supabase
+          .from("warehouses")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("kind", "purchasing")
+          .maybeSingle();
+
+        const { data: bufferRow } = purchasingWarehouse
+          ? await supabase
+              .from("warehouse_stock")
+              .select("id, stock")
+              .eq("warehouse_id", purchasingWarehouse.id)
+              .eq("ingredient_id", ingredientId)
+              .maybeSingle()
+          : { data: null };
+
+        const bufferBefore = Number(bufferRow?.stock ?? 0);
+        const totalOwnedBefore = Number(ingredient.stock) + bufferBefore;
+        const oldValue = totalOwnedBefore * Number(ingredient.unit_cost);
+        const newTotalOwned = totalOwnedBefore + qty;
+        newUnitCost =
+          newTotalOwned > 0 ? Math.round((oldValue + amount) / newTotalOwned) : Number(ingredient.unit_cost);
+
+        const { error: costError } = await supabase
+          .from("ingredients")
+          .update({ unit_cost: newUnitCost })
+          .eq("id", ingredientId);
+        if (costError) return fail(costError.message);
+
+        if (purchasingWarehouse) {
+          const bufferError = bufferRow
+            ? (await supabase.from("warehouse_stock").update({ stock: bufferBefore + qty }).eq("id", bufferRow.id)).error
+            : (
+                await supabase.from("warehouse_stock").insert({
+                  business_id: businessId,
+                  warehouse_id: purchasingWarehouse.id,
+                  ingredient_id: ingredientId,
+                  stock: qty,
+                })
+              ).error;
+          if (bufferError) return fail(bufferError.message);
+        }
+      } else {
+        const oldValue = Number(ingredient.stock) * Number(ingredient.unit_cost);
+        const newStock = Number(ingredient.stock) + qty;
+        newUnitCost = newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(ingredient.unit_cost);
+
+        const { error: updateError } = await supabase
+          .from("ingredients")
+          .update({ stock: newStock, unit_cost: newUnitCost })
+          .eq("id", ingredientId);
+
+        if (updateError) {
+          return fail(updateError.message);
+        }
       }
 
       if (newUnitCost !== Number(ingredient.unit_cost)) {
@@ -296,17 +357,69 @@ export async function voidPurchase(
 
     if (ingredient) {
       itemName = ingredient.name;
-      const stockBefore = Number(ingredient.stock);
       const unitCostBefore = Number(ingredient.unit_cost);
-      const stockAfter = Math.max(0, stockBefore - purchaseQty);
-      const valueAfter = stockBefore * unitCostBefore - purchaseAmount;
-      const unitCostAfter = stockAfter > 0 ? Math.max(0, Math.round(valueAfter / stockAfter)) : unitCostBefore;
 
-      const { error: updateError } = await supabase
-        .from("ingredients")
-        .update({ stock: stockAfter, unit_cost: unitCostAfter })
-        .eq("id", purchase.ingredient_id);
-      if (updateError) return { error: updateError.message };
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("cost_control_enabled")
+        .eq("id", businessId)
+        .single();
+
+      let unitCostAfter: number;
+
+      if (business?.cost_control_enabled) {
+        // Simetris dengan addPurchase: pembelian bahan baku singgah di
+        // buffer Gudang Purchasing, jadi pembatalannya juga mengurangi
+        // buffer itu, bukan ingredients.stock (yang tidak pernah disentuh
+        // saat pembelian ini dicatat).
+        const { data: purchasingWarehouse } = await supabase
+          .from("warehouses")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("kind", "purchasing")
+          .maybeSingle();
+
+        const { data: bufferRow } = purchasingWarehouse
+          ? await supabase
+              .from("warehouse_stock")
+              .select("id, stock")
+              .eq("warehouse_id", purchasingWarehouse.id)
+              .eq("ingredient_id", purchase.ingredient_id)
+              .maybeSingle()
+          : { data: null };
+
+        const bufferBefore = Number(bufferRow?.stock ?? 0);
+        const bufferAfter = Math.max(0, bufferBefore - purchaseQty);
+        const totalOwnedBefore = Number(ingredient.stock) + bufferBefore;
+        const totalOwnedAfter = Number(ingredient.stock) + bufferAfter;
+        const valueAfter = totalOwnedBefore * unitCostBefore - purchaseAmount;
+        unitCostAfter = totalOwnedAfter > 0 ? Math.max(0, Math.round(valueAfter / totalOwnedAfter)) : unitCostBefore;
+
+        const { error: costError } = await supabase
+          .from("ingredients")
+          .update({ unit_cost: unitCostAfter })
+          .eq("id", purchase.ingredient_id);
+        if (costError) return { error: costError.message };
+
+        if (bufferRow) {
+          const { error: bufferError } = await supabase
+            .from("warehouse_stock")
+            .update({ stock: bufferAfter })
+            .eq("id", bufferRow.id);
+          if (bufferError) return { error: bufferError.message };
+        }
+      } else {
+        const stockBefore = Number(ingredient.stock);
+        const stockAfter = Math.max(0, stockBefore - purchaseQty);
+        const valueAfter = stockBefore * unitCostBefore - purchaseAmount;
+        unitCostAfter = stockAfter > 0 ? Math.max(0, Math.round(valueAfter / stockAfter)) : unitCostBefore;
+
+        const { error: updateError } = await supabase
+          .from("ingredients")
+          .update({ stock: stockAfter, unit_cost: unitCostAfter })
+          .eq("id", purchase.ingredient_id);
+        if (updateError) return { error: updateError.message };
+      }
 
       if (unitCostAfter !== unitCostBefore) {
         await supabase.from("ingredient_price_history").insert({

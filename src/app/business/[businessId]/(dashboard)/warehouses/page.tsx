@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PicSelect from "@/components/pic-select";
-import { addWarehouse, updateWarehousePic } from "./actions";
+import { addWarehouse, distributeToWarehouse, updateWarehousePic } from "./actions";
 import WarehouseForm from "./warehouse-form";
+import DistributeForm from "./distribute-form";
 
 export default async function WarehousesPage({
   params,
@@ -53,7 +54,26 @@ export default async function WarehousesPage({
 
   const rawWarehouses = (warehouses ?? []).filter((w) => w.kind === "bahan_baku");
   const semiWarehouse = (warehouses ?? []).find((w) => w.kind === "setengah_jadi") ?? null;
+  const purchasingWarehouse = (warehouses ?? []).find((w) => w.kind === "purchasing") ?? null;
+
+  const { data: bufferRows } = purchasingWarehouse
+    ? await supabase
+        .from("warehouse_stock")
+        .select("ingredient_id, stock")
+        .eq("warehouse_id", purchasingWarehouse.id)
+        .gt("stock", 0)
+    : { data: [] };
+
+  const ingredientById = new Map((ingredients ?? []).map((i) => [i.id, i]));
+  const bufferItems = (bufferRows ?? [])
+    .map((row) => {
+      const ing = ingredientById.get(row.ingredient_id);
+      return ing ? { id: row.ingredient_id, name: ing.name, unit: ing.unit, stock: Number(row.stock) } : null;
+    })
+    .filter((x): x is { id: string; name: string; unit: string; stock: number } => x !== null);
+
   const boundAddWarehouse = addWarehouse.bind(null, businessId);
+  const boundDistribute = distributeToWarehouse.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
@@ -61,6 +81,45 @@ export default async function WarehousesPage({
       <p className="mt-1 text-sm text-zinc-500">
         Tiap gudang punya penanggung jawab (PIC) dan daftar stoknya sendiri.
       </p>
+
+      {purchasingWarehouse && (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-amber-900">{purchasingWarehouse.name}</p>
+              <p className="text-xs text-amber-700">
+                Buffer bahan baku yang sudah dibeli, belum disalurkan ke Gudang Kering/Basah
+              </p>
+            </div>
+            <PicSelect
+              id={purchasingWarehouse.id}
+              picEmployeeId={purchasingWarehouse.pic_employee_id}
+              employees={employees ?? []}
+              action={updateWarehousePic.bind(null, businessId)}
+            />
+          </div>
+          <div className="mt-2.5 border-t border-amber-200 pt-2.5">
+            {bufferItems.length === 0 ? (
+              <p className="text-xs text-amber-700/70">Buffer kosong</p>
+            ) : (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {bufferItems.map((i) => (
+                  <span
+                    key={i.id}
+                    className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800"
+                  >
+                    {i.name}: {i.stock} {i.unit}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-amber-700">
+              Salurkan ke gudang tujuan (Gudang minta barang)
+            </p>
+            <DistributeForm action={boundDistribute} bufferItems={bufferItems} />
+          </div>
+        </div>
+      )}
 
       {semiWarehouse && (
         <div className="mt-6 rounded-xl border border-zinc-200 bg-white px-4 py-3">

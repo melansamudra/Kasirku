@@ -2339,6 +2339,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      warehouse_stock: {
+        Row: {
+          id: string;
+          business_id: string;
+          warehouse_id: string;
+          ingredient_id: string;
+          stock: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          warehouse_id: string;
+          ingredient_id: string;
+          stock?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          warehouse_id?: string;
+          ingredient_id?: string;
+          stock?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       warehouses: {
         Row: {
           id: string;
