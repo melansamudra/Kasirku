@@ -44,35 +44,49 @@ export default function DebtNoteCard({
   function handleVerifyAndRedirect() {
     setError(null);
     setPending(true);
-    verifySupplierDebtNote(businessId, note.id).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      const params = new URLSearchParams({
-        prefillAmount: String(note.amount),
-        prefillCategory: note.category === "Bahan Baku" ? "Bahan Baku" : "",
+    verifySupplierDebtNote(businessId, note.id)
+      .then((res) => {
+        if (res.error) {
+          setPending(false);
+          setError(res.error);
+          return;
+        }
+        const params = new URLSearchParams({
+          prefillAmount: String(note.amount),
+          prefillCategory: note.category === "Bahan Baku" ? "Bahan Baku" : "",
+          // Nota Hutang = belum dibayar ke supplier — jangan biarkan form
+          // jatuh ke default "Lunas Sekarang", nanti utangnya hilang diam-diam.
+          prefillPaymentMode: "utang",
+        });
+        if (note.supplierId) params.set("prefillSupplierId", note.supplierId);
+        const noteParts = [note.supplierName ? `Supplier: ${note.supplierName}` : null, note.note].filter(Boolean);
+        if (noteParts.length > 0) params.set("prefillNote", noteParts.join(" — "));
+        router.push(`/business/${businessId}/purchases?${params.toString()}`);
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
       });
-      if (note.supplierId) params.set("prefillSupplierId", note.supplierId);
-      const noteParts = [note.supplierName ? `Supplier: ${note.supplierName}` : null, note.note].filter(Boolean);
-      if (noteParts.length > 0) params.set("prefillNote", noteParts.join(" — "));
-      router.push(`/business/${businessId}/purchases?${params.toString()}`);
-    });
   }
 
   function handleDelete() {
     setError(null);
     setPending(true);
-    deleteSupplierDebtNote(businessId, note.id).then((res) => {
-      setPending(false);
-      setConfirmDelete(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    deleteSupplierDebtNote(businessId, note.id)
+      .then((res) => {
+        setPending(false);
+        setConfirmDelete(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setConfirmDelete(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   return (

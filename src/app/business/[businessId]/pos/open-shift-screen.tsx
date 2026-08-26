@@ -33,15 +33,20 @@ export default function OpenShiftScreen({
     }
 
     setSubmitting(true);
-    const result = await openShift(businessId, cashierId, amount, notes);
-    setSubmitting(false);
+    try {
+      const result = await openShift(businessId, cashierId, amount, notes);
+      setSubmitting(false);
 
-    if (!result.success) {
-      setError(result.error);
-      return;
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setSubmitting(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    router.refresh();
   }
 
   return (

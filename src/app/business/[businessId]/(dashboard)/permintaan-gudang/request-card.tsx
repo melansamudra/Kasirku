@@ -116,13 +116,18 @@ export default function RequestCard({
                   onClick={async () => {
                     setRejectPending(true);
                     setRejectError(null);
-                    const result = await rejectWarehouseRequest(businessId, request.id, reason);
-                    setRejectPending(false);
-                    if (result.error) {
-                      setRejectError(result.error);
-                      return;
+                    try {
+                      const result = await rejectWarehouseRequest(businessId, request.id, reason);
+                      setRejectPending(false);
+                      if (result.error) {
+                        setRejectError(result.error);
+                        return;
+                      }
+                      router.refresh();
+                    } catch {
+                      setRejectPending(false);
+                      setRejectError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
                     }
-                    router.refresh();
                   }}
                   disabled={rejectPending}
                   className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"

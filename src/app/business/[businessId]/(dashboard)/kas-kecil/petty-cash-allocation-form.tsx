@@ -32,16 +32,21 @@ export default function PettyCashAllocationForm({
     }
 
     setPending(true);
-    addPettyCashAllocation(businessId, date, amountNum, note.trim() || undefined).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      setAmount("");
-      setNote("");
-      router.refresh();
-    });
+    addPettyCashAllocation(businessId, date, amountNum, note.trim() || undefined)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setAmount("");
+        setNote("");
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   return (

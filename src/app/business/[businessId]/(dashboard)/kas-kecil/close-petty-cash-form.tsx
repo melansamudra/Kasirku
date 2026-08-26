@@ -119,15 +119,20 @@ export default function ClosePettyCashForm({
     }
 
     setPending(true);
-    closePettyCash(businessId, date, amount, notes.trim() || null).then((res) => {
-      setPending(false);
-      if (!res.success) {
-        setError(res.error);
-        return;
-      }
-      setSummary(res.summary);
-      router.refresh();
-    });
+    closePettyCash(businessId, date, amount, notes.trim() || null)
+      .then((res) => {
+        setPending(false);
+        if (!res.success) {
+          setError(res.error);
+          return;
+        }
+        setSummary(res.summary);
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   return (

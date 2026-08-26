@@ -18,16 +18,21 @@ export default function VoidPurchaseButton({
   function handleSubmit() {
     setError(null);
     setPending(true);
-    action(reason).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      setOpen(false);
-      setReason("");
-      router.refresh();
-    });
+    action(reason)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setOpen(false);
+        setReason("");
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   if (!open) {

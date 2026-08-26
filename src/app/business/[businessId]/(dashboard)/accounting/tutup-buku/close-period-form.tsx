@@ -22,16 +22,21 @@ export default function ClosePeriodForm({
   async function handleConfirm() {
     setPending(true);
     setError(null);
-    const result = await action(businessId, periodEnd);
-    setPending(false);
+    try {
+      const result = await action(businessId, periodEnd);
+      setPending(false);
 
-    if (result.error) {
-      setError(result.error);
-      return;
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setConfirming(false);
+      router.refresh();
+    } catch {
+      setPending(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    setConfirming(false);
-    router.refresh();
   }
 
   return (

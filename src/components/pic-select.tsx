@@ -22,10 +22,14 @@ export default function PicSelect({
   function handleChange(next: string) {
     setValue(next);
     setPending(true);
-    action(id, next).then(() => {
-      setPending(false);
-      router.refresh();
-    });
+    action(id, next)
+      .then(() => {
+        setPending(false);
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+      });
   }
 
   return (

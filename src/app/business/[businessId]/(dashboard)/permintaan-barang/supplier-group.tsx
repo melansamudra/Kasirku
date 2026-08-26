@@ -53,29 +53,34 @@ export default function SupplierGroup({
       businessId,
       requestId,
       allocations.map((a) => a.allocationId),
-    ).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
+    )
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
 
-      const waText = [
-        `*Order Barang — ${businessName}*`,
-        `Dari: ${employeeName}`,
-        `Tanggal: ${formatDateTime(createdAt)}`,
-        "",
-        "Daftar barang:",
-        ...allocations.map(
-          (a, idx) => `${idx + 1}. ${a.itemName} — ${a.qty}${a.unit ? ` ${a.unit}` : ""}`,
-        ),
-      ].join("\n");
-      const waHref = supplier.phone
-        ? `https://wa.me/${normalizePhone(supplier.phone)}?text=${encodeURIComponent(waText)}`
-        : `https://wa.me/?text=${encodeURIComponent(waText)}`;
-      window.open(waHref, "_blank");
-      router.refresh();
-    });
+        const waText = [
+          `*Order Barang — ${businessName}*`,
+          `Dari: ${employeeName}`,
+          `Tanggal: ${formatDateTime(createdAt)}`,
+          "",
+          "Daftar barang:",
+          ...allocations.map(
+            (a, idx) => `${idx + 1}. ${a.itemName} — ${a.qty}${a.unit ? ` ${a.unit}` : ""}`,
+          ),
+        ].join("\n");
+        const waHref = supplier.phone
+          ? `https://wa.me/${normalizePhone(supplier.phone)}?text=${encodeURIComponent(waText)}`
+          : `https://wa.me/?text=${encodeURIComponent(waText)}`;
+        window.open(waHref, "_blank");
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   return (

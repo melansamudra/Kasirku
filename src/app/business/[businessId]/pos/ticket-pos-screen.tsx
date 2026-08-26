@@ -229,15 +229,20 @@ export default function TicketPosScreen({
     }
 
     setCloseSubmitting(true);
-    const result = await closeShift(businessId, shiftId, amount, closeNotes);
-    setCloseSubmitting(false);
+    try {
+      const result = await closeShift(businessId, shiftId, amount, closeNotes);
+      setCloseSubmitting(false);
 
-    if (!result.success) {
-      setCloseError(result.error);
-      return;
+      if (!result.success) {
+        setCloseError(result.error);
+        return;
+      }
+
+      setClosedSummary(result.summary);
+    } catch {
+      setCloseSubmitting(false);
+      setCloseError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    setClosedSummary(result.summary);
   }
 
   function resetForNextTransaction() {

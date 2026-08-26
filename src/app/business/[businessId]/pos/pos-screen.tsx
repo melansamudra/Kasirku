@@ -720,45 +720,62 @@ export default function PosScreen({
     setVoidError(null);
     setVoidSuccess(null);
     setVoidLoading(true);
-    const txs = await getShiftTransactions(businessId, currentShiftId ?? "");
-    setVoidTxs(txs);
-    setVoidLoading(false);
+    try {
+      const txs = await getShiftTransactions(businessId, currentShiftId ?? "");
+      setVoidTxs(txs);
+      setVoidLoading(false);
+    } catch {
+      setVoidLoading(false);
+      setVoidError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+    }
   }
 
   async function handleVoidConfirm() {
     if (!voidSelectedTx || voidSubmitting) return;
     setVoidSubmitting(true);
     setVoidError(null);
-    const result = await voidPosTransaction(businessId, voidSelectedTx.id, voidPin, voidReason);
-    setVoidSubmitting(false);
-    if (!result.success) {
-      setVoidError(result.error);
-      return;
+    try {
+      const result = await voidPosTransaction(businessId, voidSelectedTx.id, voidPin, voidReason);
+      setVoidSubmitting(false);
+      if (!result.success) {
+        setVoidError(result.error);
+        return;
+      }
+      setVoidSuccess(`${voidSelectedTx.invoice_number} berhasil dibatalkan.`);
+      void refreshCatalog();
+    } catch {
+      setVoidSubmitting(false);
+      setVoidError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-    setVoidSuccess(`${voidSelectedTx.invoice_number} berhasil dibatalkan.`);
-    void refreshCatalog();
   }
 
   async function handleSaveBon() {
     setBonError(null);
     setBonSaving(true);
-    const result = await saveOpenBill(
-      businessId,
-      activeBill?.id ?? null,
-      bonLabel,
-      cart.map((i) => ({
-        product_id: i.productId,
-        name: i.name,
-        price: i.price,
-        qty: i.qty,
-        disc: i.disc,
-        disc_type: i.discType,
-        note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
-        batch: i.batch,
-      })),
-      cashierId,
-      bonCustomerName || null,
-    );
+    let result: Awaited<ReturnType<typeof saveOpenBill>>;
+    try {
+      result = await saveOpenBill(
+        businessId,
+        activeBill?.id ?? null,
+        bonLabel,
+        cart.map((i) => ({
+          product_id: i.productId,
+          name: i.name,
+          price: i.price,
+          qty: i.qty,
+          disc: i.disc,
+          disc_type: i.discType,
+          note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
+          batch: i.batch,
+        })),
+        cashierId,
+        bonCustomerName || null,
+      );
+    } catch {
+      setBonSaving(false);
+      setBonError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      return;
+    }
     setBonSaving(false);
 
     if (!result.success) {
@@ -860,21 +877,33 @@ export default function PosScreen({
     setBillDeleteSubmitting(true);
     setBillDeleteError(null);
     const bill = billDeleteTarget;
-    const result = await deleteOpenBillManual(businessId, bill.id, billDeletePin, cashierName);
-    setBillDeleteSubmitting(false);
-    if (!result.success) {
-      setBillDeleteError(result.error);
-      return;
+    try {
+      const result = await deleteOpenBillManual(businessId, bill.id, billDeletePin, cashierName);
+      setBillDeleteSubmitting(false);
+      if (!result.success) {
+        setBillDeleteError(result.error);
+        return;
+      }
+      setBillDeleteTarget(null);
+      setBillDeletePin("");
+      if (activeBill?.id === bill.id) setActiveBill(null);
+      void refreshCatalog();
+    } catch {
+      setBillDeleteSubmitting(false);
+      setBillDeleteError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-    setBillDeleteTarget(null);
-    setBillDeletePin("");
-    if (activeBill?.id === bill.id) setActiveBill(null);
-    void refreshCatalog();
   }
 
   async function handlePrintBill(bill: OpenBill) {
     setBillPrintingId(bill.id);
-    const result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate, cashierName, selectedCustomer?.name ?? undefined, localPrinterConfig);
+    let result: Awaited<ReturnType<typeof printOpenBillToReceipt>>;
+    try {
+      result = await printOpenBillToReceipt(businessId, bill, serviceRate, taxRate, cashierName, selectedCustomer?.name ?? undefined, localPrinterConfig);
+    } catch {
+      setBillPrintingId(null);
+      alert("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      return;
+    }
     setBillPrintingId(null);
     if (!result.success) {
       alert(`Gagal cetak: ${result.error}`);
@@ -894,7 +923,14 @@ export default function PosScreen({
 
   async function handleOrderStatus(orderId: string, status: "diproses" | "selesai") {
     setOrderBusyId(orderId);
-    const result = await updateSelfOrderStatus(businessId, orderId, status);
+    let result: Awaited<ReturnType<typeof updateSelfOrderStatus>>;
+    try {
+      result = await updateSelfOrderStatus(businessId, orderId, status);
+    } catch {
+      setOrderBusyId(null);
+      setInboxNotice("⚠️ Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      return;
+    }
     setOrderBusyId(null);
     if (result.printJobs && result.printJobs.length > 0) {
       dispatchPrintJobs(businessId, result.printJobs).then((results) => {
@@ -1024,40 +1060,45 @@ export default function PosScreen({
 
   async function handleAddAndSave(order: SelfOrder) {
     setOrderBusyId(order.id);
-    const label = order.customerName
-      ? `${order.tableName} - ${order.customerName}`
-      : order.tableName;
-    const newItems: OpenBillItemInput[] = order.items
-      .filter((item) => item.productId != null)
-      .map((item) => ({
-        product_id: item.productId as string,
-        name: item.name,
-        price: item.price,
-        qty: item.qty,
-        disc: 0,
-        disc_type: "pct" as DiscountType,
-      }));
-    if (newItems.length > 0) {
-      // Cari bon yang sudah ada untuk meja ini (tambahan order dari meja yang sama)
-      const existingBon = openBills.find(
-        (b) => b.label === label || b.label === order.tableName || b.label.startsWith(order.tableName + " - "),
-      );
-      if (existingBon) {
-        const merged = existingBon.items.map((i) => ({ ...i }));
-        for (const ni of newItems) {
-          const found = merged.find((i) => i.product_id === ni.product_id);
-          if (found) { found.qty += ni.qty; } else { merged.push(ni); }
+    try {
+      const label = order.customerName
+        ? `${order.tableName} - ${order.customerName}`
+        : order.tableName;
+      const newItems: OpenBillItemInput[] = order.items
+        .filter((item) => item.productId != null)
+        .map((item) => ({
+          product_id: item.productId as string,
+          name: item.name,
+          price: item.price,
+          qty: item.qty,
+          disc: 0,
+          disc_type: "pct" as DiscountType,
+        }));
+      if (newItems.length > 0) {
+        // Cari bon yang sudah ada untuk meja ini (tambahan order dari meja yang sama)
+        const existingBon = openBills.find(
+          (b) => b.label === label || b.label === order.tableName || b.label.startsWith(order.tableName + " - "),
+        );
+        if (existingBon) {
+          const merged = existingBon.items.map((i) => ({ ...i }));
+          for (const ni of newItems) {
+            const found = merged.find((i) => i.product_id === ni.product_id);
+            if (found) { found.qty += ni.qty; } else { merged.push(ni); }
+          }
+          await saveOpenBill(businessId, existingBon.id, existingBon.label, merged);
+        } else {
+          await saveOpenBill(businessId, null, label, newItems);
         }
-        await saveOpenBill(businessId, existingBon.id, existingBon.label, merged);
-      } else {
-        await saveOpenBill(businessId, null, label, newItems);
       }
+      setInboxOpen(false);
+      if (order.status === "baru") await handleOrderStatus(order.id, "diproses");
+      await handleOrderStatus(order.id, "selesai");
+      void refreshCatalog();
+    } catch {
+      setInboxNotice("⚠️ Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+    } finally {
+      setOrderBusyId(null);
     }
-    setInboxOpen(false);
-    if (order.status === "baru") await handleOrderStatus(order.id, "diproses");
-    await handleOrderStatus(order.id, "selesai");
-    void refreshCatalog();
-    setOrderBusyId(null);
   }
 
   async function handleAddAllAndPay(tableName: string) {
@@ -1474,25 +1515,30 @@ export default function PosScreen({
     }
 
     setCloseSubmitting(true);
-    const result = await closeShift(businessId, currentShiftId ?? "", amount, closeNotes);
-    setCloseSubmitting(false);
+    try {
+      const result = await closeShift(businessId, currentShiftId ?? "", amount, closeNotes);
+      setCloseSubmitting(false);
 
-    if (!result.success) {
-      setCloseError(result.error);
-      return;
+      if (!result.success) {
+        setCloseError(result.error);
+        return;
+      }
+
+      const [shifts, settlementJobs] = await Promise.all([
+        getTodayShifts(businessId),
+        buildSettlementPrintJobs(businessId, todayRange.fromIso, todayRange.toIsoExclusive, "Hari Ini"),
+      ]);
+      setTodayShifts(shifts);
+
+      if (settlementJobs.success && settlementJobs.jobs.length > 0) {
+        void dispatchPrintJobs(businessId, settlementJobs.jobs);
+      }
+
+      setClosedSummary(result.summary);
+    } catch {
+      setCloseSubmitting(false);
+      setCloseError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    const [shifts, settlementJobs] = await Promise.all([
-      getTodayShifts(businessId),
-      buildSettlementPrintJobs(businessId, todayRange.fromIso, todayRange.toIsoExclusive, "Hari Ini"),
-    ]);
-    setTodayShifts(shifts);
-
-    if (settlementJobs.success && settlementJobs.jobs.length > 0) {
-      void dispatchPrintJobs(businessId, settlementJobs.jobs);
-    }
-
-    setClosedSummary(result.summary);
   }
 
   async function handleOpenShiftSubmit(e: React.FormEvent) {
@@ -1506,19 +1552,24 @@ export default function PosScreen({
     }
 
     setOpenShiftSubmitting(true);
-    const result = await openShift(businessId, cashierId, amount, openShiftNotes);
-    setOpenShiftSubmitting(false);
+    try {
+      const result = await openShift(businessId, cashierId, amount, openShiftNotes);
+      setOpenShiftSubmitting(false);
 
-    if (!result.success) {
-      setOpenShiftError(result.error);
-      return;
+      if (!result.success) {
+        setOpenShiftError(result.error);
+        return;
+      }
+
+      setCurrentShiftId(result.shiftId);
+      setCurrentShiftOpenedAt(result.openedAt);
+      setOpeningCashInput("");
+      setOpenShiftNotes("");
+      setOpenShiftModalOpen(false);
+    } catch {
+      setOpenShiftSubmitting(false);
+      setOpenShiftError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    setCurrentShiftId(result.shiftId);
-    setCurrentShiftOpenedAt(result.openedAt);
-    setOpeningCashInput("");
-    setOpenShiftNotes("");
-    setOpenShiftModalOpen(false);
   }
 
   if (successInvoice) {

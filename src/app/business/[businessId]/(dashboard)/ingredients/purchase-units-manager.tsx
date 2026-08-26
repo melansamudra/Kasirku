@@ -26,10 +26,14 @@ export default function PurchaseUnitsManager({
 
   function handleDelete(unitId: string) {
     setDeletingId(unitId);
-    deleteAction(unitId).then(() => {
-      setDeletingId(null);
-      router.refresh();
-    });
+    deleteAction(unitId)
+      .then(() => {
+        setDeletingId(null);
+        router.refresh();
+      })
+      .catch(() => {
+        setDeletingId(null);
+      });
   }
 
   return (

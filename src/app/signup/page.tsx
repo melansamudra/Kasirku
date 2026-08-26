@@ -29,24 +29,29 @@ export default function SignupPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      setLoading(false);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      // If email confirmation is disabled (or already confirmed), signUp
+      // returns an active session right away — no need to wait for email.
+      if (data.session) {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      setLoading(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    // If email confirmation is disabled (or already confirmed), signUp
-    // returns an active session right away — no need to wait for email.
-    if (data.session) {
-      router.push("/onboarding");
-      router.refresh();
-      return;
-    }
-
-    setSubmitted(true);
   }
 
   if (submitted) {

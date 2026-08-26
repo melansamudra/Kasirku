@@ -61,15 +61,20 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      setLoading(false);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setDone(true);
+    } catch {
+      setLoading(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    setDone(true);
   }
 
   if (checking) {

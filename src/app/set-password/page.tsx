@@ -114,15 +114,20 @@ export default function SetPasswordPage() {
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      setLoading(false);
 
-    if (updateError) {
-      setError(updateError.message);
-      return;
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      setDone(true);
+    } catch {
+      setLoading(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    setDone(true);
   }
 
   if (checking) {

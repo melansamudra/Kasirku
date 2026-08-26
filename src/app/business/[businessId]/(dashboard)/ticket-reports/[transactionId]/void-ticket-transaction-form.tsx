@@ -32,16 +32,21 @@ export default function VoidTicketTransactionForm({
   async function handleConfirm() {
     setError(null);
     setSubmitting(true);
-    const result = await voidTicketTransaction(businessId, transactionId, pin, reason);
-    setSubmitting(false);
+    try {
+      const result = await voidTicketTransaction(businessId, transactionId, pin, reason);
+      setSubmitting(false);
 
-    if (!result.success) {
-      setError(result.error);
-      setPin("");
-      return;
+      if (!result.success) {
+        setError(result.error);
+        setPin("");
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setSubmitting(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    router.refresh();
   }
 
   return (

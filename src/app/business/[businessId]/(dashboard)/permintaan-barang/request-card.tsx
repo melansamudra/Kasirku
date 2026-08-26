@@ -65,28 +65,39 @@ export default function RequestCard({
   function handleReceive() {
     setError(null);
     setPending(true);
-    receivePurchaseRequest(businessId, request.id).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    receivePurchaseRequest(businessId, request.id)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function handleDeleteRequest() {
     setError(null);
     setPending(true);
-    deleteRequest(businessId, request.id).then((res) => {
-      setPending(false);
-      setConfirmDeleteRequest(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    deleteRequest(businessId, request.id)
+      .then((res) => {
+        setPending(false);
+        setConfirmDeleteRequest(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setConfirmDeleteRequest(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   const STATUS_LABEL: Record<typeof request.status, string> = {

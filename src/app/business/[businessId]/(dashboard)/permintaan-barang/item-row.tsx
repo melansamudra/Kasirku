@@ -73,14 +73,19 @@ export default function ItemRow({
     }
     setError(null);
     setPending(true);
-    updateItemApprovedQty(businessId, item.id, qty).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    updateItemApprovedQty(businessId, item.id, qty)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function handleAddAllocation() {
@@ -95,57 +100,78 @@ export default function ItemRow({
     }
     setError(null);
     setPending(true);
-    addItemAllocation(businessId, item.id, newSupplierId, qty).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      setShowAddForm(false);
-      setNewSupplierId("");
-      setNewQty("");
-      router.refresh();
-    });
+    addItemAllocation(businessId, item.id, newSupplierId, qty)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setShowAddForm(false);
+        setNewSupplierId("");
+        setNewQty("");
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function handleDeleteAllocation(allocationId: string) {
     setError(null);
     setPending(true);
-    deleteItemAllocation(businessId, allocationId).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    deleteItemAllocation(businessId, allocationId)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function handleMarkReceived(allocationId: string) {
     setError(null);
     setPending(true);
-    markAllocationReceived(businessId, allocationId).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    markAllocationReceived(businessId, allocationId)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function handleDeleteItem() {
     setError(null);
     setPending(true);
-    deleteRequestItem(businessId, item.id).then((res) => {
-      setPending(false);
-      setConfirmDeleteItem(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    deleteRequestItem(businessId, item.id)
+      .then((res) => {
+        setPending(false);
+        setConfirmDeleteItem(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setConfirmDeleteItem(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function purchaseHref(allocation: Allocation) {

@@ -54,14 +54,19 @@ export default function PostDepreciationButton({
         <button
           onClick={async () => {
             setPending(true);
-            const result = await action(period);
-            setPending(false);
-            if (result.error) {
-              setError(result.error);
-              return;
+            try {
+              const result = await action(period);
+              setPending(false);
+              if (result.error) {
+                setError(result.error);
+                return;
+              }
+              setConfirming(false);
+              router.refresh();
+            } catch {
+              setPending(false);
+              setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
             }
-            setConfirming(false);
-            router.refresh();
           }}
           disabled={pending}
           className="flex-1 rounded-lg bg-brand-600 py-2 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"

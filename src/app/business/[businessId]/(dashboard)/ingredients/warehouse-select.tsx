@@ -21,10 +21,14 @@ export default function WarehouseSelect({
   function handleChange(next: string) {
     setValue(next);
     setPending(true);
-    action(ingredientId, next).then(() => {
-      setPending(false);
-      router.refresh();
-    });
+    action(ingredientId, next)
+      .then(() => {
+        setPending(false);
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+      });
   }
 
   return (

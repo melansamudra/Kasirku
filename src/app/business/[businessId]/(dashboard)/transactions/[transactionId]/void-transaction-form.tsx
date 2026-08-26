@@ -49,17 +49,22 @@ export default function VoidTransactionForm({
     // manager-role cashier via PIN — owns_business() alone can't tell staff
     // apart from the real owner, so without this a staff member with just
     // "transactions" view permission could void exactly like the owner.
-    const result = isOwner
-      ? await ownerVoidTransaction(businessId, transactionId, invoiceNumber, reason)
-      : await staffVoidTransaction(businessId, transactionId, invoiceNumber, managerPin, reason);
-    setSubmitting(false);
+    try {
+      const result = isOwner
+        ? await ownerVoidTransaction(businessId, transactionId, invoiceNumber, reason)
+        : await staffVoidTransaction(businessId, transactionId, invoiceNumber, managerPin, reason);
+      setSubmitting(false);
 
-    if (!result.success) {
-      setError(result.error);
-      return;
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setSubmitting(false);
+      setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
     }
-
-    router.refresh();
   }
 
   return (

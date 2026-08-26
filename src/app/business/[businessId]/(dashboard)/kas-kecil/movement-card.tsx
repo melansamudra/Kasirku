@@ -68,28 +68,39 @@ export default function MovementCard({
     setPending(true);
     // Kasbon: akun reklas dipaksa server-side ke "Piutang Karyawan" (lihat
     // review_shift_cash_movement), tidak perlu kirim accountCode dari sini.
-    reviewCashMovement(businessId, movement.id, "approve", isKasbon ? undefined : accountCode).then((res) => {
-      setPending(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    reviewCashMovement(businessId, movement.id, "approve", isKasbon ? undefined : accountCode)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   function handleReject() {
     setError(null);
     setPending(true);
-    reviewCashMovement(businessId, movement.id, "reject").then((res) => {
-      setPending(false);
-      setConfirmReject(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    reviewCashMovement(businessId, movement.id, "reject")
+      .then((res) => {
+        setPending(false);
+        setConfirmReject(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setConfirmReject(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
   }
 
   return (

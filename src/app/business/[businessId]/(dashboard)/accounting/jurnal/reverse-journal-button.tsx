@@ -52,14 +52,19 @@ export default function ReverseJournalButton({
           onClick={async () => {
             setPending(true);
             setError(null);
-            const result = await reverseJournalEntry(businessId, entryId, note);
-            setPending(false);
-            if (result.error) {
-              setError(result.error);
-              return;
+            try {
+              const result = await reverseJournalEntry(businessId, entryId, note);
+              setPending(false);
+              if (result.error) {
+                setError(result.error);
+                return;
+              }
+              setOpen(false);
+              router.refresh();
+            } catch {
+              setPending(false);
+              setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
             }
-            setOpen(false);
-            router.refresh();
           }}
           className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
