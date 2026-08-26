@@ -14,6 +14,7 @@ type Product = {
 };
 
 type Customer = { id: string; name: string; phone: string | null };
+type Outlet = { id: string; name: string };
 
 type CartLine = ManualTransactionItemInput & { name: string; price: number };
 
@@ -44,11 +45,13 @@ export default function ManualTransactionForm({
   products,
   customers,
   customPaymentMethods,
+  outlets,
 }: {
   businessId: string;
   products: Product[];
   customers: Customer[];
   customPaymentMethods: string[];
+  outlets?: Outlet[];
 }) {
   const router = useRouter();
   const paymentMethods = useMemo(
@@ -63,6 +66,7 @@ export default function ManualTransactionForm({
   const [paymentMethod, setPaymentMethod] = useState(BUILTIN_PAYMENT_METHODS[0]);
   const [received, setReceived] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [outletId, setOutletId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -110,6 +114,10 @@ export default function ManualTransactionForm({
       setError("Tanggal/jam tidak boleh di masa depan.");
       return;
     }
+    if (outlets && outlets.length > 0 && !outletId) {
+      setError("Pilih outlet dulu — dipakai untuk mengurangi stok bahan setengah jadi di outlet itu.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -120,6 +128,7 @@ export default function ManualTransactionForm({
         paymentMethod,
         paymentMethod === "Tunai" && received ? Number(received) : null,
         customerId || null,
+        outletId || null,
       );
 
       if (!result.success) {
@@ -279,6 +288,30 @@ export default function ManualTransactionForm({
           </div>
         )}
       </div>
+
+      {outlets && outlets.length > 0 && (
+        <div className="rounded-xl bg-white shadow-sm p-4">
+          <label htmlFor="txn-outlet" className="mb-1 block text-xs font-medium text-zinc-600">
+            Outlet
+          </label>
+          <select
+            id="txn-outlet"
+            value={outletId}
+            onChange={(e) => setOutletId(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">— Pilih outlet —</option>
+            {outlets.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Stok bahan setengah jadi di outlet ini akan otomatis berkurang sesuai resep.
+          </p>
+        </div>
+      )}
 
       {customers.length > 0 && (
         <div className="rounded-xl bg-white shadow-sm p-4">

@@ -93,7 +93,7 @@ export default async function NewManualTransactionPage({
     await syncFinishedProductsToCatalog(supabase, businessId);
   }
 
-  const [{ data: products }, { data: customers }, { data: customPaymentMethodRows }] =
+  const [{ data: products }, { data: customers }, { data: customPaymentMethodRows }, { data: outlets }] =
     await Promise.all([
       supabase
         .from("products")
@@ -112,6 +112,14 @@ export default async function NewManualTransactionPage({
         .select("name")
         .eq("business_id", businessId)
         .order("name", { ascending: true }),
+      business.cost_control_enabled
+        ? supabase
+            .from("outlets")
+            .select("id, name")
+            .eq("business_id", businessId)
+            .eq("active", true)
+            .order("name", { ascending: true })
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     ]);
 
   return (
@@ -139,6 +147,7 @@ export default async function NewManualTransactionPage({
           products={products ?? []}
           customers={customers ?? []}
           customPaymentMethods={(customPaymentMethodRows ?? []).map((m) => m.name)}
+          outlets={business.cost_control_enabled ? outlets ?? [] : undefined}
         />
       </div>
     </div>

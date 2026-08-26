@@ -31,32 +31,36 @@ export function TransactionActions({
   return (
     <>
       <div className="flex shrink-0 gap-2">
-        <a
-          href={`/business/${businessId}/transactions/export`}
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-        >
-          ⬇️ Ekspor CSV
-        </a>
-        <a
-          href={`/business/${businessId}/transactions/export-full`}
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-        >
-          ⬇️ Ekspor Lengkap
-        </a>
-        <button
-          type="button"
-          onClick={() => setImportOpen(true)}
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-        >
-          📥 Impor CSV
-        </button>
-        <button
-          type="button"
-          onClick={() => setMokaOpen(true)}
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-        >
-          📥 Impor Moka POS
-        </button>
+        {!costControlEnabled && (
+          <>
+            <a
+              href={`/business/${businessId}/transactions/export`}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              ⬇️ Ekspor CSV
+            </a>
+            <a
+              href={`/business/${businessId}/transactions/export-full`}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              ⬇️ Ekspor Lengkap
+            </a>
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              📥 Impor CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setMokaOpen(true)}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              📥 Impor Moka POS
+            </button>
+          </>
+        )}
         <Link
           href={`/business/${businessId}/transactions/new`}
           className="rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
