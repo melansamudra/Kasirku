@@ -15,11 +15,13 @@ export function TransactionActions({
   importAction,
   previewMokaAction,
   importMokaAction,
+  costControlEnabled = false,
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
   importMokaAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
+  costControlEnabled?: boolean;
 }) {
   const [importOpen, setImportOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
@@ -59,7 +61,7 @@ export function TransactionActions({
           href={`/business/${businessId}/transactions/new`}
           className="rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
         >
-          + Tambah Transaksi Manual
+          {costControlEnabled ? "+ Catat Penjualan" : "+ Tambah Transaksi Manual"}
         </Link>
       </div>
 

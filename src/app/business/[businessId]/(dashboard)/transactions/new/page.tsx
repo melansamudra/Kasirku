@@ -117,7 +117,9 @@ export default async function NewManualTransactionPage({
   return (
     <div className="w-full max-w-2xl">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-zinc-900">Transaksi Manual — {business.name}</h1>
+        <h1 className="text-lg font-bold text-zinc-900">
+          {business.cost_control_enabled ? "Catat Penjualan" : "Transaksi Manual"} — {business.name}
+        </h1>
         <Link
           href={`/business/${businessId}/transactions`}
           className="text-xs font-medium text-zinc-500 hover:text-zinc-700"
@@ -126,8 +128,9 @@ export default async function NewManualTransactionPage({
         </Link>
       </div>
       <p className="mt-1 text-sm text-zinc-500">
-        Catat transaksi tanpa lewat kasir — cocok untuk penjualan yang terlewat dicatat, dengan
-        tanggal yang bisa diatur bebas.
+        {business.cost_control_enabled
+          ? "Catat penjualan produk jadi dari resto/outlet — dengan tanggal yang bisa diatur bebas."
+          : "Catat transaksi tanpa lewat kasir — cocok untuk penjualan yang terlewat dicatat, dengan tanggal yang bisa diatur bebas."}
       </p>
 
       <div className="mt-6">

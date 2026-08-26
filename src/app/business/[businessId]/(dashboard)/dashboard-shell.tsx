@@ -87,7 +87,7 @@ function buildCostControlNavGroups(base: string, mirroringEnabled: boolean): Nav
       title: "Ringkasan",
       items: [
         { key: "dashboard", href: base, label: "Dashboard", icon: LayoutDashboard },
-        { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
+        { key: "transactions", href: `${base}/transactions`, label: "Penjualan", icon: Receipt },
       ],
     },
     {

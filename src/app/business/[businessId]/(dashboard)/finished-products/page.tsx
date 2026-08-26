@@ -30,7 +30,7 @@ export default async function FinishedProductsPage({
 
   const { data: products } = await supabase
     .from("finished_products")
-    .select("id, name, category, selling_price")
+    .select("id, name, category, selling_price, target_food_cost_pct")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -50,9 +50,14 @@ export default async function FinishedProductsPage({
         {products && products.length > 0 ? (
           products.map((product) => {
             const hpp = costs.get(product.id)?.unitCost ?? 0;
-            const margin = product.selling_price != null ? product.selling_price - hpp : null;
+            const suggestedPrice =
+              product.target_food_cost_pct != null && product.target_food_cost_pct > 0
+                ? hpp / (product.target_food_cost_pct / 100)
+                : null;
+            const effectivePrice = product.selling_price ?? suggestedPrice;
+            const margin = effectivePrice != null ? effectivePrice - hpp : null;
             const marginPct =
-              margin != null && product.selling_price ? Math.round((margin / product.selling_price) * 100) : null;
+              margin != null && effectivePrice ? Math.round((margin / effectivePrice) * 100) : null;
             return (
               <div
                 key={product.id}
@@ -67,21 +72,31 @@ export default async function FinishedProductsPage({
                   </Link>
                   <p className="text-xs text-zinc-500">
                     {product.category || "Tanpa kategori"} · HPP {formatRupiah(hpp)}
-                    {product.selling_price != null && ` · Jual ${formatRupiah(product.selling_price)}`}
+                    {product.selling_price != null
+                      ? ` · Jual ${formatRupiah(product.selling_price)}`
+                      : suggestedPrice != null
+                        ? ` · Jual ~${formatRupiah(suggestedPrice)} (saran)`
+                        : ""}
                   </p>
                 </div>
-                {marginPct != null && (
-                  <p
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      marginPct >= 30
-                        ? "bg-emerald-50 text-emerald-700"
-                        : marginPct >= 15
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-red-50 text-red-700"
-                    }`}
-                  >
-                    Margin {marginPct}%
+                {effectivePrice == null ? (
+                  <p className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                    Belum ada harga jual
                   </p>
+                ) : (
+                  marginPct != null && (
+                    <p
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        marginPct >= 30
+                          ? "bg-emerald-50 text-emerald-700"
+                          : marginPct >= 15
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      Margin {marginPct}%
+                    </p>
+                  )
                 )}
                 <DeleteProductButton businessId={businessId} productId={product.id} productName={product.name} />
               </div>
