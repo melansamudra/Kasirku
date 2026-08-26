@@ -25,6 +25,7 @@ import {
   Lock,
   Package,
   Beaker,
+  Factory,
   Tag,
   UtensilsCrossed,
   Users,
@@ -77,6 +78,7 @@ function buildNavGroups(
   isFinanceOnly: boolean,
   isStarter: boolean,
   mirroringEnabled = false,
+  costControlEnabled = false,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
@@ -169,6 +171,24 @@ function buildNavGroups(
         ...(!isStarter ? [{ key: "accounting-anggaran", href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target }] : []),
       ],
     },
+    // Dapur pusat yang produksi bahan setengah jadi & distribusi ke outlet
+    // sendiri (bukan lewat POS Kasirku) — khusus per-bisnis, bukan semua
+    // bisnis fnb, jadi di-gate lewat cost_control_enabled (sama pola dengan
+    // mirroringEnabled), bukan cuma permission key.
+    ...(costControlEnabled
+      ? [
+          {
+            title: "Produksi & Distribusi",
+            items: [
+              { key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: Beaker },
+              { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
+              { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
+              { key: "outlets", href: `${base}/outlets`, label: "Outlet", icon: Store },
+              { key: "outlet-requests", href: `${base}/permintaan-resto`, label: "Permintaan Resto", icon: ClipboardList },
+            ] satisfies NavItem[],
+          },
+        ]
+      : []),
     ...(isStarter
       ? []
       : [
@@ -481,6 +501,7 @@ export default function DashboardShell({
   isOwner = true,
   permissions = [],
   mirroringEnabled = false,
+  costControlEnabled = false,
   children,
 }: {
   businessId: string;
@@ -494,6 +515,7 @@ export default function DashboardShell({
   isOwner?: boolean;
   permissions?: string[];
   mirroringEnabled?: boolean;
+  costControlEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -534,7 +556,7 @@ export default function DashboardShell({
     ? ["settings"]
     : permissions.includes("settings") ? ["settings"] : [];
 
-  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter, mirroringEnabled);
+  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter, mirroringEnabled, costControlEnabled);
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can

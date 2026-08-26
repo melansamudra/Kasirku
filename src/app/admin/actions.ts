@@ -25,6 +25,29 @@ export async function toggleMirroring(businessId: string, enabled: boolean) {
   revalidatePath("/admin");
 }
 
+// Modul Produksi & Distribusi (cost control) khusus dapur pusat semacam
+// Lauk Nusantara — di-gate per-bisnis lewat kolom ini (bukan cuma permission
+// key) supaya tidak muncul di semua bisnis fnb Kasirku lain.
+export async function toggleCostControl(businessId: string, enabled: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  const { data: adminRow } = await service
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!adminRow) return;
+
+  await service
+    .from("businesses")
+    .update({ cost_control_enabled: enabled })
+    .eq("id", businessId);
+  revalidatePath("/admin");
+}
+
 export type ActivateSubscriptionState = { error: string | null; resetToken: number };
 
 export async function activateSubscriptionManually(

@@ -309,6 +309,8 @@ export type Database = {
           lembur_rate_per_hour: number;
           attendance_qr_slug: string | null;
           purchase_request_slug: string | null;
+          cost_control_enabled: boolean;
+          outlet_request_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -338,6 +340,8 @@ export type Database = {
           lembur_rate_per_hour?: number;
           attendance_qr_slug?: string | null;
           purchase_request_slug?: string | null;
+          cost_control_enabled?: boolean;
+          outlet_request_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -367,6 +371,8 @@ export type Database = {
           lembur_rate_per_hour?: number;
           attendance_qr_slug?: string | null;
           purchase_request_slug?: string | null;
+          cost_control_enabled?: boolean;
+          outlet_request_slug?: string | null;
         };
         Relationships: [];
       };
@@ -2048,6 +2054,357 @@ export type Database = {
         };
         Relationships: [];
       };
+      semi_finished_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          unit: string;
+          stock: number;
+          min_stock: number;
+          deleted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          unit: string;
+          stock?: number;
+          min_stock?: number;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          unit?: string;
+          stock?: number;
+          min_stock?: number;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      semi_finished_recipes: {
+        Row: {
+          id: string;
+          business_id: string;
+          semi_finished_item_id: string;
+          component_type: string;
+          ingredient_id: string | null;
+          component_semi_finished_id: string | null;
+          qty: number;
+          unit: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          semi_finished_item_id: string;
+          component_type: string;
+          ingredient_id?: string | null;
+          component_semi_finished_id?: string | null;
+          qty: number;
+          unit: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          semi_finished_item_id?: string;
+          component_type?: string;
+          ingredient_id?: string | null;
+          component_semi_finished_id?: string | null;
+          qty?: number;
+          unit?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      finished_products: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          category: string | null;
+          selling_price: number | null;
+          deleted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          category?: string | null;
+          selling_price?: number | null;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          category?: string | null;
+          selling_price?: number | null;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      finished_product_recipes: {
+        Row: {
+          id: string;
+          business_id: string;
+          finished_product_id: string;
+          component_type: string;
+          ingredient_id: string | null;
+          semi_finished_item_id: string | null;
+          qty: number;
+          unit: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          finished_product_id: string;
+          component_type: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          qty: number;
+          unit: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          finished_product_id?: string;
+          component_type?: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          qty?: number;
+          unit?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      production_runs: {
+        Row: {
+          id: string;
+          business_id: string;
+          semi_finished_item_id: string | null;
+          item_name: string;
+          qty_produced: number;
+          unit: string;
+          total_cost: number;
+          unit_cost: number;
+          produced_by_employee_id: string | null;
+          produced_by_name: string;
+          note: string | null;
+          voided: boolean;
+          voided_at: string | null;
+          void_reason: string | null;
+          produced_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          semi_finished_item_id?: string | null;
+          item_name: string;
+          qty_produced: number;
+          unit: string;
+          total_cost?: number;
+          unit_cost?: number;
+          produced_by_employee_id?: string | null;
+          produced_by_name: string;
+          note?: string | null;
+          voided?: boolean;
+          voided_at?: string | null;
+          void_reason?: string | null;
+          produced_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          semi_finished_item_id?: string | null;
+          item_name?: string;
+          qty_produced?: number;
+          unit?: string;
+          total_cost?: number;
+          unit_cost?: number;
+          produced_by_employee_id?: string | null;
+          produced_by_name?: string;
+          note?: string | null;
+          voided?: boolean;
+          voided_at?: string | null;
+          void_reason?: string | null;
+          produced_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      production_run_consumptions: {
+        Row: {
+          id: string;
+          business_id: string;
+          production_run_id: string;
+          component_type: string;
+          ingredient_id: string | null;
+          semi_finished_item_id: string | null;
+          component_name: string;
+          qty_consumed: number;
+          unit: string;
+          unit_cost_at_time: number;
+          subtotal_cost: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          production_run_id: string;
+          component_type: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          component_name: string;
+          qty_consumed: number;
+          unit: string;
+          unit_cost_at_time: number;
+          subtotal_cost: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          production_run_id?: string;
+          component_type?: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          component_name?: string;
+          qty_consumed?: number;
+          unit?: string;
+          unit_cost_at_time?: number;
+          subtotal_cost?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      outlets: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          address: string | null;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          address?: string | null;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          address?: string | null;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      outlet_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          outlet_id: string | null;
+          outlet_name: string;
+          employee_id: string | null;
+          employee_name: string;
+          status: string;
+          note: string | null;
+          reject_reason: string | null;
+          created_at: string;
+          decided_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          outlet_id?: string | null;
+          outlet_name: string;
+          employee_id?: string | null;
+          employee_name: string;
+          status?: string;
+          note?: string | null;
+          reject_reason?: string | null;
+          created_at?: string;
+          decided_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          outlet_id?: string | null;
+          outlet_name?: string;
+          employee_id?: string | null;
+          employee_name?: string;
+          status?: string;
+          note?: string | null;
+          reject_reason?: string | null;
+          created_at?: string;
+          decided_at?: string | null;
+        };
+        Relationships: [];
+      };
+      outlet_request_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          outlet_request_id: string;
+          semi_finished_item_id: string | null;
+          item_name: string;
+          unit: string;
+          qty_requested: number;
+          qty_approved: number | null;
+          value: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          outlet_request_id: string;
+          semi_finished_item_id?: string | null;
+          item_name: string;
+          unit: string;
+          qty_requested: number;
+          qty_approved?: number | null;
+          value?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          outlet_request_id?: string;
+          semi_finished_item_id?: string | null;
+          item_name?: string;
+          unit?: string;
+          qty_requested?: number;
+          qty_approved?: number | null;
+          value?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       purchase_requests: {
         Row: {
           id: string;
@@ -3025,6 +3382,7 @@ export type Database = {
           plan_code: string | null;
           period_end: string | null;
           mirroring_enabled: boolean;
+          cost_control_enabled: boolean;
         }[];
       };
       get_hpp_order_status: {
@@ -3096,6 +3454,20 @@ export type Database = {
       submit_purchase_request: {
         Args: {
           p_slug: string;
+          p_employee_id: string;
+          p_note: string | null;
+          p_items: Json;
+        };
+        Returns: string;
+      };
+      get_outlet_request_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_outlet_request: {
+        Args: {
+          p_slug: string;
+          p_outlet_id: string;
           p_employee_id: string;
           p_note: string | null;
           p_items: Json;

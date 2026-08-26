@@ -57,6 +57,16 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: "Produksi & Distribusi",
+    items: [
+      { key: "semi-finished-items", label: "Bahan Setengah Jadi" },
+      { key: "finished-products", label: "Produk Jadi (HPP)" },
+      { key: "production-runs", label: "Produksi" },
+      { key: "outlets", label: "Outlet" },
+      { key: "outlet-requests", label: "Permintaan Resto" },
+    ],
+  },
+  {
     title: "Lainnya",
     items: [
       { key: "notifikasi", label: "Notifikasi" },
