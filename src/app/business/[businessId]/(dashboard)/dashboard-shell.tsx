@@ -74,25 +74,72 @@ const STARTER_ALLOWED_KEYS = new Set([
 ]);
 
 // Bisnis dengan cost_control_enabled (dapur pusat semacam Lauk Nusantara)
-// SENGAJA tidak jual lewat POS Kasirku sama sekali — jadi selain grup
-// "Produksi & Distribusi" itu sendiri, sisa menu dipangkas ke daftar ini
-// (owner minta eksplisit: hanya fitur ini yang boleh ikut, bukan seluruh
-// menu fnb standar). "employees" ikut masuk walau tidak diminta karena jadi
-// dependency wajib — dropdown "Tim Produksi" (Produksi) & "Nama" (form
-// publik Permintaan Resto) kosong tanpa data karyawan.
-const COST_CONTROL_ONLY_VISIBLE_KEYS = new Set([
-  "dashboard",
-  "transactions", // "penjualan input manual/import" — sudah ada di sini, bukan lewat POS
-  "ingredients",
-  "suppliers",
-  "purchases",
-  "purchase-requests",
-  "reports-cogs",
-  "hpp-calculator",
-  "reports-price-trend",
-  "accounting-anggaran",
-  "employees",
-]);
+// SENGAJA tidak jual lewat POS Kasirku sama sekali, dan owner minta sidebar-nya
+// sendiri — bukan menu fnb standar yang cuma dipangkas (grup jadi kosong/terasa
+// tidak lengkap, mis. "Pembelian, Hutang & Kas Kecil" tanpa Kas Kecil). Jadi
+// bespoke: daftar grup & label sendiri, dibangun langsung (bukan hasil filter
+// allGroups di bawah). "employees" ikut masuk walau tidak diminta eksplisit
+// karena jadi dependency wajib — dropdown "Tim Produksi" (Produksi) & "Nama"
+// (form publik Permintaan Resto) kosong tanpa data karyawan.
+function buildCostControlNavGroups(base: string, mirroringEnabled: boolean): NavGroup[] {
+  return [
+    {
+      title: "Ringkasan",
+      items: [
+        { key: "dashboard", href: base, label: "Dashboard", icon: LayoutDashboard },
+        { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
+      ],
+    },
+    {
+      title: "Master & HPP",
+      items: [
+        { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+        { key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: Beaker },
+        { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
+      ],
+    },
+    {
+      title: "Operasional",
+      items: [
+        { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
+        { key: "outlets", href: `${base}/outlets`, label: "Outlet", icon: Store },
+        { key: "outlet-requests", href: `${base}/permintaan-resto`, label: "Permintaan Resto", icon: ClipboardList },
+      ],
+    },
+    {
+      title: "Pembelian & Stok",
+      items: [
+        { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
+        { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+        { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
+      ],
+    },
+    {
+      title: "Laporan & Biaya",
+      items: [
+        { key: "reports-cogs", href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
+        { key: "hpp-calculator", href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
+        { key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga Bahan", icon: Tag },
+        { key: "accounting-anggaran", href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target },
+      ],
+    },
+    {
+      title: "Tim",
+      items: [{ key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog }],
+    },
+    {
+      title: "Pengaturan",
+      items: [
+        { key: "settings", href: `${base}/settings`, label: "Pengaturan", icon: Settings, ownerOnly: true },
+        { key: "notifikasi", href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
+        { key: "activity", href: `${base}/activity`, label: "Aktivitas", icon: Activity, ownerOnly: true },
+        ...(mirroringEnabled
+          ? [{ key: "mirror", href: `${base}/mirror`, label: "Akun Mirror", icon: Layers, ownerOnly: true }]
+          : []),
+      ],
+    },
+  ];
+}
 
 function buildNavGroups(
   businessId: string,
@@ -104,6 +151,16 @@ function buildNavGroups(
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
+
+  if (costControlEnabled) {
+    const costControlGroups = buildCostControlNavGroups(base, mirroringEnabled);
+    if (isStarter) {
+      return costControlGroups
+        .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
+        .filter((g) => g.items.length > 0);
+    }
+    return costControlGroups;
+  }
 
   const allGroups: NavGroup[] = [
     {
@@ -193,24 +250,6 @@ function buildNavGroups(
         ...(!isStarter ? [{ key: "accounting-anggaran", href: `${base}/accounting/anggaran`, label: "Target vs Aktual", icon: Target }] : []),
       ],
     },
-    // Dapur pusat yang produksi bahan setengah jadi & distribusi ke outlet
-    // sendiri (bukan lewat POS Kasirku) — khusus per-bisnis, bukan semua
-    // bisnis fnb, jadi di-gate lewat cost_control_enabled (sama pola dengan
-    // mirroringEnabled), bukan cuma permission key.
-    ...(costControlEnabled
-      ? [
-          {
-            title: "Produksi & Distribusi",
-            items: [
-              { key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: Beaker },
-              { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
-              { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
-              { key: "outlets", href: `${base}/outlets`, label: "Outlet", icon: Store },
-              { key: "outlet-requests", href: `${base}/permintaan-resto`, label: "Permintaan Resto", icon: ClipboardList },
-            ] satisfies NavItem[],
-          },
-        ]
-      : []),
     ...(isStarter
       ? []
       : [
@@ -238,31 +277,14 @@ function buildNavGroups(
     },
   ];
 
-  // Pangkas menu standar fnb untuk bisnis cost-control-only — grup
-  // "Produksi & Distribusi" dibiarkan utuh, "Pengaturan" dibiarkan utuh
-  // MINUS "Kelola Admin" (owner minta disembunyikan — cukup satu akun owner
-  // yang pegang bisnis ini, tidak perlu undang admin/staf lain), sisanya
-  // disaring ke COST_CONTROL_ONLY_VISIBLE_KEYS.
-  const costControlFiltered = costControlEnabled
-    ? allGroups
-        .map((g) => {
-          if (g.title === "Produksi & Distribusi") return g;
-          if (g.title === "Pengaturan") {
-            return { ...g, items: g.items.filter((i) => i.key !== "admins") };
-          }
-          return { ...g, items: g.items.filter((i) => COST_CONTROL_ONLY_VISIBLE_KEYS.has(i.key)) };
-        })
-        .filter((g) => g.items.length > 0)
-    : allGroups;
-
   // Extra safety net: filter out any item not in the starter allowlist.
   if (isStarter) {
-    return costControlFiltered
+    return allGroups
       .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
       .filter((g) => g.items.length > 0);
   }
 
-  return costControlFiltered;
+  return allGroups;
 }
 
 // Dashboard itself is always reachable even for a staff member with an empty
@@ -414,7 +436,49 @@ function SidebarContent({
       )}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {groups.map((group) => {
+        {costControlEnabled ? (
+          // Sistem "berdiri sendiri" — bukan menu fnb Kasirku yang dipangkas.
+          // Section statis (tidak collapsible) + penomoran urut, meniru
+          // struktur prototipe simulasi Cost Control yang owner sudah setujui.
+          (() => {
+            let itemIndex = -1;
+            return groups.map((group) => (
+              <div key={group.title} className="mb-4">
+                <p className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
+                  {group.title}
+                </p>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    itemIndex += 1;
+                    const number = String(itemIndex).padStart(2, "0");
+                    const isActive = activeHref === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
+                          isActive ? "bg-amber-50 text-amber-800" : "text-zinc-600 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <span
+                          className={`shrink-0 font-mono text-[11px] ${
+                            isActive ? "text-amber-700" : "text-zinc-400"
+                          }`}
+                        >
+                          {number}
+                        </span>
+                        {item.label}
+                        <NavPendingHint />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()
+        ) : (
+          groups.map((group) => {
           const isOpen = openGroup === group.title;
           return (
             <div key={group.title}>
@@ -440,20 +504,12 @@ function SidebarContent({
                         href={item.href}
                         onClick={onNavigate}
                         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                          isActive
-                            ? costControlEnabled
-                              ? "bg-amber-50 text-amber-800"
-                              : "bg-brand-50 text-brand-700"
-                            : "text-zinc-600 hover:bg-zinc-50"
+                          isActive ? "bg-brand-50 text-brand-700" : "text-zinc-600 hover:bg-zinc-50"
                         }`}
                       >
                         <Icon
                           className={`h-[18px] w-[18px] shrink-0 ${
-                            isActive
-                              ? costControlEnabled
-                                ? "text-amber-700"
-                                : "text-brand-600"
-                              : "text-zinc-400"
+                            isActive ? "text-brand-600" : "text-zinc-400"
                           }`}
                           strokeWidth={isActive ? 2.25 : 1.75}
                           aria-hidden="true"
@@ -467,7 +523,8 @@ function SidebarContent({
               )}
             </div>
           );
-        })}
+          })
+        )}
       </nav>
 
       <div className="border-t border-zinc-100 px-3 py-3">
