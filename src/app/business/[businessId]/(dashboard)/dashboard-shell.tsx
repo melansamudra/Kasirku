@@ -72,6 +72,27 @@ const STARTER_ALLOWED_KEYS = new Set([
   "notifikasi", "activity",
 ]);
 
+// Bisnis dengan cost_control_enabled (dapur pusat semacam Lauk Nusantara)
+// SENGAJA tidak jual lewat POS Kasirku sama sekali — jadi selain grup
+// "Produksi & Distribusi" itu sendiri, sisa menu dipangkas ke daftar ini
+// (owner minta eksplisit: hanya fitur ini yang boleh ikut, bukan seluruh
+// menu fnb standar). "employees" ikut masuk walau tidak diminta karena jadi
+// dependency wajib — dropdown "Tim Produksi" (Produksi) & "Nama" (form
+// publik Permintaan Resto) kosong tanpa data karyawan.
+const COST_CONTROL_ONLY_VISIBLE_KEYS = new Set([
+  "dashboard",
+  "transactions", // "penjualan input manual/import" — sudah ada di sini, bukan lewat POS
+  "ingredients",
+  "suppliers",
+  "purchases",
+  "purchase-requests",
+  "reports-cogs",
+  "hpp-calculator",
+  "reports-price-trend",
+  "accounting-anggaran",
+  "employees",
+]);
+
 function buildNavGroups(
   businessId: string,
   businessType: BusinessType,
@@ -216,14 +237,27 @@ function buildNavGroups(
     },
   ];
 
+  // Pangkas menu standar fnb untuk bisnis cost-control-only — grup
+  // "Produksi & Distribusi" dan "Pengaturan" dibiarkan utuh, sisanya
+  // disaring ke COST_CONTROL_ONLY_VISIBLE_KEYS.
+  const costControlFiltered = costControlEnabled
+    ? allGroups
+        .map((g) =>
+          g.title === "Produksi & Distribusi" || g.title === "Pengaturan"
+            ? g
+            : { ...g, items: g.items.filter((i) => COST_CONTROL_ONLY_VISIBLE_KEYS.has(i.key)) },
+        )
+        .filter((g) => g.items.length > 0)
+    : allGroups;
+
   // Extra safety net: filter out any item not in the starter allowlist.
   if (isStarter) {
-    return allGroups
+    return costControlFiltered
       .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
       .filter((g) => g.items.length > 0);
   }
 
-  return allGroups;
+  return costControlFiltered;
 }
 
 // Dashboard itself is always reachable even for a staff member with an empty
@@ -579,7 +613,7 @@ export default function DashboardShell({
             groups={visibleGroups}
             activeHref={activeHref}
             isFinanceOnly={isFinanceOnly}
-            canAccessPos={isOwner || permissions.includes("pos")}
+            canAccessPos={!costControlEnabled && (isOwner || permissions.includes("pos"))}
             showLogout={false}
           />
         </div>
@@ -600,7 +634,7 @@ export default function DashboardShell({
               groups={visibleGroups}
               activeHref={activeHref}
               isFinanceOnly={isFinanceOnly}
-              canAccessPos={isOwner || permissions.includes("pos")}
+              canAccessPos={!costControlEnabled && (isOwner || permissions.includes("pos"))}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </div>
