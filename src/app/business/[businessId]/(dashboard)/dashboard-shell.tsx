@@ -238,15 +238,19 @@ function buildNavGroups(
   ];
 
   // Pangkas menu standar fnb untuk bisnis cost-control-only — grup
-  // "Produksi & Distribusi" dan "Pengaturan" dibiarkan utuh, sisanya
+  // "Produksi & Distribusi" dibiarkan utuh, "Pengaturan" dibiarkan utuh
+  // MINUS "Kelola Admin" (owner minta disembunyikan — cukup satu akun owner
+  // yang pegang bisnis ini, tidak perlu undang admin/staf lain), sisanya
   // disaring ke COST_CONTROL_ONLY_VISIBLE_KEYS.
   const costControlFiltered = costControlEnabled
     ? allGroups
-        .map((g) =>
-          g.title === "Produksi & Distribusi" || g.title === "Pengaturan"
-            ? g
-            : { ...g, items: g.items.filter((i) => COST_CONTROL_ONLY_VISIBLE_KEYS.has(i.key)) },
-        )
+        .map((g) => {
+          if (g.title === "Produksi & Distribusi") return g;
+          if (g.title === "Pengaturan") {
+            return { ...g, items: g.items.filter((i) => i.key !== "admins") };
+          }
+          return { ...g, items: g.items.filter((i) => COST_CONTROL_ONLY_VISIBLE_KEYS.has(i.key)) };
+        })
         .filter((g) => g.items.length > 0)
     : allGroups;
 
