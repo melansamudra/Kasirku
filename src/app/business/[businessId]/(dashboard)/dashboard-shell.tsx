@@ -436,37 +436,7 @@ function SidebarContent({
       )}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {costControlEnabled ? (
-          // Sistem "berdiri sendiri" — bukan menu fnb Kasirku yang dipangkas.
-          // Section statis (tidak collapsible), meniru struktur prototipe
-          // simulasi Cost Control yang owner sudah setujui.
-          groups.map((group) => (
-            <div key={group.title} className="mb-4">
-              <p className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
-                {group.title}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = activeHref === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
-                      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                        isActive ? "bg-amber-50 text-amber-800" : "text-zinc-600 hover:bg-zinc-50"
-                      }`}
-                    >
-                      {item.label}
-                      <NavPendingHint />
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))
-        ) : (
-          groups.map((group) => {
+        {groups.map((group) => {
           const isOpen = openGroup === group.title;
           return (
             <div key={group.title}>
@@ -492,12 +462,20 @@ function SidebarContent({
                         href={item.href}
                         onClick={onNavigate}
                         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                          isActive ? "bg-brand-50 text-brand-700" : "text-zinc-600 hover:bg-zinc-50"
+                          isActive
+                            ? costControlEnabled
+                              ? "bg-amber-50 text-amber-800"
+                              : "bg-brand-50 text-brand-700"
+                            : "text-zinc-600 hover:bg-zinc-50"
                         }`}
                       >
                         <Icon
                           className={`h-[18px] w-[18px] shrink-0 ${
-                            isActive ? "text-brand-600" : "text-zinc-400"
+                            isActive
+                              ? costControlEnabled
+                                ? "text-amber-700"
+                                : "text-brand-600"
+                              : "text-zinc-400"
                           }`}
                           strokeWidth={isActive ? 2.25 : 1.75}
                           aria-hidden="true"
@@ -511,8 +489,7 @@ function SidebarContent({
               )}
             </div>
           );
-          })
-        )}
+        })}
       </nav>
 
       <div className="border-t border-zinc-100 px-3 py-3">
