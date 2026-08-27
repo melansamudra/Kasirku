@@ -143,6 +143,8 @@ function buildCostControlNavGroups(
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
+        { key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: FileText },
+        { key: "rab-pembelian", href: `${base}/rab-pembelian`, label: "RAB Pembelian", icon: PiggyBank },
       ],
     },
     {

@@ -34,6 +34,10 @@ type RequestRow = {
   status: "baru" | "diterima" | "diteruskan";
   note: string | null;
   created_at: string;
+  pr_number: string | null;
+  budget_status: string;
+  budget_approved_by: string | null;
+  budget_note: string | null;
 };
 
 export default async function PermintaanBarangPage({
@@ -46,7 +50,7 @@ export default async function PermintaanBarangPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, purchase_request_slug")
+    .select("id, name, purchase_request_slug, cost_control_enabled")
     .eq("id", businessId)
     .single();
 
@@ -54,35 +58,47 @@ export default async function PermintaanBarangPage({
     notFound();
   }
 
-  const [{ data: suppliers }, { data: requests }, { data: items }, { data: allocations }, { data: ingredients }, { data: locations }] =
-    await Promise.all([
-      supabase
-        .from("suppliers")
-        .select("id, name, phone")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("purchase_requests")
-        .select("id, employee_name, location_id, status, note, created_at")
-        .eq("business_id", businessId)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("purchase_request_items")
-        .select(
-          "id, purchase_request_id, item_type, ingredient_id, product_id, item_name, unit, qty_ordered, current_stock, approved_qty",
-        )
-        .eq("business_id", businessId),
-      supabase
-        .from("purchase_request_item_allocations")
-        .select("id, purchase_request_item_id, supplier_id, qty, forwarded_at, received_at, purchase_id")
-        .eq("business_id", businessId),
-      supabase.from("ingredients").select("id, department").eq("business_id", businessId),
-      supabase.from("stock_locations").select("id, name").eq("business_id", businessId),
-    ]);
+  const [
+    { data: suppliers },
+    { data: requests },
+    { data: items },
+    { data: allocations },
+    { data: ingredients },
+    { data: products },
+    { data: locations },
+    { data: employees },
+  ] = await Promise.all([
+    supabase
+      .from("suppliers")
+      .select("id, name, phone")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("purchase_requests")
+      .select("id, employee_name, location_id, status, note, created_at, pr_number, budget_status, budget_approved_by, budget_note")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("purchase_request_items")
+      .select(
+        "id, purchase_request_id, item_type, ingredient_id, product_id, item_name, unit, qty_ordered, current_stock, approved_qty",
+      )
+      .eq("business_id", businessId),
+    supabase
+      .from("purchase_request_item_allocations")
+      .select("id, purchase_request_item_id, supplier_id, qty, forwarded_at, received_at, purchase_id")
+      .eq("business_id", businessId),
+    supabase.from("ingredients").select("id, department, unit_cost").eq("business_id", businessId),
+    supabase.from("products").select("id, cost").eq("business_id", businessId),
+    supabase.from("stock_locations").select("id, name").eq("business_id", businessId),
+    supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
+  ]);
 
   const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
+  const priceByIngredient = new Map((ingredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
+  const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
   const locationNameById = new Map((locations ?? []).map((l) => [l.id, l.name]));
 
   const allocationsByItem = new Map<string, AllocationRow[]>();
@@ -133,12 +149,24 @@ export default async function PermintaanBarangPage({
 
       <div className="mt-4 space-y-2">
         {rows.length > 0 ? (
-          rows.map((r) => (
+          rows.map((r) => {
+            const reqItems = itemsByRequest.get(r.id) ?? [];
+            const estimatedValue = reqItems.reduce((sum, it) => {
+              const price = it.ingredient_id
+                ? (priceByIngredient.get(it.ingredient_id) ?? 0)
+                : it.product_id
+                  ? (priceByProduct.get(it.product_id) ?? 0)
+                  : 0;
+              return sum + price * Number(it.qty_ordered);
+            }, 0);
+            return (
             <RequestCard
               key={r.id}
               businessId={businessId}
               businessName={business.name}
               suppliers={suppliers ?? []}
+              employees={employees ?? []}
+              costControlEnabled={business.cost_control_enabled ?? false}
               request={{
                 id: r.id,
                 employeeName: r.employee_name,
@@ -146,7 +174,12 @@ export default async function PermintaanBarangPage({
                 status: r.status,
                 note: r.note,
                 createdAt: r.created_at,
-                items: (itemsByRequest.get(r.id) ?? []).map((it) => ({
+                prNumber: r.pr_number,
+                budgetStatus: r.budget_status,
+                budgetApprovedBy: r.budget_approved_by,
+                budgetNote: r.budget_note,
+                estimatedValue,
+                items: reqItems.map((it) => ({
                   id: it.id,
                   itemName: it.item_name,
                   itemType: it.item_type,
@@ -157,6 +190,11 @@ export default async function PermintaanBarangPage({
                   qtyOrdered: Number(it.qty_ordered),
                   currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
                   approvedQty: it.approved_qty !== null ? Number(it.approved_qty) : null,
+                  defaultUnitPrice: it.ingredient_id
+                    ? (priceByIngredient.get(it.ingredient_id) ?? 0)
+                    : it.product_id
+                      ? (priceByProduct.get(it.product_id) ?? 0)
+                      : 0,
                   allocations: (allocationsByItem.get(it.id) ?? []).map((a) => ({
                     id: a.id,
                     supplierId: a.supplier_id,
@@ -168,7 +206,8 @@ export default async function PermintaanBarangPage({
                 })),
               }}
             />
-          ))
+            );
+          })
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             Belum ada order barang masuk.

@@ -1825,6 +1825,7 @@ export type Database = {
           received_at: string | null;
           purchase_id: string | null;
           created_at: string;
+          purchase_order_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1836,6 +1837,7 @@ export type Database = {
           received_at?: string | null;
           purchase_id?: string | null;
           created_at?: string;
+          purchase_order_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1847,6 +1849,7 @@ export type Database = {
           received_at?: string | null;
           purchase_id?: string | null;
           created_at?: string;
+          purchase_order_id?: string | null;
         };
         Relationships: [
           {
@@ -2504,6 +2507,11 @@ export type Database = {
           received_at: string | null;
           forwarded_at: string | null;
           location_id: string | null;
+          pr_number: string | null;
+          budget_status: string;
+          budget_approved_by: string | null;
+          budget_approved_at: string | null;
+          budget_note: string | null;
         };
         Insert: {
           id?: string;
@@ -2516,6 +2524,11 @@ export type Database = {
           received_at?: string | null;
           forwarded_at?: string | null;
           location_id?: string | null;
+          pr_number?: string | null;
+          budget_status?: string;
+          budget_approved_by?: string | null;
+          budget_approved_at?: string | null;
+          budget_note?: string | null;
         };
         Update: {
           id?: string;
@@ -2528,6 +2541,116 @@ export type Database = {
           received_at?: string | null;
           forwarded_at?: string | null;
           location_id?: string | null;
+          pr_number?: string | null;
+          budget_status?: string;
+          budget_approved_by?: string | null;
+          budget_approved_at?: string | null;
+          budget_note?: string | null;
+        };
+        Relationships: [];
+      };
+      purchase_orders: {
+        Row: {
+          id: string;
+          business_id: string;
+          po_number: string;
+          supplier_id: string | null;
+          purchase_request_id: string | null;
+          status: string;
+          total_amount: number;
+          issued_by: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          po_number: string;
+          supplier_id?: string | null;
+          purchase_request_id?: string | null;
+          status?: string;
+          total_amount?: number;
+          issued_by?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          po_number?: string;
+          supplier_id?: string | null;
+          purchase_request_id?: string | null;
+          status?: string;
+          total_amount?: number;
+          issued_by?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      purchase_order_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_order_id: string;
+          item_name: string;
+          unit: string;
+          qty: number;
+          unit_price: number;
+          subtotal: number;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_order_id: string;
+          item_name: string;
+          unit: string;
+          qty: number;
+          unit_price?: number;
+          subtotal?: number;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_order_id?: string;
+          item_name?: string;
+          unit?: string;
+          qty?: number;
+          unit_price?: number;
+          subtotal?: number;
+        };
+        Relationships: [];
+      };
+      procurement_budgets: {
+        Row: {
+          id: string;
+          business_id: string;
+          period: string;
+          amount: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          period: string;
+          amount?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          period?: string;
+          amount?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
