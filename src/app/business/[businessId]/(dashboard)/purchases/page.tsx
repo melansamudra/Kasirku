@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
-import { addPurchase, addPurchasePayment, voidPurchase } from "./actions";
+import { addPurchase, addPurchasePayment, updatePurchaseCategory, voidPurchase } from "./actions";
 import AddPaymentForm from "./add-payment-form";
 import PurchaseFormWithRecommendations from "./purchase-form-with-recommendations";
 import type { PurchasePrefill } from "./add-purchase-form";
 import VoidPurchaseButton from "./void-purchase-button";
+import EditCategoryButton from "./edit-category-button";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -345,8 +346,14 @@ export default async function PurchasesPage({
                     )}
                   </div>
                   {!r.voided && (
-                    <div className="mt-1">
+                    <div className="mt-1 flex items-center gap-3">
                       <VoidPurchaseButton action={voidPurchase.bind(null, businessId, r.id)} />
+                      {!r.ingredient_id && !r.product_id && (
+                        <EditCategoryButton
+                          currentCategory={r.category}
+                          action={updatePurchaseCategory.bind(null, businessId, r.id)}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

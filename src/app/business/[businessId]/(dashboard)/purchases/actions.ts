@@ -553,6 +553,69 @@ export async function voidPurchase(
     : { error: null };
 }
 
+export type UpdateCategoryState = { error: string | null };
+
+// Re-kategorikan pembelian yang salah akun -- kasus paling umum: nota hutang
+// dari Kas Kecil cuma punya 2 pilihan kategori ("Bahan Baku"/"Bukan Bahan
+// Baku") saat diinput, gampang kepencet salah (mis. banner MMT ke-tag "Bahan
+// Baku"). Sengaja dibatasi ke baris tanpa ingredient_id/product_id -- begitu
+// ada item bahan/produk terhubung, kategorinya juga menentukan stok mana yang
+// disentuh (lihat addPurchase), jadi mengubahnya lepas dari situ butuh
+// migrasi stok manual, bukan sekadar ganti label.
+export async function updatePurchaseCategory(
+  businessId: string,
+  purchaseId: string,
+  newCategory: string,
+): Promise<UpdateCategoryState> {
+  if (!["Bahan Baku", "Barang Dagang", "Lainnya"].includes(newCategory)) {
+    return { error: "Kategori tidak valid." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: purchase } = await supabase
+    .from("purchases")
+    .select("id, category, ingredient_id, product_id, voided")
+    .eq("id", purchaseId)
+    .eq("business_id", businessId)
+    .single();
+
+  if (!purchase) {
+    return { error: "Data pembelian tidak ditemukan." };
+  }
+  if (purchase.voided) {
+    return { error: "Pembelian ini sudah dibatalkan." };
+  }
+  if (purchase.ingredient_id || purchase.product_id) {
+    return {
+      error: "Pembelian ini terhubung ke bahan/produk tertentu, kategori tidak bisa diubah dari sini.",
+    };
+  }
+  if (purchase.category === newCategory) {
+    return { error: null };
+  }
+
+  const { error } = await supabase
+    .from("purchases")
+    .update({ category: newCategory })
+    .eq("id", purchaseId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Kategori pembelian diubah",
+    `${purchase.category} → ${newCategory}`,
+  );
+
+  revalidatePath(`/business/${businessId}/purchases`);
+  return { error: null };
+}
+
 export type AddPaymentState = { error: string | null };
 
 export async function addPurchasePayment(
