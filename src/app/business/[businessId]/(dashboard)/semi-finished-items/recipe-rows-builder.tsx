@@ -20,11 +20,19 @@ function emptyRow(): Row {
 export default function RecipeRowsBuilder({
   ingredients,
   semiFinishedOptions,
+  resultUnit,
 }: {
   ingredients: ComponentOption[];
   semiFinishedOptions: ComponentOption[];
+  resultUnit?: string;
 }) {
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
+  // Staf isi bahan APA ADANYA sejumlah 1 batch produksi (mis. "pakai 2kg
+  // ayam buat 20 porsi"), bukan dihitung manual per-1-satuan -- lebih
+  // natural & sama seperti resep beneran. qty tiap baris dibagi `yieldQty`
+  // sebelum disimpan, karena semi_finished_recipes.qty tetap berarti PER 1
+  // satuan hasil (skema/backend tidak berubah).
+  const [yieldQty, setYieldQty] = useState("1");
 
   function updateRow(key: string, patch: Partial<Row>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -43,14 +51,16 @@ export default function RecipeRowsBuilder({
     return list.find((x) => x.id === id)?.unit ?? null;
   }
 
+  const yieldNum = Number(yieldQty) > 0 ? Number(yieldQty) : 1;
+
   const serialized = rows
     .filter((r) => r.component && r.qty)
     .map((r) => {
       const baseUnit = findUnit(r.component);
       const convenience = baseUnit ? CONVENIENCE_UNITS[baseUnit.toLowerCase()] : undefined;
       const qtyNum = Number(r.qty);
-      const finalQty = convenience && r.qtyUnit === "convenience" ? qtyNum * convenience.factor : qtyNum;
-      return { component: r.component, qty: finalQty };
+      const totalQty = convenience && r.qtyUnit === "convenience" ? qtyNum * convenience.factor : qtyNum;
+      return { component: r.component, qty: totalQty / yieldNum };
     });
 
   const noOptions = ingredients.length === 0 && semiFinishedOptions.length === 0;
@@ -61,6 +71,27 @@ export default function RecipeRowsBuilder({
       <label className="mb-1 block text-xs font-medium text-zinc-600">
         Komponen Resep (opsional — bisa ditambah/diubah lagi nanti)
       </label>
+      <p className="mb-2 text-[11px] text-zinc-400">
+        Isi total bahan untuk 1 kali produksi (mis. resep menghasilkan 20 {resultUnit || "satuan"}, pakai
+        2kg ayam) — HPP per {resultUnit || "satuan"} dihitung otomatis dari situ.
+      </p>
+      <div className="mb-3 w-40">
+        <label htmlFor="recipe-yield" className="mb-1 block text-[11px] font-medium text-zinc-600">
+          Resep ini menghasilkan
+        </label>
+        <div className="flex items-center gap-1.5">
+          <input
+            id="recipe-yield"
+            type="number"
+            step="0.0001"
+            min="0.0001"
+            value={yieldQty}
+            onChange={(e) => setYieldQty(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          <span className="shrink-0 text-xs text-zinc-500">{resultUnit || "satuan"}</span>
+        </div>
+      </div>
       {noOptions ? (
         <p className="text-xs text-zinc-400">
           Belum ada bahan baku/bahan setengah jadi lain yang bisa dipakai sebagai komponen.
@@ -104,7 +135,7 @@ export default function RecipeRowsBuilder({
                     type="number"
                     step="0.0001"
                     min="0.0001"
-                    placeholder="Jumlah"
+                    placeholder="Jumlah dipakai"
                     value={row.qty}
                     onChange={(e) => updateRow(row.key, { qty: e.target.value })}
                     className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"

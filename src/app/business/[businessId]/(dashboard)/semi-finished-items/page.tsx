@@ -67,10 +67,6 @@ export default async function SemiFinishedItemsPage({
         </p>
       </div>
 
-      <div className="mt-6">
-        <SemiFinishedItemsList businessId={businessId} items={rows} />
-      </div>
-
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan Setengah Jadi</h2>
         <ItemForm
@@ -81,6 +77,10 @@ export default async function SemiFinishedItemsPage({
             semiFinishedOptions: (items ?? []).map((i) => ({ id: i.id, name: i.name, unit: i.unit })),
           }}
         />
+      </div>
+
+      <div className="mt-6">
+        <SemiFinishedItemsList businessId={businessId} items={rows} />
       </div>
     </div>
   );

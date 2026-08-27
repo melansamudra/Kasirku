@@ -28,12 +28,16 @@ export default function ItemForm({
   // internalnya React-controlled, tidak ikut ke-reset oleh formRef.reset()
   // yang cuma menyentuh DOM uncontrolled).
   const [recipeBuilderResetToken, setRecipeBuilderResetToken] = useState(0);
+  // Controlled cuma supaya RecipeRowsBuilder bisa tampilkan label "Resep
+  // ini menghasilkan X <satuan>" yang ikut satuan yang lagi diketik.
+  const [unit, setUnit] = useState(defaultValues?.unit ?? "");
 
   useEffect(() => {
     if (!pending && !state.error && resetOnSuccess) {
       formRef.current?.reset();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRecipeBuilderResetToken((n) => n + 1);
+      setUnit("");
     }
   }, [pending, state.error, resetOnSuccess]);
 
@@ -63,7 +67,8 @@ export default function ItemForm({
             name="unit"
             type="text"
             placeholder="kg / liter / pcs"
-            defaultValue={defaultValues?.unit}
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
             required
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
@@ -125,6 +130,7 @@ export default function ItemForm({
             key={recipeBuilderResetToken}
             ingredients={recipeBuilder.ingredients}
             semiFinishedOptions={recipeBuilder.semiFinishedOptions}
+            resultUnit={unit}
           />
         </div>
       )}
