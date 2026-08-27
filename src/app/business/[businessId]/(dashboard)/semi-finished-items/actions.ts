@@ -7,6 +7,15 @@ import { wouldCreateCycle } from "@/lib/cost-control/compute-cost";
 
 export type ActionState = { error: string | null };
 
+// `recipeRows` (opsional, dikirim RecipeRowsBuilder sebagai JSON di hidden
+// input) -- biar staf bisa langsung isi komponen+jumlah resep saat BIKIN
+// item baru, tidak perlu buka halaman detail & edit lagi setelah tersimpan.
+// qty di tiap baris SUDAH dalam satuan dasar komponen (konversi kg/liter
+// sudah dilakukan di client, sama pola dengan RecipeEditor). Cycle-check
+// tidak perlu di sini -- item ini baru dibuat, belum mungkin ada resep lain
+// yang menunjuk balik ke dia.
+type RecipeRowInput = { component: string; qty: number };
+
 export async function addSemiFinishedItem(
   businessId: string,
   _prevState: ActionState,
@@ -30,22 +39,68 @@ export async function addSemiFinishedItem(
     return { error: "Fluctuation % harus antara 0-99." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("semi_finished_items").insert({
-    business_id: businessId,
-    name,
-    unit,
-    min_stock: minStock,
-    fluctuation_pct: fluctuationPct,
-    barcode,
-  });
+  const recipeRowsRaw = formData.get("recipeRows") as string | null;
+  let recipeRows: RecipeRowInput[] = [];
+  if (recipeRowsRaw) {
+    try {
+      recipeRows = JSON.parse(recipeRowsRaw);
+    } catch {
+      return { error: "Data komponen resep tidak valid." };
+    }
+  }
+  for (const row of recipeRows) {
+    const [componentType, componentId] = String(row.component ?? "").split(":");
+    if ((componentType !== "ingredient" && componentType !== "semi_finished") || !componentId) {
+      return { error: "Komponen resep tidak valid." };
+    }
+    if (!(Number(row.qty) > 0)) {
+      return { error: "Jumlah komponen resep harus lebih dari 0." };
+    }
+  }
 
-  if (error) {
-    return { error: error.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : error.message };
+  const supabase = await createClient();
+  const { data: newItem, error } = await supabase
+    .from("semi_finished_items")
+    .insert({
+      business_id: businessId,
+      name,
+      unit,
+      min_stock: minStock,
+      fluctuation_pct: fluctuationPct,
+      barcode,
+    })
+    .select("id")
+    .single();
+
+  if (error || !newItem) {
+    return { error: error?.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : (error?.message ?? "Gagal menyimpan.") };
+  }
+
+  for (const row of recipeRows) {
+    const [componentType, componentId] = row.component.split(":");
+    const table = componentType === "ingredient" ? "ingredients" : "semi_finished_items";
+    const { data: component } = await supabase
+      .from(table)
+      .select("unit")
+      .eq("id", componentId)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (!component) continue;
+
+    await supabase.from("semi_finished_recipes").insert({
+      business_id: businessId,
+      semi_finished_item_id: newItem.id,
+      component_type: componentType,
+      ingredient_id: componentType === "ingredient" ? componentId : null,
+      component_semi_finished_id: componentType === "semi_finished" ? componentId : null,
+      qty: row.qty,
+      unit: component.unit,
+    });
   }
 
   await logActivity(supabase, businessId, "produk", "sukses", `Bahan setengah jadi baru: ${name}`);
   revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/finished-products`);
   return { error: null };
 }
 

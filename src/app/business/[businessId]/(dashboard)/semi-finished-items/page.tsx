@@ -23,12 +23,20 @@ export default async function SemiFinishedItemsPage({
     notFound();
   }
 
-  const { data: items } = await supabase
-    .from("semi_finished_items")
-    .select("id, name, unit, stock, min_stock")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  const [{ data: items }, { data: ingredients }] = await Promise.all([
+    supabase
+      .from("semi_finished_items")
+      .select("id, name, unit, stock, min_stock")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("ingredients")
+      .select("id, name, unit")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+  ]);
 
   const costs = await computeAllSemiFinishedItemCosts(supabase, businessId);
   const boundAddItem = addSemiFinishedItem.bind(null, businessId);
@@ -65,7 +73,14 @@ export default async function SemiFinishedItemsPage({
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan Setengah Jadi</h2>
-        <ItemForm action={boundAddItem} submitLabel="+ Tambah Bahan Setengah Jadi" />
+        <ItemForm
+          action={boundAddItem}
+          submitLabel="+ Tambah Bahan Setengah Jadi"
+          recipeBuilder={{
+            ingredients: ingredients ?? [],
+            semiFinishedOptions: (items ?? []).map((i) => ({ id: i.id, name: i.name, unit: i.unit })),
+          }}
+        />
       </div>
     </div>
   );

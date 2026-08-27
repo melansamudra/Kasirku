@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState } from "react";
 import type { ActionState } from "./actions";
+import RecipeRowsBuilder from "./recipe-rows-builder";
 
 const initialState: ActionState = { error: null };
 
@@ -10,18 +11,29 @@ export default function ItemForm({
   defaultValues,
   submitLabel,
   resetOnSuccess = true,
+  recipeBuilder,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   defaultValues?: { name: string; unit: string; minStock: number; fluctuationPct?: number; barcode?: string | null };
   submitLabel: string;
   resetOnSuccess?: boolean;
+  recipeBuilder?: {
+    ingredients: { id: string; name: string; unit: string }[];
+    semiFinishedOptions: { id: string; name: string; unit: string }[];
+  };
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  // Dipakai sebagai `key` RecipeRowsBuilder supaya remount bersih (state
+  // internalnya React-controlled, tidak ikut ke-reset oleh formRef.reset()
+  // yang cuma menyentuh DOM uncontrolled).
+  const [recipeBuilderResetToken, setRecipeBuilderResetToken] = useState(0);
 
   useEffect(() => {
     if (!pending && !state.error && resetOnSuccess) {
       formRef.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRecipeBuilderResetToken((n) => n + 1);
     }
   }, [pending, state.error, resetOnSuccess]);
 
@@ -106,6 +118,16 @@ export default function ItemForm({
           Supaya bisa dicari lewat scan di link publik Permintaan Resto.
         </p>
       </div>
+
+      {recipeBuilder && (
+        <div className="border-t border-zinc-100 pt-3">
+          <RecipeRowsBuilder
+            key={recipeBuilderResetToken}
+            ingredients={recipeBuilder.ingredients}
+            semiFinishedOptions={recipeBuilder.semiFinishedOptions}
+          />
+        </div>
+      )}
 
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>}
 
