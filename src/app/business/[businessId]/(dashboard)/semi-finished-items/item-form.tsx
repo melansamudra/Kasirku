@@ -12,7 +12,7 @@ export default function ItemForm({
   resetOnSuccess = true,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  defaultValues?: { name: string; unit: string; minStock: number; fluctuationPct?: number };
+  defaultValues?: { name: string; unit: string; minStock: number; fluctuationPct?: number; barcode?: string | null };
   submitLabel: string;
   resetOnSuccess?: boolean;
 }) {
@@ -88,6 +88,22 @@ export default function ItemForm({
         />
         <p className="mt-1 text-[11px] text-zinc-400">
           Ditambahkan di atas jumlah bahan mentah sebelum jadi HPP final — mis. isi 15 untuk buffer 15%.
+        </p>
+      </div>
+      <div>
+        <label htmlFor="barcode" className="mb-1 block text-xs font-medium text-zinc-600">
+          Barcode (opsional)
+        </label>
+        <input
+          id="barcode"
+          name="barcode"
+          type="text"
+          placeholder="Scan atau ketik kode barcode"
+          defaultValue={defaultValues?.barcode ?? ""}
+          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Supaya bisa dicari lewat scan di link publik Permintaan Resto.
         </p>
       </div>
 

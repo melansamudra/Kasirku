@@ -18,6 +18,7 @@ export async function addSemiFinishedItem(
   const minStock = minStockRaw ? Number(minStockRaw) : 0;
   const fluctuationRaw = formData.get("fluctuationPct") as string;
   const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
+  const barcode = (formData.get("barcode") as string)?.trim() || null;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -36,10 +37,11 @@ export async function addSemiFinishedItem(
     unit,
     min_stock: minStock,
     fluctuation_pct: fluctuationPct,
+    barcode,
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : error.message };
   }
 
   await logActivity(supabase, businessId, "produk", "sukses", `Bahan setengah jadi baru: ${name}`);
@@ -59,6 +61,7 @@ export async function updateSemiFinishedItem(
   const minStock = minStockRaw ? Number(minStockRaw) : 0;
   const fluctuationRaw = formData.get("fluctuationPct") as string;
   const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
+  const barcode = (formData.get("barcode") as string)?.trim() || null;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -73,12 +76,12 @@ export async function updateSemiFinishedItem(
   const supabase = await createClient();
   const { error } = await supabase
     .from("semi_finished_items")
-    .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct })
+    .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct, barcode })
     .eq("id", itemId)
     .eq("business_id", businessId);
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : error.message };
   }
 
   await logActivity(supabase, businessId, "produk", "info", `Bahan setengah jadi diubah: ${name}`);

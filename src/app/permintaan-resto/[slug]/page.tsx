@@ -7,7 +7,7 @@ type OutletRequestInfo = {
   business_name: string;
   outlets: { id: string; name: string }[];
   employees: { id: string; name: string }[];
-  items: { id: string; name: string; unit: string; stock: number }[];
+  items: { id: string; name: string; unit: string; stock: number; barcode: string | null }[];
 };
 
 export default async function PermintaanRestoPublicPage({
