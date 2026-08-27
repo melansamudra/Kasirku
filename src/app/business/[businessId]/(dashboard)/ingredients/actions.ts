@@ -39,40 +39,6 @@ export async function updateIngredientDepartment(
   return { error: null };
 }
 
-// Gudang fisik tempat bahan disimpan (Gudang Kering/Basah, entitas sendiri
-// di tabel warehouses — lihat halaman /warehouses) — cost-control only,
-// interaksinya mirip pola department di atas. Satu bahan cuma satu gudang;
-// stoknya tetap satu angka (kolom `stock` yang sudah ada).
-export async function updateIngredientWarehouse(
-  businessId: string,
-  ingredientId: string,
-  warehouseId: string,
-): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-
-  if (warehouseId) {
-    const { data: warehouse } = await supabase
-      .from("warehouses")
-      .select("id")
-      .eq("id", warehouseId)
-      .eq("business_id", businessId)
-      .eq("kind", "bahan_baku")
-      .maybeSingle();
-    if (!warehouse) return { error: "Gudang tidak valid." };
-  }
-
-  const { error } = await supabase
-    .from("ingredients")
-    .update({ warehouse_id: warehouseId || null })
-    .eq("id", ingredientId)
-    .eq("business_id", businessId);
-
-  if (error) return { error: error.message };
-
-  revalidatePath(`/business/${businessId}/ingredients`);
-  return { error: null };
-}
-
 // Isi barcode buat semua bahan yang belum punya — dipakai tombol "Generate &
 // Cetak Barcode" di halaman Bahan Baku, supaya bahan lama (dibuat sebelum
 // kolom barcode ada) ikut kebagian kode tanpa perlu diedit satu-satu.

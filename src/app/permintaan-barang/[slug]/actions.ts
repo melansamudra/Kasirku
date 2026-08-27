@@ -19,6 +19,7 @@ export async function submitPurchaseRequest(
   employeeId: string,
   note: string,
   items: RequestItemInput[],
+  locationId: string | null = null,
 ): Promise<SubmitPurchaseRequestResult> {
   if (!employeeId) {
     return { success: false, error: "Pilih nama dulu." };
@@ -39,6 +40,7 @@ export async function submitPurchaseRequest(
       qtyOrdered: i.qtyOrdered,
       currentStock: i.currentStock,
     })),
+    p_location_id: locationId,
   });
 
   if (error) {

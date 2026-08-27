@@ -7,8 +7,10 @@ const initialState: AddIngredientState = { error: null };
 
 export default function AddIngredientForm({
   action,
+  costControlEnabled = false,
 }: {
   action: (state: AddIngredientState, formData: FormData) => Promise<AddIngredientState>;
+  costControlEnabled?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -78,36 +80,43 @@ export default function AddIngredientForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="stock" className="mb-1 block text-xs font-medium text-zinc-600">
-            Stok
-          </label>
-          <input
-            id="stock"
-            name="stock"
-            type="number"
-            min="0"
-            step="1"
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            placeholder="2000"
-          />
+      {costControlEnabled ? (
+        <p className="text-xs text-zinc-400">
+          Stok fisik diatur lewat menu Gudang Utama / Kitchen Atas / dst di sidebar, bukan di
+          sini.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="stock" className="mb-1 block text-xs font-medium text-zinc-600">
+              Stok
+            </label>
+            <input
+              id="stock"
+              name="stock"
+              type="number"
+              min="0"
+              step="1"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              placeholder="2000"
+            />
+          </div>
+          <div>
+            <label htmlFor="minStock" className="mb-1 block text-xs font-medium text-zinc-600">
+              Stok Minimum
+            </label>
+            <input
+              id="minStock"
+              name="minStock"
+              type="number"
+              min="0"
+              step="1"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              placeholder="0 = tanpa notifikasi"
+            />
+          </div>
         </div>
-        <div>
-          <label htmlFor="minStock" className="mb-1 block text-xs font-medium text-zinc-600">
-            Stok Minimum
-          </label>
-          <input
-            id="minStock"
-            name="minStock"
-            type="number"
-            min="0"
-            step="1"
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            placeholder="0 = tanpa notifikasi"
-          />
-        </div>
-      </div>
+      )}
 
       {state.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>

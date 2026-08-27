@@ -30,6 +30,7 @@ type AllocationRow = {
 type RequestRow = {
   id: string;
   employee_name: string;
+  location_id: string | null;
   status: "baru" | "diterima" | "diteruskan";
   note: string | null;
   created_at: string;
@@ -53,7 +54,7 @@ export default async function PermintaanBarangPage({
     notFound();
   }
 
-  const [{ data: suppliers }, { data: requests }, { data: items }, { data: allocations }, { data: ingredients }] =
+  const [{ data: suppliers }, { data: requests }, { data: items }, { data: allocations }, { data: ingredients }, { data: locations }] =
     await Promise.all([
       supabase
         .from("suppliers")
@@ -63,7 +64,7 @@ export default async function PermintaanBarangPage({
         .order("name", { ascending: true }),
       supabase
         .from("purchase_requests")
-        .select("id, employee_name, status, note, created_at")
+        .select("id, employee_name, location_id, status, note, created_at")
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -78,9 +79,11 @@ export default async function PermintaanBarangPage({
         .select("id, purchase_request_item_id, supplier_id, qty, forwarded_at, received_at, purchase_id")
         .eq("business_id", businessId),
       supabase.from("ingredients").select("id, department").eq("business_id", businessId),
+      supabase.from("stock_locations").select("id, name").eq("business_id", businessId),
     ]);
 
   const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
+  const locationNameById = new Map((locations ?? []).map((l) => [l.id, l.name]));
 
   const allocationsByItem = new Map<string, AllocationRow[]>();
   for (const a of (allocations ?? []) as AllocationRow[]) {
@@ -139,6 +142,7 @@ export default async function PermintaanBarangPage({
               request={{
                 id: r.id,
                 employeeName: r.employee_name,
+                locationName: r.location_id ? (locationNameById.get(r.location_id) ?? null) : null,
                 status: r.status,
                 note: r.note,
                 createdAt: r.created_at,

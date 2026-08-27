@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
-import PicSelect from "@/components/pic-select";
-import { updateWarehousePic } from "../warehouses/actions";
 import { addSemiFinishedItem } from "./actions";
 import ItemForm from "./item-form";
 import SemiFinishedItemsList, { type SemiFinishedItemRow } from "./item-search-list";
@@ -25,26 +23,12 @@ export default async function SemiFinishedItemsPage({
     notFound();
   }
 
-  const [{ data: items }, { data: warehouse }, { data: employees }] = await Promise.all([
-    supabase
-      .from("semi_finished_items")
-      .select("id, name, unit, stock, min_stock")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
-    supabase
-      .from("warehouses")
-      .select("id, pic_employee_id")
-      .eq("business_id", businessId)
-      .eq("kind", "setengah_jadi")
-      .maybeSingle(),
-    supabase
-      .from("employees")
-      .select("id, name")
-      .eq("business_id", businessId)
-      .eq("active", true)
-      .order("name", { ascending: true }),
-  ]);
+  const { data: items } = await supabase
+    .from("semi_finished_items")
+    .select("id, name, unit, stock, min_stock")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
 
   const costs = await computeAllSemiFinishedItemCosts(supabase, businessId);
   const boundAddItem = addSemiFinishedItem.bind(null, businessId);
@@ -66,26 +50,13 @@ export default async function SemiFinishedItemsPage({
 
   return (
     <div className="w-full max-w-3xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-zinc-900">Bahan Setengah Jadi — {business.name}</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Resep (BOM) bahan setengah jadi yang dibuat tim produksi. HPP dihitung otomatis dari
-            bahan baku &amp; bahan setengah jadi lain yang dipakai — atur resepnya di halaman detail
-            tiap item.
-          </p>
-        </div>
-        {warehouse && (
-          <div className="shrink-0 text-right">
-            <p className="mb-1 text-[10.5px] font-semibold uppercase text-zinc-400">PIC Gudang</p>
-            <PicSelect
-              id={warehouse.id}
-              picEmployeeId={warehouse.pic_employee_id}
-              employees={employees ?? []}
-              action={updateWarehousePic.bind(null, businessId)}
-            />
-          </div>
-        )}
+      <div>
+        <h1 className="text-lg font-bold text-zinc-900">Bahan Setengah Jadi — {business.name}</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Resep (BOM) bahan setengah jadi yang dibuat tim produksi. HPP dihitung otomatis dari
+          bahan baku &amp; bahan setengah jadi lain yang dipakai — atur resepnya di halaman detail
+          tiap item.
+        </p>
       </div>
 
       <div className="mt-6">

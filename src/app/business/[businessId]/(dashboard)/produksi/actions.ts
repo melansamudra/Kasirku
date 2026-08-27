@@ -9,17 +9,37 @@ import type { Database } from "@/lib/types/database";
 
 export type ActionState = { error: string | null };
 
+// Produksi cuma terjadi & memotong stok di satu lokasi fisik (Dapur
+// Produksi, ditandai stock_locations.is_production) -- lihat plan Fase 2
+// "Satukan Stok per Lokasi". null kalau lokasi itu belum diset (mis. migrasi
+// belum jalan) — dipakai caller untuk gagal eksplisit sebelum menyentuh stok.
+async function getProductionLocationId(
+  supabase: SupabaseClient<Database>,
+  businessId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("stock_locations")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("is_production", true)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 // Mutasi stok (potong komponen + tambah stok hasil) yang sebelumnya cuma ada
 // di recordProductionRun, ditarik jadi fungsi bersama supaya bisa dipakai
 // juga oleh verifyProductionRun (draft hasil scan publik yang baru boleh
-// menyentuh stok setelah diverifikasi). Mengembalikan total_cost/unit_cost
+// menyentuh stok setelah diverifikasi). Baca/tulis stok di
+// ingredient_location_stock/semi_finished_item_location_stock milik lokasi
+// Dapur Produksi (BUKAN ingredients.stock/semi_finished_items.stock, yang
+// berhenti dipakai di jalur cost-control). Mengembalikan total_cost/unit_cost
 // hasil hitung, atau { error } kalau stok komponen tidak cukup.
 async function applyProductionStockMutation(
   supabase: SupabaseClient<Database>,
   businessId: string,
+  locationId: string,
   runId: string,
   semiFinishedItemId: string,
-  itemStock: number,
   qtyProduced: number,
 ): Promise<{ error: string } | { totalCost: number; unitCost: number }> {
   const cost = await computeSemiFinishedItemCost(supabase, businessId, semiFinishedItemId);
@@ -32,27 +52,39 @@ async function applyProductionStockMutation(
 
   const ingredientStocks =
     ingredientIds.length > 0
-      ? ((await supabase.from("ingredients").select("id, stock").in("id", ingredientIds)).data ?? [])
+      ? (
+          await supabase
+            .from("ingredient_location_stock")
+            .select("id, ingredient_id, stock")
+            .eq("location_id", locationId)
+            .in("ingredient_id", ingredientIds)
+        ).data ?? []
       : [];
   const semiStocks =
     semiIds.length > 0
-      ? ((await supabase.from("semi_finished_items").select("id, stock").in("id", semiIds)).data ?? [])
+      ? (
+          await supabase
+            .from("semi_finished_item_location_stock")
+            .select("id, semi_finished_item_id, stock")
+            .eq("location_id", locationId)
+            .in("semi_finished_item_id", semiIds)
+        ).data ?? []
       : [];
 
-  const stockMap = new Map<string, number>();
-  for (const row of ingredientStocks) stockMap.set(row.id, Number(row.stock));
-  for (const row of semiStocks) stockMap.set(row.id, Number(row.stock));
+  const rowMap = new Map<string, { id: string; stock: number }>();
+  for (const row of ingredientStocks) rowMap.set(row.ingredient_id, { id: row.id, stock: Number(row.stock) });
+  for (const row of semiStocks) rowMap.set(row.semi_finished_item_id, { id: row.id, stock: Number(row.stock) });
 
   const shortages: string[] = [];
   for (const line of cost.breakdown) {
     const need = line.qty * qtyProduced;
-    const available = stockMap.get(line.id) ?? 0;
+    const available = rowMap.get(line.id)?.stock ?? 0;
     if (available < need - 1e-9) {
       shortages.push(`${line.name} (butuh ${need.toFixed(2)} ${line.unit}, tersedia ${available.toFixed(2)})`);
     }
   }
   if (shortages.length > 0) {
-    return { error: `Stok tidak cukup: ${shortages.join(", ")}.` };
+    return { error: `Stok tidak cukup di Dapur Produksi: ${shortages.join(", ")}.` };
   }
 
   const totalCost = cost.unitCost * qtyProduced;
@@ -72,21 +104,78 @@ async function applyProductionStockMutation(
       subtotal_cost: line.subtotal * qtyProduced,
     });
 
-    const table = line.componentType === "ingredient" ? "ingredients" : "semi_finished_items";
-    await supabase
-      .from(table)
-      .update({ stock: (stockMap.get(line.id) ?? 0) - need })
-      .eq("id", line.id)
-      .eq("business_id", businessId);
+    const table = line.componentType === "ingredient" ? "ingredient_location_stock" : "semi_finished_item_location_stock";
+    const row = rowMap.get(line.id)!;
+    await supabase.from(table).update({ stock: row.stock - need }).eq("id", row.id);
   }
 
-  await supabase
-    .from("semi_finished_items")
-    .update({ stock: itemStock + qtyProduced })
-    .eq("id", semiFinishedItemId)
-    .eq("business_id", businessId);
+  await upsertSemiFinishedLocationStock(supabase, businessId, locationId, semiFinishedItemId, qtyProduced);
 
   return { totalCost, unitCost: cost.unitCost };
+}
+
+// Tambah `delta` ke stok lokasi suatu bahan setengah jadi (insert baris baru
+// kalau belum ada) — dipakai untuk mengkredit hasil produksi ke
+// semi_finished_item_location_stock milik Dapur Produksi. `delta` boleh
+// negatif (dipakai voidProductionRun untuk membalik, di-floor ke 0).
+async function upsertSemiFinishedLocationStock(
+  supabase: SupabaseClient<Database>,
+  businessId: string,
+  locationId: string,
+  semiFinishedItemId: string,
+  delta: number,
+): Promise<void> {
+  const { data: existing } = await supabase
+    .from("semi_finished_item_location_stock")
+    .select("id, stock")
+    .eq("location_id", locationId)
+    .eq("semi_finished_item_id", semiFinishedItemId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("semi_finished_item_location_stock")
+      .update({ stock: Math.max(0, Number(existing.stock) + delta) })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("semi_finished_item_location_stock").insert({
+      business_id: businessId,
+      location_id: locationId,
+      semi_finished_item_id: semiFinishedItemId,
+      stock: Math.max(0, delta),
+    });
+  }
+}
+
+// Sama seperti di atas, tapi untuk ingredient_location_stock — dipakai
+// voidProductionRun mengembalikan bahan baku yang sempat dikonsumsi.
+async function upsertIngredientLocationStock(
+  supabase: SupabaseClient<Database>,
+  businessId: string,
+  locationId: string,
+  ingredientId: string,
+  delta: number,
+): Promise<void> {
+  const { data: existing } = await supabase
+    .from("ingredient_location_stock")
+    .select("id, stock")
+    .eq("location_id", locationId)
+    .eq("ingredient_id", ingredientId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("ingredient_location_stock")
+      .update({ stock: Math.max(0, Number(existing.stock) + delta) })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("ingredient_location_stock").insert({
+      business_id: businessId,
+      location_id: locationId,
+      ingredient_id: ingredientId,
+      stock: Math.max(0, delta),
+    });
+  }
 }
 
 // Jalur ALTERNATIF dari applyProductionStockMutation -- dipakai kalau
@@ -99,9 +188,9 @@ async function applyProductionStockMutation(
 async function applyReportedStockMutation(
   supabase: SupabaseClient<Database>,
   businessId: string,
+  locationId: string,
   runId: string,
   semiFinishedItemId: string,
-  itemStock: number,
   qtyProduced: number,
 ): Promise<{ error: string } | { totalCost: number; unitCost: number }> {
   const { data: reportedLines } = await supabase
@@ -117,11 +206,16 @@ async function applyReportedStockMutation(
   }
 
   const ingredientIds = reportedLines.map((l) => l.ingredient_id as string);
-  const { data: ingRows } = await supabase
-    .from("ingredients")
-    .select("id, name, unit_cost, stock")
-    .in("id", ingredientIds);
+  const [{ data: ingRows }, { data: locStockRows }] = await Promise.all([
+    supabase.from("ingredients").select("id, name, unit_cost").in("id", ingredientIds),
+    supabase
+      .from("ingredient_location_stock")
+      .select("id, ingredient_id, stock")
+      .eq("location_id", locationId)
+      .in("ingredient_id", ingredientIds),
+  ]);
   const ingById = new Map((ingRows ?? []).map((r) => [r.id, r]));
+  const locStockById = new Map((locStockRows ?? []).map((r) => [r.ingredient_id, { id: r.id, stock: Number(r.stock) }]));
 
   const shortages: string[] = [];
   for (const line of reportedLines) {
@@ -130,12 +224,13 @@ async function applyReportedStockMutation(
       shortages.push(`${line.reported_name} (bahan sudah dihapus)`);
       continue;
     }
-    if (Number(ing.stock) < Number(line.qty) - 1e-9) {
-      shortages.push(`${ing.name} (butuh ${line.qty} ${line.reported_unit}, tersedia ${ing.stock})`);
+    const available = locStockById.get(line.ingredient_id as string)?.stock ?? 0;
+    if (available < Number(line.qty) - 1e-9) {
+      shortages.push(`${ing.name} (butuh ${line.qty} ${line.reported_unit}, tersedia ${available})`);
     }
   }
   if (shortages.length > 0) {
-    return { error: `Stok tidak cukup: ${shortages.join(", ")}.` };
+    return { error: `Stok tidak cukup di Dapur Produksi: ${shortages.join(", ")}.` };
   }
 
   let totalCost = 0;
@@ -157,18 +252,14 @@ async function applyReportedStockMutation(
       subtotal_cost: subtotal,
     });
 
+    const locRow = locStockById.get(line.ingredient_id as string)!;
     await supabase
-      .from("ingredients")
-      .update({ stock: Number(ing.stock) - Number(line.qty) })
-      .eq("id", ing.id)
-      .eq("business_id", businessId);
+      .from("ingredient_location_stock")
+      .update({ stock: locRow.stock - Number(line.qty) })
+      .eq("id", locRow.id);
   }
 
-  await supabase
-    .from("semi_finished_items")
-    .update({ stock: itemStock + qtyProduced })
-    .eq("id", semiFinishedItemId)
-    .eq("business_id", businessId);
+  await upsertSemiFinishedLocationStock(supabase, businessId, locationId, semiFinishedItemId, qtyProduced);
 
   return { totalCost, unitCost: qtyProduced > 0 ? totalCost / qtyProduced : 0 };
 }
@@ -195,9 +286,14 @@ export async function recordProductionRun(
 
   const supabase = await createClient();
 
+  const locationId = await getProductionLocationId(supabase, businessId);
+  if (!locationId) {
+    return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
+  }
+
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, stock")
+    .select("id, name, unit")
     .eq("id", semiFinishedItemId)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -247,9 +343,9 @@ export async function recordProductionRun(
   const mutation = await applyProductionStockMutation(
     supabase,
     businessId,
+    locationId,
     run.id,
     semiFinishedItemId,
-    Number(item.stock),
     qtyProduced,
   );
   if ("error" in mutation) {
@@ -285,6 +381,11 @@ export async function voidProductionRun(businessId: string, runId: string, reaso
 
   const supabase = await createClient();
 
+  const locationId = await getProductionLocationId(supabase, businessId);
+  if (!locationId) {
+    return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
+  }
+
   const { data: run } = await supabase
     .from("production_runs")
     .select("id, semi_finished_item_id, qty_produced, voided")
@@ -305,31 +406,24 @@ export async function voidProductionRun(businessId: string, runId: string, reaso
     .eq("production_run_id", runId);
 
   for (const c of consumptions ?? []) {
-    const table = c.component_type === "ingredient" ? "ingredients" : "semi_finished_items";
     const componentId = c.component_type === "ingredient" ? c.ingredient_id : c.semi_finished_item_id;
     if (!componentId) continue;
 
-    const { data: current } = await supabase.from(table).select("stock").eq("id", componentId).maybeSingle();
-    if (current) {
-      await supabase
-        .from(table)
-        .update({ stock: Number(current.stock) + Number(c.qty_consumed) })
-        .eq("id", componentId);
+    if (c.component_type === "ingredient") {
+      await upsertIngredientLocationStock(supabase, businessId, locationId, componentId, Number(c.qty_consumed));
+    } else {
+      await upsertSemiFinishedLocationStock(supabase, businessId, locationId, componentId, Number(c.qty_consumed));
     }
   }
 
   if (run.semi_finished_item_id) {
-    const { data: item } = await supabase
-      .from("semi_finished_items")
-      .select("stock")
-      .eq("id", run.semi_finished_item_id)
-      .maybeSingle();
-    if (item) {
-      await supabase
-        .from("semi_finished_items")
-        .update({ stock: Math.max(0, Number(item.stock) - Number(run.qty_produced)) })
-        .eq("id", run.semi_finished_item_id);
-    }
+    await upsertSemiFinishedLocationStock(
+      supabase,
+      businessId,
+      locationId,
+      run.semi_finished_item_id,
+      -Number(run.qty_produced),
+    );
   }
 
   await supabase
@@ -354,6 +448,11 @@ export async function verifyProductionRun(
 ): Promise<ActionState> {
   const supabase = await createClient();
 
+  const locationId = await getProductionLocationId(supabase, businessId);
+  if (!locationId) {
+    return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
+  }
+
   const { data: run } = await supabase
     .from("production_runs")
     .select("id, semi_finished_item_id, qty_produced, status")
@@ -373,7 +472,7 @@ export async function verifyProductionRun(
 
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("stock")
+    .select("id")
     .eq("id", run.semi_finished_item_id)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -385,17 +484,17 @@ export async function verifyProductionRun(
     ? await applyReportedStockMutation(
         supabase,
         businessId,
+        locationId,
         run.id,
         run.semi_finished_item_id,
-        Number(item.stock),
         Number(run.qty_produced),
       )
     : await applyProductionStockMutation(
         supabase,
         businessId,
+        locationId,
         run.id,
         run.semi_finished_item_id,
-        Number(item.stock),
         Number(run.qty_produced),
       );
   if ("error" in mutation) {

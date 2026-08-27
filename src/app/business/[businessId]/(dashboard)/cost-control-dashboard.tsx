@@ -37,7 +37,7 @@ export default async function CostControlDashboard({ businessId }: { businessId:
     { count: finishedCount },
     { count: outletCount },
     { count: pendingRequestCount },
-    { count: pendingWarehouseRequestCount },
+    { count: pendingPurchaseRequestCount },
     { data: recentRuns },
     { data: stockLocations },
     costMap,
@@ -63,7 +63,7 @@ export default async function CostControlDashboard({ businessId }: { businessId:
       .eq("business_id", businessId)
       .eq("status", "baru"),
     supabase
-      .from("warehouse_requests")
+      .from("purchase_requests")
       .select("id", { count: "exact", head: true })
       .eq("business_id", businessId)
       .eq("status", "baru"),
@@ -147,12 +147,12 @@ export default async function CostControlDashboard({ businessId }: { businessId:
               ● {pendingRequestCount} permintaan resto menunggu
             </Link>
           )}
-          {(pendingWarehouseRequestCount ?? 0) > 0 && (
+          {(pendingPurchaseRequestCount ?? 0) > 0 && (
             <Link
-              href={`${base}/permintaan-gudang`}
+              href={`${base}/permintaan-barang`}
               className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
             >
-              ● {pendingWarehouseRequestCount} permintaan gudang menunggu
+              ● {pendingPurchaseRequestCount} permintaan barang menunggu
             </Link>
           )}
         </div>
@@ -288,9 +288,6 @@ export default async function CostControlDashboard({ businessId }: { businessId:
 
       {/* Quick links */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link href={`${base}/warehouses`} className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50">
-          Gudang →
-        </Link>
         <Link href={`${base}/semi-finished-items`} className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50">
           Bahan Setengah Jadi →
         </Link>
@@ -306,8 +303,8 @@ export default async function CostControlDashboard({ businessId }: { businessId:
         <Link href={`${base}/permintaan-resto`} className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50">
           Permintaan Resto →
         </Link>
-        <Link href={`${base}/permintaan-gudang`} className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50">
-          Permintaan Gudang →
+        <Link href={`${base}/permintaan-barang`} className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50">
+          Permintaan Barang →
         </Link>
       </div>
     </div>

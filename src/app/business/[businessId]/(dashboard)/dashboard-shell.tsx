@@ -48,7 +48,6 @@ import {
   ChevronRight,
   PiggyBank,
   ChefHat,
-  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -85,7 +84,7 @@ const STARTER_ALLOWED_KEYS = new Set([
 function buildCostControlNavGroups(
   base: string,
   mirroringEnabled: boolean,
-  stockLocations: { id: string; name: string }[] = [],
+  stockLocations: { id: string; name: string; isProduction: boolean }[] = [],
 ): NavGroup[] {
   return [
     {
@@ -98,7 +97,6 @@ function buildCostControlNavGroups(
     {
       title: "Master & HPP",
       items: [
-        { key: "warehouses", href: `${base}/warehouses`, label: "Gudang", icon: Warehouse },
         { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
         { key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: Beaker },
         { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
@@ -107,7 +105,6 @@ function buildCostControlNavGroups(
     {
       title: "Operasional",
       items: [
-        { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
         { key: "outlets", href: `${base}/outlets`, label: "Outlet", icon: Store },
         { key: "outlet-requests", href: `${base}/permintaan-resto`, label: "Permintaan Resto", icon: ClipboardList },
       ],
@@ -115,7 +112,9 @@ function buildCostControlNavGroups(
     // Satu grup sidebar per lokasi fisik (Gudang Utama/Kitchen Atas/dst) --
     // stok bahan baku & bahan setengah jadi di tiap lokasi dilacak terpisah
     // dari stok tunggal ingredients.stock/semi_finished_items.stock (yang
-    // tetap dipakai apa adanya oleh POS/pembelian/produksi yang sudah ada).
+    // tetap dipakai apa adanya oleh POS bisnis FNB lain, bukan cost-control).
+    // Lokasi yang ditandai `isProduction` (Dapur Produksi) ikut dapat menu
+    // "Produksi" -- Produksi cuma terjadi & memotong stok di lokasi itu.
     // Kosong (tidak ada baris stock_locations) = tidak ada grup tambahan,
     // jadi bisnis cost-control lain yang belum pakai fitur ini tidak terdampak.
     ...stockLocations.map((loc) => ({
@@ -133,6 +132,9 @@ function buildCostControlNavGroups(
           label: "Bahan Setengah Jadi",
           icon: Beaker,
         },
+        ...(loc.isProduction
+          ? [{ key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory }]
+          : []),
       ],
     })),
     {
@@ -141,7 +143,6 @@ function buildCostControlNavGroups(
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
-        { key: "warehouse-requests", href: `${base}/permintaan-gudang`, label: "Permintaan Gudang", icon: ClipboardList },
       ],
     },
     {
@@ -178,7 +179,7 @@ function buildNavGroups(
   isStarter: boolean,
   mirroringEnabled = false,
   costControlEnabled = false,
-  stockLocations: { id: string; name: string }[] = [],
+  stockLocations: { id: string; name: string; isProduction: boolean }[] = [],
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
@@ -639,7 +640,7 @@ export default function DashboardShell({
   permissions?: string[];
   mirroringEnabled?: boolean;
   costControlEnabled?: boolean;
-  stockLocations?: { id: string; name: string }[];
+  stockLocations?: { id: string; name: string; isProduction: boolean }[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();

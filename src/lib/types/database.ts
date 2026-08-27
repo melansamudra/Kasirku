@@ -311,7 +311,6 @@ export type Database = {
           purchase_request_slug: string | null;
           cost_control_enabled: boolean;
           outlet_request_slug: string | null;
-          warehouse_request_slug: string | null;
           production_scan_slug: string | null;
         };
         Insert: {
@@ -344,7 +343,6 @@ export type Database = {
           purchase_request_slug?: string | null;
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
-          warehouse_request_slug?: string | null;
           production_scan_slug?: string | null;
         };
         Update: {
@@ -377,7 +375,6 @@ export type Database = {
           purchase_request_slug?: string | null;
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
-          warehouse_request_slug?: string | null;
           production_scan_slug?: string | null;
         };
         Relationships: [];
@@ -922,7 +919,6 @@ export type Database = {
           deleted_at: string | null;
           min_stock: number;
           department: string | null;
-          warehouse_id: string | null;
           barcode: string | null;
         };
         Insert: {
@@ -935,7 +931,6 @@ export type Database = {
           deleted_at?: string | null;
           min_stock?: number;
           department?: string | null;
-          warehouse_id?: string | null;
           barcode?: string | null;
         };
         Update: {
@@ -948,7 +943,6 @@ export type Database = {
           deleted_at?: string | null;
           min_stock?: number;
           department?: string | null;
-          warehouse_id?: string | null;
           barcode?: string | null;
         };
         Relationships: [];
@@ -2390,138 +2384,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      warehouse_stock: {
-        Row: {
-          id: string;
-          business_id: string;
-          warehouse_id: string;
-          ingredient_id: string;
-          stock: number;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          business_id: string;
-          warehouse_id: string;
-          ingredient_id: string;
-          stock?: number;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          business_id?: string;
-          warehouse_id?: string;
-          ingredient_id?: string;
-          stock?: number;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      warehouse_requests: {
-        Row: {
-          id: string;
-          business_id: string;
-          warehouse_id: string | null;
-          warehouse_name: string;
-          employee_id: string | null;
-          employee_name: string;
-          status: string;
-          note: string | null;
-          reject_reason: string | null;
-          created_at: string;
-          decided_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          business_id: string;
-          warehouse_id?: string | null;
-          warehouse_name: string;
-          employee_id?: string | null;
-          employee_name: string;
-          status?: string;
-          note?: string | null;
-          reject_reason?: string | null;
-          created_at?: string;
-          decided_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          business_id?: string;
-          warehouse_id?: string | null;
-          warehouse_name?: string;
-          employee_id?: string | null;
-          employee_name?: string;
-          status?: string;
-          note?: string | null;
-          reject_reason?: string | null;
-          created_at?: string;
-          decided_at?: string | null;
-        };
-        Relationships: [];
-      };
-      warehouse_request_items: {
-        Row: {
-          id: string;
-          business_id: string;
-          warehouse_request_id: string;
-          ingredient_id: string | null;
-          item_name: string;
-          unit: string;
-          qty_requested: number;
-          qty_fulfilled: number | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          business_id: string;
-          warehouse_request_id: string;
-          ingredient_id?: string | null;
-          item_name: string;
-          unit: string;
-          qty_requested: number;
-          qty_fulfilled?: number | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          business_id?: string;
-          warehouse_request_id?: string;
-          ingredient_id?: string | null;
-          item_name?: string;
-          unit?: string;
-          qty_requested?: number;
-          qty_fulfilled?: number | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      warehouses: {
-        Row: {
-          id: string;
-          business_id: string;
-          name: string;
-          kind: string;
-          pic_employee_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          business_id: string;
-          name: string;
-          kind?: string;
-          pic_employee_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          business_id?: string;
-          name?: string;
-          kind?: string;
-          pic_employee_id?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
       outlet_stock: {
         Row: {
           id: string;
@@ -2641,6 +2503,7 @@ export type Database = {
           created_at: string;
           received_at: string | null;
           forwarded_at: string | null;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2652,6 +2515,7 @@ export type Database = {
           created_at?: string;
           received_at?: string | null;
           forwarded_at?: string | null;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2663,6 +2527,7 @@ export type Database = {
           created_at?: string;
           received_at?: string | null;
           forwarded_at?: string | null;
+          location_id?: string | null;
         };
         Relationships: [];
       };
@@ -2685,6 +2550,7 @@ export type Database = {
           voided_at: string | null;
           void_reason: string | null;
           stock_only: boolean;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2704,6 +2570,7 @@ export type Database = {
           voided_at?: string | null;
           void_reason?: string | null;
           stock_only?: boolean;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2723,6 +2590,7 @@ export type Database = {
           voided_at?: string | null;
           void_reason?: string | null;
           stock_only?: boolean;
+          location_id?: string | null;
         };
         Relationships: [
           {
@@ -3060,6 +2928,8 @@ export type Database = {
           name: string;
           sort_order: number;
           created_at: string;
+          is_default_purchase: boolean;
+          is_production: boolean;
         };
         Insert: {
           id?: string;
@@ -3067,6 +2937,8 @@ export type Database = {
           name: string;
           sort_order?: number;
           created_at?: string;
+          is_default_purchase?: boolean;
+          is_production?: boolean;
         };
         Update: {
           id?: string;
@@ -3074,6 +2946,8 @@ export type Database = {
           name?: string;
           sort_order?: number;
           created_at?: string;
+          is_default_purchase?: boolean;
+          is_production?: boolean;
         };
         Relationships: [];
       };
@@ -3769,6 +3643,7 @@ export type Database = {
           p_employee_id: string;
           p_note: string | null;
           p_items: Json;
+          p_location_id?: string | null;
         };
         Returns: string;
       };
@@ -3800,20 +3675,6 @@ export type Database = {
           p_new_item_name?: string | null;
           p_new_item_unit?: string | null;
           p_reported_ingredients?: Json;
-        };
-        Returns: string;
-      };
-      get_warehouse_request_info: {
-        Args: { p_slug: string };
-        Returns: Json;
-      };
-      submit_warehouse_request: {
-        Args: {
-          p_slug: string;
-          p_warehouse_id: string;
-          p_employee_id: string;
-          p_note: string | null;
-          p_items: Json;
         };
         Returns: string;
       };

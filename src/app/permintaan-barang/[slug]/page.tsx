@@ -16,6 +16,7 @@ type PurchaseRequestInfo = {
     barcode: string | null;
     purchase_units: { unitName: string; conversion: number }[];
   }[];
+  stock_locations: { id: string; name: string }[];
 };
 
 export default async function PermintaanBarangPage({
@@ -50,6 +51,7 @@ export default async function PermintaanBarangPage({
           barcode: i.barcode,
           purchaseUnits: i.purchase_units ?? [],
         }))}
+        stockLocations={info.stock_locations ?? []}
       />
     </div>
   );

@@ -61,15 +61,18 @@ export default function RequestClient({
   isFnb,
   employees,
   items,
+  stockLocations,
 }: {
   slug: string;
   businessName: string;
   isFnb: boolean;
   employees: Employee[];
   items: MasterItem[];
+  stockLocations: { id: string; name: string }[];
 }) {
   const formId = useId();
   const [employeeId, setEmployeeId] = useState("");
+  const [locationId, setLocationId] = useState("");
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<CartRow[]>([emptyRow(isFnb ? "" : "pcs")]);
   const [pending, setPending] = useState(false);
@@ -160,6 +163,10 @@ export default function RequestClient({
       setResult({ ok: false, message: "Pilih nama dulu." });
       return;
     }
+    if (stockLocations.length > 0 && !locationId) {
+      setResult({ ok: false, message: "Pilih lokasi dulu." });
+      return;
+    }
 
     const preparedItems: {
       itemId: string | null;
@@ -212,7 +219,7 @@ export default function RequestClient({
     }
 
     setPending(true);
-    const res = await submitPurchaseRequest(slug, employeeId, note, preparedItems);
+    const res = await submitPurchaseRequest(slug, employeeId, note, preparedItems, locationId || null);
     setPending(false);
 
     if (!res.success) {
@@ -223,6 +230,7 @@ export default function RequestClient({
     setResult({ ok: true, message: "Order barang terkirim! Admin akan proses ke supplier." });
     setRows([emptyRow(isFnb ? "" : "pcs")]);
     setNote("");
+    setLocationId("");
   }
 
   return (
@@ -251,6 +259,24 @@ export default function RequestClient({
             ))}
           </select>
         </div>
+
+        {stockLocations.length > 0 && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">Lokasi</label>
+            <select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">— Pilih lokasi —</option>
+              {stockLocations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Scan Barcode (opsional)</label>

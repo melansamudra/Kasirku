@@ -1,9 +1,18 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState, useMemo } from "react";
 import type { ActionState } from "./actions";
 
 const initialState: ActionState = { error: null };
+
+// Konversi kemudahan input: resep tetap disimpan di satuan dasar bahan
+// (gr/ml) seperti sebelumnya (server tidak berubah sama sekali) -- ini
+// murni multiplier di sisi client sebelum submit, supaya staf yang biasa
+// mikir dalam kiloan tidak perlu ketik "25000" tiap kali.
+const CONVENIENCE_UNITS: Record<string, { label: string; factor: number }> = {
+  gr: { label: "kg", factor: 1000 },
+  ml: { label: "liter", factor: 1000 },
+};
 
 export default function RecipeEditor({
   action,
@@ -14,16 +23,44 @@ export default function RecipeEditor({
   ingredients: { id: string; name: string; unit: string }[];
   semiFinishedOptions: { id: string; name: string; unit: string }[];
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const wrappedAction = async (state: ActionState, formData: FormData): Promise<ActionState> => {
+    const qtyUnit = formData.get("qtyUnit") as string;
+    const baseUnit = formData.get("baseUnit") as string;
+    const convenience = CONVENIENCE_UNITS[baseUnit?.toLowerCase()];
+    if (convenience && qtyUnit === convenience.label) {
+      const qty = Number(formData.get("qty"));
+      formData.set("qty", String(qty * convenience.factor));
+    }
+    return action(state, formData);
+  };
+
+  const [state, formAction, pending] = useActionState(wrappedAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const [component, setComponent] = useState("");
+  const [qtyUnit, setQtyUnit] = useState<string>("base");
 
   useEffect(() => {
     if (!pending && !state.error) {
+      // formRef.current?.reset() adalah DOM mutation lewat ref — harus di
+      // effect, tidak bisa "adjust during render". setState di bawah ikut
+      // di sini karena triggernya sama (submit sukses).
       formRef.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setComponent("");
+      setQtyUnit("base");
     }
   }, [pending, state.error]);
 
   const noOptions = ingredients.length === 0 && semiFinishedOptions.length === 0;
+
+  const selectedUnit = useMemo(() => {
+    if (!component) return null;
+    const [type, id] = component.split(":");
+    const list = type === "ingredient" ? ingredients : semiFinishedOptions;
+    return list.find((x) => x.id === id)?.unit ?? null;
+  }, [component, ingredients, semiFinishedOptions]);
+
+  const convenience = selectedUnit ? CONVENIENCE_UNITS[selectedUnit.toLowerCase()] : undefined;
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-wrap items-end gap-2">
@@ -36,6 +73,11 @@ export default function RecipeEditor({
           name="component"
           required
           disabled={noOptions}
+          value={component}
+          onChange={(e) => {
+            setComponent(e.target.value);
+            setQtyUnit("base");
+          }}
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-zinc-50"
         >
           <option value="">Pilih komponen…</option>
@@ -59,7 +101,8 @@ export default function RecipeEditor({
           )}
         </select>
       </div>
-      <div className="w-28">
+      <input type="hidden" name="baseUnit" value={selectedUnit ?? ""} />
+      <div className="w-24">
         <label htmlFor="qty" className="mb-1 block text-xs font-medium text-zinc-600">
           Jumlah
         </label>
@@ -73,6 +116,23 @@ export default function RecipeEditor({
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
+      {convenience && (
+        <div className="w-24">
+          <label htmlFor="qtyUnit" className="mb-1 block text-xs font-medium text-zinc-600">
+            Satuan
+          </label>
+          <select
+            id="qtyUnit"
+            name="qtyUnit"
+            value={qtyUnit}
+            onChange={(e) => setQtyUnit(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="base">{selectedUnit}</option>
+            <option value={convenience.label}>{convenience.label}</option>
+          </select>
+        </div>
+      )}
       <button
         type="submit"
         disabled={pending || noOptions}

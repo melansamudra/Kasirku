@@ -8,13 +8,11 @@ import {
   editIngredient,
   importIngredients,
   updateIngredientDepartment,
-  updateIngredientWarehouse,
 } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
 import DepartmentSelect from "./department-select";
-import WarehouseSelect from "./warehouse-select";
 import EditIngredientForm from "./edit-ingredient-form";
 import GenerateBarcodesButton from "./generate-barcodes-button";
 import ImportIngredientsForm from "./import-ingredients-form";
@@ -44,19 +42,10 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, department, warehouse_id, barcode")
+    .select("id, name, unit, unit_cost, stock, min_stock, department, barcode")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
-
-  const { data: warehouses } = business.cost_control_enabled
-    ? await supabase
-        .from("warehouses")
-        .select("id, name")
-        .eq("business_id", businessId)
-        .eq("kind", "bahan_baku")
-        .order("name", { ascending: true })
-    : { data: [] };
 
   const { data: purchaseUnits } = await supabase
     .from("ingredient_purchase_units")
@@ -74,13 +63,18 @@ export default async function IngredientsPage({
     purchaseUnitsByIngredient.set(u.ingredient_id, list);
   }
 
-  const { data: adjustments } = await supabase
-    .from("stock_adjustments")
-    .select("id, item_name, unit, stock_before, stock_after, diff, reason, created_at")
-    .eq("business_id", businessId)
-    .not("ingredient_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(10);
+  // Riwayat penyesuaian stok cuma relevan buat bisnis non-cost-control --
+  // Llauk Nusantara dkk kelola stok fisik per lokasi (lihat menu Gudang
+  // Utama/Kitchen Atas/dst di sidebar), bukan di sini.
+  const { data: adjustments } = business.cost_control_enabled
+    ? { data: [] }
+    : await supabase
+        .from("stock_adjustments")
+        .select("id, item_name, unit, stock_before, stock_after, diff, reason, created_at")
+        .eq("business_id", businessId)
+        .not("ingredient_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(10);
 
   const boundAddIngredient = addIngredient.bind(null, businessId);
   const boundImportIngredients = importIngredients.bind(null, businessId);
@@ -138,23 +132,22 @@ export default async function IngredientsPage({
                       department={i.department}
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
-                    {business.cost_control_enabled && (
-                      <WarehouseSelect
-                        ingredientId={i.id}
-                        warehouseId={i.warehouse_id}
-                        warehouses={warehouses ?? []}
-                        action={updateIngredientWarehouse.bind(null, businessId)}
-                      />
-                    )}
                   </div>
-                  <p className="text-xs text-zinc-500">
-                    Stok {i.stock} {i.unit}
-                    {Number(i.min_stock) > 0 && Number(i.stock) <= Number(i.min_stock) && (
-                      <span className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
-                        ⚠️ Stok Rendah
-                      </span>
-                    )}
-                  </p>
+                  {business.cost_control_enabled ? (
+                    <p className="text-xs text-zinc-400">
+                      Stok fisik dikelola per lokasi — lihat menu Gudang Utama / Kitchen Atas / dst
+                      di sidebar.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-zinc-500">
+                      Stok {i.stock} {i.unit}
+                      {Number(i.min_stock) > 0 && Number(i.stock) <= Number(i.min_stock) && (
+                        <span className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                          ⚠️ Stok Rendah
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <PurchaseUnitsManager
                     baseUnit={i.unit}
                     units={purchaseUnitsByIngredient.get(i.id) ?? []}
@@ -173,12 +166,14 @@ export default async function IngredientsPage({
                   barcode={i.barcode}
                   action={editIngredient.bind(null, businessId, i.id)}
                 />
-                <AdjustStockForm
-                  itemName={i.name}
-                  currentStock={Number(i.stock)}
-                  unit={i.unit}
-                  action={adjustIngredientStock.bind(null, businessId, i.id)}
-                />
+                {!business.cost_control_enabled && (
+                  <AdjustStockForm
+                    itemName={i.name}
+                    currentStock={Number(i.stock)}
+                    unit={i.unit}
+                    action={adjustIngredientStock.bind(null, businessId, i.id)}
+                  />
+                )}
                 <DeleteIngredientButton
                   businessId={businessId}
                   ingredientId={i.id}
@@ -195,7 +190,7 @@ export default async function IngredientsPage({
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan Baku</h2>
-          <AddIngredientForm action={boundAddIngredient} />
+          <AddIngredientForm action={boundAddIngredient} costControlEnabled={business.cost_control_enabled ?? false} />
         </div>
 
         {adjustments && adjustments.length > 0 && (

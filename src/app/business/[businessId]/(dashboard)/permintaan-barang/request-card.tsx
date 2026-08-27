@@ -50,6 +50,7 @@ export default function RequestCard({
   request: {
     id: string;
     employeeName: string;
+    locationName: string | null;
     status: "baru" | "diterima" | "diteruskan";
     note: string | null;
     createdAt: string;
@@ -134,7 +135,14 @@ export default function RequestCard({
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-zinc-900">{request.employeeName}</p>
+          <p className="text-sm font-semibold text-zinc-900">
+            {request.employeeName}
+            {request.locationName && (
+              <span className="ml-1.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                📍 {request.locationName}
+              </span>
+            )}
+          </p>
           <p className="text-[11px] text-zinc-400">{formatDateTime(request.createdAt)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

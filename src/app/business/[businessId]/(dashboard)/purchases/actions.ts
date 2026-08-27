@@ -88,10 +88,16 @@ export async function addPurchase(
 
   const supabase = await createClient();
 
+  // Kalau datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang
+  // — dibaca di awal karena juga menentukan lokasi tujuan stok untuk bisnis
+  // cost-control (lihat di bawah), bukan cuma buat link balik di akhir.
+  const fromAllocationId = (formData.get("fromAllocationId") as string) || null;
+
   let ingredientId: string | null = null;
   let productId: string | null = null;
   let itemName = "";
   let qty = 0;
+  let purchaseLocationId: string | null = null;
 
   if (category === "Lainnya") {
     // Catatan cepat — tidak perlu item atau qty, stok tidak diubah
@@ -120,15 +126,15 @@ export async function addPurchase(
       }
       itemName = ingredient.name;
 
-      // Business cost-control: pembelian bahan baku singgah dulu di buffer
-      // "Gudang Purchasing" (warehouse_stock) — BUKAN langsung menambah
-      // ingredients.stock, yang tetap berarti "siap pakai di Gudang
-      // Kering/Basah" dan dipakai apa adanya oleh HPP/Produksi. Baru jadi
-      // siap pakai setelah "Gudang minta barang" menyalurkannya (lihat
-      // warehouses/actions.ts distributeToWarehouse). unit_cost tetap
-      // dihitung rata-rata tertimbang dari TOTAL yang dimiliki (buffer +
-      // gudang), supaya HPP selalu mencerminkan harga blended yang benar
-      // terlepas bahan itu fisiknya masih di buffer atau sudah di gudang.
+      // Business cost-control: stok bahan baku dilacak per lokasi fisik
+      // (ingredient_location_stock — Gudang Utama/Kitchen Atas/dst), BUKAN
+      // ingredients.stock (kolom itu berhenti dipakai sama sekali di jalur
+      // cost-control). Default kredit ke lokasi yang ditandai
+      // is_default_purchase (Gudang Utama), kecuali pembelian ini datang
+      // dari Permintaan Barang yang punya location_id sendiri — maka
+      // langsung dikredit ke lokasi peminta itu. unit_cost tetap dihitung
+      // rata-rata tertimbang dari TOTAL yang dimiliki di SEMUA lokasi,
+      // supaya HPP selalu mencerminkan harga blended yang benar.
       const { data: business } = await supabase
         .from("businesses")
         .select("cost_control_enabled")
@@ -138,45 +144,79 @@ export async function addPurchase(
       let newUnitCost: number;
 
       if (business?.cost_control_enabled) {
-        const { data: purchasingWarehouse } = await supabase
-          .from("warehouses")
-          .select("id")
-          .eq("business_id", businessId)
-          .eq("kind", "purchasing")
-          .maybeSingle();
+        let targetLocationId: string | null = null;
 
-        // Kalau baris "Gudang Purchasing" entah kenapa tidak ada (mis.
-        // migration belum jalan), gagal eksplisit — jangan lanjut update
-        // unit_cost seolah qty-nya sudah tercatat padahal nyasar ke mana pun.
-        if (!purchasingWarehouse) {
-          return fail("Gudang Purchasing tidak ditemukan. Hubungi admin untuk migrasi data gudang.");
+        if (fromAllocationId) {
+          const { data: allocation } = await supabase
+            .from("purchase_request_item_allocations")
+            .select("purchase_request_item_id")
+            .eq("id", fromAllocationId)
+            .eq("business_id", businessId)
+            .maybeSingle();
+          const { data: item } = allocation
+            ? await supabase
+                .from("purchase_request_items")
+                .select("purchase_request_id")
+                .eq("id", allocation.purchase_request_item_id)
+                .maybeSingle()
+            : { data: null };
+          const { data: request } = item
+            ? await supabase
+                .from("purchase_requests")
+                .select("location_id")
+                .eq("id", item.purchase_request_id)
+                .maybeSingle()
+            : { data: null };
+          targetLocationId = request?.location_id ?? null;
         }
 
-        const { data: bufferRow } = await supabase
-          .from("warehouse_stock")
-          .select("id, stock")
-          .eq("warehouse_id", purchasingWarehouse.id)
-          .eq("ingredient_id", ingredientId)
-          .maybeSingle();
+        if (!targetLocationId) {
+          const { data: defaultLocation } = await supabase
+            .from("stock_locations")
+            .select("id")
+            .eq("business_id", businessId)
+            .eq("is_default_purchase", true)
+            .maybeSingle();
+          targetLocationId = defaultLocation?.id ?? null;
+        }
 
-        const bufferBefore = Number(bufferRow?.stock ?? 0);
-        const totalOwnedBefore = Number(ingredient.stock) + bufferBefore;
+        // Kalau lokasi default (Gudang Utama) entah kenapa tidak ada (mis.
+        // migration belum jalan), gagal eksplisit — jangan lanjut update
+        // unit_cost seolah qty-nya sudah tercatat padahal nyasar ke mana pun.
+        if (!targetLocationId) {
+          return fail("Lokasi default pembelian (Gudang Utama) tidak ditemukan. Hubungi admin untuk migrasi data lokasi.");
+        }
+        purchaseLocationId = targetLocationId;
+
+        const { data: locStockRows } = await supabase
+          .from("ingredient_location_stock")
+          .select("id, location_id, stock")
+          .eq("ingredient_id", ingredientId)
+          .eq("business_id", businessId);
+
+        const totalOwnedBefore = (locStockRows ?? []).reduce((sum, row) => sum + Number(row.stock), 0);
         const oldValue = totalOwnedBefore * Number(ingredient.unit_cost);
         const newTotalOwned = totalOwnedBefore + qty;
         newUnitCost =
           newTotalOwned > 0 ? Math.round((oldValue + amount) / newTotalOwned) : Number(ingredient.unit_cost);
 
-        const bufferError = bufferRow
-          ? (await supabase.from("warehouse_stock").update({ stock: bufferBefore + qty }).eq("id", bufferRow.id)).error
+        const targetRow = (locStockRows ?? []).find((row) => row.location_id === targetLocationId);
+        const stockError = targetRow
+          ? (
+              await supabase
+                .from("ingredient_location_stock")
+                .update({ stock: Number(targetRow.stock) + qty })
+                .eq("id", targetRow.id)
+            ).error
           : (
-              await supabase.from("warehouse_stock").insert({
+              await supabase.from("ingredient_location_stock").insert({
                 business_id: businessId,
-                warehouse_id: purchasingWarehouse.id,
+                location_id: targetLocationId,
                 ingredient_id: ingredientId,
                 stock: qty,
               })
             ).error;
-        if (bufferError) return fail(bufferError.message);
+        if (stockError) return fail(stockError.message);
 
         const { error: costError } = await supabase
           .from("ingredients")
@@ -254,6 +294,7 @@ export async function addPurchase(
       amount,
       paid_amount: paidAmount,
       stock_only: stockOnly,
+      location_id: purchaseLocationId,
     })
     .select("id")
     .single();
@@ -262,11 +303,8 @@ export async function addPurchase(
     return fail(error.message);
   }
 
-  // Kalau datang dari tombol "Catat sebagai Pembelian" di Permintaan Barang,
-  // link balik alokasinya ke pembelian ini biar riwayatnya nyambung —
-  // best-effort, kegagalan di sini tidak membatalkan pembelian yang sudah
-  // tersimpan.
-  const fromAllocationId = (formData.get("fromAllocationId") as string) || null;
+  // Link balik alokasinya ke pembelian ini biar riwayatnya nyambung — best-
+  // effort, kegagalan di sini tidak membatalkan pembelian yang sudah tersimpan.
   if (fromAllocationId) {
     await supabase
       .from("purchase_request_item_allocations")
@@ -335,7 +373,7 @@ export async function voidPurchase(
 
   const { data: purchase } = await supabase
     .from("purchases")
-    .select("id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided, stock_only")
+    .select("id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided, stock_only, location_id")
     .eq("id", purchaseId)
     .eq("business_id", businessId)
     .single();
@@ -371,30 +409,24 @@ export async function voidPurchase(
       let unitCostAfter: number;
 
       if (business?.cost_control_enabled) {
-        // Simetris dengan addPurchase: pembelian bahan baku singgah di
-        // buffer Gudang Purchasing, jadi pembatalannya juga mengurangi
-        // buffer itu, bukan ingredients.stock (yang tidak pernah disentuh
-        // saat pembelian ini dicatat).
-        const { data: purchasingWarehouse } = await supabase
-          .from("warehouses")
-          .select("id")
-          .eq("business_id", businessId)
-          .eq("kind", "purchasing")
-          .maybeSingle();
+        // Simetris dengan addPurchase: pembelian bahan baku mengkredit
+        // ingredient_location_stock di lokasi yang tercatat di
+        // purchases.location_id, jadi pembatalannya juga mengurangi lokasi
+        // itu, bukan ingredients.stock (tidak pernah disentuh saat pembelian
+        // cost-control dicatat).
+        const { data: locStockRows } = await supabase
+          .from("ingredient_location_stock")
+          .select("id, location_id, stock")
+          .eq("ingredient_id", purchase.ingredient_id)
+          .eq("business_id", businessId);
 
-        const { data: bufferRow } = purchasingWarehouse
-          ? await supabase
-              .from("warehouse_stock")
-              .select("id, stock")
-              .eq("warehouse_id", purchasingWarehouse.id)
-              .eq("ingredient_id", purchase.ingredient_id)
-              .maybeSingle()
-          : { data: null };
-
-        const bufferBefore = Number(bufferRow?.stock ?? 0);
-        const bufferAfter = Math.max(0, bufferBefore - purchaseQty);
-        const totalOwnedBefore = Number(ingredient.stock) + bufferBefore;
-        const totalOwnedAfter = Number(ingredient.stock) + bufferAfter;
+        const totalOwnedBefore = (locStockRows ?? []).reduce((sum, row) => sum + Number(row.stock), 0);
+        const targetRow = purchase.location_id
+          ? (locStockRows ?? []).find((row) => row.location_id === purchase.location_id)
+          : undefined;
+        const targetBefore = Number(targetRow?.stock ?? 0);
+        const targetAfter = Math.max(0, targetBefore - purchaseQty);
+        const totalOwnedAfter = totalOwnedBefore - (targetBefore - targetAfter);
         const valueAfter = totalOwnedBefore * unitCostBefore - purchaseAmount;
         unitCostAfter = totalOwnedAfter > 0 ? Math.max(0, Math.round(valueAfter / totalOwnedAfter)) : unitCostBefore;
 
@@ -404,12 +436,12 @@ export async function voidPurchase(
           .eq("id", purchase.ingredient_id);
         if (costError) return { error: costError.message };
 
-        if (bufferRow) {
-          const { error: bufferError } = await supabase
-            .from("warehouse_stock")
-            .update({ stock: bufferAfter })
-            .eq("id", bufferRow.id);
-          if (bufferError) return { error: bufferError.message };
+        if (targetRow) {
+          const { error: stockError } = await supabase
+            .from("ingredient_location_stock")
+            .update({ stock: targetAfter })
+            .eq("id", targetRow.id);
+          if (stockError) return { error: stockError.message };
         }
       } else {
         const stockBefore = Number(ingredient.stock);
