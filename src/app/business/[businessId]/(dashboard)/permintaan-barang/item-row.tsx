@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   addItemAllocation,
+  approveItemBudget,
   deleteItemAllocation,
   deleteRequestItem,
   markAllocationReceived,
+  markItemFulfillment,
   updateItemApprovedQty,
 } from "./actions";
 
 type Supplier = { id: string; name: string };
+type Employee = { id: string; name: string };
 type Allocation = {
   id: string;
   supplierId: string | null;
@@ -20,6 +23,7 @@ type Allocation = {
   receivedAt: string | null;
   purchaseId: string | null;
 };
+type StockFulfillment = { qty: number; markedAt: string; receivedAt: string | null };
 
 const DEPARTMENT_LABELS: Record<string, string> = {
   dapur: "🍳 Dapur",
@@ -27,13 +31,30 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   front: "🛎️ Front",
 };
 
+const BUDGET_STATUS_LABEL: Record<string, string> = {
+  pending: "Menunggu Cek Budget",
+  approved_in_budget: "APPROVED IN BUDGET",
+  rejected: "Ditolak (Budget)",
+};
+const BUDGET_STATUS_STYLE: Record<string, string> = {
+  pending: "border-amber-500 bg-amber-50 text-amber-700",
+  approved_in_budget: "border-brand-600 bg-brand-50 text-brand-700",
+  rejected: "border-red-500 bg-red-50 text-red-700",
+};
+
 export default function ItemRow({
   businessId,
   suppliers,
+  employees,
+  costControlEnabled,
+  procurementBudgetGateEnabled,
   item,
 }: {
   businessId: string;
   suppliers: Supplier[];
+  employees: Employee[];
+  costControlEnabled: boolean;
+  procurementBudgetGateEnabled: boolean;
   item: {
     id: string;
     itemName: string;
@@ -44,7 +65,13 @@ export default function ItemRow({
     unit: string | null;
     qtyOrdered: number;
     currentStock: number | null;
+    totalStock: number | null;
     approvedQty: number | null;
+    budgetStatus: string;
+    budgetApprovedBy: string | null;
+    budgetNote: string | null;
+    fulfillmentSource: "pending" | "stock" | "supplier";
+    stockFulfillment: StockFulfillment | null;
     allocations: Allocation[];
   };
 }) {
@@ -57,6 +84,10 @@ export default function ItemRow({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false);
+  const [budgetApproverName, setBudgetApproverName] = useState("");
+  const [budgetRejectNote, setBudgetRejectNote] = useState("");
+  const [showBudgetRejectForm, setShowBudgetRejectForm] = useState(false);
+  const [fulfillmentMarkedBy, setFulfillmentMarkedBy] = useState("");
 
   const supplierMap = new Map(suppliers.map((s) => [s.id, s]));
   const finalQty = item.approvedQty ?? item.qtyOrdered;
@@ -64,6 +95,11 @@ export default function ItemRow({
   const allocatedQty = item.allocations.reduce((s, a) => s + a.qty, 0);
   const remainingQty = Math.max(finalQty - allocatedQty, 0);
   const hasForwardedAllocation = item.allocations.some((a) => a.forwardedAt);
+  const isIngredient = item.ingredientId !== null;
+  // Barang produk (bukan bahan baku) tidak bisa "diambil dari Gudang" (stok
+  // per lokasi cuma ada untuk bahan baku) -- langsung ke jalur supplier
+  // seperti alur lama, tanpa pilihan fulfillment.
+  const showSupplierFlow = !isIngredient || item.fulfillmentSource === "supplier";
 
   function handleSaveQty() {
     const qty = Number(approvedQty);
@@ -174,6 +210,47 @@ export default function ItemRow({
       });
   }
 
+  function handleApproveBudget(decision: "approved_in_budget" | "rejected") {
+    if (!budgetApproverName) {
+      setError("Pilih nama yang menyetujui/menolak dulu.");
+      return;
+    }
+    setError(null);
+    setPending(true);
+    approveItemBudget(businessId, item.id, decision, budgetApproverName, budgetRejectNote)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setShowBudgetRejectForm(false);
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
+  }
+
+  function handleMarkFulfillment(source: "stock" | "supplier") {
+    setError(null);
+    setPending(true);
+    markItemFulfillment(businessId, item.id, source, fulfillmentMarkedBy || undefined)
+      .then((res) => {
+        setPending(false);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        router.refresh();
+      })
+      .catch(() => {
+        setPending(false);
+        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
+      });
+  }
+
   function purchaseHref(allocation: Allocation) {
     const params = new URLSearchParams({
       prefillCategory: item.itemType === "ingredient" ? "Bahan Baku" : "Barang Dagang",
@@ -236,7 +313,13 @@ export default function ItemRow({
         </div>
       </div>
       {item.currentStock !== null && (
-        <p className="text-[10.5px] text-zinc-400">Stok saat ini: {item.currentStock}</p>
+        <p className="text-[10.5px] text-zinc-400">Stok saat order dibuat: {item.currentStock}</p>
+      )}
+      {item.totalStock !== null && (
+        <p className="text-[10.5px] text-zinc-400">
+          Stok saat ini (semua lokasi): <span className="font-medium text-zinc-500">{item.totalStock}</span>
+          {item.unit ? ` ${item.unit}` : ""}
+        </p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -256,108 +339,224 @@ export default function ItemRow({
         />
       </div>
 
-      {item.allocations.length > 0 && (
-        <div className="mt-2 space-y-1.5">
-          {item.allocations.map((a) => {
-            const supplier = supplierMap.get(a.supplierId ?? "");
-            return (
-              <div key={a.id} className="rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <p className="text-zinc-700">
-                    → <span className="font-medium">{supplier?.name ?? "supplier"}</span>: {a.qty}
-                    {item.unit ? ` ${item.unit}` : ""}
-                  </p>
-                  {!a.forwardedAt && (
+      {costControlEnabled && procurementBudgetGateEnabled && (
+        <div className="mt-2">
+          {item.budgetStatus === "pending" && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-2">
+              <p className="text-[10.5px] font-semibold text-amber-800">Verifikasi & Otorisasi Anggaran</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <select
+                  value={budgetApproverName}
+                  onChange={(e) => setBudgetApproverName(e.target.value)}
+                  className="rounded-lg border border-zinc-200 px-2 py-1 text-[10.5px] focus:border-brand-600 focus:outline-none"
+                >
+                  <option value="">— Disetujui/ditolak oleh —</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.name}>
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleApproveBudget("approved_in_budget")}
+                  disabled={pending}
+                  className="rounded-lg bg-brand-600 px-2.5 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  ✓ APPROVED IN BUDGET
+                </button>
+                {showBudgetRejectForm ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={budgetRejectNote}
+                      onChange={(e) => setBudgetRejectNote(e.target.value)}
+                      placeholder="Alasan penolakan…"
+                      className="rounded-lg border border-zinc-200 px-2 py-1 text-[10.5px] focus:border-brand-600 focus:outline-none"
+                    />
                     <button
-                      onClick={() => handleDeleteAllocation(a.id)}
+                      onClick={() => handleApproveBudget("rejected")}
                       disabled={pending}
-                      className="text-zinc-400 hover:text-red-600 disabled:opacity-50"
+                      className="rounded-lg border border-red-300 px-2.5 py-1 text-[10.5px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
-                      Hapus
+                      Kirim
                     </button>
-                  )}
-                </div>
-                {a.forwardedAt && !a.receivedAt && (
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-brand-700">✓ Diteruskan</p>
-                    <button
-                      onClick={() => handleMarkReceived(a.id)}
-                      disabled={pending}
-                      className="rounded-md bg-zinc-800 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-zinc-900 disabled:opacity-50"
-                    >
-                      Tandai Barang Datang
-                    </button>
-                  </div>
-                )}
-                {a.receivedAt && !a.purchaseId && (
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-brand-700">✓ Diteruskan · 📦 Barang datang</p>
-                    <Link
-                      href={purchaseHref(a)}
-                      className="rounded-md bg-brand-600 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700"
-                    >
-                      Catat sebagai Pembelian
-                    </Link>
-                  </div>
-                )}
-                {a.purchaseId && (
-                  <p className="mt-1 text-brand-700">✓ Diteruskan · 📦 Datang · 💰 Sudah dicatat sebagai pembelian</p>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setShowBudgetRejectForm(true)}
+                    className="text-[10.5px] text-zinc-500 hover:text-red-600"
+                  >
+                    Tolak
+                  </button>
                 )}
               </div>
-            );
-          })}
+            </div>
+          )}
+          {item.budgetStatus === "approved_in_budget" && (
+            <span
+              className={`inline-block rounded-full border px-2 py-0.5 text-[10.5px] font-medium ${BUDGET_STATUS_STYLE.approved_in_budget}`}
+              title={item.budgetApprovedBy ? `Oleh ${item.budgetApprovedBy}` : undefined}
+            >
+              {BUDGET_STATUS_LABEL.approved_in_budget}
+            </span>
+          )}
+          {item.budgetStatus === "rejected" && (
+            <p className="rounded-lg bg-red-50 px-2 py-1.5 text-[10.5px] text-red-700">
+              Ditolak oleh {item.budgetApprovedBy}
+              {item.budgetNote ? `: ${item.budgetNote}` : ""}
+            </p>
+          )}
         </div>
       )}
 
-      {remainingQty > 0 &&
-        (showAddForm ? (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <select
-              value={newSupplierId}
-              onChange={(e) => setNewSupplierId(e.target.value)}
-              disabled={pending}
-              className="rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            >
-              <option value="">— Pilih supplier —</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              placeholder={`Qty (sisa ${remainingQty})`}
-              value={newQty}
-              onChange={(e) => setNewQty(e.target.value)}
-              disabled={pending}
-              className="w-32 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-            <button
-              onClick={handleAddAllocation}
-              disabled={pending}
-              className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              Tambah
-            </button>
-            <button
-              onClick={() => setShowAddForm(false)}
-              className="text-[11px] text-zinc-400 hover:text-zinc-600"
-            >
-              Batal
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="mt-2 text-[11px] font-medium text-brand-700 hover:underline"
+      {isIngredient && item.fulfillmentSource === "pending" && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <select
+            value={fulfillmentMarkedBy}
+            onChange={(e) => setFulfillmentMarkedBy(e.target.value)}
+            className="rounded-lg border border-zinc-200 px-2 py-1 text-[10.5px] focus:border-brand-600 focus:outline-none"
           >
-            + Alokasikan ke supplier{item.allocations.length > 0 ? " lain" : ""} (sisa {remainingQty}
-            {item.unit ? ` ${item.unit}` : ""})
+            <option value="">— Ditandai oleh (opsional) —</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.name}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => handleMarkFulfillment("stock")}
+            disabled={pending}
+            className="rounded-lg bg-zinc-800 px-2.5 py-1 text-[10.5px] font-semibold text-white hover:bg-zinc-900 disabled:opacity-50"
+          >
+            📦 Ambil dari Gudang
           </button>
-        ))}
+          <button
+            onClick={() => handleMarkFulfillment("supplier")}
+            disabled={pending}
+            className="rounded-lg bg-brand-600 px-2.5 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            🛒 Order ke Supplier
+          </button>
+        </div>
+      )}
+
+      {isIngredient && item.fulfillmentSource === "stock" && (
+        <div className="mt-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[11px]">
+          <p className="font-medium text-zinc-700">📦 Ambil dari Gudang Utama</p>
+          {item.stockFulfillment?.receivedAt ? (
+            <p className="text-brand-700">✓ Diterima di lokasi peminta</p>
+          ) : (
+            <p className="text-amber-700">Menunggu lokasi peminta konfirmasi terima stok</p>
+          )}
+        </div>
+      )}
+
+      {showSupplierFlow && (
+        <>
+          {item.allocations.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {item.allocations.map((a) => {
+                const supplier = supplierMap.get(a.supplierId ?? "");
+                return (
+                  <div key={a.id} className="rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <p className="text-zinc-700">
+                        → <span className="font-medium">{supplier?.name ?? "supplier"}</span>: {a.qty}
+                        {item.unit ? ` ${item.unit}` : ""}
+                      </p>
+                      {!a.forwardedAt && (
+                        <button
+                          onClick={() => handleDeleteAllocation(a.id)}
+                          disabled={pending}
+                          className="text-zinc-400 hover:text-red-600 disabled:opacity-50"
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                    {a.forwardedAt && !a.receivedAt && (
+                      <div className="mt-1 flex items-center justify-between">
+                        <p className="text-brand-700">✓ Diteruskan</p>
+                        <button
+                          onClick={() => handleMarkReceived(a.id)}
+                          disabled={pending}
+                          className="rounded-md bg-zinc-800 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-zinc-900 disabled:opacity-50"
+                        >
+                          Tandai Barang Datang
+                        </button>
+                      </div>
+                    )}
+                    {a.receivedAt && !a.purchaseId && (
+                      <div className="mt-1 flex items-center justify-between">
+                        <p className="text-brand-700">✓ Diteruskan · 📦 Barang datang</p>
+                        <Link
+                          href={purchaseHref(a)}
+                          className="rounded-md bg-brand-600 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700"
+                        >
+                          Catat sebagai Pembelian
+                        </Link>
+                      </div>
+                    )}
+                    {a.purchaseId && (
+                      <p className="mt-1 text-brand-700">✓ Diteruskan · 📦 Datang · 💰 Sudah dicatat sebagai pembelian</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {remainingQty > 0 &&
+            (showAddForm ? (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <select
+                  value={newSupplierId}
+                  onChange={(e) => setNewSupplierId(e.target.value)}
+                  disabled={pending}
+                  className="rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                >
+                  <option value="">— Pilih supplier —</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder={`Qty (sisa ${remainingQty})`}
+                  value={newQty}
+                  onChange={(e) => setNewQty(e.target.value)}
+                  disabled={pending}
+                  className="w-32 rounded-lg border border-zinc-200 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+                <button
+                  onClick={handleAddAllocation}
+                  disabled={pending}
+                  className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  Tambah
+                </button>
+                <button
+                  onClick={() => setShowAddForm(false)}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-600"
+                >
+                  Batal
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="mt-2 text-[11px] font-medium text-brand-700 hover:underline"
+              >
+                + Alokasikan ke supplier{item.allocations.length > 0 ? " lain" : ""} (sisa {remainingQty}
+                {item.unit ? ` ${item.unit}` : ""})
+              </button>
+            ))}
+        </>
+      )}
       {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
     </div>
   );

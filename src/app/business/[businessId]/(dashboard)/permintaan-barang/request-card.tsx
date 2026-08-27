@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { approvePrBudget, deleteRequest, receivePurchaseRequest } from "./actions";
+import { deleteRequest, receivePurchaseRequest } from "./actions";
 import ItemRow from "./item-row";
 import SupplierGroup from "./supplier-group";
 
@@ -17,6 +17,7 @@ type Allocation = {
   receivedAt: string | null;
   purchaseId: string | null;
 };
+type StockFulfillment = { qty: number; markedAt: string; receivedAt: string | null };
 type RequestItem = {
   id: string;
   itemName: string;
@@ -27,14 +28,16 @@ type RequestItem = {
   unit: string | null;
   qtyOrdered: number;
   currentStock: number | null;
+  totalStock: number | null;
   approvedQty: number | null;
+  budgetStatus: string;
+  budgetApprovedBy: string | null;
+  budgetNote: string | null;
+  fulfillmentSource: "pending" | "stock" | "supplier";
+  stockFulfillment: StockFulfillment | null;
   defaultUnitPrice: number;
   allocations: Allocation[];
 };
-
-function formatRupiah(value: number) {
-  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
-}
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
@@ -53,6 +56,7 @@ export default function RequestCard({
   suppliers,
   employees,
   costControlEnabled,
+  procurementBudgetGateEnabled,
 }: {
   businessId: string;
   businessName: string;
@@ -64,46 +68,18 @@ export default function RequestCard({
     note: string | null;
     createdAt: string;
     prNumber: string | null;
-    budgetStatus: string;
-    budgetApprovedBy: string | null;
-    budgetNote: string | null;
     estimatedValue: number;
     items: RequestItem[];
   };
   suppliers: Supplier[];
   employees: Employee[];
   costControlEnabled: boolean;
+  procurementBudgetGateEnabled: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteRequest, setConfirmDeleteRequest] = useState(false);
-  const [approverName, setApproverName] = useState("");
-  const [rejectNote, setRejectNote] = useState("");
-  const [showRejectForm, setShowRejectForm] = useState(false);
-
-  function handleApproveBudget(decision: "approved_in_budget" | "rejected") {
-    if (!approverName) {
-      setError("Pilih nama yang menyetujui/menolak dulu.");
-      return;
-    }
-    setError(null);
-    setPending(true);
-    approvePrBudget(businessId, request.id, decision, approverName, rejectNote)
-      .then((res) => {
-        setPending(false);
-        if (res.error) {
-          setError(res.error);
-          return;
-        }
-        setShowRejectForm(false);
-        router.refresh();
-      })
-      .catch(() => {
-        setPending(false);
-        setError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
-      });
-  }
 
   function handleReceive() {
     setError(null);
@@ -179,16 +155,11 @@ export default function RequestCard({
     }
   }
 
-  const BUDGET_STATUS_LABEL: Record<string, string> = {
-    pending: "Menunggu Cek Budget",
-    approved_in_budget: "APPROVED IN BUDGET",
-    rejected: "Ditolak (Budget)",
-  };
-  const BUDGET_STATUS_STYLE: Record<string, string> = {
-    pending: "border-amber-500 bg-amber-50 text-amber-700",
-    approved_in_budget: "border-brand-600 bg-brand-50 text-brand-700",
-    rejected: "border-red-500 bg-red-50 text-red-700",
-  };
+  // Ringkasan approval budget PER ITEM ("per item barang, PR terkoreksi") —
+  // cuma relevan/ditampilkan kalau gerbang budget lagi aktif.
+  const approvedCount = request.items.filter((it) => it.budgetStatus === "approved_in_budget").length;
+  const rejectedCount = request.items.filter((it) => it.budgetStatus === "rejected").length;
+  const allDecided = request.items.length > 0 && approvedCount + rejectedCount === request.items.length;
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -218,12 +189,17 @@ export default function RequestCard({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {costControlEnabled && (
+          {costControlEnabled && procurementBudgetGateEnabled && (
             <span
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${BUDGET_STATUS_STYLE[request.budgetStatus] ?? ""}`}
-              title={request.budgetApprovedBy ? `Oleh ${request.budgetApprovedBy}` : undefined}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                allDecided
+                  ? rejectedCount > 0
+                    ? "border-red-500 bg-red-50 text-red-700"
+                    : "border-brand-600 bg-brand-50 text-brand-700"
+                  : "border-amber-500 bg-amber-50 text-amber-700"
+              }`}
             >
-              {BUDGET_STATUS_LABEL[request.budgetStatus] ?? request.budgetStatus}
+              Budget: {approvedCount}/{request.items.length} disetujui
             </span>
           )}
           <span
@@ -259,68 +235,21 @@ export default function RequestCard({
         </div>
       </div>
 
-      {costControlEnabled && request.budgetStatus === "pending" && (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-[11px] font-semibold text-amber-800">
-            Verifikasi & Otorisasi Anggaran — Estimasi nilai PR: {formatRupiah(request.estimatedValue)}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <select
-              value={approverName}
-              onChange={(e) => setApproverName(e.target.value)}
-              className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] focus:border-brand-600 focus:outline-none"
-            >
-              <option value="">— Disetujui/ditolak oleh —</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.name}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => handleApproveBudget("approved_in_budget")}
-              disabled={pending}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              ✓ APPROVED IN BUDGET
-            </button>
-            {showRejectForm ? (
-              <span className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={rejectNote}
-                  onChange={(e) => setRejectNote(e.target.value)}
-                  placeholder="Alasan penolakan…"
-                  className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] focus:border-brand-600 focus:outline-none"
-                />
-                <button
-                  onClick={() => handleApproveBudget("rejected")}
-                  disabled={pending}
-                  className="rounded-lg border border-red-300 px-3 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                >
-                  Kirim Penolakan
-                </button>
-              </span>
-            ) : (
-              <button
-                onClick={() => setShowRejectForm(true)}
-                className="text-[11px] text-zinc-500 hover:text-red-600"
-              >
-                Tolak (di luar budget)
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      {costControlEnabled && request.budgetStatus === "rejected" && request.budgetNote && (
-        <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[11px] text-red-700">
-          Ditolak oleh {request.budgetApprovedBy}: {request.budgetNote}
-        </p>
+      {costControlEnabled && procurementBudgetGateEnabled && (
+        <p className="mt-2 text-[11px] text-zinc-400">Estimasi nilai PR: {request.estimatedValue.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 })}</p>
       )}
 
       <div className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-100">
         {request.items.map((it) => (
-          <ItemRow key={it.id} businessId={businessId} suppliers={suppliers} item={it} />
+          <ItemRow
+            key={it.id}
+            businessId={businessId}
+            suppliers={suppliers}
+            employees={employees}
+            costControlEnabled={costControlEnabled}
+            procurementBudgetGateEnabled={procurementBudgetGateEnabled}
+            item={it}
+          />
         ))}
       </div>
 

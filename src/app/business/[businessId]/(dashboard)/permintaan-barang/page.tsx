@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { regeneratePurchaseRequestSlug } from "./actions";
 import PurchaseRequestLinkSection from "./link-section";
 import RequestCard from "./request-card";
@@ -15,6 +16,10 @@ type ItemRow = {
   qty_ordered: number;
   current_stock: number | null;
   approved_qty: number | null;
+  budget_status: string;
+  budget_approved_by: string | null;
+  budget_note: string | null;
+  fulfillment_source: "pending" | "stock" | "supplier";
 };
 
 type AllocationRow = {
@@ -27,6 +32,14 @@ type AllocationRow = {
   purchase_id: string | null;
 };
 
+type FulfillmentRow = {
+  id: string;
+  purchase_request_item_id: string;
+  qty: number;
+  marked_at: string;
+  received_at: string | null;
+};
+
 type RequestRow = {
   id: string;
   employee_name: string;
@@ -35,9 +48,6 @@ type RequestRow = {
   note: string | null;
   created_at: string;
   pr_number: string | null;
-  budget_status: string;
-  budget_approved_by: string | null;
-  budget_note: string | null;
 };
 
 export default async function PermintaanBarangPage({
@@ -50,7 +60,7 @@ export default async function PermintaanBarangPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, purchase_request_slug, cost_control_enabled")
+    .select("id, name, purchase_request_slug, cost_control_enabled, procurement_budget_gate_enabled")
     .eq("id", businessId)
     .single();
 
@@ -67,6 +77,8 @@ export default async function PermintaanBarangPage({
     { data: products },
     { data: locations },
     { data: employees },
+    fulfillments,
+    stockRows,
   ] = await Promise.all([
     supabase
       .from("suppliers")
@@ -76,14 +88,14 @@ export default async function PermintaanBarangPage({
       .order("name", { ascending: true }),
     supabase
       .from("purchase_requests")
-      .select("id, employee_name, location_id, status, note, created_at, pr_number, budget_status, budget_approved_by, budget_note")
+      .select("id, employee_name, location_id, status, note, created_at, pr_number")
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
       .from("purchase_request_items")
       .select(
-        "id, purchase_request_id, item_type, ingredient_id, product_id, item_name, unit, qty_ordered, current_stock, approved_qty",
+        "id, purchase_request_id, item_type, ingredient_id, product_id, item_name, unit, qty_ordered, current_stock, approved_qty, budget_status, budget_approved_by, budget_note, fulfillment_source",
       )
       .eq("business_id", businessId),
     supabase
@@ -94,6 +106,20 @@ export default async function PermintaanBarangPage({
     supabase.from("products").select("id, cost").eq("business_id", businessId),
     supabase.from("stock_locations").select("id, name").eq("business_id", businessId),
     supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
+    fetchAllRows<FulfillmentRow>((from, to) =>
+      supabase
+        .from("purchase_request_item_stock_fulfillments")
+        .select("id, purchase_request_item_id, qty, marked_at, received_at")
+        .eq("business_id", businessId)
+        .range(from, to),
+    ),
+    fetchAllRows<{ ingredient_id: string; stock: number }>((from, to) =>
+      supabase
+        .from("ingredient_location_stock")
+        .select("ingredient_id, stock")
+        .eq("business_id", businessId)
+        .range(from, to),
+    ),
   ]);
 
   const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
@@ -101,11 +127,21 @@ export default async function PermintaanBarangPage({
   const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
   const locationNameById = new Map((locations ?? []).map((l) => [l.id, l.name]));
 
+  const totalStockByIngredient = new Map<string, number>();
+  for (const row of stockRows) {
+    totalStockByIngredient.set(row.ingredient_id, (totalStockByIngredient.get(row.ingredient_id) ?? 0) + Number(row.stock));
+  }
+
   const allocationsByItem = new Map<string, AllocationRow[]>();
   for (const a of (allocations ?? []) as AllocationRow[]) {
     const list = allocationsByItem.get(a.purchase_request_item_id) ?? [];
     list.push(a);
     allocationsByItem.set(a.purchase_request_item_id, list);
+  }
+
+  const fulfillmentByItem = new Map<string, FulfillmentRow>();
+  for (const f of fulfillments) {
+    fulfillmentByItem.set(f.purchase_request_item_id, f);
   }
 
   const itemsByRequest = new Map<string, ItemRow[]>();
@@ -119,6 +155,7 @@ export default async function PermintaanBarangPage({
   const baruCount = rows.filter((r) => r.status === "baru").length;
 
   const boundRegenerateSlug = regeneratePurchaseRequestSlug.bind(null, businessId);
+  const procurementBudgetGateEnabled = business.procurement_budget_gate_enabled ?? false;
 
   return (
     <div className="w-full max-w-2xl">
@@ -167,6 +204,7 @@ export default async function PermintaanBarangPage({
               suppliers={suppliers ?? []}
               employees={employees ?? []}
               costControlEnabled={business.cost_control_enabled ?? false}
+              procurementBudgetGateEnabled={procurementBudgetGateEnabled}
               request={{
                 id: r.id,
                 employeeName: r.employee_name,
@@ -175,35 +213,43 @@ export default async function PermintaanBarangPage({
                 note: r.note,
                 createdAt: r.created_at,
                 prNumber: r.pr_number,
-                budgetStatus: r.budget_status,
-                budgetApprovedBy: r.budget_approved_by,
-                budgetNote: r.budget_note,
                 estimatedValue,
-                items: reqItems.map((it) => ({
-                  id: it.id,
-                  itemName: it.item_name,
-                  itemType: it.item_type,
-                  ingredientId: it.ingredient_id,
-                  productId: it.product_id,
-                  department: it.ingredient_id ? (departmentByIngredient.get(it.ingredient_id) ?? null) : null,
-                  unit: it.unit,
-                  qtyOrdered: Number(it.qty_ordered),
-                  currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
-                  approvedQty: it.approved_qty !== null ? Number(it.approved_qty) : null,
-                  defaultUnitPrice: it.ingredient_id
-                    ? (priceByIngredient.get(it.ingredient_id) ?? 0)
-                    : it.product_id
-                      ? (priceByProduct.get(it.product_id) ?? 0)
-                      : 0,
-                  allocations: (allocationsByItem.get(it.id) ?? []).map((a) => ({
-                    id: a.id,
-                    supplierId: a.supplier_id,
-                    qty: Number(a.qty),
-                    forwardedAt: a.forwarded_at,
-                    receivedAt: a.received_at,
-                    purchaseId: a.purchase_id,
-                  })),
-                })),
+                items: reqItems.map((it) => {
+                  const fulfillment = fulfillmentByItem.get(it.id);
+                  return {
+                    id: it.id,
+                    itemName: it.item_name,
+                    itemType: it.item_type,
+                    ingredientId: it.ingredient_id,
+                    productId: it.product_id,
+                    department: it.ingredient_id ? (departmentByIngredient.get(it.ingredient_id) ?? null) : null,
+                    unit: it.unit,
+                    qtyOrdered: Number(it.qty_ordered),
+                    currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
+                    totalStock: it.ingredient_id ? (totalStockByIngredient.get(it.ingredient_id) ?? 0) : null,
+                    approvedQty: it.approved_qty !== null ? Number(it.approved_qty) : null,
+                    budgetStatus: it.budget_status,
+                    budgetApprovedBy: it.budget_approved_by,
+                    budgetNote: it.budget_note,
+                    fulfillmentSource: it.fulfillment_source,
+                    stockFulfillment: fulfillment
+                      ? { qty: Number(fulfillment.qty), markedAt: fulfillment.marked_at, receivedAt: fulfillment.received_at }
+                      : null,
+                    defaultUnitPrice: it.ingredient_id
+                      ? (priceByIngredient.get(it.ingredient_id) ?? 0)
+                      : it.product_id
+                        ? (priceByProduct.get(it.product_id) ?? 0)
+                        : 0,
+                    allocations: (allocationsByItem.get(it.id) ?? []).map((a) => ({
+                      id: a.id,
+                      supplierId: a.supplier_id,
+                      qty: Number(a.qty),
+                      forwardedAt: a.forwarded_at,
+                      receivedAt: a.received_at,
+                      purchaseId: a.purchase_id,
+                    })),
+                  };
+                }),
               }}
             />
             );

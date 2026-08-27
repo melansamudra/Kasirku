@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { recalculateFromSales } from "./actions";
 import BudgetLineRow from "./budget-line-row";
+import BudgetGateToggle from "./budget-gate-toggle";
 
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
@@ -34,7 +35,7 @@ export default async function RabPembelianPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, procurement_budget_gate_enabled")
     .eq("id", businessId)
     .single();
 
@@ -51,7 +52,7 @@ export default async function RabPembelianPage({
     supabase.from("ingredients").select("id, name, unit, unit_cost").eq("business_id", businessId),
     supabase
       .from("purchase_requests")
-      .select("id, pr_number, employee_name, created_at, budget_status")
+      .select("id, pr_number, employee_name, created_at")
       .eq("business_id", businessId)
       .gte("created_at", `${period}-01T00:00:00+07:00`)
       .lt(
@@ -68,30 +69,35 @@ export default async function RabPembelianPage({
 
   const rabTotal = budgetLines.reduce((sum, l) => sum + Number(l.order_qty) * Number(l.ingredient!.unit_cost), 0);
 
-  const approvedRequests = (requests ?? []).filter((r) => r.budget_status === "approved_in_budget");
+  const periodRequests = requests ?? [];
   const { data: allItems } = await supabase
     .from("purchase_request_items")
-    .select("purchase_request_id, ingredient_id, product_id, qty_ordered")
+    .select("id, purchase_request_id, item_name, ingredient_id, product_id, qty_ordered, approved_qty, budget_status")
     .eq("business_id", businessId)
     .in(
       "purchase_request_id",
-      approvedRequests.map((r) => r.id),
+      periodRequests.map((r) => r.id),
     );
   const { data: products } = await supabase.from("products").select("id, cost").eq("business_id", businessId);
   const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
+  const requestById = new Map(periodRequests.map((r) => [r.id, r]));
 
-  const valueByRequest = new Map<string, number>();
-  for (const it of allItems ?? []) {
-    const price = it.ingredient_id
-      ? (ingredientById.get(it.ingredient_id)?.unit_cost ?? 0)
-      : it.product_id
-        ? (priceByProduct.get(it.product_id) ?? 0)
-        : 0;
-    const cur = valueByRequest.get(it.purchase_request_id) ?? 0;
-    valueByRequest.set(it.purchase_request_id, cur + Number(price) * Number(it.qty_ordered));
-  }
+  // Approval budget sekarang per ITEM ("per item barang, PR terkoreksi") --
+  // "Terpakai" dihitung dari item yang APPROVED IN BUDGET, bukan dari PR utuh.
+  const approvedItems = (allItems ?? [])
+    .filter((it) => it.budget_status === "approved_in_budget")
+    .map((it) => {
+      const price = it.ingredient_id
+        ? (ingredientById.get(it.ingredient_id)?.unit_cost ?? 0)
+        : it.product_id
+          ? (priceByProduct.get(it.product_id) ?? 0)
+          : 0;
+      const qty = Number(it.approved_qty ?? it.qty_ordered);
+      return { ...it, value: price * qty, request: requestById.get(it.purchase_request_id) };
+    })
+    .filter((it) => it.request);
 
-  const terpakai = approvedRequests.reduce((sum, r) => sum + (valueByRequest.get(r.id) ?? 0), 0);
+  const terpakai = approvedItems.reduce((sum, it) => sum + it.value, 0);
   const sisaKuota = rabTotal - terpakai;
 
   async function handleRecalculate() {
@@ -136,9 +142,13 @@ export default async function RabPembelianPage({
         </form>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-4">
+        <BudgetGateToggle businessId={businessId} initialEnabled={business.procurement_budget_gate_enabled ?? false} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
         <StatCard label="RAB Bulan Ini" value={formatRupiah(rabTotal)} icon={PiggyBank} tone="brand" />
-        <StatCard label="Terpakai (PR Approved)" value={formatRupiah(terpakai)} icon={TrendingDown} tone="blue" />
+        <StatCard label="Terpakai (Item Approved)" value={formatRupiah(terpakai)} icon={TrendingDown} tone="blue" />
         <StatCard
           label="Sisa Kuota"
           value={formatRupiah(sisaKuota)}
@@ -196,27 +206,27 @@ export default async function RabPembelianPage({
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-zinc-900">PR Terverifikasi Budget di Bulan Ini</h2>
+          <h2 className="text-sm font-bold text-zinc-900">Item Terverifikasi Budget di Bulan Ini</h2>
         </div>
         <div className="divide-y divide-zinc-50 px-4">
-          {approvedRequests.length > 0 ? (
-            approvedRequests.map((r) => (
+          {approvedItems.length > 0 ? (
+            approvedItems.map((it) => (
               <Link
-                key={r.id}
-                href={`/business/${businessId}/permintaan-barang/${r.id}`}
+                key={it.id}
+                href={`/business/${businessId}/permintaan-barang/${it.request!.id}`}
                 className="flex items-center justify-between gap-3 py-3 hover:bg-zinc-50"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[13px] font-semibold text-zinc-900">{r.pr_number}</p>
-                  <p className="text-[11px] text-zinc-400">{r.employee_name}</p>
+                  <p className="truncate text-[13px] font-semibold text-zinc-900">{it.item_name}</p>
+                  <p className="text-[11px] text-zinc-400">
+                    {it.request!.pr_number} · {it.request!.employee_name}
+                  </p>
                 </div>
-                <p className="shrink-0 text-sm font-bold text-zinc-700">
-                  {formatRupiah(valueByRequest.get(r.id) ?? 0)}
-                </p>
+                <p className="shrink-0 text-sm font-bold text-zinc-700">{formatRupiah(it.value)}</p>
               </Link>
             ))
           ) : (
-            <p className="py-6 text-center text-xs text-zinc-300">Belum ada PR yang APPROVED IN BUDGET bulan ini</p>
+            <p className="py-6 text-center text-xs text-zinc-300">Belum ada item yang APPROVED IN BUDGET bulan ini</p>
           )}
         </div>
       </div>

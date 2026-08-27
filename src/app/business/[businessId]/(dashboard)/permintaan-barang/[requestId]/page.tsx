@@ -27,14 +27,16 @@ export default async function PurchaseRequisitionPrintPage({
   const { businessId, requestId } = await params;
   const supabase = await createClient();
 
-  const { data: business } = await supabase.from("businesses").select("name").eq("id", businessId).single();
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name, procurement_budget_gate_enabled")
+    .eq("id", businessId)
+    .single();
   if (!business) notFound();
 
   const { data: request } = await supabase
     .from("purchase_requests")
-    .select(
-      "id, pr_number, employee_name, location_id, note, created_at, budget_status, budget_approved_by, budget_approved_at, budget_note",
-    )
+    .select("id, pr_number, employee_name, location_id, note, created_at")
     .eq("id", requestId)
     .eq("business_id", businessId)
     .single();
@@ -43,7 +45,9 @@ export default async function PurchaseRequisitionPrintPage({
   const [{ data: items }, { data: location }] = await Promise.all([
     supabase
       .from("purchase_request_items")
-      .select("id, item_name, unit, qty_ordered, approved_qty")
+      .select(
+        "id, item_name, unit, qty_ordered, approved_qty, budget_status, budget_approved_by, budget_approved_at, budget_note",
+      )
       .eq("purchase_request_id", requestId)
       .eq("business_id", businessId)
       .order("id", { ascending: true }),
@@ -51,6 +55,10 @@ export default async function PurchaseRequisitionPrintPage({
       ? supabase.from("stock_locations").select("name").eq("id", request.location_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  const showBudgetGate = business.procurement_budget_gate_enabled ?? false;
+  const rows = items ?? [];
+  const rejectedRows = rows.filter((it) => it.budget_status === "rejected" && it.budget_note);
 
   return (
     <div className="w-full max-w-2xl print:max-w-none">
@@ -64,9 +72,6 @@ export default async function PurchaseRequisitionPrintPage({
             <h1 className="text-lg font-bold text-zinc-900">PURCHASE REQUISITION (PR)</h1>
             <p className="text-xs text-zinc-400">{request.pr_number ?? "—"}</p>
           </div>
-          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-            {BUDGET_STATUS_LABEL[request.budget_status] ?? request.budget_status}
-          </span>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
@@ -93,10 +98,11 @@ export default async function PurchaseRequisitionPrintPage({
                 <th className="px-3 py-2 text-left font-medium">Barang</th>
                 <th className="px-3 py-2 text-right font-medium">Qty Diajukan</th>
                 <th className="px-3 py-2 text-right font-medium">Qty Disetujui</th>
+                {showBudgetGate && <th className="px-3 py-2 text-right font-medium">Status Budget</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {(items ?? []).map((it) => (
+              {rows.map((it) => (
                 <tr key={it.id}>
                   <td className="px-3 py-2 text-zinc-700">{it.item_name}</td>
                   <td className="px-3 py-2 text-right text-zinc-500">
@@ -105,6 +111,11 @@ export default async function PurchaseRequisitionPrintPage({
                   <td className="px-3 py-2 text-right font-medium text-zinc-900">
                     {it.approved_qty !== null ? `${Number(it.approved_qty)} ${it.unit ?? ""}` : "—"}
                   </td>
+                  {showBudgetGate && (
+                    <td className="px-3 py-2 text-right text-zinc-500">
+                      {BUDGET_STATUS_LABEL[it.budget_status] ?? it.budget_status}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -120,20 +131,28 @@ export default async function PurchaseRequisitionPrintPage({
             <p className="text-zinc-400">Diajukan oleh</p>
             <p className="mt-8 border-t border-zinc-300 pt-1 font-medium text-zinc-700">{request.employee_name}</p>
           </div>
-          <div>
-            <p className="text-zinc-400">Verifikasi & Otorisasi Anggaran — Cost Control</p>
-            <p className="mt-8 border-t border-zinc-300 pt-1 font-medium text-zinc-700">
-              {request.budget_approved_by ?? "________________"}
-            </p>
-            {request.budget_approved_at && (
-              <p className="text-[10px] text-zinc-400">{formatDateTime(request.budget_approved_at)}</p>
-            )}
-          </div>
+          {showBudgetGate && (
+            <div>
+              <p className="text-zinc-400">Verifikasi & Otorisasi Anggaran — Cost Control</p>
+              <p className="mt-8 border-t border-zinc-300 pt-1 font-medium text-zinc-700">
+                {rows.find((it) => it.budget_approved_by)?.budget_approved_by ?? "________________"}
+              </p>
+              {rows.find((it) => it.budget_approved_at)?.budget_approved_at && (
+                <p className="text-[10px] text-zinc-400">
+                  {formatDateTime(rows.find((it) => it.budget_approved_at)!.budget_approved_at!)}
+                </p>
+              )}
+            </div>
+          )}
         </div>
-        {request.budget_status === "rejected" && request.budget_note && (
-          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-            Alasan penolakan: {request.budget_note}
-          </p>
+        {showBudgetGate && rejectedRows.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {rejectedRows.map((it) => (
+              <p key={it.id} className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                {it.item_name} ditolak oleh {it.budget_approved_by}: {it.budget_note}
+              </p>
+            ))}
+          </div>
         )}
       </div>
 

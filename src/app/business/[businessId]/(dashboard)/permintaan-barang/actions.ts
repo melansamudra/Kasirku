@@ -7,41 +7,44 @@ import { logActivity } from "@/lib/activity-log";
 export type ActionState = { error: string | null };
 
 // Gerbang alur memo Cost Control (001/MEMO-CC/VIII/2026): PR harus lolos cek
-// budget dulu sebelum boleh dialokasikan/diteruskan ke supplier -- TAPI cuma
-// berlaku untuk bisnis cost-control (RAB bulanan konsep khusus Llauk
-// Nusantara). Bisnis lain yang pakai Permintaan Barang biasa sama sekali
-// tidak terdampak, backward-compatible penuh.
-async function requiresBudgetApproval(
+// budget dulu sebelum boleh dialokasikan/diteruskan ke supplier -- TAPI:
+// (1) cuma berlaku untuk bisnis cost-control, (2) cuma AKTIF kalau saklar
+// businesses.procurement_budget_gate_enabled ON. Default OFF -- "saat ini
+// budget belum dilakukan, klo sudah difungsikan baru dipakai" (arahan user
+// 2026-08-27). Sekarang dicek PER ITEM (bukan per PR) -- "per item barang,
+// PR terkoreksi".
+async function requiresItemBudgetApproval(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
-  requestId: string,
+  itemId: string,
 ): Promise<string | null> {
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled")
+    .select("cost_control_enabled, procurement_budget_gate_enabled")
     .eq("id", businessId)
     .single();
-  if (!business?.cost_control_enabled) return null;
+  if (!business?.cost_control_enabled || !business?.procurement_budget_gate_enabled) return null;
 
-  const { data: request } = await supabase
-    .from("purchase_requests")
-    .select("budget_status")
-    .eq("id", requestId)
+  const { data: item } = await supabase
+    .from("purchase_request_items")
+    .select("item_name, budget_status")
+    .eq("id", itemId)
     .eq("business_id", businessId)
     .single();
 
-  if (request && request.budget_status !== "approved_in_budget") {
-    return "PR ini belum disetujui Cost Control (APPROVED IN BUDGET). Setujui dulu sebelum alokasi ke supplier.";
+  if (item && item.budget_status !== "approved_in_budget") {
+    return `"${item.item_name}" belum disetujui Cost Control (APPROVED IN BUDGET). Setujui dulu sebelum alokasi ke supplier.`;
   }
   return null;
 }
 
 // Verifikasi & Otorisasi Anggaran (langkah 2 di memo) -- Cost Control
-// menyetujui/menolak PR terhadap sisa kuota RAB bulan berjalan. `approverName`
-// dipilih dari daftar karyawan (belum ada login staf terpisah per peran).
-export async function approvePrBudget(
+// menyetujui/menolak PER ITEM (bukan seluruh PR sekaligus) terhadap sisa
+// kuota RAB bulan berjalan. `approverName` dipilih dari daftar karyawan
+// (belum ada login staf terpisah per peran).
+export async function approveItemBudget(
   businessId: string,
-  requestId: string,
+  itemId: string,
   decision: "approved_in_budget" | "rejected",
   approverName: string,
   note: string,
@@ -55,16 +58,18 @@ export async function approvePrBudget(
 
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("purchase_requests")
+  const { data: item, error } = await supabase
+    .from("purchase_request_items")
     .update({
       budget_status: decision,
       budget_approved_by: approverName.trim(),
       budget_approved_at: new Date().toISOString(),
       budget_note: note.trim() || null,
     })
-    .eq("id", requestId)
-    .eq("business_id", businessId);
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .select("item_name, purchase_request_id")
+    .single();
 
   if (error) return { error: error.message };
 
@@ -73,11 +78,196 @@ export async function approvePrBudget(
     businessId,
     "produk",
     decision === "approved_in_budget" ? "sukses" : "warning",
-    decision === "approved_in_budget" ? "PR disetujui — APPROVED IN BUDGET" : "PR ditolak (budget)",
+    decision === "approved_in_budget" ? `Item disetujui — APPROVED IN BUDGET: ${item.item_name}` : `Item ditolak (budget): ${item.item_name}`,
     note.trim() || undefined,
   );
 
   revalidatePath(`/business/${businessId}/permintaan-barang`);
+  revalidatePath(`/business/${businessId}/permintaan-barang/${item.purchase_request_id}`);
+  return { error: null };
+}
+
+// Keputusan Purchasing per item (langkah baru, arahan user 2026-08-27):
+// ambil dari stok Gudang Utama (tidak beli baru) atau perlu order ke
+// supplier. `source='supplier'` cuma menandai -- alur alokasi->forward->PO
+// yang sudah ada jalan seperti biasa. `source='stock'` sekaligus catat
+// baris fulfillment (belum memindahkan stok -- baru pindah saat lokasi
+// peminta konfirmasi terima lewat receiveStockFulfillment).
+export async function markItemFulfillment(
+  businessId: string,
+  itemId: string,
+  source: "stock" | "supplier",
+  markedBy?: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { data: item } = await supabase
+    .from("purchase_request_items")
+    .select("id, item_name, qty_ordered, approved_qty")
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .single();
+  if (!item) return { error: "Barang tidak ditemukan." };
+
+  if (source === "stock") {
+    const { data: defaultLocation } = await supabase
+      .from("stock_locations")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("is_default_purchase", true)
+      .maybeSingle();
+    if (!defaultLocation) {
+      return { error: "Lokasi default (Gudang Utama) tidak ditemukan. Hubungi admin." };
+    }
+
+    const qty = Number(item.approved_qty ?? item.qty_ordered);
+    const { error: insertError } = await supabase.from("purchase_request_item_stock_fulfillments").insert({
+      business_id: businessId,
+      purchase_request_item_id: itemId,
+      source_location_id: defaultLocation.id,
+      qty,
+      marked_by: markedBy?.trim() || null,
+    });
+    if (insertError) return { error: insertError.message };
+  }
+
+  const { error } = await supabase
+    .from("purchase_request_items")
+    .update({ fulfillment_source: source })
+    .eq("id", itemId)
+    .eq("business_id", businessId);
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "info",
+    source === "stock" ? `Ditandai ambil dari Gudang Utama: ${item.item_name}` : `Ditandai perlu order ke supplier: ${item.item_name}`,
+  );
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  return { error: null };
+}
+
+// Lokasi peminta konfirmasi barang "ambil dari gudang" sudah diterima fisik
+// -- BARU di sini stok benar-benar pindah (Gudang Utama berkurang, lokasi
+// peminta bertambah), bukan saat Purchasing menandai. "masih harus diinput
+// dulu distock masuk mereka" (arahan user 2026-08-27).
+export async function receiveStockFulfillment(
+  businessId: string,
+  fulfillmentId: string,
+  receivedBy: string,
+): Promise<ActionState> {
+  if (!receivedBy.trim()) {
+    return { error: "Nama penerima wajib diisi." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: fulfillment } = await supabase
+    .from("purchase_request_item_stock_fulfillments")
+    .select("id, purchase_request_item_id, source_location_id, qty, received_at")
+    .eq("id", fulfillmentId)
+    .eq("business_id", businessId)
+    .single();
+  if (!fulfillment) return { error: "Data fulfillment tidak ditemukan." };
+  if (fulfillment.received_at) return { error: "Barang ini sudah dikonfirmasi diterima sebelumnya." };
+
+  const { data: item } = await supabase
+    .from("purchase_request_items")
+    .select("id, item_name, unit, ingredient_id, purchase_request_id")
+    .eq("id", fulfillment.purchase_request_item_id)
+    .single();
+  if (!item || !item.ingredient_id) return { error: "Barang tidak ditemukan atau bukan bahan baku." };
+
+  const { data: request } = await supabase
+    .from("purchase_requests")
+    .select("location_id")
+    .eq("id", item.purchase_request_id)
+    .single();
+  if (!request?.location_id) {
+    return { error: "PR ini tidak punya lokasi peminta, tidak bisa terima stok." };
+  }
+
+  const qty = Number(fulfillment.qty);
+
+  const { data: sourceRow } = await supabase
+    .from("ingredient_location_stock")
+    .select("id, stock")
+    .eq("location_id", fulfillment.source_location_id)
+    .eq("ingredient_id", item.ingredient_id)
+    .maybeSingle();
+  const sourceStockBefore = Number(sourceRow?.stock ?? 0);
+  if (sourceRow) {
+    await supabase
+      .from("ingredient_location_stock")
+      .update({ stock: Math.max(0, sourceStockBefore - qty) })
+      .eq("id", sourceRow.id);
+  }
+
+  const { data: destRow } = await supabase
+    .from("ingredient_location_stock")
+    .select("id, stock")
+    .eq("location_id", request.location_id)
+    .eq("ingredient_id", item.ingredient_id)
+    .maybeSingle();
+  if (destRow) {
+    await supabase
+      .from("ingredient_location_stock")
+      .update({ stock: Number(destRow.stock) + qty })
+      .eq("id", destRow.id);
+  } else {
+    await supabase.from("ingredient_location_stock").insert({
+      business_id: businessId,
+      location_id: request.location_id,
+      ingredient_id: item.ingredient_id,
+      stock: qty,
+    });
+  }
+
+  await supabase
+    .from("purchase_request_item_stock_fulfillments")
+    .update({ received_at: new Date().toISOString(), received_by: receivedBy.trim() })
+    .eq("id", fulfillmentId);
+
+  await supabase.from("stock_adjustments").insert([
+    {
+      business_id: businessId,
+      ingredient_id: item.ingredient_id,
+      location_id: fulfillment.source_location_id,
+      item_name: item.item_name,
+      unit: item.unit,
+      stock_before: sourceStockBefore,
+      stock_after: Math.max(0, sourceStockBefore - qty),
+      diff: -qty,
+      reason: `Diambil untuk Permintaan Barang (diterima oleh ${receivedBy.trim()})`,
+    },
+  ]);
+
+  await logActivity(supabase, businessId, "produk", "sukses", `Stok diterima: ${item.item_name}`, `${qty} ${item.unit} — oleh ${receivedBy.trim()}`);
+
+  revalidatePath(`/business/${businessId}/permintaan-barang`);
+  revalidatePath(`/business/${businessId}/lokasi/${request.location_id}/bahan-baku`);
+  return { error: null };
+}
+
+export async function toggleBudgetGate(businessId: string, enabled: boolean): Promise<ActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ procurement_budget_gate_enabled: enabled })
+    .eq("id", businessId);
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "warning",
+    enabled ? "Gerbang budget PR diaktifkan" : "Gerbang budget PR dimatikan",
+  );
+  revalidatePath(`/business/${businessId}/rab-pembelian`);
   return { error: null };
 }
 
@@ -141,16 +331,8 @@ export async function addItemAllocation(
 
   const supabase = await createClient();
 
-  const { data: item } = await supabase
-    .from("purchase_request_items")
-    .select("purchase_request_id")
-    .eq("id", itemId)
-    .eq("business_id", businessId)
-    .single();
-  if (item) {
-    const gateError = await requiresBudgetApproval(supabase, businessId, item.purchase_request_id);
-    if (gateError) return { error: gateError };
-  }
+  const gateError = await requiresItemBudgetApproval(supabase, businessId, itemId);
+  if (gateError) return { error: gateError };
 
   const { error } = await supabase.from("purchase_request_item_allocations").insert({
     business_id: businessId,
@@ -203,9 +385,6 @@ export async function forwardAllocationsToSupplier(
 
   const supabase = await createClient();
 
-  const gateError = await requiresBudgetApproval(supabase, businessId, requestId);
-  if (gateError) return { error: gateError };
-
   const { data: allocations } = await supabase
     .from("purchase_request_item_allocations")
     .select("id, supplier_id, qty, purchase_request_item_id")
@@ -213,6 +392,12 @@ export async function forwardAllocationsToSupplier(
     .eq("business_id", businessId);
 
   if (!allocations || allocations.length === 0) return { error: "Alokasi tidak ditemukan." };
+
+  const involvedItemIds = [...new Set(allocations.map((a) => a.purchase_request_item_id))];
+  for (const involvedItemId of involvedItemIds) {
+    const gateError = await requiresItemBudgetApproval(supabase, businessId, involvedItemId);
+    if (gateError) return { error: gateError };
+  }
 
   const supplierId = allocations[0].supplier_id;
   if (!supplierId || allocations.some((a) => a.supplier_id !== supplierId)) {

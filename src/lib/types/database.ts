@@ -312,6 +312,7 @@ export type Database = {
           cost_control_enabled: boolean;
           outlet_request_slug: string | null;
           production_scan_slug: string | null;
+          procurement_budget_gate_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -344,6 +345,7 @@ export type Database = {
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
           production_scan_slug?: string | null;
+          procurement_budget_gate_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -376,6 +378,7 @@ export type Database = {
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
           production_scan_slug?: string | null;
+          procurement_budget_gate_enabled?: boolean;
         };
         Relationships: [];
       };
@@ -1889,6 +1892,11 @@ export type Database = {
           current_stock: number | null;
           created_at: string;
           approved_qty: number | null;
+          budget_status: string;
+          budget_approved_by: string | null;
+          budget_approved_at: string | null;
+          budget_note: string | null;
+          fulfillment_source: string;
         };
         Insert: {
           id?: string;
@@ -1903,6 +1911,11 @@ export type Database = {
           current_stock?: number | null;
           created_at?: string;
           approved_qty?: number | null;
+          budget_status?: string;
+          budget_approved_by?: string | null;
+          budget_approved_at?: string | null;
+          budget_note?: string | null;
+          fulfillment_source?: string;
         };
         Update: {
           id?: string;
@@ -1917,6 +1930,11 @@ export type Database = {
           current_stock?: number | null;
           created_at?: string;
           approved_qty?: number | null;
+          budget_status?: string;
+          budget_approved_by?: string | null;
+          budget_approved_at?: string | null;
+          budget_note?: string | null;
+          fulfillment_source?: string;
         };
         Relationships: [
           {
@@ -1927,6 +1945,42 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      purchase_request_item_stock_fulfillments: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_request_item_id: string;
+          source_location_id: string;
+          qty: number;
+          marked_by: string | null;
+          marked_at: string;
+          received_by: string | null;
+          received_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_request_item_id: string;
+          source_location_id: string;
+          qty: number;
+          marked_by?: string | null;
+          marked_at?: string;
+          received_by?: string | null;
+          received_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_request_item_id?: string;
+          source_location_id?: string;
+          qty?: number;
+          marked_by?: string | null;
+          marked_at?: string;
+          received_by?: string | null;
+          received_at?: string | null;
+        };
+        Relationships: [];
       };
       petty_cash_allocations: {
         Row: {
@@ -2508,10 +2562,6 @@ export type Database = {
           forwarded_at: string | null;
           location_id: string | null;
           pr_number: string | null;
-          budget_status: string;
-          budget_approved_by: string | null;
-          budget_approved_at: string | null;
-          budget_note: string | null;
         };
         Insert: {
           id?: string;
@@ -2525,10 +2575,6 @@ export type Database = {
           forwarded_at?: string | null;
           location_id?: string | null;
           pr_number?: string | null;
-          budget_status?: string;
-          budget_approved_by?: string | null;
-          budget_approved_at?: string | null;
-          budget_note?: string | null;
         };
         Update: {
           id?: string;
@@ -2542,10 +2588,6 @@ export type Database = {
           forwarded_at?: string | null;
           location_id?: string | null;
           pr_number?: string | null;
-          budget_status?: string;
-          budget_approved_by?: string | null;
-          budget_approved_at?: string | null;
-          budget_note?: string | null;
         };
         Relationships: [];
       };
