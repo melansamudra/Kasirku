@@ -2722,6 +2722,7 @@ export type Database = {
           void_reason: string | null;
           stock_only: boolean;
           location_id: string | null;
+          expense_account_code: string | null;
         };
         Insert: {
           id?: string;
@@ -2742,6 +2743,7 @@ export type Database = {
           void_reason?: string | null;
           stock_only?: boolean;
           location_id?: string | null;
+          expense_account_code?: string | null;
         };
         Update: {
           id?: string;
@@ -2762,6 +2764,7 @@ export type Database = {
           void_reason?: string | null;
           stock_only?: boolean;
           location_id?: string | null;
+          expense_account_code?: string | null;
         };
         Relationships: [
           {

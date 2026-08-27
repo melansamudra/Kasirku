@@ -51,6 +51,7 @@ type PurchaseRow = {
   voided: boolean;
   void_reason: string | null;
   stock_only: boolean;
+  expense_account_code: string | null;
 };
 
 export default async function PurchasesPage({
@@ -86,44 +87,59 @@ export default async function PurchasesPage({
   const isFnb = business.business_type === "fnb";
   const today = todayWibDateString();
 
-  const [{ data: suppliers }, { data: ingredients }, { data: purchaseUnits }, { data: products }, { data: purchases }] =
-    await Promise.all([
-      supabase
-        .from("suppliers")
-        .select("id, name")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      isFnb
-        ? supabase
-            .from("ingredients")
-            .select("id, name, unit, stock, min_stock, unit_cost")
-            .eq("business_id", businessId)
-            .is("deleted_at", null)
-            .order("name", { ascending: true })
-        : Promise.resolve({ data: [] }),
-      isFnb
-        ? supabase
-            .from("ingredient_purchase_units")
-            .select("ingredient_id, unit_name, conversion")
-            .eq("business_id", businessId)
-        : Promise.resolve({ data: [] }),
-      supabase
-        .from("products")
-        .select("id, name, stock, min_stock, cost")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("purchases")
-        .select(
-          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason, stock_only",
-        )
-        .eq("business_id", businessId)
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(50),
-    ]);
+  const [
+    { data: suppliers },
+    { data: ingredients },
+    { data: purchaseUnits },
+    { data: products },
+    { data: purchases },
+    { data: expenseAccountRows },
+  ] = await Promise.all([
+    supabase
+      .from("suppliers")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    isFnb
+      ? supabase
+          .from("ingredients")
+          .select("id, name, unit, stock, min_stock, unit_cost")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .order("name", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    isFnb
+      ? supabase
+          .from("ingredient_purchase_units")
+          .select("ingredient_id, unit_name, conversion")
+          .eq("business_id", businessId)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("products")
+      .select("id, name, stock, min_stock, cost")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("purchases")
+      .select(
+        "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason, stock_only, expense_account_code",
+      )
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("accounts")
+      .select("code, name")
+      .eq("business_id", businessId)
+      .eq("type", "beban")
+      .order("code", { ascending: true }),
+  ]);
+
+  const expenseAccounts = expenseAccountRows ?? [];
+  const expenseAccountMap = new Map(expenseAccounts.map((a) => [a.code, a.name]));
 
   const purchaseUnitsByIngredient = new Map<string, { unitName: string; conversion: number }[]>();
   for (const u of purchaseUnits ?? []) {
@@ -271,6 +287,7 @@ export default async function PurchasesPage({
         suppliers={suppliers ?? []}
         ingredients={ingredientsWithUnits}
         products={products ?? []}
+        expenseAccounts={expenseAccounts}
         lowStockIngredients={lowStockIngredients}
         lowStockProducts={lowStockProducts}
         initialPrefill={initialPrefill}
@@ -315,6 +332,9 @@ export default async function PurchasesPage({
                         {formatDate(r.date)}
                         {r.supplier_id ? ` · ${supplierMap.get(r.supplier_id) ?? "—"}` : ""}
                         {r.note ? ` · ${r.note}` : ""}
+                        {r.category === "Lainnya" && r.expense_account_code
+                          ? ` · Akun: ${expenseAccountMap.get(r.expense_account_code) ?? r.expense_account_code}`
+                          : ""}
                       </p>
                       {r.voided && r.void_reason && (
                         <p className="text-[11px] text-red-500">Alasan: {r.void_reason}</p>
@@ -351,6 +371,8 @@ export default async function PurchasesPage({
                       {!r.ingredient_id && !r.product_id && (
                         <EditCategoryButton
                           currentCategory={r.category}
+                          currentExpenseAccountCode={r.expense_account_code}
+                          expenseAccounts={expenseAccounts}
                           action={updatePurchaseCategory.bind(null, businessId, r.id)}
                         />
                       )}

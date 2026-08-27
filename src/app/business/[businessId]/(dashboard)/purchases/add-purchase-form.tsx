@@ -14,6 +14,7 @@ type IngredientOption = {
   purchase_units?: { unitName: string; conversion: number }[];
 };
 type ProductOption = { id: string; name: string; stock: number };
+type ExpenseAccountOption = { code: string; name: string };
 export type PurchasePrefill = {
   category: "Bahan Baku" | "Barang Dagang" | "Lainnya";
   itemId: string;
@@ -32,6 +33,7 @@ export default function AddPurchaseForm({
   suppliers,
   ingredients,
   products,
+  expenseAccounts,
   prefill,
 }: {
   action: (state: AddPurchaseState, formData: FormData) => Promise<AddPurchaseState>;
@@ -40,6 +42,7 @@ export default function AddPurchaseForm({
   suppliers: SupplierOption[];
   ingredients: IngredientOption[];
   products: ProductOption[];
+  expenseAccounts: ExpenseAccountOption[];
   prefill?: PurchasePrefill | null;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -55,6 +58,7 @@ export default function AddPurchaseForm({
       suppliers={suppliers}
       ingredients={ingredients}
       products={products}
+      expenseAccounts={expenseAccounts}
       prefill={prefill}
     />
   );
@@ -69,6 +73,7 @@ function PurchaseFormFields({
   suppliers,
   ingredients,
   products,
+  expenseAccounts,
   prefill,
 }: {
   formAction: (formData: FormData) => void;
@@ -79,11 +84,13 @@ function PurchaseFormFields({
   suppliers: SupplierOption[];
   ingredients: IngredientOption[];
   products: ProductOption[];
+  expenseAccounts: ExpenseAccountOption[];
   prefill?: PurchasePrefill | null;
 }) {
   const [category, setCategory] = useState<string>(
     prefill?.category ?? "Lainnya",
   );
+  const [expenseAccountCode, setExpenseAccountCode] = useState<string>(expenseAccounts[0]?.code ?? "");
   const [ingredientId, setIngredientId] = useState(
     prefill?.category === "Bahan Baku" ? prefill.itemId : ingredients[0]?.id ?? "",
   );
@@ -169,10 +176,30 @@ function PurchaseFormFields({
 
       {/* Catatan cepat — tanpa detail item */}
       {category === "Lainnya" && (
-        <div className="rounded-xl bg-zinc-50 px-3 py-2.5">
+        <div className="space-y-2 rounded-xl bg-zinc-50 p-3">
           <p className="text-[11px] text-zinc-500">
             Catat nominal invoice tanpa detail per item. Stok tidak diubah otomatis — detail bisa dilengkapi belakangan.
           </p>
+          <div>
+            <label htmlFor="expenseAccountCode" className="mb-1 block text-xs font-medium text-zinc-600">
+              Akun Beban
+            </label>
+            <select
+              id="expenseAccountCode"
+              name="expenseAccountCode"
+              value={expenseAccountCode}
+              onChange={(e) => setExpenseAccountCode(e.target.value)}
+              required
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              {expenseAccounts.length === 0 && <option value="">Belum ada akun beban</option>}
+              {expenseAccounts.map((a) => (
+                <option key={a.code} value={a.code}>
+                  {a.code} · {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 

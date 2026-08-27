@@ -13,6 +13,7 @@ type IngredientOption = {
   purchase_units?: { unitName: string; conversion: number }[];
 };
 type ProductOption = { id: string; name: string; stock: number };
+type ExpenseAccountOption = { code: string; name: string };
 
 type LowStockIngredient = {
   id: string;
@@ -44,6 +45,7 @@ export default function PurchaseFormWithRecommendations({
   suppliers,
   ingredients,
   products,
+  expenseAccounts,
   lowStockIngredients,
   lowStockProducts,
   initialPrefill,
@@ -54,6 +56,7 @@ export default function PurchaseFormWithRecommendations({
   suppliers: SupplierOption[];
   ingredients: IngredientOption[];
   products: ProductOption[];
+  expenseAccounts: ExpenseAccountOption[];
   lowStockIngredients: LowStockIngredient[];
   lowStockProducts: LowStockProduct[];
   initialPrefill?: PurchasePrefill | null;
@@ -156,6 +159,7 @@ export default function PurchaseFormWithRecommendations({
           suppliers={suppliers}
           ingredients={ingredients}
           products={products}
+          expenseAccounts={expenseAccounts}
           prefill={prefill}
         />
       </div>

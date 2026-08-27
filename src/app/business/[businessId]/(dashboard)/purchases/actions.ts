@@ -17,9 +17,10 @@ export async function postPurchaseJournal(
   description: string,
   amount: number,
   paidAmount: number,
+  debitAccountCode: string = "1-200",
 ): Promise<string | null> {
   const lines: { account_code: string; debit: number; credit: number }[] = [
-    { account_code: "1-200", debit: amount, credit: 0 },
+    { account_code: debitAccountCode, debit: amount, credit: 0 },
   ];
   if (paidAmount > 0) {
     lines.push({ account_code: "1-001", debit: 0, credit: paidAmount });
@@ -36,6 +37,26 @@ export async function postPurchaseJournal(
     p_source: "pembelian",
   });
   return error?.message ?? null;
+}
+
+// Validasi akun beban yang dipilih untuk pembelian kategori "Lainnya" --
+// harus benar-benar ada di Daftar Akun bisnis ini dan bertipe "beban" (bukan
+// sembarang kode). Return pesan error kalau tidak valid, null kalau OK.
+async function validateExpenseAccount(
+  supabase: SupabaseServerClient,
+  businessId: string,
+  code: string,
+): Promise<string | null> {
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("id, type")
+    .eq("business_id", businessId)
+    .eq("code", code)
+    .maybeSingle();
+
+  if (!account) return "Akun beban tidak ditemukan.";
+  if (account.type !== "beban") return "Akun yang dipilih bukan akun beban.";
+  return null;
 }
 
 export type AddPurchaseState = { error: string | null; resetToken: number };
@@ -98,10 +119,18 @@ export async function addPurchase(
   let itemName = "";
   let qty = 0;
   let purchaseLocationId: string | null = null;
+  let expenseAccountCode: string | null = null;
 
   if (category === "Lainnya") {
     // Catatan cepat — tidak perlu item atau qty, stok tidak diubah
     itemName = note || "Pembelian";
+
+    expenseAccountCode = (formData.get("expenseAccountCode") as string) || null;
+    if (!expenseAccountCode) {
+      return fail("Pilih akun beban untuk pembelian kategori Lainnya.");
+    }
+    const accountError = await validateExpenseAccount(supabase, businessId, expenseAccountCode);
+    if (accountError) return fail(accountError);
   } else {
     const qtyVal = Number(qtyRaw);
     if (!qtyRaw || Number.isNaN(qtyVal) || qtyVal <= 0) {
@@ -295,6 +324,7 @@ export async function addPurchase(
       paid_amount: paidAmount,
       stock_only: stockOnly,
       location_id: purchaseLocationId,
+      expense_account_code: expenseAccountCode,
     })
     .select("id")
     .single();
@@ -323,6 +353,7 @@ export async function addPurchase(
         `Pembelian: ${itemName}`,
         amount,
         paidAmount,
+        expenseAccountCode ?? "1-200",
       );
 
   await logActivity(
@@ -373,7 +404,9 @@ export async function voidPurchase(
 
   const { data: purchase } = await supabase
     .from("purchases")
-    .select("id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided, stock_only, location_id")
+    .select(
+      "id, date, category, ingredient_id, product_id, qty, amount, paid_amount, voided, stock_only, location_id, expense_account_code",
+    )
     .eq("id", purchaseId)
     .eq("business_id", businessId)
     .single();
@@ -497,8 +530,9 @@ export async function voidPurchase(
   // jadi tidak ada apa pun untuk dibalikkan di sini juga.
   let journalError: string | null = null;
   if (!purchase.stock_only) {
+    const debitAccountCode = purchase.expense_account_code || "1-200";
     const reversalLines: { account_code: string; debit: number; credit: number }[] = [
-      { account_code: "1-200", debit: 0, credit: amount },
+      { account_code: debitAccountCode, debit: 0, credit: amount },
     ];
     if (paidAmount > 0) {
       reversalLines.push({ account_code: "1-001", debit: paidAmount, credit: 0 });
@@ -566,6 +600,7 @@ export async function updatePurchaseCategory(
   businessId: string,
   purchaseId: string,
   newCategory: string,
+  expenseAccountCode?: string,
 ): Promise<UpdateCategoryState> {
   if (!["Bahan Baku", "Barang Dagang", "Lainnya"].includes(newCategory)) {
     return { error: "Kategori tidak valid." };
@@ -575,7 +610,7 @@ export async function updatePurchaseCategory(
 
   const { data: purchase } = await supabase
     .from("purchases")
-    .select("id, category, ingredient_id, product_id, voided")
+    .select("id, category, ingredient_id, product_id, voided, amount, expense_account_code")
     .eq("id", purchaseId)
     .eq("business_id", businessId)
     .single();
@@ -591,29 +626,72 @@ export async function updatePurchaseCategory(
       error: "Pembelian ini terhubung ke bahan/produk tertentu, kategori tidak bisa diubah dari sini.",
     };
   }
-  if (purchase.category === newCategory) {
+
+  let newExpenseAccountCode: string | null = null;
+  if (newCategory === "Lainnya") {
+    newExpenseAccountCode = expenseAccountCode || null;
+    if (!newExpenseAccountCode) {
+      return { error: "Pilih akun beban untuk kategori Lainnya." };
+    }
+    const accountError = await validateExpenseAccount(supabase, businessId, newExpenseAccountCode);
+    if (accountError) return { error: accountError };
+  }
+
+  // Akun yang sebenarnya didebit di jurnal saat pembelian ini dicatat --
+  // "Lainnya" pakai akun beban pilihan (fallback 1-200 untuk data lama
+  // sebelum kolom ini ada), kategori lain selalu 1-200 Persediaan.
+  const oldDebitAccount =
+    purchase.category === "Lainnya" ? purchase.expense_account_code || "1-200" : "1-200";
+  const newDebitAccount = newCategory === "Lainnya" ? newExpenseAccountCode! : "1-200";
+
+  if (purchase.category === newCategory && oldDebitAccount === newDebitAccount) {
     return { error: null };
   }
 
   const { error } = await supabase
     .from("purchases")
-    .update({ category: newCategory })
+    .update({ category: newCategory, expense_account_code: newExpenseAccountCode })
     .eq("id", purchaseId)
     .eq("business_id", businessId);
 
   if (error) return { error: error.message };
 
+  // Kategori cuma label, tapi akun jurnalnya beda -- perlu jurnal koreksi
+  // (pindah dari akun lama ke akun baru) supaya buku besar ikut benar, bukan
+  // cuma tampilan di halaman ini.
+  let journalError: string | null = null;
+  if (oldDebitAccount !== newDebitAccount) {
+    const amount = Number(purchase.amount);
+    const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
+      p_business_id: businessId,
+      p_date: new Date().toISOString().slice(0, 10),
+      p_description: `Koreksi akun pembelian: ${purchase.category} → ${newCategory}`,
+      p_lines: [
+        { account_code: newDebitAccount, debit: amount, credit: 0 },
+        { account_code: oldDebitAccount, debit: 0, credit: amount },
+      ],
+      p_source: "pembelian",
+    });
+    journalError = journalRpcError?.message ?? null;
+  }
+
   await logActivity(
     supabase,
     businessId,
     "sistem",
-    "info",
+    journalError ? "warning" : "info",
     "Kategori pembelian diubah",
-    `${purchase.category} → ${newCategory}`,
+    journalError
+      ? `${purchase.category} → ${newCategory} — GAGAL posting jurnal koreksi: ${journalError}`
+      : `${purchase.category} → ${newCategory}`,
   );
 
   revalidatePath(`/business/${businessId}/purchases`);
-  return { error: null };
+  return journalError
+    ? {
+        error: `Kategori tersimpan, tapi gagal posting jurnal koreksi (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`,
+      }
+    : { error: null };
 }
 
 export type AddPaymentState = { error: string | null };
