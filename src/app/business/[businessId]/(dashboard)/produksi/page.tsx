@@ -100,7 +100,7 @@ export default async function ProduksiPage({
           produksi, tanpa perlu login atau catat di kertas dulu. Hasil scan masuk sebagai draft di
           bawah — stok baru berubah setelah Anda <strong>verifikasi</strong>.
         </p>
-        <ProductionScanLinkSection initialSlug={business.production_scan_slug ?? ""} regenerateAction={boundRegenerateSlug} />
+        <ProductionScanLinkSection businessId={businessId} initialSlug={business.production_scan_slug ?? ""} regenerateAction={boundRegenerateSlug} />
       </div>
 
       {pendingRuns.length > 0 && (

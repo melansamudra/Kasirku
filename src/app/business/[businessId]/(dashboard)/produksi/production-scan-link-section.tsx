@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { RegenerateSlugState } from "./actions";
 
 export default function ProductionScanLinkSection({
+  businessId,
   initialSlug,
   regenerateAction,
 }: {
+  businessId: string;
   initialSlug: string;
   regenerateAction: () => Promise<RegenerateSlugState>;
 }) {
@@ -47,6 +50,13 @@ export default function ProductionScanLinkSection({
         >
           {copied ? "✓ Tersalin" : "Salin Link"}
         </button>
+        <Link
+          href={`/business/${businessId}/produksi/print-qr`}
+          target="_blank"
+          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
+        >
+          🖨️ Cetak QR
+        </Link>
       </div>
 
       <div className="mt-2">
