@@ -2,11 +2,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RequestClient from "./request-client";
 
+type RecipeLine = { name: string; qtyPerUnit: number; unit: string; availableStock: number };
+
 type ProductionScanInfo = {
   business_id: string;
   business_name: string;
   employees: { id: string; name: string }[];
-  items: { id: string; name: string; unit: string; stock: number; barcode: string | null }[];
+  items: { id: string; name: string; unit: string; stock: number; recipe: RecipeLine[] }[];
 };
 
 export default async function ProduksiScanPublicPage({

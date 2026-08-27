@@ -1,10 +1,15 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { submitProductionScan } from "./actions";
 
 type Employee = { id: string; name: string };
-type MasterItem = { id: string; name: string; unit: string; stock: number; barcode: string | null };
+type RecipeLine = { name: string; qtyPerUnit: number; unit: string; availableStock: number };
+type MasterItem = { id: string; name: string; unit: string; stock: number; recipe: RecipeLine[] };
+
+function formatQty(value: number) {
+  return Number(value.toFixed(4)).toLocaleString("id-ID");
+}
 
 export default function RequestClient({
   slug,
@@ -24,30 +29,13 @@ export default function RequestClient({
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [scanInput, setScanInput] = useState("");
-  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
 
   const selectedItem = items.find((i) => i.id === itemId);
-
-  // Barcode scanner bekerja seperti keyboard: ketik kode lalu Enter — sama
-  // pola dengan scan di Permintaan Gudang & Permintaan Resto.
-  function handleScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    const code = scanInput.trim();
-    if (!code) return;
-
-    const match = items.find((i) => i.barcode === code);
-    if (!match) {
-      setScanFeedback(`Barcode "${code}" tidak ditemukan.`);
-      setScanInput("");
-      return;
-    }
-
-    setScanFeedback(null);
-    setScanInput("");
-    setItemId(match.id);
-  }
+  const qtyNum = Number(qty) || 0;
+  const preview = useMemo(
+    () => (selectedItem?.recipe ?? []).map((line) => ({ ...line, needed: line.qtyPerUnit * qtyNum })),
+    [selectedItem, qtyNum],
+  );
 
   function resetForm() {
     setItemId("");
@@ -59,9 +47,8 @@ export default function RequestClient({
     e.preventDefault();
     setResult(null);
 
-    const qtyNum = Number(qty);
     if (!itemId) {
-      setResult({ ok: false, message: "Scan atau pilih bahan yang diproduksi dulu." });
+      setResult({ ok: false, message: "Pilih bahan yang diproduksi dulu." });
       return;
     }
     if (!qty || Number.isNaN(qtyNum) || qtyNum <= 0) {
@@ -85,32 +72,15 @@ export default function RequestClient({
   return (
     <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
       <p className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{businessName}</p>
-      <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Catat Produksi (Scan)</h1>
+      <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Catat Produksi</h1>
       <p className="mt-1 text-center text-[11px] text-zinc-400">
-        Scan barcode bahan setengah jadi yang baru selesai dibuat, isi jumlahnya. Tidak langsung
-        mengubah stok — supervisor akan verifikasi dulu.
+        Pilih bahan setengah jadi yang baru selesai dibuat, isi jumlahnya. Tidak langsung mengubah
+        stok — supervisor akan verifikasi dulu.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Scan Barcode</label>
-          <input
-            type="text"
-            value={scanInput}
-            onChange={(e) => {
-              setScanInput(e.target.value);
-              setScanFeedback(null);
-            }}
-            onKeyDown={handleScanKeyDown}
-            placeholder="Arahkan scanner ke sini lalu scan…"
-            autoFocus
-            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-          {scanFeedback && <p className="mt-1 text-[11px] text-red-600">{scanFeedback}</p>}
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Atau pilih manual</label>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Bahan Setengah Jadi</label>
           <select
             value={itemId}
             onChange={(e) => setItemId(e.target.value)}
@@ -124,12 +94,6 @@ export default function RequestClient({
             ))}
           </select>
         </div>
-
-        {selectedItem && (
-          <div className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm font-medium text-brand-700">
-            {selectedItem.name}
-          </div>
-        )}
 
         <div>
           <label htmlFor={`${formId}-qty`} className="mb-1 block text-xs font-medium text-zinc-600">
@@ -146,6 +110,32 @@ export default function RequestClient({
             className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+
+        {selectedItem && (
+          <div className="rounded-xl bg-zinc-50 p-3">
+            <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
+              Bahan yang akan terpakai
+            </p>
+            {preview.length === 0 ? (
+              <p className="text-xs text-zinc-400">Item ini belum punya resep.</p>
+            ) : (
+              <div className="space-y-1">
+                {preview.map((line) => {
+                  const insufficient = qtyNum > 0 && line.needed > line.availableStock + 1e-9;
+                  return (
+                    <div key={line.name} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-zinc-600">{line.name}</span>
+                      <span className={insufficient ? "font-semibold text-red-600" : "text-zinc-700"}>
+                        {formatQty(line.needed)} {line.unit}
+                        <span className="text-zinc-400"> / stok {formatQty(line.availableStock)}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda (opsional)</label>
