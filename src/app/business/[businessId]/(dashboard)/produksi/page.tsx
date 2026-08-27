@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import {
+  createIngredientForReportedConsumption,
   createItemForPendingProduction,
   linkPendingProductionToExistingItem,
+  linkReportedIngredientToExisting,
   recordProductionRun,
   regenerateProductionScanSlug,
   rejectProductionRun,
@@ -55,14 +57,34 @@ export default async function ProduksiPage({
         .order("produced_at", { ascending: false }),
       supabase
         .from("ingredients")
-        .select("id, stock")
+        .select("id, name, unit, stock")
         .eq("business_id", businessId)
-        .is("deleted_at", null),
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
       computeAllSemiFinishedItemCosts(supabase, businessId),
     ]);
 
   const pendingRuns = (runs ?? []).filter((r) => r.status === "pending");
   const otherRuns = (runs ?? []).filter((r) => r.status !== "pending");
+
+  // Bahan yang DILAPORKAN staf lewat scan (bisa beda dari resep standar) --
+  // dipakai supervisor buat bandingkan sebelum pilih jalur verifikasi mana.
+  const { data: reportedRows } =
+    pendingRuns.length > 0
+      ? await supabase
+          .from("production_run_reported_consumptions")
+          .select("id, production_run_id, ingredient_id, reported_name, reported_unit, qty")
+          .in(
+            "production_run_id",
+            pendingRuns.map((r) => r.id),
+          )
+      : { data: [] };
+  const reportedByRun = new Map<string, typeof reportedRows>();
+  for (const row of reportedRows ?? []) {
+    const list = reportedByRun.get(row.production_run_id) ?? [];
+    list.push(row);
+    reportedByRun.set(row.production_run_id, list);
+  }
 
   // Resep (bahan yang bakal terpakai) per item — dipakai form buat kasih
   // pratinjau "bahan apa & berapa banyak" sebelum submit, biar tim produksi
@@ -92,6 +114,8 @@ export default async function ProduksiPage({
   const boundReject = rejectProductionRun.bind(null, businessId);
   const boundLinkExisting = linkPendingProductionToExistingItem.bind(null, businessId);
   const boundCreateNew = createItemForPendingProduction.bind(null, businessId);
+  const boundLinkReportedIngredient = linkReportedIngredientToExisting.bind(null, businessId);
+  const boundCreateIngredientForReported = createIngredientForReportedConsumption.bind(null, businessId);
   const boundRegenerateSlug = regenerateProductionScanSlug.bind(null, businessId);
 
   return (
@@ -124,10 +148,15 @@ export default async function ProduksiPage({
                 key={run.id}
                 run={run}
                 existingItems={items ?? []}
+                existingIngredients={ingredientsAll ?? []}
+                standardRecipe={run.semi_finished_item_id ? (recipesByItem[run.semi_finished_item_id] ?? []) : []}
+                reportedLines={reportedByRun.get(run.id) ?? []}
                 verifyAction={boundVerify.bind(null, run.id)}
                 rejectAction={boundReject.bind(null, run.id)}
                 linkExistingAction={boundLinkExisting.bind(null, run.id)}
                 createNewAction={boundCreateNew.bind(null, run.id)}
+                linkReportedIngredientAction={boundLinkReportedIngredient}
+                createIngredientForReportedAction={boundCreateIngredientForReported}
               />
             ))}
           </div>

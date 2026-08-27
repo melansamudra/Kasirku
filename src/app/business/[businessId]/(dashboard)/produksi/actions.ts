@@ -89,6 +89,90 @@ async function applyProductionStockMutation(
   return { totalCost, unitCost: cost.unitCost };
 }
 
+// Jalur ALTERNATIF dari applyProductionStockMutation -- dipakai kalau
+// supervisor pilih "Verifikasi pakai Yang Dilaporkan": bahan yang benar-benar
+// dipotong stoknya adalah qty yang DILAPORKAN staf lewat scan (sudah harus
+// semuanya tercocok ke ingredient_id), bukan hasil kali resep standar x qty.
+// qty di production_run_reported_consumptions adalah TOTAL untuk satu batch
+// (bukan per-1-unit-hasil seperti semi_finished_recipes), jadi tidak dikali
+// qtyProduced lagi di sini.
+async function applyReportedStockMutation(
+  supabase: SupabaseClient<Database>,
+  businessId: string,
+  runId: string,
+  semiFinishedItemId: string,
+  itemStock: number,
+  qtyProduced: number,
+): Promise<{ error: string } | { totalCost: number; unitCost: number }> {
+  const { data: reportedLines } = await supabase
+    .from("production_run_reported_consumptions")
+    .select("id, ingredient_id, reported_name, reported_unit, qty")
+    .eq("production_run_id", runId);
+
+  if (!reportedLines || reportedLines.length === 0) {
+    return { error: "Tidak ada bahan yang dilaporkan untuk batch ini." };
+  }
+  if (reportedLines.some((l) => !l.ingredient_id)) {
+    return { error: "Masih ada bahan yang dilaporkan belum dicocokkan ke bahan baku." };
+  }
+
+  const ingredientIds = reportedLines.map((l) => l.ingredient_id as string);
+  const { data: ingRows } = await supabase
+    .from("ingredients")
+    .select("id, name, unit_cost, stock")
+    .in("id", ingredientIds);
+  const ingById = new Map((ingRows ?? []).map((r) => [r.id, r]));
+
+  const shortages: string[] = [];
+  for (const line of reportedLines) {
+    const ing = ingById.get(line.ingredient_id as string);
+    if (!ing) {
+      shortages.push(`${line.reported_name} (bahan sudah dihapus)`);
+      continue;
+    }
+    if (Number(ing.stock) < Number(line.qty) - 1e-9) {
+      shortages.push(`${ing.name} (butuh ${line.qty} ${line.reported_unit}, tersedia ${ing.stock})`);
+    }
+  }
+  if (shortages.length > 0) {
+    return { error: `Stok tidak cukup: ${shortages.join(", ")}.` };
+  }
+
+  let totalCost = 0;
+  for (const line of reportedLines) {
+    const ing = ingById.get(line.ingredient_id as string)!;
+    const subtotal = Number(ing.unit_cost) * Number(line.qty);
+    totalCost += subtotal;
+
+    await supabase.from("production_run_consumptions").insert({
+      business_id: businessId,
+      production_run_id: runId,
+      component_type: "ingredient",
+      ingredient_id: ing.id,
+      semi_finished_item_id: null,
+      component_name: ing.name,
+      qty_consumed: line.qty,
+      unit: line.reported_unit,
+      unit_cost_at_time: ing.unit_cost,
+      subtotal_cost: subtotal,
+    });
+
+    await supabase
+      .from("ingredients")
+      .update({ stock: Number(ing.stock) - Number(line.qty) })
+      .eq("id", ing.id)
+      .eq("business_id", businessId);
+  }
+
+  await supabase
+    .from("semi_finished_items")
+    .update({ stock: itemStock + qtyProduced })
+    .eq("id", semiFinishedItemId)
+    .eq("business_id", businessId);
+
+  return { totalCost, unitCost: qtyProduced > 0 ? totalCost / qtyProduced : 0 };
+}
+
 // Sequential-await, bukan RPC transaksional — sama pola dengan addPurchase
 // (purchases/actions.ts): cek dulu SEMUA komponen cukup (all-or-nothing)
 // sebelum menyentuh stok apa pun, baru lakukan mutasi.
@@ -263,7 +347,11 @@ export async function voidProductionRun(businessId: string, runId: string, reaso
 
 // Draft hasil scan barcode publik (status 'pending') baru menyentuh stok di
 // sini — supervisor mengecek angkanya dulu lewat dashboard baru verifikasi.
-export async function verifyProductionRun(businessId: string, runId: string): Promise<ActionState> {
+export async function verifyProductionRun(
+  businessId: string,
+  runId: string,
+  useReported: boolean = false,
+): Promise<ActionState> {
   const supabase = await createClient();
 
   const { data: run } = await supabase
@@ -293,14 +381,23 @@ export async function verifyProductionRun(businessId: string, runId: string): Pr
     return { error: "Item bahan setengah jadi sudah dihapus." };
   }
 
-  const mutation = await applyProductionStockMutation(
-    supabase,
-    businessId,
-    run.id,
-    run.semi_finished_item_id,
-    Number(item.stock),
-    Number(run.qty_produced),
-  );
+  const mutation = useReported
+    ? await applyReportedStockMutation(
+        supabase,
+        businessId,
+        run.id,
+        run.semi_finished_item_id,
+        Number(item.stock),
+        Number(run.qty_produced),
+      )
+    : await applyProductionStockMutation(
+        supabase,
+        businessId,
+        run.id,
+        run.semi_finished_item_id,
+        Number(item.stock),
+        Number(run.qty_produced),
+      );
   if ("error" in mutation) {
     return { error: mutation.error };
   }
@@ -443,5 +540,82 @@ export async function createItemForPendingProduction(businessId: string, runId: 
   await logActivity(supabase, businessId, "produk", "sukses", `Bahan setengah jadi baru dari scan: ${run.item_name}`);
   revalidatePath(`/business/${businessId}/produksi`);
   revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null };
+}
+
+// Baris "bahan yang benar-benar dipakai" hasil laporan staf (ingredient_id
+// masih null karena diketik manual) -- supervisor cocokkan ke bahan baku
+// LAMA yang sudah ada. Nama/satuan disamakan ke bahan baku itu (bukan
+// sebaliknya), sama prinsipnya dengan linkPendingProductionToExistingItem.
+export async function linkReportedIngredientToExisting(
+  businessId: string,
+  reportedRowId: string,
+  existingIngredientId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("production_run_reported_consumptions")
+    .select("id, ingredient_id")
+    .eq("id", reportedRowId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!row) return { error: "Baris bahan tidak ditemukan." };
+  if (row.ingredient_id) return { error: "Baris ini sudah dicocokkan." };
+
+  const { data: ingredient } = await supabase
+    .from("ingredients")
+    .select("id, name, unit")
+    .eq("id", existingIngredientId)
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!ingredient) return { error: "Bahan baku tidak ditemukan." };
+
+  await supabase
+    .from("production_run_reported_consumptions")
+    .update({ ingredient_id: ingredient.id, reported_name: ingredient.name, reported_unit: ingredient.unit })
+    .eq("id", reportedRowId)
+    .eq("business_id", businessId);
+
+  revalidatePath(`/business/${businessId}/produksi`);
+  return { error: null };
+}
+
+// Bahan yang dilaporkan memang belum ada di master -- buat bahan baku BARU
+// (harga masih Rp0, diisi manual belakangan di halaman Bahan Baku).
+export async function createIngredientForReportedConsumption(
+  businessId: string,
+  reportedRowId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("production_run_reported_consumptions")
+    .select("id, ingredient_id, reported_name, reported_unit")
+    .eq("id", reportedRowId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!row) return { error: "Baris bahan tidak ditemukan." };
+  if (row.ingredient_id) return { error: "Baris ini sudah dicocokkan." };
+
+  const { data: newIngredient, error: insertError } = await supabase
+    .from("ingredients")
+    .insert({ business_id: businessId, name: row.reported_name, unit: row.reported_unit, unit_cost: 0 })
+    .select("id")
+    .single();
+  if (insertError || !newIngredient) {
+    return { error: insertError?.message ?? "Gagal membuat bahan baku baru." };
+  }
+
+  await supabase
+    .from("production_run_reported_consumptions")
+    .update({ ingredient_id: newIngredient.id })
+    .eq("id", reportedRowId)
+    .eq("business_id", businessId);
+
+  await logActivity(supabase, businessId, "produk", "sukses", `Bahan baku baru dari laporan produksi: ${row.reported_name}`);
+  revalidatePath(`/business/${businessId}/produksi`);
+  revalidatePath(`/business/${businessId}/ingredients`);
   return { error: null };
 }

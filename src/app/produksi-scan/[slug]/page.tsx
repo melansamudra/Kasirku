@@ -9,6 +9,7 @@ type ProductionScanInfo = {
   business_name: string;
   employees: { id: string; name: string }[];
   items: { id: string; name: string; unit: string; stock: number; recipe: RecipeLine[] }[];
+  ingredients: { id: string; name: string; unit: string }[];
 };
 
 export default async function ProduksiScanPublicPage({
@@ -34,6 +35,7 @@ export default async function ProduksiScanPublicPage({
         businessName={info.business_name}
         employees={info.employees}
         items={info.items}
+        ingredients={info.ingredients}
       />
     </div>
   );

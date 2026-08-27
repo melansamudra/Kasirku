@@ -4,12 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 
 export type SubmitProductionScanResult = { success: true } | { success: false; error: string };
 
+export type ReportedIngredientInput =
+  | { ingredientId: string; qty: number }
+  | { newName: string; newUnit: string; qty: number };
+
 export async function submitProductionScan(
   slug: string,
   item: { itemId: string } | { newName: string; newUnit: string },
   qtyProduced: number,
   employeeId: string,
   note: string,
+  reportedIngredients: ReportedIngredientInput[],
 ): Promise<SubmitProductionScanResult> {
   if ("itemId" in item && !item.itemId) {
     return { success: false, error: "Pilih bahan dulu." };
@@ -30,6 +35,12 @@ export async function submitProductionScan(
     p_note: note || null,
     p_new_item_name: "newName" in item ? item.newName.trim() : null,
     p_new_item_unit: "newName" in item ? item.newUnit.trim() : null,
+    p_reported_ingredients: reportedIngredients.map((r) => ({
+      ingredientId: "ingredientId" in r ? r.ingredientId : null,
+      newName: "newName" in r ? r.newName.trim() : null,
+      newUnit: "newUnit" in r ? r.newUnit.trim() : null,
+      qty: r.qty,
+    })),
   });
 
   if (error) {

@@ -2327,6 +2327,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      production_run_reported_consumptions: {
+        Row: {
+          id: string;
+          business_id: string;
+          production_run_id: string;
+          ingredient_id: string | null;
+          reported_name: string;
+          reported_unit: string;
+          qty: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          production_run_id: string;
+          ingredient_id?: string | null;
+          reported_name: string;
+          reported_unit: string;
+          qty: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          production_run_id?: string;
+          ingredient_id?: string | null;
+          reported_name?: string;
+          reported_unit?: string;
+          qty?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       outlets: {
         Row: {
           id: string;
@@ -3679,6 +3712,7 @@ export type Database = {
           p_note: string | null;
           p_new_item_name?: string | null;
           p_new_item_unit?: string | null;
+          p_reported_ingredients?: Json;
         };
         Returns: string;
       };

@@ -1,11 +1,20 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { submitProductionScan } from "./actions";
+import { submitProductionScan, type ReportedIngredientInput } from "./actions";
 
 type Employee = { id: string; name: string };
 type RecipeLine = { name: string; qtyPerUnit: number; unit: string; availableStock: number };
 type MasterItem = { id: string; name: string; unit: string; stock: number; recipe: RecipeLine[] };
+type MasterIngredient = { id: string; name: string; unit: string };
+
+const NEW_INGREDIENT_VALUE = "__new__";
+
+type IngredientRow = { key: string; ingredientId: string; newName: string; newUnit: string; qty: string };
+
+function emptyIngredientRow(): IngredientRow {
+  return { key: crypto.randomUUID(), ingredientId: "", newName: "", newUnit: "", qty: "" };
+}
 
 function formatQty(value: number) {
   return Number(value.toFixed(4)).toLocaleString("id-ID");
@@ -16,11 +25,13 @@ export default function RequestClient({
   businessName,
   employees,
   items,
+  ingredients,
 }: {
   slug: string;
   businessName: string;
   employees: Employee[];
   items: MasterItem[];
+  ingredients: MasterIngredient[];
 }) {
   const formId = useId();
   const [mode, setMode] = useState<"existing" | "new">("existing");
@@ -30,9 +41,11 @@ export default function RequestClient({
   const [qty, setQty] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [note, setNote] = useState("");
+  const [ingredientRows, setIngredientRows] = useState<IngredientRow[]>([]);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const ingredientMap = new Map(ingredients.map((i) => [i.id, i]));
   const selectedItem = items.find((i) => i.id === itemId);
   const qtyNum = Number(qty) || 0;
   const preview = useMemo(
@@ -40,12 +53,23 @@ export default function RequestClient({
     [selectedItem, qtyNum],
   );
 
+  function updateIngredientRow(key: string, patch: Partial<IngredientRow>) {
+    setIngredientRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+  function addIngredientRow() {
+    setIngredientRows((prev) => [...prev, emptyIngredientRow()]);
+  }
+  function removeIngredientRow(key: string) {
+    setIngredientRows((prev) => prev.filter((r) => r.key !== key));
+  }
+
   function resetForm() {
     setItemId("");
     setNewName("");
     setNewUnit("");
     setQty("");
     setNote("");
+    setIngredientRows([]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -65,6 +89,20 @@ export default function RequestClient({
       return;
     }
 
+    const reportedIngredients: ReportedIngredientInput[] = [];
+    for (const row of ingredientRows) {
+      const rowQty = Number(row.qty);
+      if (!row.qty || Number.isNaN(rowQty) || rowQty <= 0) continue; // baris kosong dilewati
+      if (row.ingredientId && row.ingredientId !== NEW_INGREDIENT_VALUE) {
+        reportedIngredients.push({ ingredientId: row.ingredientId, qty: rowQty });
+      } else if (row.newName.trim() && row.newUnit.trim()) {
+        reportedIngredients.push({ newName: row.newName.trim(), newUnit: row.newUnit.trim(), qty: rowQty });
+      } else {
+        setResult({ ok: false, message: "Lengkapi nama & satuan tiap baris bahan yang dipakai." });
+        return;
+      }
+    }
+
     setPending(true);
     const res = await submitProductionScan(
       slug,
@@ -72,6 +110,7 @@ export default function RequestClient({
       qtyNum,
       employeeId,
       note,
+      reportedIngredients,
     );
     setPending(false);
 
@@ -186,7 +225,7 @@ export default function RequestClient({
         {mode === "existing" && selectedItem && (
           <div className="rounded-xl bg-zinc-50 p-3">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
-              Bahan yang akan terpakai
+              Resep standar (buat pembanding)
             </p>
             {preview.length === 0 ? (
               <p className="text-xs text-zinc-400">Item ini belum punya resep.</p>
@@ -208,6 +247,81 @@ export default function RequestClient({
             )}
           </div>
         )}
+
+        <div className="rounded-xl border border-zinc-200 p-3">
+          <p className="mb-2 text-xs font-medium text-zinc-600">Bahan yang Benar-Benar Dipakai (opsional)</p>
+          <p className="mb-2 text-[11px] text-zinc-400">
+            Kalau bahan yang dipakai batch ini beda dari resep standar, catat di sini — supervisor
+            akan bandingkan sebelum verifikasi.
+          </p>
+          <div className="space-y-2">
+            {ingredientRows.map((row) => {
+              const isNew = row.ingredientId === NEW_INGREDIENT_VALUE;
+              const chosen = ingredientMap.get(row.ingredientId);
+              return (
+                <div key={row.key} className="flex items-start gap-2">
+                  <div className="flex-1 space-y-1.5">
+                    <select
+                      value={row.ingredientId}
+                      onChange={(e) => updateIngredientRow(row.key, { ingredientId: e.target.value })}
+                      className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    >
+                      <option value="">— Pilih bahan baku —</option>
+                      {ingredients.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
+                      ))}
+                      <option value={NEW_INGREDIENT_VALUE}>+ Ketik nama baru…</option>
+                    </select>
+                    {isNew && (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input
+                          type="text"
+                          value={row.newName}
+                          onChange={(e) => updateIngredientRow(row.key, { newName: e.target.value })}
+                          placeholder="Nama bahan"
+                          className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                        />
+                        <input
+                          type="text"
+                          value={row.newUnit}
+                          onChange={(e) => updateIngredientRow(row.key, { newUnit: e.target.value })}
+                          placeholder="Satuan (kg/gr/pcs)"
+                          className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                        />
+                      </div>
+                    )}
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      inputMode="decimal"
+                      value={row.qty}
+                      onChange={(e) => updateIngredientRow(row.key, { qty: e.target.value })}
+                      placeholder={`Jumlah${!isNew && chosen ? ` (${chosen.unit})` : ""}`}
+                      className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeIngredientRow(row.key)}
+                    className="mt-1.5 shrink-0 text-xs text-zinc-400 hover:text-red-600"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={addIngredientRow}
+            className="mt-2 w-full rounded-lg border border-dashed border-zinc-300 py-2 text-xs font-medium text-zinc-500 hover:border-brand-300 hover:text-brand-700"
+          >
+            + Tambah Bahan
+          </button>
+        </div>
 
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda (opsional)</label>

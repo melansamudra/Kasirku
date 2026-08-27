@@ -4,13 +4,31 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionState } from "./actions";
 
+function formatQty(value: number) {
+  return Number(value.toFixed(4)).toLocaleString("id-ID");
+}
+
+type RecipeLine = { name: string; qtyPerUnit: number; unit: string; availableStock: number };
+type ReportedLine = {
+  id: string;
+  ingredient_id: string | null;
+  reported_name: string;
+  reported_unit: string;
+  qty: number;
+};
+
 export default function PendingProductionCard({
   run,
   existingItems,
+  existingIngredients,
+  standardRecipe,
+  reportedLines,
   verifyAction,
   rejectAction,
   linkExistingAction,
   createNewAction,
+  linkReportedIngredientAction,
+  createIngredientForReportedAction,
 }: {
   run: {
     id: string;
@@ -23,15 +41,21 @@ export default function PendingProductionCard({
     produced_at: string;
   };
   existingItems: { id: string; name: string; unit: string }[];
-  verifyAction: () => Promise<ActionState>;
+  existingIngredients: { id: string; name: string; unit: string }[];
+  standardRecipe: RecipeLine[];
+  reportedLines: ReportedLine[];
+  verifyAction: (useReported: boolean) => Promise<ActionState>;
   rejectAction: (reason: string) => Promise<ActionState>;
   linkExistingAction: (existingItemId: string) => Promise<ActionState>;
   createNewAction: () => Promise<ActionState>;
+  linkReportedIngredientAction: (reportedRowId: string, existingIngredientId: string) => Promise<ActionState>;
+  createIngredientForReportedAction: (reportedRowId: string) => Promise<ActionState>;
 }) {
   const router = useRouter();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [chosenExistingId, setChosenExistingId] = useState("");
+  const [chosenIngredientByRow, setChosenIngredientByRow] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +70,12 @@ export default function PendingProductionCard({
     }
     router.refresh();
   }
+
+  const itemResolved = !!run.semi_finished_item_id;
+  const unresolvedReportedLines = reportedLines.filter((l) => !l.ingredient_id);
+  const allReportedResolved = reportedLines.length > 0 && unresolvedReportedLines.length === 0;
+
+  const standardPreview = standardRecipe.map((line) => ({ ...line, needed: line.qtyPerUnit * run.qty_produced }));
 
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -63,27 +93,19 @@ export default function PendingProductionCard({
           <p className="mt-0.5 text-[11px] font-medium text-amber-700">Hasil scan — belum mengubah stok</p>
         </div>
 
-        {run.semi_finished_item_id && !rejecting && (
-          <div className="flex shrink-0 gap-2">
-            <button
-              onClick={() => run_(verifyAction)}
-              disabled={pending}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pending ? "Memverifikasi…" : "Verifikasi"}
-            </button>
-            <button
-              onClick={() => setRejecting(true)}
-              disabled={pending}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 hover:border-red-300 hover:text-red-600"
-            >
-              Tolak
-            </button>
-          </div>
+        {!rejecting && (
+          <button
+            onClick={() => setRejecting(true)}
+            disabled={pending}
+            className="shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 hover:border-red-300 hover:text-red-600"
+          >
+            Tolak
+          </button>
         )}
       </div>
 
-      {!run.semi_finished_item_id && !rejecting && (
+      {/* 1) Item belum terhubung ke katalog Bahan Setengah Jadi */}
+      {!itemResolved && !rejecting && (
         <div className="mt-3 space-y-2 rounded-lg border border-amber-300 bg-white p-3">
           <p className="text-[11px] font-semibold text-zinc-600">
             &quot;{run.item_name}&quot; belum ada di katalog Bahan Setengah Jadi — arahkan ke mana?
@@ -121,13 +143,122 @@ export default function PendingProductionCard({
           >
             + Buat Bahan Setengah Jadi Baru: &quot;{run.item_name}&quot;
           </button>
-          <button
-            onClick={() => setRejecting(true)}
-            disabled={pending}
-            className="w-full text-[11px] text-zinc-400 hover:text-red-600"
-          >
-            Tolak draft ini
-          </button>
+        </div>
+      )}
+
+      {/* 2) Item sudah terhubung, tapi ada bahan dilaporkan yang belum dicocokkan */}
+      {itemResolved && unresolvedReportedLines.length > 0 && !rejecting && (
+        <div className="mt-3 space-y-2 rounded-lg border border-amber-300 bg-white p-3">
+          <p className="text-[11px] font-semibold text-zinc-600">
+            Ada {unresolvedReportedLines.length} bahan yang dilaporkan belum dicocokkan ke bahan baku:
+          </p>
+          {unresolvedReportedLines.map((line) => (
+            <div key={line.id} className="rounded-lg border border-zinc-200 p-2">
+              <p className="mb-1.5 text-xs font-medium text-zinc-700">
+                &quot;{line.reported_name}&quot; — {formatQty(Number(line.qty))} {line.reported_unit}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={chosenIngredientByRow[line.id] ?? ""}
+                  onChange={(e) => setChosenIngredientByRow((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                  className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                >
+                  <option value="">— Ini bahan baku yang mana… —</option>
+                  {existingIngredients.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} ({i.unit})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    const chosen = chosenIngredientByRow[line.id];
+                    if (chosen) run_(() => linkReportedIngredientAction(line.id, chosen));
+                  }}
+                  disabled={pending || !chosenIngredientByRow[line.id]}
+                  className="shrink-0 rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Gabung
+                </button>
+              </div>
+              <button
+                onClick={() => run_(() => createIngredientForReportedAction(line.id))}
+                disabled={pending}
+                className="mt-1.5 w-full rounded-lg border border-brand-300 bg-brand-50 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                + Buat Bahan Baku Baru: &quot;{line.reported_name}&quot;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 3) Semua terhubung -- tampilkan pembanding & pilihan verifikasi */}
+      {itemResolved && unresolvedReportedLines.length === 0 && !rejecting && (
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="rounded-lg border border-zinc-200 bg-white p-2.5">
+              <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
+                Resep Standar (otomatis)
+              </p>
+              {standardPreview.length === 0 ? (
+                <p className="text-[11px] text-zinc-400">Belum ada resep untuk item ini.</p>
+              ) : (
+                <div className="space-y-1">
+                  {standardPreview.map((line) => {
+                    const insufficient = line.needed > line.availableStock + 1e-9;
+                    return (
+                      <div key={line.name} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="text-zinc-600">{line.name}</span>
+                        <span className={insufficient ? "font-semibold text-red-600" : "text-zinc-700"}>
+                          {formatQty(line.needed)} {line.unit}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-zinc-200 bg-white p-2.5">
+              <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
+                Dilaporkan Staf (aktual)
+              </p>
+              {reportedLines.length === 0 ? (
+                <p className="text-[11px] text-zinc-400">Staf tidak melaporkan bahan.</p>
+              ) : (
+                <div className="space-y-1">
+                  {reportedLines.map((line) => (
+                    <div key={line.id} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="text-zinc-600">{line.reported_name}</span>
+                      <span className="text-zinc-700">
+                        {formatQty(Number(line.qty))} {line.reported_unit}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              onClick={() => run_(() => verifyAction(false))}
+              disabled={pending || standardPreview.length === 0}
+              title={standardPreview.length === 0 ? "Belum ada resep standar" : undefined}
+              className="flex-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? "Memproses…" : "Verifikasi pakai Resep Standar"}
+            </button>
+            <button
+              onClick={() => run_(() => verifyAction(true))}
+              disabled={pending || !allReportedResolved}
+              title={!allReportedResolved ? "Staf tidak melaporkan bahan untuk batch ini" : undefined}
+              className="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? "Memproses…" : "Verifikasi pakai Yang Dilaporkan"}
+            </button>
+          </div>
         </div>
       )}
 
