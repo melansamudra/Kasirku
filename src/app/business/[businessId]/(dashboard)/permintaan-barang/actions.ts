@@ -109,6 +109,30 @@ export async function markItemFulfillment(
     .single();
   if (!item) return { error: "Barang tidak ditemukan." };
 
+  // Kalau stoknya sudah beneran diterima/dipindah (receiveStockFulfillment
+  // sudah jalan), tidak boleh ditandai ulang -- keputusan fulfillment sudah
+  // final di titik itu.
+  const { count: receivedCount } = await supabase
+    .from("purchase_request_item_stock_fulfillments")
+    .select("id", { count: "exact", head: true })
+    .eq("purchase_request_item_id", itemId)
+    .eq("business_id", businessId)
+    .not("received_at", "is", null);
+  if (receivedCount && receivedCount > 0) {
+    return { error: "Barang ini sudah diterima dari Gudang Utama, tidak bisa ditandai ulang." };
+  }
+
+  // Bersihkan baris fulfillment yang BELUM diterima dari penandaan
+  // sebelumnya -- mencegah klik dobel/ganti pilihan (stock->supplier atau
+  // sebaliknya) menumpuk beberapa baris fulfillment untuk barang yang sama
+  // (kalau tidak, qty yang akhirnya dipindah bisa dobel/tiga kali lipat).
+  await supabase
+    .from("purchase_request_item_stock_fulfillments")
+    .delete()
+    .eq("purchase_request_item_id", itemId)
+    .eq("business_id", businessId)
+    .is("received_at", null);
+
   if (source === "stock") {
     const { data: defaultLocation } = await supabase
       .from("stock_locations")
@@ -199,10 +223,19 @@ export async function receiveStockFulfillment(
     .eq("ingredient_id", item.ingredient_id)
     .maybeSingle();
   const sourceStockBefore = Number(sourceRow?.stock ?? 0);
+  // Wajib dicek di sini (bukan cuma floor ke 0 lalu tetap kredit lokasi
+  // tujuan penuh) -- kalau tidak, stok bisa "muncul dari udara": lokasi
+  // tujuan tetap dapat qty penuh walau Gudang Utama sebenarnya tidak
+  // sanggup, jadi total stok se-bisnis naik tanpa ada barang fisik masuk.
+  if (sourceStockBefore < qty - 1e-9) {
+    return {
+      error: `Stok Gudang Utama tidak cukup untuk ${item.item_name} (tersedia ${sourceStockBefore} ${item.unit ?? ""}, butuh ${qty} ${item.unit ?? ""}). Sesuaikan dulu stok Gudang Utama, atau perbaiki qty di Permintaan Barang.`,
+    };
+  }
   if (sourceRow) {
     await supabase
       .from("ingredient_location_stock")
-      .update({ stock: Math.max(0, sourceStockBefore - qty) })
+      .update({ stock: sourceStockBefore - qty })
       .eq("id", sourceRow.id);
   }
 
@@ -239,7 +272,7 @@ export async function receiveStockFulfillment(
       item_name: item.item_name,
       unit: item.unit,
       stock_before: sourceStockBefore,
-      stock_after: Math.max(0, sourceStockBefore - qty),
+      stock_after: sourceStockBefore - qty,
       diff: -qty,
       reason: `Diambil untuk Permintaan Barang (diterima oleh ${receivedBy.trim()})`,
     },

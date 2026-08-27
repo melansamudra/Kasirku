@@ -38,15 +38,18 @@ export async function recalculateFromSales(
   const supabase = await createClient();
   const { fromIso, toIsoExclusive } = monthRange(referencePeriod);
 
-  const { data: transactionRows } = await supabase
-    .from("transactions")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("voided", false)
-    .gte("date", fromIso)
-    .lt("date", toIsoExclusive);
+  const transactionRows = await fetchAllRows<{ id: string }>((from, to) =>
+    supabase
+      .from("transactions")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .gte("date", fromIso)
+      .lt("date", toIsoExclusive)
+      .range(from, to),
+  );
 
-  const transactionIds = (transactionRows ?? []).map((t) => t.id);
+  const transactionIds = transactionRows.map((t) => t.id);
   const items =
     transactionIds.length > 0
       ? await fetchAllRows<TransactionItemRow>((from, to) =>

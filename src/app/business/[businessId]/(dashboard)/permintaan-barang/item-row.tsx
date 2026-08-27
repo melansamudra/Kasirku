@@ -96,10 +96,14 @@ export default function ItemRow({
   const remainingQty = Math.max(finalQty - allocatedQty, 0);
   const hasForwardedAllocation = item.allocations.some((a) => a.forwardedAt);
   const isIngredient = item.ingredientId !== null;
-  // Barang produk (bukan bahan baku) tidak bisa "diambil dari Gudang" (stok
-  // per lokasi cuma ada untuk bahan baku) -- langsung ke jalur supplier
-  // seperti alur lama, tanpa pilihan fulfillment.
-  const showSupplierFlow = !isIngredient || item.fulfillmentSource === "supplier";
+  // Fulfillment stok-vs-supplier cuma konsep bisnis cost-control (stok per
+  // lokasi/Gudang Utama tidak ada di bisnis lain). Permintaan Barang dipakai
+  // BARENG bisnis lain juga -- tanpa gerbang costControlEnabled ini, form
+  // alokasi supplier yang dari dulu langsung tampil buat mereka jadi
+  // ketutup di belakang tombol baru yang tidak relevan buat mereka sama
+  // sekali (fulfillment_source defaultnya 'pending' untuk SEMUA bisnis,
+  // bukan cuma cost-control -- kolomnya ada di skema semua PR).
+  const showSupplierFlow = !costControlEnabled || !isIngredient || item.fulfillmentSource === "supplier";
 
   function handleSaveQty() {
     const qty = Number(approvedQty);
@@ -315,7 +319,7 @@ export default function ItemRow({
       {item.currentStock !== null && (
         <p className="text-[10.5px] text-zinc-400">Stok saat order dibuat: {item.currentStock}</p>
       )}
-      {item.totalStock !== null && (
+      {costControlEnabled && item.totalStock !== null && (
         <p className="text-[10.5px] text-zinc-400">
           Stok saat ini (semua lokasi): <span className="font-medium text-zinc-500">{item.totalStock}</span>
           {item.unit ? ` ${item.unit}` : ""}
@@ -409,7 +413,7 @@ export default function ItemRow({
         </div>
       )}
 
-      {isIngredient && item.fulfillmentSource === "pending" && (
+      {costControlEnabled && isIngredient && item.fulfillmentSource === "pending" && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <select
             value={fulfillmentMarkedBy}
@@ -440,7 +444,7 @@ export default function ItemRow({
         </div>
       )}
 
-      {isIngredient && item.fulfillmentSource === "stock" && (
+      {costControlEnabled && isIngredient && item.fulfillmentSource === "stock" && (
         <div className="mt-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[11px]">
           <p className="font-medium text-zinc-700">📦 Ambil dari Gudang Utama</p>
           {item.stockFulfillment?.receivedAt ? (
