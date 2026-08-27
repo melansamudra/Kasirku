@@ -101,8 +101,13 @@ export default async function PdoPage({
     `${nextDayStr(to)}T00:00:00+07:00`,
   );
 
+  // Cuma yang metode bayarnya Transfer -- kas keluar tunai (nota tunai kasir,
+  // dll) isi ulang sendiri dari omset tunai (rekonsiliasinya lewat "Tutup
+  // Petty Cash" di halaman Kas Kecil), jadi tidak ikut diminta ke PDO. Kas
+  // keluar lama sebelum kolom payment_method ada (atau yang belum diisi)
+  // otomatis tidak muncul di sini -- itu batasan yang disengaja, bukan bug.
   const notaList = displayLines
-    .filter((l) => Number(l.credit) > 0) // kas KELUAR saja, bukan kas masuk/setoran
+    .filter((l) => Number(l.credit) > 0 && l.journal_entries.payment_method === "transfer")
     .map((l) => ({
       id: l.id,
       description: l.journal_entries.description,
@@ -214,8 +219,12 @@ export default async function PdoPage({
         <Link href={`/business/${businessId}/kas-harian`} className="text-brand-600 hover:underline">
           Kas & Bank
         </Link>{" "}
-        (semua kas keluar yang beneran berlaku — Kas Kecil, Catat Kas Keluar manual, dll — void &amp;
-        yang masih menunggu/ditolak sudah dikecualikan). Transfer yang tercatat bisa dicek di{" "}
+        , cuma yang metode bayarnya <strong>Transfer</strong> (void &amp; yang masih menunggu/ditolak
+        sudah dikecualikan). Kas keluar tunai tidak ikut — isi ulang sendiri dari omset tunai, cek di{" "}
+        <Link href={`/business/${businessId}/kas-kecil`} className="text-brand-600 hover:underline">
+          Tutup Petty Cash
+        </Link>
+        . Transfer yang tercatat bisa dicek di{" "}
         <Link href={`/business/${businessId}/accounting/jurnal`} className="text-brand-600 hover:underline">
           Jurnal Transaksi
         </Link>

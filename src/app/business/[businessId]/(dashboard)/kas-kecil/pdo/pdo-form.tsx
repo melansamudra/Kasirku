@@ -306,7 +306,7 @@ export default function PdoForm({
           <div className="overflow-hidden rounded-xl border border-zinc-100">
             <div className="flex items-center justify-between bg-zinc-50 px-3.5 py-2 text-xs">
               <span className="font-medium text-zinc-600">
-                Nota Kas Keluar ({fromLabel} – {toLabel}) — {selectedNotas.length}/{notaList.length} dipilih
+                Nota Kas Keluar via Transfer ({fromLabel} – {toLabel}) — {selectedNotas.length}/{notaList.length} dipilih
               </span>
               <div className="flex gap-2">
                 <button
@@ -327,7 +327,7 @@ export default function PdoForm({
             </div>
             {notaList.length === 0 ? (
               <p className="px-3.5 py-4 text-center text-xs text-zinc-300">
-                Tidak ada nota kas keluar di periode ini.
+                Tidak ada nota kas keluar via transfer di periode ini.
               </p>
             ) : (
               <div className="max-h-56 divide-y divide-zinc-50 overflow-y-auto">
