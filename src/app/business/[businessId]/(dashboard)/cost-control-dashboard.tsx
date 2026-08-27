@@ -39,6 +39,7 @@ export default async function CostControlDashboard({ businessId }: { businessId:
     { count: pendingRequestCount },
     { count: pendingWarehouseRequestCount },
     { data: recentRuns },
+    { data: stockLocations },
     costMap,
   ] = await Promise.all([
     supabase
@@ -73,6 +74,11 @@ export default async function CostControlDashboard({ businessId }: { businessId:
       .eq("voided", false)
       .order("produced_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("stock_locations")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .order("sort_order", { ascending: true }),
     computeAllSemiFinishedItemCosts(supabase, businessId),
   ]);
 
@@ -81,6 +87,37 @@ export default async function CostControlDashboard({ businessId }: { businessId:
     (sum, item) => sum + Number(item.stock) * (costMap.get(item.id)?.unitCost ?? 0),
     0,
   );
+
+  // Nilai bahan baku per lokasi fisik (Gudang Utama/Kitchen Atas/dst) --
+  // stok per lokasi (ingredient_location_stock) dikali unit_cost bahan baku
+  // itu sendiri (harga bahan baku business-wide, bukan per lokasi).
+  let locationValues: { id: string; name: string; value: number }[] = [];
+  if ((stockLocations ?? []).length > 0) {
+    const [{ data: locStockRows }, { data: allIngredients }] = await Promise.all([
+      supabase
+        .from("ingredient_location_stock")
+        .select("location_id, ingredient_id, stock")
+        .eq("business_id", businessId),
+      supabase
+        .from("ingredients")
+        .select("id, unit_cost")
+        .eq("business_id", businessId)
+        .is("deleted_at", null),
+    ]);
+    const unitCostById = new Map((allIngredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
+    const valueByLocation = new Map<string, number>();
+    for (const row of locStockRows ?? []) {
+      const unitCost = unitCostById.get(row.ingredient_id) ?? 0;
+      const value = Number(row.stock) * unitCost;
+      valueByLocation.set(row.location_id, (valueByLocation.get(row.location_id) ?? 0) + value);
+    }
+    locationValues = (stockLocations ?? []).map((loc) => ({
+      id: loc.id,
+      name: loc.name,
+      value: valueByLocation.get(loc.id) ?? 0,
+    }));
+  }
+  const totalLocationValue = locationValues.reduce((s, l) => s + l.value, 0);
   const lowStockItems = semiItems
     .filter((item) => Number(item.min_stock) > 0 && Number(item.stock) <= Number(item.min_stock))
     .sort((a, b) => (Number(b.min_stock) - Number(b.stock)) - (Number(a.min_stock) - Number(a.stock)))
@@ -183,6 +220,39 @@ export default async function CostControlDashboard({ businessId }: { businessId:
           )}
         </div>
       </div>
+
+      {/* Nilai bahan baku per lokasi */}
+      {locationValues.length > 0 && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-zinc-900">Nilai Bahan Baku per Lokasi</h2>
+              <p className="mt-0.5 text-[11px] text-zinc-400">Stok per lokasi × harga bahan baku saat ini</p>
+            </div>
+            <p className="text-sm font-bold text-zinc-900">{formatRupiahShort(totalLocationValue)}</p>
+          </div>
+          <div className="mt-3 space-y-2">
+            {locationValues.map((loc) => {
+              const pct = totalLocationValue > 0 ? (loc.value / totalLocationValue) * 100 : 0;
+              return (
+                <Link
+                  key={loc.id}
+                  href={`${base}/lokasi/${loc.id}/bahan-baku`}
+                  className="block rounded-lg px-3 py-2 hover:bg-zinc-50"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-zinc-800">{loc.name}</p>
+                    <p className="shrink-0 text-xs font-semibold text-zinc-700">{formatRupiah(loc.value)}</p>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+                    <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Riwayat produksi */}
       <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
