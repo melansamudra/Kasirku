@@ -1,7 +1,14 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
-import { recordProductionRun, regenerateProductionScanSlug, rejectProductionRun, verifyProductionRun } from "./actions";
+import {
+  createItemForPendingProduction,
+  linkPendingProductionToExistingItem,
+  recordProductionRun,
+  regenerateProductionScanSlug,
+  rejectProductionRun,
+  verifyProductionRun,
+} from "./actions";
 import NewProductionForm from "./new-production-form";
 import ProductionRunCard from "./production-run-card";
 import PendingProductionCard from "./pending-production-card";
@@ -42,7 +49,7 @@ export default async function ProduksiPage({
       supabase
         .from("production_runs")
         .select(
-          "id, item_name, qty_produced, unit, total_cost, produced_by_name, note, voided, void_reason, status, reject_reason, produced_at",
+          "id, semi_finished_item_id, item_name, qty_produced, unit, total_cost, produced_by_name, note, voided, void_reason, status, reject_reason, produced_at",
         )
         .eq("business_id", businessId)
         .order("produced_at", { ascending: false }),
@@ -83,6 +90,8 @@ export default async function ProduksiPage({
   const boundRecord = recordProductionRun.bind(null, businessId);
   const boundVerify = verifyProductionRun.bind(null, businessId);
   const boundReject = rejectProductionRun.bind(null, businessId);
+  const boundLinkExisting = linkPendingProductionToExistingItem.bind(null, businessId);
+  const boundCreateNew = createItemForPendingProduction.bind(null, businessId);
   const boundRegenerateSlug = regenerateProductionScanSlug.bind(null, businessId);
 
   return (
@@ -94,11 +103,12 @@ export default async function ProduksiPage({
       </p>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="mb-2 text-sm font-semibold text-zinc-900">Scan Barcode — Tanpa Kertas</h2>
+        <h2 className="mb-2 text-sm font-semibold text-zinc-900">Catat Produksi Tanpa Kertas</h2>
         <p className="mb-3 text-xs text-zinc-500">
-          Bagikan link ini ke tim dapur supaya bisa langsung scan barcode + isi jumlah begitu selesai
-          produksi, tanpa perlu login atau catat di kertas dulu. Hasil scan masuk sebagai draft di
-          bawah — stok baru berubah setelah Anda <strong>verifikasi</strong>.
+          Bagikan link ini ke tim dapur supaya bisa langsung isi bahan + jumlah begitu selesai
+          produksi (bisa pilih dari daftar atau ketik bahan baru), tanpa perlu login atau catat di
+          kertas dulu. Hasil isian masuk sebagai draft di bawah — stok baru berubah setelah Anda{" "}
+          <strong>verifikasi</strong>.
         </p>
         <ProductionScanLinkSection businessId={businessId} initialSlug={business.production_scan_slug ?? ""} regenerateAction={boundRegenerateSlug} />
       </div>
@@ -113,8 +123,11 @@ export default async function ProduksiPage({
               <PendingProductionCard
                 key={run.id}
                 run={run}
+                existingItems={items ?? []}
                 verifyAction={boundVerify.bind(null, run.id)}
                 rejectAction={boundReject.bind(null, run.id)}
+                linkExistingAction={boundLinkExisting.bind(null, run.id)}
+                createNewAction={boundCreateNew.bind(null, run.id)}
               />
             ))}
           </div>

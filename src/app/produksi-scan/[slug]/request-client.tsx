@@ -23,7 +23,10 @@ export default function RequestClient({
   items: MasterItem[];
 }) {
   const formId = useId();
+  const [mode, setMode] = useState<"existing" | "new">("existing");
   const [itemId, setItemId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newUnit, setNewUnit] = useState("");
   const [qty, setQty] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [note, setNote] = useState("");
@@ -39,6 +42,8 @@ export default function RequestClient({
 
   function resetForm() {
     setItemId("");
+    setNewName("");
+    setNewUnit("");
     setQty("");
     setNote("");
   }
@@ -47,8 +52,12 @@ export default function RequestClient({
     e.preventDefault();
     setResult(null);
 
-    if (!itemId) {
+    if (mode === "existing" && !itemId) {
       setResult({ ok: false, message: "Pilih bahan yang diproduksi dulu." });
+      return;
+    }
+    if (mode === "new" && (!newName.trim() || !newUnit.trim())) {
+      setResult({ ok: false, message: "Isi nama dan satuan bahan barunya." });
       return;
     }
     if (!qty || Number.isNaN(qtyNum) || qtyNum <= 0) {
@@ -57,7 +66,13 @@ export default function RequestClient({
     }
 
     setPending(true);
-    const res = await submitProductionScan(slug, itemId, qtyNum, employeeId, note);
+    const res = await submitProductionScan(
+      slug,
+      mode === "existing" ? { itemId } : { newName, newUnit },
+      qtyNum,
+      employeeId,
+      note,
+    );
     setPending(false);
 
     if (!res.success) {
@@ -65,7 +80,13 @@ export default function RequestClient({
       return;
     }
 
-    setResult({ ok: true, message: "Tersimpan sebagai draft! Menunggu diverifikasi supervisor." });
+    setResult({
+      ok: true,
+      message:
+        mode === "new"
+          ? "Tersimpan! Supervisor akan tentukan bahan ini digabung ke item lama atau dibuat baru."
+          : "Tersimpan sebagai draft! Menunggu diverifikasi supervisor.",
+    });
     resetForm();
   }
 
@@ -79,25 +100,76 @@ export default function RequestClient({
       </p>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Bahan Setengah Jadi</label>
-          <select
-            value={itemId}
-            onChange={(e) => setItemId(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        <div className="flex rounded-xl border border-zinc-200 p-1 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setMode("existing")}
+            className={`flex-1 rounded-lg py-2 transition-colors ${
+              mode === "existing" ? "bg-brand-600 text-white" : "text-zinc-500"
+            }`}
           >
-            <option value="">— Pilih bahan setengah jadi —</option>
-            {items.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name}
-              </option>
-            ))}
-          </select>
+            Pilih dari daftar
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("new")}
+            className={`flex-1 rounded-lg py-2 transition-colors ${
+              mode === "new" ? "bg-brand-600 text-white" : "text-zinc-500"
+            }`}
+          >
+            Bahan baru
+          </button>
         </div>
+
+        {mode === "existing" ? (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">Bahan Setengah Jadi</label>
+            <select
+              value={itemId}
+              onChange={(e) => setItemId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">— Pilih bahan setengah jadi —</option>
+              {items.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="space-y-3 rounded-xl border border-dashed border-zinc-300 p-3">
+            <p className="text-[11px] text-zinc-500">
+              Belum ada di daftar? Ketik nama bahannya — supervisor yang akan putuskan nanti digabung
+              ke item lama atau dibuat item baru.
+            </p>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Bahan</label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="mis. Sambal Matah"
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600">Satuan</label>
+              <input
+                type="text"
+                value={newUnit}
+                onChange={(e) => setNewUnit(e.target.value)}
+                placeholder="porsi / gr / ml / pcs"
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          </div>
+        )}
 
         <div>
           <label htmlFor={`${formId}-qty`} className="mb-1 block text-xs font-medium text-zinc-600">
-            Jumlah Diproduksi{selectedItem ? ` (${selectedItem.unit})` : ""}
+            Jumlah Diproduksi
+            {mode === "existing" && selectedItem ? ` (${selectedItem.unit})` : mode === "new" && newUnit ? ` (${newUnit})` : ""}
           </label>
           <input
             id={`${formId}-qty`}
@@ -111,7 +183,7 @@ export default function RequestClient({
           />
         </div>
 
-        {selectedItem && (
+        {mode === "existing" && selectedItem && (
           <div className="rounded-xl bg-zinc-50 p-3">
             <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
               Bahan yang akan terpakai

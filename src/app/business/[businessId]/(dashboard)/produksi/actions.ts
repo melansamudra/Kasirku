@@ -367,3 +367,81 @@ export async function regenerateProductionScanSlug(businessId: string): Promise<
   revalidatePath(`/business/${businessId}/produksi`);
   return { error: null, slug };
 }
+
+// Draft hasil scan yang namanya belum cocok katalog mana pun
+// (semi_finished_item_id null) -- supervisor arahkan ke item LAMA yang sudah
+// ada. Nama & satuan draft ikut disamakan ke item lama itu (bukan sebaliknya)
+// supaya katalog tidak ikut berubah gara-gara typo/istilah beda dari staf.
+export async function linkPendingProductionToExistingItem(
+  businessId: string,
+  runId: string,
+  existingItemId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("production_runs")
+    .select("id, status, semi_finished_item_id")
+    .eq("id", runId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!run) return { error: "Produksi tidak ditemukan." };
+  if (run.status !== "pending") return { error: "Produksi ini sudah diproses sebelumnya." };
+  if (run.semi_finished_item_id) return { error: "Draft ini sudah terhubung ke sebuah item." };
+
+  const { data: item } = await supabase
+    .from("semi_finished_items")
+    .select("id, name, unit")
+    .eq("id", existingItemId)
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!item) return { error: "Item tidak ditemukan." };
+
+  await supabase
+    .from("production_runs")
+    .update({ semi_finished_item_id: item.id, item_name: item.name, unit: item.unit })
+    .eq("id", runId)
+    .eq("business_id", businessId);
+
+  revalidatePath(`/business/${businessId}/produksi`);
+  return { error: null };
+}
+
+// Draft hasil scan yang belum ada di katalog -- supervisor putuskan bikin
+// item BARU (resep masih kosong, diisi manual belakangan di halaman Bahan
+// Setengah Jadi -- verifikasi produksi ini sendiri baru bisa jalan setelah
+// resepnya ada, sama seperti item lama yang belum ada resep).
+export async function createItemForPendingProduction(businessId: string, runId: string): Promise<ActionState> {
+  const supabase = await createClient();
+
+  const { data: run } = await supabase
+    .from("production_runs")
+    .select("id, status, semi_finished_item_id, item_name, unit")
+    .eq("id", runId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!run) return { error: "Produksi tidak ditemukan." };
+  if (run.status !== "pending") return { error: "Produksi ini sudah diproses sebelumnya." };
+  if (run.semi_finished_item_id) return { error: "Draft ini sudah terhubung ke sebuah item." };
+
+  const { data: newItem, error: insertError } = await supabase
+    .from("semi_finished_items")
+    .insert({ business_id: businessId, name: run.item_name, unit: run.unit })
+    .select("id")
+    .single();
+  if (insertError || !newItem) {
+    return { error: insertError?.message ?? "Gagal membuat item baru." };
+  }
+
+  await supabase
+    .from("production_runs")
+    .update({ semi_finished_item_id: newItem.id })
+    .eq("id", runId)
+    .eq("business_id", businessId);
+
+  await logActivity(supabase, businessId, "produk", "sukses", `Bahan setengah jadi baru dari scan: ${run.item_name}`);
+  revalidatePath(`/business/${businessId}/produksi`);
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null };
+}

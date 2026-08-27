@@ -3673,10 +3673,12 @@ export type Database = {
       submit_production_scan: {
         Args: {
           p_slug: string;
-          p_item_id: string;
+          p_item_id: string | null;
           p_qty: number;
           p_employee_id: string | null;
           p_note: string | null;
+          p_new_item_name?: string | null;
+          p_new_item_unit?: string | null;
         };
         Returns: string;
       };
