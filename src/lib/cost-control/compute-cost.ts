@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -63,29 +64,52 @@ type CostGraph = {
 // satu business, diambil SEKALI lalu dipakai untuk resolve berapa pun item —
 // menghindari N round-trip DB saat menghitung HPP banyak item sekaligus
 // (mis. halaman list).
+//
+// fetchAllRows (bukan .select() polos) -- Supabase/PostgREST diam-diam
+// memotong select tanpa .range() ke Max Rows API (default 1000). Llauk
+// Nusantara sudah 867 ingredients & 1252 semi_finished_recipes -- resep yang
+// paling baru dibuat (mis. Saos Mayonase) kepotong dari hasil select polos,
+// bikin HPP-nya kehitung 0/kosong padahal resepnya sudah tersimpan lengkap.
+// Sama pola dengan fix bug 1000-row di halaman akuntansi/reports.
 async function loadCostGraph(supabase: SupabaseServerClient, businessId: string): Promise<CostGraph> {
-  const [{ data: ingredients }, { data: items }, { data: recipes }] = await Promise.all([
-    supabase
-      .from("ingredients")
-      .select("id, name, unit, unit_cost")
-      .eq("business_id", businessId)
-      .is("deleted_at", null),
-    supabase
-      .from("semi_finished_items")
-      .select("id, name, unit, fluctuation_pct")
-      .eq("business_id", businessId)
-      .is("deleted_at", null),
-    supabase
-      .from("semi_finished_recipes")
-      .select("semi_finished_item_id, component_type, ingredient_id, component_semi_finished_id, qty, unit")
-      .eq("business_id", businessId),
+  const [ingredients, items, recipes] = await Promise.all([
+    fetchAllRows<IngredientRow>((from, to) =>
+      supabase
+        .from("ingredients")
+        .select("id, name, unit, unit_cost")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .range(from, to),
+    ),
+    fetchAllRows<SemiFinishedRow>((from, to) =>
+      supabase
+        .from("semi_finished_items")
+        .select("id, name, unit, fluctuation_pct")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .range(from, to),
+    ),
+    fetchAllRows<{
+      semi_finished_item_id: string;
+      component_type: string;
+      ingredient_id: string | null;
+      component_semi_finished_id: string | null;
+      qty: number;
+      unit: string;
+    }>((from, to) =>
+      supabase
+        .from("semi_finished_recipes")
+        .select("semi_finished_item_id, component_type, ingredient_id, component_semi_finished_id, qty, unit")
+        .eq("business_id", businessId)
+        .range(from, to),
+    ) as Promise<SemiFinishedRecipeRow[]>,
   ]);
 
-  const ingredientMap = new Map((ingredients ?? []).map((row) => [row.id, row as IngredientRow]));
-  const itemMap = new Map((items ?? []).map((row) => [row.id, row as SemiFinishedRow]));
+  const ingredientMap = new Map(ingredients.map((row) => [row.id, row]));
+  const itemMap = new Map(items.map((row) => [row.id, row]));
 
   const recipesByItem = new Map<string, SemiFinishedRecipeRow[]>();
-  for (const row of (recipes ?? []) as SemiFinishedRecipeRow[]) {
+  for (const row of recipes) {
     const list = recipesByItem.get(row.semi_finished_item_id) ?? [];
     list.push(row);
     recipesByItem.set(row.semi_finished_item_id, list);
@@ -269,18 +293,30 @@ export async function computeAllFinishedProductCosts(
   businessId: string,
 ): Promise<Map<string, CostResult>> {
   const graph = await loadCostGraph(supabase, businessId);
-  const [{ data: recipeRows }, { data: products }] = await Promise.all([
-    supabase
-      .from("finished_product_recipes")
-      .select("finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
-      .eq("business_id", businessId),
-    supabase.from("finished_products").select("id, fluctuation_pct").eq("business_id", businessId),
+  const [recipeRows, products] = await Promise.all([
+    fetchAllRows<{
+      finished_product_id: string;
+      component_type: string;
+      ingredient_id: string | null;
+      semi_finished_item_id: string | null;
+      qty: number;
+      unit: string;
+    }>((from, to) =>
+      supabase
+        .from("finished_product_recipes")
+        .select("finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
+        .eq("business_id", businessId)
+        .range(from, to),
+    ) as Promise<FinishedRecipeRow[]>,
+    fetchAllRows<{ id: string; fluctuation_pct: number }>((from, to) =>
+      supabase.from("finished_products").select("id, fluctuation_pct").eq("business_id", businessId).range(from, to),
+    ),
   ]);
 
-  const fluctuationById = new Map((products ?? []).map((p) => [p.id, Number(p.fluctuation_pct ?? 0)]));
+  const fluctuationById = new Map(products.map((p) => [p.id, Number(p.fluctuation_pct ?? 0)]));
 
   const rowsByProduct = new Map<string, FinishedRecipeRow[]>();
-  for (const row of (recipeRows ?? []) as FinishedRecipeRow[]) {
+  for (const row of recipeRows) {
     const list = rowsByProduct.get(row.finished_product_id) ?? [];
     list.push(row);
     rowsByProduct.set(row.finished_product_id, list);
