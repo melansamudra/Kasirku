@@ -49,9 +49,13 @@ export async function updateSession(request: NextRequest) {
   // /absen/* adalah halaman absen selfie karyawan (scan link/QR) — tanpa
   // login, sama alasannya dengan /order. /api/attendance-checkin adalah API
   // route yang dipanggil dari halaman itu, juga tanpa sesi browser.
-  // /permintaan-barang/* adalah halaman order barang staf dapur/bar/front
-  // (scan link/QR) — tanpa login, sama pola dengan /absen (submit lewat RPC
-  // security definer, bukan API route, jadi tidak perlu whitelist /api/*).
+  // /permintaan-barang/*, /permintaan-resto/*, /permintaan-gudang/*, dan
+  // /produksi-scan/* adalah halaman scan link/QR tanpa login buat staf
+  // dapur/bar/front (submit lewat RPC security definer, bukan API route, jadi
+  // tidak perlu whitelist /api/* juga) — sama pola dengan /absen.
+  // /permintaan-resto & /permintaan-gudang sempat ketinggalan dari daftar ini
+  // (bug lama — pengunjung tanpa login malah ke-redirect ke /login walau
+  // halamannya didesain publik), sekalian dibetulkan di sini.
   // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
   // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
   // /reset-password sama kasusnya: link reset dari email membawa token di URL
@@ -94,6 +98,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/order") ||
     request.nextUrl.pathname.startsWith("/absen") ||
     request.nextUrl.pathname.startsWith("/permintaan-barang") ||
+    request.nextUrl.pathname.startsWith("/permintaan-resto") ||
+    request.nextUrl.pathname.startsWith("/permintaan-gudang") ||
+    request.nextUrl.pathname.startsWith("/produksi-scan") ||
     request.nextUrl.pathname.startsWith("/api/attendance-checkin") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||

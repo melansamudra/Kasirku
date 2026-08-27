@@ -312,6 +312,7 @@ export type Database = {
           cost_control_enabled: boolean;
           outlet_request_slug: string | null;
           warehouse_request_slug: string | null;
+          production_scan_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -344,6 +345,7 @@ export type Database = {
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
           warehouse_request_slug?: string | null;
+          production_scan_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -376,6 +378,7 @@ export type Database = {
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
           warehouse_request_slug?: string | null;
+          production_scan_slug?: string | null;
         };
         Relationships: [];
       };
@@ -2232,6 +2235,8 @@ export type Database = {
           voided: boolean;
           voided_at: string | null;
           void_reason: string | null;
+          status: string;
+          reject_reason: string | null;
           produced_at: string;
           created_at: string;
         };
@@ -2250,6 +2255,8 @@ export type Database = {
           voided?: boolean;
           voided_at?: string | null;
           void_reason?: string | null;
+          status?: string;
+          reject_reason?: string | null;
           produced_at?: string;
           created_at?: string;
         };
@@ -2268,6 +2275,8 @@ export type Database = {
           voided?: boolean;
           voided_at?: string | null;
           void_reason?: string | null;
+          status?: string;
+          reject_reason?: string | null;
           produced_at?: string;
           created_at?: string;
         };
@@ -3654,6 +3663,20 @@ export type Database = {
           p_employee_id: string;
           p_note: string | null;
           p_items: Json;
+        };
+        Returns: string;
+      };
+      get_production_scan_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_production_scan: {
+        Args: {
+          p_slug: string;
+          p_item_id: string;
+          p_qty: number;
+          p_employee_id: string | null;
+          p_note: string | null;
         };
         Returns: string;
       };

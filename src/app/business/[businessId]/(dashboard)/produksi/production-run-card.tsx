@@ -23,6 +23,8 @@ export default function ProductionRunCard({
     note: string | null;
     voided: boolean;
     void_reason: string | null;
+    status: string;
+    reject_reason: string | null;
     produced_at: string;
   };
 }) {
@@ -32,9 +34,11 @@ export default function ProductionRunCard({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const rejected = run.status === "rejected";
+
   return (
     <div
-      className={`rounded-xl border px-4 py-3 ${run.voided ? "border-zinc-200 bg-zinc-50 opacity-60" : "border-zinc-200 bg-white"}`}
+      className={`rounded-xl border px-4 py-3 ${run.voided || rejected ? "border-zinc-200 bg-zinc-50 opacity-60" : "border-zinc-200 bg-white"}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
@@ -50,10 +54,15 @@ export default function ProductionRunCard({
           {run.voided && (
             <p className="mt-0.5 text-xs font-medium text-red-500">Dibatalkan: {run.void_reason}</p>
           )}
+          {rejected && (
+            <p className="mt-0.5 text-xs font-medium text-red-500">
+              Ditolak (hasil scan): {run.reject_reason}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <p className="text-sm font-semibold text-zinc-700">{formatRupiah(run.total_cost)}</p>
-          {!run.voided && !voiding && (
+          {!run.voided && !rejected && !voiding && (
             <button
               onClick={() => setVoiding(true)}
               className="text-xs text-zinc-400 hover:text-red-500"

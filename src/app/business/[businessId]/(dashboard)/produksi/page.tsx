@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
-import { recordProductionRun } from "./actions";
+import { recordProductionRun, regenerateProductionScanSlug, rejectProductionRun, verifyProductionRun } from "./actions";
 import NewProductionForm from "./new-production-form";
 import ProductionRunCard from "./production-run-card";
+import PendingProductionCard from "./pending-production-card";
+import ProductionScanLinkSection from "./production-scan-link-section";
 
 export default async function ProduksiPage({
   params,
@@ -15,7 +17,7 @@ export default async function ProduksiPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, production_scan_slug")
     .eq("id", businessId)
     .single();
 
@@ -39,7 +41,9 @@ export default async function ProduksiPage({
         .order("created_at", { ascending: true }),
       supabase
         .from("production_runs")
-        .select("id, item_name, qty_produced, unit, total_cost, produced_by_name, note, voided, void_reason, produced_at")
+        .select(
+          "id, item_name, qty_produced, unit, total_cost, produced_by_name, note, voided, void_reason, status, reject_reason, produced_at",
+        )
         .eq("business_id", businessId)
         .order("produced_at", { ascending: false }),
       supabase
@@ -49,6 +53,9 @@ export default async function ProduksiPage({
         .is("deleted_at", null),
       computeAllSemiFinishedItemCosts(supabase, businessId),
     ]);
+
+  const pendingRuns = (runs ?? []).filter((r) => r.status === "pending");
+  const otherRuns = (runs ?? []).filter((r) => r.status !== "pending");
 
   // Resep (bahan yang bakal terpakai) per item — dipakai form buat kasih
   // pratinjau "bahan apa & berapa banyak" sebelum submit, biar tim produksi
@@ -74,6 +81,9 @@ export default async function ProduksiPage({
   }
 
   const boundRecord = recordProductionRun.bind(null, businessId);
+  const boundVerify = verifyProductionRun.bind(null, businessId);
+  const boundReject = rejectProductionRun.bind(null, businessId);
+  const boundRegenerateSlug = regenerateProductionScanSlug.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
@@ -82,6 +92,34 @@ export default async function ProduksiPage({
         Catat setiap batch yang dibuat tim produksi. Bahan baku/setengah jadi yang terpakai otomatis
         berkurang sesuai resep, dan stok hasil produksi otomatis bertambah.
       </p>
+
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="mb-2 text-sm font-semibold text-zinc-900">Scan Barcode — Tanpa Kertas</h2>
+        <p className="mb-3 text-xs text-zinc-500">
+          Bagikan link ini ke tim dapur supaya bisa langsung scan barcode + isi jumlah begitu selesai
+          produksi, tanpa perlu login atau catat di kertas dulu. Hasil scan masuk sebagai draft di
+          bawah — stok baru berubah setelah Anda <strong>verifikasi</strong>.
+        </p>
+        <ProductionScanLinkSection initialSlug={business.production_scan_slug ?? ""} regenerateAction={boundRegenerateSlug} />
+      </div>
+
+      {pendingRuns.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+            Menunggu Verifikasi <span className="text-amber-600">({pendingRuns.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {pendingRuns.map((run) => (
+              <PendingProductionCard
+                key={run.id}
+                run={run}
+                verifyAction={boundVerify.bind(null, run.id)}
+                rejectAction={boundReject.bind(null, run.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Catat Produksi Baru</h2>
@@ -95,11 +133,11 @@ export default async function ProduksiPage({
 
       <div className="mt-6">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">
-          Riwayat Produksi {runs && runs.length > 0 && <span className="text-zinc-400">({runs.length})</span>}
+          Riwayat Produksi {otherRuns.length > 0 && <span className="text-zinc-400">({otherRuns.length})</span>}
         </h2>
         <div className="space-y-2">
-          {runs && runs.length > 0 ? (
-            runs.map((run) => <ProductionRunCard key={run.id} businessId={businessId} run={run} />)
+          {otherRuns.length > 0 ? (
+            otherRuns.map((run) => <ProductionRunCard key={run.id} businessId={businessId} run={run} />)
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
               Belum ada riwayat produksi.
