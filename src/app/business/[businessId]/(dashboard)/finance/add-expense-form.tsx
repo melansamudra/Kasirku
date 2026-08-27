@@ -11,6 +11,7 @@ const OTHER_CATEGORIES = [
   "Listrik & Air",
   "Gas LPG",
   "Konsumsi",
+  "Komisi Ojol",
   "Marketing",
   "Perlengkapan",
   "Lain-lain",
