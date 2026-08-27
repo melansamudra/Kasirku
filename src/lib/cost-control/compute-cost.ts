@@ -35,9 +35,9 @@ export type CostResult = {
   breakdown: CostBreakdownLine[];
 };
 
-type IngredientRow = { id: string; name: string; unit: string; unit_cost: number };
-type SemiFinishedRow = { id: string; name: string; unit: string; fluctuation_pct: number };
-type SemiFinishedRecipeRow = {
+export type IngredientRow = { id: string; name: string; unit: string; unit_cost: number };
+export type SemiFinishedRow = { id: string; name: string; unit: string; fluctuation_pct: number };
+export type SemiFinishedRecipeRow = {
   semi_finished_item_id: string;
   component_type: "ingredient" | "semi_finished";
   ingredient_id: string | null;
@@ -45,7 +45,7 @@ type SemiFinishedRecipeRow = {
   qty: number;
   unit: string;
 };
-type FinishedRecipeRow = {
+export type FinishedRecipeRow = {
   finished_product_id: string;
   component_type: "ingredient" | "semi_finished";
   ingredient_id: string | null;
@@ -54,7 +54,7 @@ type FinishedRecipeRow = {
   unit: string;
 };
 
-type CostGraph = {
+export type CostGraph = {
   ingredientMap: Map<string, IngredientRow>;
   itemMap: Map<string, SemiFinishedRow>;
   recipesByItem: Map<string, SemiFinishedRecipeRow[]>;
@@ -71,7 +71,10 @@ type CostGraph = {
 // paling baru dibuat (mis. Saos Mayonase) kepotong dari hasil select polos,
 // bikin HPP-nya kehitung 0/kosong padahal resepnya sudah tersimpan lengkap.
 // Sama pola dengan fix bug 1000-row di halaman akuntansi/reports.
-async function loadCostGraph(supabase: SupabaseServerClient, businessId: string): Promise<CostGraph> {
+// Diekspor (bukan cuma dipakai internal file ini) supaya compute-usage.ts
+// (RAB dari penjualan x resep) bisa pakai graph BOM semi-finished yang sama
+// tanpa duplikasi query.
+export async function loadCostGraph(supabase: SupabaseServerClient, businessId: string): Promise<CostGraph> {
   const [ingredients, items, recipes] = await Promise.all([
     fetchAllRows<IngredientRow>((from, to) =>
       supabase

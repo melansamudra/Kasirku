@@ -2627,29 +2627,35 @@ export type Database = {
         };
         Relationships: [];
       };
-      procurement_budgets: {
+      procurement_budget_lines: {
         Row: {
           id: string;
           business_id: string;
           period: string;
-          amount: number;
-          created_at: string;
+          ingredient_id: string;
+          reference_period: string | null;
+          suggested_qty: number;
+          order_qty: number;
           updated_at: string;
         };
         Insert: {
           id?: string;
           business_id: string;
           period: string;
-          amount?: number;
-          created_at?: string;
+          ingredient_id: string;
+          reference_period?: string | null;
+          suggested_qty?: number;
+          order_qty?: number;
           updated_at?: string;
         };
         Update: {
           id?: string;
           business_id?: string;
           period?: string;
-          amount?: number;
-          created_at?: string;
+          ingredient_id?: string;
+          reference_period?: string | null;
+          suggested_qty?: number;
+          order_qty?: number;
           updated_at?: string;
         };
         Relationships: [];

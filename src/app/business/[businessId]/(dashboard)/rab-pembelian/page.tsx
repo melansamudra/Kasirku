@@ -3,12 +3,19 @@ import Link from "next/link";
 import { Wallet, TrendingDown, PiggyBank } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
-import { setProcurementBudget } from "./actions";
-import SetBudgetForm from "./set-budget-form";
+import { recalculateFromSales } from "./actions";
+import BudgetLineRow from "./budget-line-row";
 
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
   return `${sign}Rp${Math.round(Math.abs(value)).toLocaleString("id-ID")}`;
+}
+
+function defaultPreviousMonth(period: string) {
+  const [y, m] = period.split("-").map(Number);
+  const prevY = m === 1 ? y - 1 : y;
+  const prevM = m === 1 ? 12 : m - 1;
+  return `${prevY}-${String(prevM).padStart(2, "0")}`;
 }
 
 export default async function RabPembelianPage({
@@ -16,11 +23,12 @@ export default async function RabPembelianPage({
   searchParams,
 }: {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; referencePeriod?: string }>;
 }) {
   const { businessId } = await params;
-  const { period: periodParam } = await searchParams;
+  const { period: periodParam, referencePeriod: referenceParam } = await searchParams;
   const period = /^\d{4}-\d{2}$/.test(periodParam ?? "") ? (periodParam as string) : new Date().toISOString().slice(0, 7);
+  const referencePeriod = /^\d{4}-\d{2}$/.test(referenceParam ?? "") ? (referenceParam as string) : defaultPreviousMonth(period);
 
   const supabase = await createClient();
 
@@ -34,8 +42,13 @@ export default async function RabPembelianPage({
     notFound();
   }
 
-  const [{ data: budgetRow }, { data: requests }, { data: ingredients }, { data: products }] = await Promise.all([
-    supabase.from("procurement_budgets").select("id, amount").eq("business_id", businessId).eq("period", period).maybeSingle(),
+  const [{ data: lines }, { data: ingredients }, { data: requests }] = await Promise.all([
+    supabase
+      .from("procurement_budget_lines")
+      .select("id, ingredient_id, reference_period, suggested_qty, order_qty")
+      .eq("business_id", businessId)
+      .eq("period", period),
+    supabase.from("ingredients").select("id, name, unit, unit_cost").eq("business_id", businessId),
     supabase
       .from("purchase_requests")
       .select("id, pr_number, employee_name, created_at, budget_status")
@@ -45,12 +58,15 @@ export default async function RabPembelianPage({
         "created_at",
         `${period.slice(0, 4)}-${String(Number(period.slice(5, 7)) + 1).padStart(2, "0")}-01T00:00:00+07:00`,
       ),
-    supabase.from("ingredients").select("id, unit_cost").eq("business_id", businessId),
-    supabase.from("products").select("id, cost").eq("business_id", businessId),
   ]);
 
-  const priceByIngredient = new Map((ingredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
-  const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
+  const ingredientById = new Map((ingredients ?? []).map((i) => [i.id, i]));
+  const budgetLines = (lines ?? [])
+    .map((l) => ({ ...l, ingredient: ingredientById.get(l.ingredient_id) }))
+    .filter((l) => l.ingredient)
+    .sort((a, b) => a.ingredient!.name.localeCompare(b.ingredient!.name));
+
+  const rabTotal = budgetLines.reduce((sum, l) => sum + Number(l.order_qty) * Number(l.ingredient!.unit_cost), 0);
 
   const approvedRequests = (requests ?? []).filter((r) => r.budget_status === "approved_in_budget");
   const { data: allItems } = await supabase
@@ -61,40 +77,59 @@ export default async function RabPembelianPage({
       "purchase_request_id",
       approvedRequests.map((r) => r.id),
     );
+  const { data: products } = await supabase.from("products").select("id, cost").eq("business_id", businessId);
+  const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
 
   const valueByRequest = new Map<string, number>();
   for (const it of allItems ?? []) {
     const price = it.ingredient_id
-      ? (priceByIngredient.get(it.ingredient_id) ?? 0)
+      ? (ingredientById.get(it.ingredient_id)?.unit_cost ?? 0)
       : it.product_id
         ? (priceByProduct.get(it.product_id) ?? 0)
         : 0;
     const cur = valueByRequest.get(it.purchase_request_id) ?? 0;
-    valueByRequest.set(it.purchase_request_id, cur + price * Number(it.qty_ordered));
+    valueByRequest.set(it.purchase_request_id, cur + Number(price) * Number(it.qty_ordered));
   }
 
-  const rabAmount = Number(budgetRow?.amount ?? 0);
   const terpakai = approvedRequests.reduce((sum, r) => sum + (valueByRequest.get(r.id) ?? 0), 0);
-  const sisaKuota = rabAmount - terpakai;
-  const boundSetBudget = setProcurementBudget.bind(null, businessId);
+  const sisaKuota = rabTotal - terpakai;
+
+  async function handleRecalculate() {
+    "use server";
+    await recalculateFromSales(businessId, period, referencePeriod);
+  }
 
   return (
     <div className="w-full max-w-2xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">RAB Pembelian — {business.name}</h1>
-          <p className="mt-0.5 text-xs text-zinc-500">Periode {period}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Bulan RAB {period} · disusun dari penjualan bulan acuan {referencePeriod}
+          </p>
         </div>
-        <form method="get" className="flex items-center gap-2">
-          <input
-            type="month"
-            name="period"
-            defaultValue={period}
-            className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs"
-          />
+        <form method="get" className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="mb-0.5 block text-[10px] text-zinc-500">Bulan Acuan Penjualan</label>
+            <input
+              type="month"
+              name="referencePeriod"
+              defaultValue={referencePeriod}
+              className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs"
+            />
+          </div>
+          <div>
+            <label className="mb-0.5 block text-[10px] text-zinc-500">Bulan RAB</label>
+            <input
+              type="month"
+              name="period"
+              defaultValue={period}
+              className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs"
+            />
+          </div>
           <button
             type="submit"
-            className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+            className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
           >
             Tampilkan
           </button>
@@ -102,7 +137,7 @@ export default async function RabPembelianPage({
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-3">
-        <StatCard label="RAB Bulan Ini" value={formatRupiah(rabAmount)} icon={PiggyBank} tone="brand" />
+        <StatCard label="RAB Bulan Ini" value={formatRupiah(rabTotal)} icon={PiggyBank} tone="brand" />
         <StatCard label="Terpakai (PR Approved)" value={formatRupiah(terpakai)} icon={TrendingDown} tone="blue" />
         <StatCard
           label="Sisa Kuota"
@@ -113,13 +148,55 @@ export default async function RabPembelianPage({
       </div>
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900">Set RAB Bulan Ini</h2>
-        <SetBudgetForm action={boundSetBudget} period={period} currentAmount={rabAmount} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">Proyeksi Kebutuhan Order</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              Estimasi Porsi Terjual ({referencePeriod}) × Gramasi Resep — jadi acuan, jumlah order tetap keputusan
+              manual.
+            </p>
+          </div>
+          <form action={handleRecalculate}>
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              🔄 Hitung Ulang dari Penjualan
+            </button>
+          </form>
+        </div>
+
+        {budgetLines.length > 0 ? (
+          <div className="mt-3">
+            <div className="flex items-center gap-2 border-b border-zinc-100 pb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">
+              <span className="flex-1">Bahan</span>
+              <span className="w-24 shrink-0 text-right">Order</span>
+              <span className="w-24 shrink-0 text-right">Subtotal</span>
+            </div>
+            {budgetLines.map((l) => (
+              <BudgetLineRow
+                key={l.id}
+                businessId={businessId}
+                period={period}
+                ingredientId={l.ingredient_id}
+                name={l.ingredient!.name}
+                unit={l.ingredient!.unit}
+                unitCost={Number(l.ingredient!.unit_cost)}
+                suggestedQty={Number(l.suggested_qty)}
+                initialOrderQty={Number(l.order_qty)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+            Belum ada data — klik &ldquo;Hitung Ulang dari Penjualan&rdquo; untuk mulai dari penjualan bulan acuan.
+          </p>
+        )}
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-zinc-900">PR Terverifikasi Budget di Periode Ini</h2>
+          <h2 className="text-sm font-bold text-zinc-900">PR Terverifikasi Budget di Bulan Ini</h2>
         </div>
         <div className="divide-y divide-zinc-50 px-4">
           {approvedRequests.length > 0 ? (
@@ -143,11 +220,6 @@ export default async function RabPembelianPage({
           )}
         </div>
       </div>
-
-      <p className="mt-3 text-center text-[11px] text-zinc-400">
-&ldquo;Terpakai&rdquo; dihitung dari estimasi nilai (qty × harga bahan terkini) PR yang sudah APPROVED IN BUDGET —
-        bukan harga final PO.
-      </p>
     </div>
   );
 }
