@@ -51,6 +51,17 @@ export default async function BusinessDashboardLayout({
     redirect(`/business/${businessId}/billing`);
   }
 
+  // Grup sidebar per lokasi stok (Gudang Utama/Kitchen Atas/dst) cuma relevan
+  // buat bisnis cost-control yang memang sudah pakai fitur ini -- query
+  // dilewati sama sekali untuk bisnis lain supaya tidak nambah beban.
+  const { data: stockLocations } = business.cost_control_enabled
+    ? await supabase
+        .from("stock_locations")
+        .select("id, name")
+        .eq("business_id", businessId)
+        .order("sort_order", { ascending: true })
+    : { data: [] };
+
   return (
     <DashboardShell
       businessId={businessId}
@@ -65,6 +76,7 @@ export default async function BusinessDashboardLayout({
       permissions={permissions}
       mirroringEnabled={business.mirroring_enabled ?? false}
       costControlEnabled={business.cost_control_enabled ?? false}
+      stockLocations={stockLocations ?? []}
     >
       {children}
     </DashboardShell>

@@ -82,7 +82,11 @@ const STARTER_ALLOWED_KEYS = new Set([
 // allGroups di bawah). "employees" ikut masuk walau tidak diminta eksplisit
 // karena jadi dependency wajib — dropdown "Tim Produksi" (Produksi) & "Nama"
 // (form publik Permintaan Resto) kosong tanpa data karyawan.
-function buildCostControlNavGroups(base: string, mirroringEnabled: boolean): NavGroup[] {
+function buildCostControlNavGroups(
+  base: string,
+  mirroringEnabled: boolean,
+  stockLocations: { id: string; name: string }[] = [],
+): NavGroup[] {
   return [
     {
       title: "Ringkasan",
@@ -108,6 +112,29 @@ function buildCostControlNavGroups(base: string, mirroringEnabled: boolean): Nav
         { key: "outlet-requests", href: `${base}/permintaan-resto`, label: "Permintaan Resto", icon: ClipboardList },
       ],
     },
+    // Satu grup sidebar per lokasi fisik (Gudang Utama/Kitchen Atas/dst) --
+    // stok bahan baku & bahan setengah jadi di tiap lokasi dilacak terpisah
+    // dari stok tunggal ingredients.stock/semi_finished_items.stock (yang
+    // tetap dipakai apa adanya oleh POS/pembelian/produksi yang sudah ada).
+    // Kosong (tidak ada baris stock_locations) = tidak ada grup tambahan,
+    // jadi bisnis cost-control lain yang belum pakai fitur ini tidak terdampak.
+    ...stockLocations.map((loc) => ({
+      title: loc.name,
+      items: [
+        {
+          key: `lokasi-${loc.id}-bahan-baku`,
+          href: `${base}/lokasi/${loc.id}/bahan-baku`,
+          label: "Bahan Baku",
+          icon: Beaker,
+        },
+        {
+          key: `lokasi-${loc.id}-semi-finished`,
+          href: `${base}/lokasi/${loc.id}/semi-finished-items`,
+          label: "Bahan Setengah Jadi",
+          icon: Beaker,
+        },
+      ],
+    })),
     {
       title: "Pembelian & Stok",
       items: [
@@ -151,12 +178,13 @@ function buildNavGroups(
   isStarter: boolean,
   mirroringEnabled = false,
   costControlEnabled = false,
+  stockLocations: { id: string; name: string }[] = [],
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
 
   if (costControlEnabled) {
-    const costControlGroups = buildCostControlNavGroups(base, mirroringEnabled);
+    const costControlGroups = buildCostControlNavGroups(base, mirroringEnabled, stockLocations);
     if (isStarter) {
       return costControlGroups
         .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
@@ -596,6 +624,7 @@ export default function DashboardShell({
   permissions = [],
   mirroringEnabled = false,
   costControlEnabled = false,
+  stockLocations = [],
   children,
 }: {
   businessId: string;
@@ -610,6 +639,7 @@ export default function DashboardShell({
   permissions?: string[];
   mirroringEnabled?: boolean;
   costControlEnabled?: boolean;
+  stockLocations?: { id: string; name: string }[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -650,7 +680,15 @@ export default function DashboardShell({
     ? ["settings"]
     : permissions.includes("settings") ? ["settings"] : [];
 
-  const allGroups = buildNavGroups(businessId, businessType, isFinanceOnly, isStarter, mirroringEnabled, costControlEnabled);
+  const allGroups = buildNavGroups(
+    businessId,
+    businessType,
+    isFinanceOnly,
+    isStarter,
+    mirroringEnabled,
+    costControlEnabled,
+    stockLocations,
+  );
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can

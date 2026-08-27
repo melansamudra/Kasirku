@@ -3008,12 +3008,15 @@ export type Database = {
           business_id: string;
           product_id: string | null;
           ingredient_id: string | null;
+          semi_finished_item_id: string | null;
+          location_id: string | null;
           item_name: string;
           unit: string | null;
           stock_before: number;
           stock_after: number;
           diff: number;
           reason: string;
+          entry_date: string;
           created_at: string;
         };
         Insert: {
@@ -3021,12 +3024,15 @@ export type Database = {
           business_id: string;
           product_id?: string | null;
           ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          location_id?: string | null;
           item_name: string;
           unit?: string | null;
           stock_before: number;
           stock_after: number;
           diff: number;
           reason: string;
+          entry_date?: string;
           created_at?: string;
         };
         Update: {
@@ -3034,13 +3040,94 @@ export type Database = {
           business_id?: string;
           product_id?: string | null;
           ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          location_id?: string | null;
           item_name?: string;
           unit?: string | null;
           stock_before?: number;
           stock_after?: number;
           diff?: number;
           reason?: string;
+          entry_date?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      stock_locations: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ingredient_location_stock: {
+        Row: {
+          id: string;
+          business_id: string;
+          location_id: string;
+          ingredient_id: string;
+          stock: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          location_id: string;
+          ingredient_id: string;
+          stock?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          location_id?: string;
+          ingredient_id?: string;
+          stock?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      semi_finished_item_location_stock: {
+        Row: {
+          id: string;
+          business_id: string;
+          location_id: string;
+          semi_finished_item_id: string;
+          stock: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          location_id: string;
+          semi_finished_item_id: string;
+          stock?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          location_id?: string;
+          semi_finished_item_id?: string;
+          stock?: number;
+          updated_at?: string;
         };
         Relationships: [];
       };
