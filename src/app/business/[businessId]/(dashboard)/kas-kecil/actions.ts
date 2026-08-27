@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { getPeriodRange } from "../reports/period";
-import { todayWibDateString } from "@/lib/wib";
+import { wibDateString } from "@/lib/wib";
 import { postPurchaseJournal } from "../purchases/actions";
 
 export type ActionState = { error: string | null };
@@ -211,7 +211,7 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
 
   const { data: noteRow, error: fetchError } = await supabase
     .from("supplier_debt_notes")
-    .select("id, supplier_id, supplier_name_manual, category, amount, note, suppliers(name)")
+    .select("id, supplier_id, supplier_name_manual, category, amount, note, created_at, suppliers(name)")
     .eq("id", noteId)
     .eq("business_id", businessId)
     .eq("status", "pending")
@@ -227,6 +227,7 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
     category: "Bahan Baku" | "Bukan Bahan Baku";
     amount: number;
     note: string | null;
+    created_at: string;
     suppliers: { name: string } | null;
   };
 
@@ -235,7 +236,10 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
   const purchaseNote = noteParts.length > 0 ? noteParts.join(" — ") : null;
   const amount = Number(note.amount);
   const itemName = purchaseNote || "Pembelian";
-  const date = todayWibDateString();
+  // Tanggal pembelian ikut tanggal nota aslinya diinput kasir, bukan tanggal
+  // admin sempat verifikasi (bisa beda hari) -- biar Riwayat Pembelian &
+  // umur utang mencerminkan kapan transaksinya benar-benar terjadi.
+  const date = wibDateString(note.created_at);
   // Kategori akun ikut nota aslinya biar laporan pembelian bahan baku tetap
   // akurat — cuma "Bahan Baku" tanpa ingredient_id/qty (kolom itu boleh
   // null, lihat purchases_category_check), jadi stok tetap tidak tersentuh.

@@ -9,3 +9,11 @@
 export function todayWibDateString() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
+
+// Konversi timestamp (mis. created_at) ke tanggal WIB, YYYY-MM-DD -- dipakai
+// saat sebuah entri harus mewarisi tanggal kejadian aslinya (kapan dicatat),
+// bukan tanggal hari ini/kapan diproses lebih lanjut (lihat wibDateString di
+// verifyDebtNoteAsPurchase untuk contoh kasusnya).
+export function wibDateString(iso: string) {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
