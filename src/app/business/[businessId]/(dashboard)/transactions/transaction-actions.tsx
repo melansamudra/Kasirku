@@ -4,8 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { Capacitor } from "@capacitor/core";
 import ImportTransactionsForm from "./import-transactions-form";
+import ImportSalesRecapForm from "./import-sales-recap-form";
 import ImportMokaForm from "./import-moka-form";
 import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from "./actions";
+import type { ImportSalesRecapState } from "./rekap-actions";
 
 // Export/import/manual-add are backoffice bulk-data tools, not something a
 // cashier needs from the Android app — only the transaction list itself
@@ -13,17 +15,20 @@ import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from 
 export function TransactionActions({
   businessId,
   importAction,
+  importRekapAction,
   previewMokaAction,
   importMokaAction,
   costControlEnabled = false,
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
+  importRekapAction: (state: ImportSalesRecapState, formData: FormData) => Promise<ImportSalesRecapState>;
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
   importMokaAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
   costControlEnabled?: boolean;
 }) {
   const [importOpen, setImportOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
 
   if (Capacitor.isNativePlatform()) return null;
@@ -50,6 +55,19 @@ export function TransactionActions({
         >
           📥 Impor CSV
         </button>
+        {/* Rekap periode (mis. laporan bulanan dari POS lain kayak ESB) --
+            beda dari "Impor CSV" yang butuh Referensi+Tanggal per baris,
+            ini cuma "Menu, Qty" digabung jadi 1 transaksi. Khusus
+            cost-control karena cocokkan ke Produk Jadi (HPP). */}
+        {costControlEnabled && (
+          <button
+            type="button"
+            onClick={() => setRecapOpen(true)}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            📥 Impor Rekap Penjualan
+          </button>
+        )}
         {/* Moka POS itu produk POS pihak ketiga spesifik -- tidak relevan
             buat bisnis cost-control (Llauk Nusantara dkk SENGAJA tidak jual
             lewat POS Kasirku ataupun Moka sama sekali). */}
@@ -132,6 +150,55 @@ export function TransactionActions({
             </button>
             <div className="mt-4">
               <ImportTransactionsForm action={importAction} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {recapOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRecapOpen(false)} />
+          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-900">Impor Rekap Penjualan</h2>
+              <button
+                onClick={() => setRecapOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500">
+              Buat rekap dari laporan periode (mis. rekap bulanan dari POS lain) yang cuma punya
+              total qty per menu, bukan transaksi harian. Kolom: <strong>Menu, Qty</strong> — nama
+              menu harus sama persis dengan Produk Jadi (HPP). Semua baris digabung jadi{" "}
+              <strong>1 transaksi</strong> di tanggal yang kamu pilih. Harga & HPP dihitung dari
+              harga Produk Jadi <strong>saat ini</strong>, bukan harga historis di laporan sumbernya
+              — kalau harga sudah berubah, total di sini bisa beda dari laporan aslinya.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const rows = [
+                  ["Menu", "Qty"],
+                  ["Nasi Goreng", "24"],
+                  ["Es Teh", "15"],
+                ];
+                const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "template-rekap-penjualan.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+            >
+              ⬇ Download Template CSV
+            </button>
+            <div className="mt-4">
+              <ImportSalesRecapForm action={importRekapAction} />
             </div>
           </div>
         </div>

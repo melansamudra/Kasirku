@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchAllRows } from "@/lib/pagination";
 import { importTransactions, previewMokaImport, importFromMoka } from "./actions";
+import { importSalesRecap } from "./rekap-actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
 import MirrorHint from "./mirror-hint";
@@ -103,6 +104,7 @@ export default async function TransactionsPage({
   }
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
+  const boundImportRekap = importSalesRecap.bind(null, businessId);
   const boundPreviewMoka = previewMokaImport.bind(null, businessId);
   const boundImportMoka = importFromMoka.bind(null, businessId);
 
@@ -123,6 +125,7 @@ export default async function TransactionsPage({
             <TransactionActions
               businessId={businessId}
               importAction={boundImportTransactions}
+              importRekapAction={boundImportRekap}
               previewMokaAction={boundPreviewMoka}
               importMokaAction={boundImportMoka}
               costControlEnabled={business.cost_control_enabled}
