@@ -169,13 +169,14 @@ export function TransactionActions({
               </button>
             </div>
             <p className="text-xs text-zinc-500">
-              Buat rekap dari laporan periode (mis. rekap bulanan dari POS lain) yang cuma punya
-              total qty per menu, bukan transaksi harian. Kolom:{" "}
-              <strong>Menu, Kategori, Harga, Qty</strong>. Menu yang <strong>sudah ada</strong> di
+              Buat rekap penjualan dari file Excel/CSV. Kolom:{" "}
+              <strong>Tanggal, Menu, Kategori, Harga, Qty</strong>. Tanggal per baris boleh
+              dikosongkan (jatuh ke Tanggal Default di form) — kalau sumbernya cuma total sebulan
+              (mis. rekap ESB) tanpa breakdown harian, kosongkan semua Tanggal. Baris dengan
+              Tanggal sama digabung jadi 1 transaksi. Menu yang <strong>sudah ada</strong> di
               Produk Jadi (HPP) langsung dipakai (Kategori/Harga di baris itu diabaikan). Menu yang{" "}
               <strong>belum ada</strong> otomatis dibuat sebagai Produk Jadi baru pakai Kategori &amp;
               Harga dari baris itu — jadi kedua kolom itu wajib diisi buat menu yang belum ada.
-              Semua baris digabung jadi <strong>1 transaksi</strong> di tanggal yang kamu pilih.
             </p>
             <a
               href="/template-rekap-penjualan"

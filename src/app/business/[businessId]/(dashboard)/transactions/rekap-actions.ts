@@ -38,15 +38,24 @@ async function parseFileToRows(file: File): Promise<string[][] | { error: string
 
 export type ImportSalesRecapState = {
   error: string | null;
-  result: { invoiceNumber: string; itemCount: number; createdProducts: string[]; skipped: string[] } | null;
+  result: {
+    invoiceNumbers: string[];
+    transactionCount: number;
+    itemCount: number;
+    createdProducts: string[];
+    skipped: string[];
+  } | null;
 };
 
 // Beda dari importTransactions (yang butuh Referensi+Tanggal per baris buat
-// data transaksi harian) -- ini khusus rekap PERIODE (mis. laporan bulanan
-// dari POS lain seperti ESB "Sales Menu Recapitulation Report") yang cuma
-// punya total qty per menu, tanpa breakdown tanggal/transaksi. Semua baris
-// digabung jadi SATU transaksi manual (banyak item) bertanggal p_date,
-// ditandai lewat catatan supaya tidak ketuker sama transaksi harian asli.
+// data transaksi harian) -- ini khusus rekap yang biasanya tidak punya
+// nomor referensi (mis. laporan bulanan dari POS lain seperti ESB "Sales
+// Menu Recapitulation Report"), cuma total qty per menu per Tanggal.
+// Baris dengan Tanggal yang sama digabung jadi SATU transaksi (banyak
+// item); Tanggal boleh dikosongkan per baris, jatuh ke "Tanggal Default"
+// dari form -- berguna kalau sumber datanya cuma total sebulan tanpa
+// breakdown harian sama sekali. Semua transaksi ditandai lewat catatan
+// supaya tidak ketuker sama transaksi harian asli.
 //
 // Harga & cost tetap ikut harga PRODUK JADI SAAT INI (create_manual_transaction
 // tidak bisa dikasih harga custom per baris, dan RPC ini sengaja tidak
@@ -64,9 +73,9 @@ export async function importSalesRecap(
     return { error: "Pilih file dulu.", result: null };
   }
 
-  const dateStr = (formData.get("date") as string) || "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return { error: "Tanggal wajib diisi.", result: null };
+  const defaultDateStr = (formData.get("date") as string) || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(defaultDateStr)) {
+    return { error: "Tanggal Default wajib diisi.", result: null };
   }
 
   const paymentMethod = (formData.get("paymentMethod") as string) || "";
@@ -105,30 +114,42 @@ export async function importSalesRecap(
     .is("deleted_at", null);
   const productIdByName = new Map((products ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
 
-  type ParsedRow = { line: number; menuName: string; kategori: string; harga: number; qty: number };
+  type ParsedRow = { line: number; date: string; menuName: string; kategori: string; harga: number; qty: number };
   const parsedRows: ParsedRow[] = [];
   const skipped: string[] = [];
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
     const line = i + 2;
-    const menuName = (row[0] ?? "").trim();
-    const kategori = (row[1] ?? "").trim();
-    const harga = Number((row[2] ?? "").trim());
-    const qty = Number((row[3] ?? "").trim());
+    const dateCell = (row[0] ?? "").trim();
+    const menuName = (row[1] ?? "").trim();
+    const kategori = (row[2] ?? "").trim();
+    const harga = Number((row[3] ?? "").trim());
+    const qty = Number((row[4] ?? "").trim());
 
+    if (dateCell && !/^\d{4}-\d{2}-\d{2}$/.test(dateCell)) {
+      skipped.push(`Baris ${line}: Tanggal "${dateCell}" harus format YYYY-MM-DD (atau dikosongkan)`);
+      continue;
+    }
     if (!menuName) {
       skipped.push(`Baris ${line}: nama menu kosong`);
       continue;
     }
-    if (!row[3] || Number.isNaN(qty) || qty <= 0) {
+    if (!row[4] || Number.isNaN(qty) || qty <= 0) {
       // Baris qty 0 (item ada di laporan tapi tidak laku di periode itu)
       // dilewati diam-diam -- bukan error, wajar banyak menu begitu di
       // rekap ESB.
       continue;
     }
 
-    parsedRows.push({ line, menuName, kategori, harga: Number.isNaN(harga) ? 0 : harga, qty });
+    parsedRows.push({
+      line,
+      date: dateCell || defaultDateStr,
+      menuName,
+      kategori,
+      harga: Number.isNaN(harga) ? 0 : harga,
+      qty,
+    });
   }
 
   // Menu yang belum ada di Produk Jadi (HPP) -- kalau baris itu bawa
@@ -177,21 +198,23 @@ export async function importSalesRecap(
     }
   }
 
-  const items: { product_id: string; qty: number }[] = [];
+  // Grup per Tanggal -- 1 transaksi per tanggal berbeda (banyak item di
+  // tanggal yang sama, digabung sama seperti sebelumnya).
+  const groupsByDate = new Map<string, { product_id: string; qty: number }[]>();
   for (const r of parsedRows) {
     const productId = productIdByName.get(r.menuName.toLowerCase());
     if (!productId) {
-      // Sudah dicatat di skipped di atas (baris yang gagal auto-create),
-      // kecuali kalau memang belum sempat dicoba sama sekali -- jaga-jaga.
       if (!skipped.some((s) => s.includes(`"${r.menuName}"`))) {
         skipped.push(`Baris ${r.line}: menu "${r.menuName}" tidak ditemukan di Produk Jadi (HPP)`);
       }
       continue;
     }
-    items.push({ product_id: productId, qty: r.qty });
+    const list = groupsByDate.get(r.date) ?? [];
+    list.push({ product_id: productId, qty: r.qty });
+    groupsByDate.set(r.date, list);
   }
 
-  if (items.length === 0) {
+  if (groupsByDate.size === 0) {
     return {
       error:
         skipped.length > 0
@@ -201,31 +224,40 @@ export async function importSalesRecap(
     };
   }
 
-  const catatan = noteInput || `Rekap Penjualan — ${dateStr}`;
+  const invoiceNumbers: string[] = [];
+  let itemCount = 0;
 
-  const { data, error } = await supabase.rpc("create_manual_transaction", {
-    p_business_id: businessId,
-    p_date: new Date(`${dateStr}T12:00:00`).toISOString(),
-    p_items: items,
-    p_payment_method: paymentMethod,
-    p_received: null,
-    p_customer_id: null,
-    p_catatan: catatan,
-  });
+  for (const [dateStr, items] of [...groupsByDate.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const catatan = noteInput || `Rekap Penjualan — ${dateStr}`;
 
-  if (error) {
-    return { error: error.message, result: null };
+    const { data, error } = await supabase.rpc("create_manual_transaction", {
+      p_business_id: businessId,
+      p_date: new Date(`${dateStr}T12:00:00`).toISOString(),
+      p_items: items,
+      p_payment_method: paymentMethod,
+      p_received: null,
+      p_customer_id: null,
+      p_catatan: catatan,
+    });
+
+    if (error) {
+      return {
+        error: `Gagal buat transaksi tanggal ${dateStr}: ${error.message}${invoiceNumbers.length > 0 ? ` (${invoiceNumbers.length} transaksi sebelumnya sudah kebuat: ${invoiceNumbers.join(", ")})` : ""}`,
+        result: null,
+      };
+    }
+
+    invoiceNumbers.push(data?.[0]?.invoice_number ?? "-");
+    itemCount += items.length;
   }
-
-  const invoiceNumber = data?.[0]?.invoice_number ?? "-";
 
   await logActivity(
     supabase,
     businessId,
     "transaksi",
     "sukses",
-    `Impor rekap penjualan: ${invoiceNumber}`,
-    `${items.length} menu${createdProducts.length > 0 ? `, ${createdProducts.length} Produk Jadi baru dibuat` : ""}${skipped.length > 0 ? `, ${skipped.length} baris dilewati` : ""} — ${catatan}`,
+    `Impor rekap penjualan: ${invoiceNumbers.length} transaksi`,
+    `${itemCount} baris menu${createdProducts.length > 0 ? `, ${createdProducts.length} Produk Jadi baru dibuat` : ""}${skipped.length > 0 ? `, ${skipped.length} baris dilewati` : ""}`,
   );
 
   if (createdProducts.length > 0) {
@@ -233,5 +265,8 @@ export async function importSalesRecap(
     revalidatePath(`/business/${businessId}/transactions/new`);
   }
   revalidatePath(`/business/${businessId}/transactions`);
-  return { error: null, result: { invoiceNumber, itemCount: items.length, createdProducts, skipped } };
+  return {
+    error: null,
+    result: { invoiceNumbers, transactionCount: invoiceNumbers.length, itemCount, createdProducts, skipped },
+  };
 }

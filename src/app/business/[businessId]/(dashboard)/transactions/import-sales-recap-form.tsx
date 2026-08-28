@@ -27,7 +27,7 @@ export default function ImportSalesRecapForm({
     <form ref={formRef} action={formAction} className="space-y-3">
       <div>
         <label htmlFor="recap-date" className="mb-1 block text-xs font-medium text-zinc-600">
-          Tanggal (semua item digabung jadi 1 transaksi di tanggal ini)
+          Tanggal Default
         </label>
         <input
           id="recap-date"
@@ -37,6 +37,11 @@ export default function ImportSalesRecapForm({
           defaultValue={todayWibDateString()}
           className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm"
         />
+        <p className="mt-1 text-[10.5px] text-zinc-400">
+          Dipakai buat baris yang kolom Tanggal-nya dikosongkan di file. Kalau file punya Tanggal
+          per baris, baris dengan tanggal sama digabung jadi 1 transaksi (bisa banyak transaksi
+          sekaligus, sesuai berapa tanggal berbeda di file).
+        </p>
       </div>
 
       <div>
@@ -97,7 +102,8 @@ export default function ImportSalesRecapForm({
       {state.result && !pending && (
         <div className="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-700">
           <p>
-            ✓ 1 transaksi rekap dibuat ({state.result.invoiceNumber}) — {state.result.itemCount} menu.
+            ✓ {state.result.transactionCount} transaksi rekap dibuat ({state.result.invoiceNumbers.join(", ")}) —{" "}
+            {state.result.itemCount} baris menu total.
           </p>
           {state.result.createdProducts.length > 0 && (
             <p className="mt-1">
