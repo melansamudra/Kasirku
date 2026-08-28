@@ -371,14 +371,6 @@ export default function PettyCashTunaiSection({
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => window.print()}
-        className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 print:hidden"
-      >
-        🖨️ Cetak Rekap Tunai
-      </button>
     </div>
   );
 }
