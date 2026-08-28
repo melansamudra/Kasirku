@@ -25,8 +25,11 @@ export async function GET(
       headers: { "Content-Type": "text/plain" },
     });
   }
+  if (!location) {
+    return new NextResponse("Lokasi tidak ditemukan.", { status: 404 });
+  }
 
-  const url = `${SITE_URL}/stok-opname/${biz.stock_opname_slug}?lokasi=produksi`;
+  const url = `${SITE_URL}/stok-opname/${biz.stock_opname_slug}?lokasi=${locationId}`;
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, width: 320 });
   const locationName = location?.name ?? "Dapur Produksi";
 

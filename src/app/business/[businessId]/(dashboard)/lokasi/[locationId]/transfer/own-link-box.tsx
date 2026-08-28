@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { regenerateStockOpnameSlug } from "./actions";
+import { regenerateLocationTransferSlug } from "./actions";
 
-export default function StockOpnameLinkBox({
+export default function OwnRequestLinkBox({
   businessId,
   locationId,
   initialSlug,
@@ -20,7 +20,7 @@ export default function StockOpnameLinkBox({
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   const url =
-    typeof window !== "undefined" ? `${window.location.origin}/stok-opname/${slug}?lokasi=${locationId}` : "";
+    typeof window !== "undefined" ? `${window.location.origin}/transfer-internal/${slug}?lokasi=${locationId}` : "";
 
   async function handleCopy() {
     await navigator.clipboard.writeText(url);
@@ -31,7 +31,7 @@ export default function StockOpnameLinkBox({
   async function handleRegenerate() {
     setError(null);
     setPending(true);
-    const result = await regenerateStockOpnameSlug(businessId, locationId);
+    const result = await regenerateLocationTransferSlug(businessId, locationId);
     setPending(false);
     setConfirmRegen(false);
     if (result.error) {
@@ -52,7 +52,7 @@ export default function StockOpnameLinkBox({
           {copied ? "✓ Tersalin" : "Salin Link"}
         </button>
         <Link
-          href={`/business/${businessId}/lokasi/${locationId}/stock-opname/print-qr`}
+          href={`/business/${businessId}/lokasi/${locationId}/transfer/print-qr?lokasi=${locationId}`}
           target="_blank"
           className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
         >
@@ -60,15 +60,14 @@ export default function StockOpnameLinkBox({
         </Link>
       </div>
       <p className="mt-1.5 text-[11px] text-zinc-400">
-        Bagikan link ini ke staf tiap hari (mis. print jadi poster/QR, atau kirim lewat grup
-        WhatsApp). Staf pilih nama, isi stok fisik bahan yang mereka hitung, kirim — tidak perlu
-        login. Bahan yang tidak diisi tidak ikut berubah.
+        Bagikan link ini ke staf lokasi ini — mereka isi bahan setengah jadi yang mau diminta ke
+        Dapur Produksi, tidak perlu login.
       </p>
 
       <div className="mt-2">
         {confirmRegen ? (
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-zinc-500">Link lama langsung tidak berfungsi. Yakin?</span>
+            <span className="text-zinc-500">Semua link lokasi lain juga ikut tidak berfungsi. Yakin?</span>
             <button
               onClick={handleRegenerate}
               disabled={pending}

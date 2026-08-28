@@ -189,6 +189,41 @@ function buildCostControlNavGroups(
               },
             ]
           : []),
+        // Kitchen Atas/Bar Llauk (bukan produksi, bukan default-purchase) --
+        // sekarang ikut dapat akses Stok Opname, Transfer Internal & Kartu
+        // Stok lokasi sendiri (2026-08-28), plus Permintaan Barang ke
+        // Purchasing (sistemnya sama seperti Dapur Produksi, cuma difilter
+        // ?lokasi=<id lokasi ini>). Sengaja TIDAK dapat "Produksi", "Purchase
+        // Order", "Staf", "Biaya Operasional" -- itu tetap khusus lokasi
+        // produksi/purchasing.
+        ...(!loc.isProduction && !loc.isDefaultPurchase
+          ? [
+              {
+                key: `lokasi-${loc.id}-stock-opname`,
+                href: `${base}/lokasi/${loc.id}/stock-opname`,
+                label: "Stok Opname",
+                icon: CalendarCheck,
+              },
+              {
+                key: `lokasi-${loc.id}-transfer`,
+                href: `${base}/lokasi/${loc.id}/transfer`,
+                label: "Transfer Internal",
+                icon: ArrowLeftRight,
+              },
+              {
+                key: `lokasi-${loc.id}-kartu-stok`,
+                href: `${base}/lokasi/${loc.id}/kartu-stok`,
+                label: "Kartu Stok",
+                icon: CreditCard,
+              },
+              {
+                key: `lokasi-${loc.id}-permintaan-barang`,
+                href: `${base}/permintaan-barang?lokasi=${loc.id}`,
+                label: "Permintaan Barang",
+                icon: ClipboardList,
+              },
+            ]
+          : []),
       ],
     })),
     {

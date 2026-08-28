@@ -37,7 +37,7 @@ export default async function LocationStockOpnamePage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name, is_production")
+    .select("id, name")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -92,22 +92,16 @@ export default async function LocationStockOpnamePage({
         Laporan stok fisik dari staf menunggu diverifikasi dulu sebelum mengubah stok sistem.
       </p>
 
-      {location.is_production ? (
-        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
-          <div className="mt-3">
-            <StockOpnameLinkBox
-              businessId={businessId}
-              locationId={locationId}
-              initialSlug={business.stock_opname_slug ?? ""}
-            />
-          </div>
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
+        <div className="mt-3">
+          <StockOpnameLinkBox
+            businessId={businessId}
+            locationId={locationId}
+            initialSlug={business.stock_opname_slug ?? ""}
+          />
         </div>
-      ) : (
-        <p className="mt-4 rounded-xl border border-dashed border-zinc-200 px-4 py-4 text-center text-xs text-zinc-400">
-          Link publik stok opname baru tersedia untuk lokasi produksi (Dapur Produksi).
-        </p>
-      )}
+      </div>
 
       {pendingByDate.size > 0 && (
         <div className="mt-6">

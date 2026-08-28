@@ -29,12 +29,11 @@ export default async function StockOpnamePage({
   }
   const info = data as unknown as StockOpnameInfo;
 
-  // Sama pola dengan Permintaan Barang: link ini SELALU datang lewat
-  // ?lokasi=produksi (dibagikan admin dari halaman Dapur Produksi),
-  // lokasinya sudah pasti dikunci -- tidak ada mode "staf pilih sendiri"
+  // Sama pola dengan Permintaan Barang/Transfer Internal: lokasinya
+  // dikunci lewat ?lokasi=<id lokasi> (dibagikan admin dari halaman
+  // Stok Opname lokasi itu) -- tidak ada mode "staf pilih sendiri"
   // supaya tidak perlu fetch stok live tambahan di client tanpa auth.
-  const location =
-    lokasi === "produksi" ? info.stock_locations.find((l) => l.is_production) : undefined;
+  const location = info.stock_locations.find((l) => l.id === lokasi);
 
   if (!location) {
     return (
