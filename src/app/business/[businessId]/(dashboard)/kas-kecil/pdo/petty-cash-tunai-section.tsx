@@ -92,6 +92,15 @@ export default function PettyCashTunaiSection({
     [selectedNotas, manualRows],
   );
 
+  const rincianOmset = useMemo(
+    () =>
+      omsetRows
+        .filter((r) => (Number(r.amount) || 0) > 0)
+        .map((r) => ({ id: r.id, date: `${r.date}T00:00:00+07:00`, amount: Number(r.amount) || 0 }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [omsetRows],
+  );
+
   function toggleNota(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -283,22 +292,6 @@ export default function PettyCashTunaiSection({
           + Tambah Pengeluaran Manual
         </button>
 
-        {rincianPengeluaran.length > 0 && (
-          <div className="hidden print:block">
-            <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Rincian Pengeluaran</p>
-            <div className="space-y-1 text-xs">
-              {rincianPengeluaran.map((n) => (
-                <div key={n.id} className="flex justify-between text-zinc-600">
-                  <span className="truncate pr-2">
-                    {formatDateShort(n.date)} — {n.description}
-                  </span>
-                  <span className="shrink-0 font-medium">{formatRupiah(n.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="flex items-center justify-between border-t border-zinc-100 pt-2.5">
           <span className="text-xs font-medium text-zinc-500">Total Pengeluaran</span>
           <span className="text-base font-bold text-red-600">{formatRupiah(totalPengeluaran)}</span>
@@ -329,18 +322,48 @@ export default function PettyCashTunaiSection({
             <span className="text-zinc-500">Saldo Kas Tunai Awal</span>
             <span className="font-medium text-zinc-900">{formatRupiah(Number(saldoAwal) || 0)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-500">Tambah Omset</span>
-            <span className="font-medium text-zinc-900">{formatRupiah(totalOmset)}</span>
+
+          <div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Tambah Omset</span>
+              <span className="font-medium text-zinc-900">{formatRupiah(totalOmset)}</span>
+            </div>
+            {rincianOmset.length > 0 && (
+              <div className="mt-1 space-y-0.5 pl-3">
+                <p className="text-[10px] font-semibold uppercase text-zinc-400">Catatan Kas Masuk</p>
+                {rincianOmset.map((r) => (
+                  <div key={r.id} className="flex justify-between text-xs text-zinc-500">
+                    <span>{formatDateShort(r.date)}</span>
+                    <span>{formatRupiah(r.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
           <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-medium text-zinc-900">
             <span>Total Saldo Tunai</span>
             <span>{formatRupiah(totalSaldoTunai)}</span>
           </div>
-          <div className="flex justify-between pt-1.5">
-            <span className="text-zinc-500">Total Pengeluaran</span>
-            <span className="font-medium text-red-600">-{formatRupiah(totalPengeluaran)}</span>
+
+          <div>
+            <div className="flex justify-between pt-1.5">
+              <span className="text-zinc-500">Total Pengeluaran</span>
+              <span className="font-medium text-red-600">-{formatRupiah(totalPengeluaran)}</span>
+            </div>
+            {rincianPengeluaran.length > 0 && (
+              <div className="mt-1 space-y-0.5 pl-3">
+                <p className="text-[10px] font-semibold uppercase text-zinc-400">Catatan Kas Keluar</p>
+                {rincianPengeluaran.map((n) => (
+                  <div key={n.id} className="flex justify-between gap-2 text-xs text-zinc-500">
+                    <span className="min-w-0 truncate">{formatDateShort(n.date)} — {n.description}</span>
+                    <span className="shrink-0">{formatRupiah(n.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
           {catatan.trim() && <p className="pt-1 text-xs text-zinc-500">Catatan: {catatan.trim()}</p>}
           <div className="flex justify-between border-t border-zinc-200 pt-2 text-base font-bold text-brand-700">
             <span>Saldo Tunai Saat Ini</span>
