@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { regenerateLocationTransferSlug } from "./actions";
 
 type RequestingLocation = { id: string; name: string };
 
-function CopyRow({ label, url }: { label: string; url: string }) {
+function CopyRow({
+  label,
+  url,
+  printHref,
+}: {
+  label: string;
+  url: string;
+  printHref: string;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
@@ -23,6 +32,13 @@ function CopyRow({ label, url }: { label: string; url: string }) {
       >
         {copied ? "✓ Tersalin" : "Salin Link"}
       </button>
+      <Link
+        href={printHref}
+        target="_blank"
+        className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
+      >
+        🖨️ Cetak QR
+      </Link>
     </div>
   );
 }
@@ -61,7 +77,12 @@ export default function RequestLinksBox({
   return (
     <div className="space-y-2">
       {requestingLocations.map((loc) => (
-        <CopyRow key={loc.id} label={`Link ${loc.name}`} url={`${base}/transfer-internal/${slug}?lokasi=${loc.id}`} />
+        <CopyRow
+          key={loc.id}
+          label={`Link ${loc.name}`}
+          url={`${base}/transfer-internal/${slug}?lokasi=${loc.id}`}
+          printHref={`/business/${businessId}/lokasi/${locationId}/transfer/print-qr?lokasi=${loc.id}`}
+        />
       ))}
       <p className="text-[11px] text-zinc-400">
         Bagikan link masing-masing ke staf lokasi itu — mereka isi bahan yang mau diminta, Anda
