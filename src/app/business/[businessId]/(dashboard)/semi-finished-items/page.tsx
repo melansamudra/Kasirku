@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import { addSemiFinishedItem } from "./actions";
@@ -58,13 +59,21 @@ export default async function SemiFinishedItemsPage({
 
   return (
     <div className="w-full max-w-3xl">
-      <div>
-        <h1 className="text-lg font-bold text-zinc-900">Bahan Setengah Jadi — {business.name}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Resep (BOM) bahan setengah jadi yang dibuat tim produksi. HPP dihitung otomatis dari
-          bahan baku &amp; bahan setengah jadi lain yang dipakai — atur resepnya di halaman detail
-          tiap item.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">Bahan Setengah Jadi — {business.name}</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Resep (BOM) bahan setengah jadi yang dibuat tim produksi. HPP dihitung otomatis dari
+            bahan baku &amp; bahan setengah jadi lain yang dipakai — atur resepnya di halaman detail
+            tiap item.
+          </p>
+        </div>
+        <Link
+          href={`/business/${businessId}/semi-finished-items/import`}
+          className="shrink-0 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+        >
+          Import dari Data Excel
+        </Link>
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
