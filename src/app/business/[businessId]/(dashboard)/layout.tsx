@@ -57,7 +57,7 @@ export default async function BusinessDashboardLayout({
   const { data: stockLocationRows } = business.cost_control_enabled
     ? await supabase
         .from("stock_locations")
-        .select("id, name, is_production")
+        .select("id, name, is_production, is_default_purchase")
         .eq("business_id", businessId)
         .order("sort_order", { ascending: true })
     : { data: [] };
@@ -65,6 +65,7 @@ export default async function BusinessDashboardLayout({
     id: loc.id,
     name: loc.name,
     isProduction: loc.is_production,
+    isDefaultPurchase: loc.is_default_purchase,
   }));
 
   return (

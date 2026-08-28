@@ -84,7 +84,7 @@ const STARTER_ALLOWED_KEYS = new Set([
 function buildCostControlNavGroups(
   base: string,
   mirroringEnabled: boolean,
-  stockLocations: { id: string; name: string; isProduction: boolean }[] = [],
+  stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
 ): NavGroup[] {
   return [
     {
@@ -118,7 +118,12 @@ function buildCostControlNavGroups(
     // Kosong (tidak ada baris stock_locations) = tidak ada grup tambahan,
     // jadi bisnis cost-control lain yang belum pakai fitur ini tidak terdampak.
     ...stockLocations.map((loc) => ({
-      title: loc.name,
+      // Gudang Utama (is_default_purchase) ditampilkan sebagai "Purchasing"
+      // di sidebar -- itu peran tim yang pegang lokasi ini (terima
+      // Permintaan Barang dari semua unit, belanja ke supplier), bukan
+      // ganti nama lokasi fisiknya sendiri (tetap "Gudang Utama" di
+      // data/laporan lain).
+      title: loc.isDefaultPurchase ? "Purchasing" : loc.name,
       items: [
         {
           key: `lokasi-${loc.id}-bahan-baku`,
@@ -126,12 +131,18 @@ function buildCostControlNavGroups(
           label: "Bahan Baku",
           icon: Beaker,
         },
-        {
-          key: `lokasi-${loc.id}-semi-finished`,
-          href: `${base}/lokasi/${loc.id}/semi-finished-items`,
-          label: "Bahan Setengah Jadi",
-          icon: Beaker,
-        },
+        // Bahan Setengah Jadi cuma ada di Dapur Produksi (situ yang produksi
+        // BSJ) -- Gudang Utama/Purchasing tidak butuh menu ini sama sekali.
+        ...(loc.isDefaultPurchase
+          ? []
+          : [
+              {
+                key: `lokasi-${loc.id}-semi-finished`,
+                href: `${base}/lokasi/${loc.id}/semi-finished-items`,
+                label: "Bahan Setengah Jadi",
+                icon: Beaker,
+              },
+            ]),
         ...(loc.isProduction
           ? [
               { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
@@ -207,7 +218,7 @@ function buildNavGroups(
   isStarter: boolean,
   mirroringEnabled = false,
   costControlEnabled = false,
-  stockLocations: { id: string; name: string; isProduction: boolean }[] = [],
+  stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
@@ -668,7 +679,7 @@ export default function DashboardShell({
   permissions?: string[];
   mirroringEnabled?: boolean;
   costControlEnabled?: boolean;
-  stockLocations?: { id: string; name: string; isProduction: boolean }[];
+  stockLocations?: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
