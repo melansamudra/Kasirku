@@ -3,20 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
-import importRows from "@/lib/cost-control/data/bsj-import-dataglobal.json";
 
 export type ImportActionState = { error: string | null; success: boolean };
-
-type ImportRow = {
-  itemName: string;
-  ingredientId: string;
-  ingredientNameRaw: string;
-  qtyPerBatch: number;
-  unit: string;
-  batchYield: number;
-};
-
-const ALL_ROWS = importRows as ImportRow[];
 
 export async function saveBsjImport(
   businessId: string,
@@ -37,12 +25,17 @@ export async function saveBsjImport(
     return { error: "Loss Faktor % harus antara 0-99.", success: false };
   }
 
-  const rows = ALL_ROWS.filter((r) => r.itemName === itemName);
-  if (rows.length === 0) {
+  const supabase = await createClient();
+
+  const { data: rows, error: stagingErr } = await supabase
+    .from("bsj_import_staging")
+    .select("ingredient_id, qty_per_batch, unit")
+    .eq("business_id", businessId)
+    .eq("item_name", itemName);
+  if (stagingErr) return { error: stagingErr.message, success: false };
+  if (!rows || rows.length === 0) {
     return { error: "Data resep untuk menu ini tidak ditemukan di data import.", success: false };
   }
-
-  const supabase = await createClient();
 
   const { data: existing } = await supabase
     .from("semi_finished_items")
@@ -84,8 +77,8 @@ export async function saveBsjImport(
     business_id: businessId,
     semi_finished_item_id: itemId,
     component_type: "ingredient" as const,
-    ingredient_id: r.ingredientId,
-    qty: r.qtyPerBatch / porsi,
+    ingredient_id: r.ingredient_id,
+    qty: r.qty_per_batch / porsi,
     unit: r.unit,
   }));
   const { error: insRecipeErr } = await supabase.from("semi_finished_recipes").insert(newRows);

@@ -2,17 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { saveBsjImport } from "./actions";
+import { uploadDataglobalExcel } from "./upload-actions";
 import ImportTool, { type ImportGroup } from "./import-tool";
-import importRows from "@/lib/cost-control/data/bsj-import-dataglobal.json";
-
-type ImportRow = {
-  itemName: string;
-  ingredientId: string;
-  ingredientNameRaw: string;
-  qtyPerBatch: number;
-  unit: string;
-  batchYield: number;
-};
+import UploadForm from "./upload-form";
 
 export default async function ImportBsjPage({ params }: { params: Promise<{ businessId: string }> }) {
   const { businessId } = await params;
@@ -27,24 +19,29 @@ export default async function ImportBsjPage({ params }: { params: Promise<{ busi
     notFound();
   }
 
-  const rows = importRows as ImportRow[];
+  const { data: stagingRows } = await supabase
+    .from("bsj_import_staging")
+    .select("item_name, batch_yield, ingredient_id, qty_per_batch, unit")
+    .eq("business_id", businessId);
+
   const grouped = new Map<string, ImportGroup>();
-  for (const r of rows) {
-    if (!grouped.has(r.itemName)) {
-      grouped.set(r.itemName, { itemName: r.itemName, batchYield: r.batchYield, rows: [] });
+  for (const r of stagingRows ?? []) {
+    if (!grouped.has(r.item_name)) {
+      grouped.set(r.item_name, { itemName: r.item_name, batchYield: r.batch_yield, rows: [] });
     }
-    grouped.get(r.itemName)!.rows.push({
-      ingredientId: r.ingredientId,
-      ingredientName: r.ingredientNameRaw,
-      qtyPerBatch: r.qtyPerBatch,
+    grouped.get(r.item_name)!.rows.push({
+      ingredientId: r.ingredient_id,
+      qtyPerBatch: r.qty_per_batch,
       unit: r.unit,
     });
   }
   const groups = [...grouped.values()].sort((a, b) => a.itemName.localeCompare(b.itemName));
 
-  const ingredientIds = [...new Set(rows.map((r) => r.ingredientId))];
+  const ingredientIds = [...new Set((stagingRows ?? []).map((r) => r.ingredient_id))];
   const [{ data: ingredients }, { data: existingItems }] = await Promise.all([
-    supabase.from("ingredients").select("id, name, unit_cost").in("id", ingredientIds),
+    ingredientIds.length
+      ? supabase.from("ingredients").select("id, name, unit_cost").in("id", ingredientIds)
+      : Promise.resolve({ data: [] }),
     supabase.from("semi_finished_items").select("name").eq("business_id", businessId).is("deleted_at", null),
   ]);
 
@@ -55,6 +52,7 @@ export default async function ImportBsjPage({ params }: { params: Promise<{ busi
   const existingNames = new Set((existingItems ?? []).map((i) => i.name));
 
   const boundSave = saveBsjImport.bind(null, businessId);
+  const boundUpload = uploadDataglobalExcel.bind(null, businessId);
 
   return (
     <div className="w-full max-w-3xl">
@@ -67,18 +65,30 @@ export default async function ImportBsjPage({ params }: { params: Promise<{ busi
         </Link>
         <h1 className="mt-2 text-lg font-bold text-zinc-900">Import Resep dari Data Excel — {business.name}</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Pilih nama Bahan Setengah Jadi, bahan-bahannya otomatis muncul dari data breakdown Excel
-          (dataglobal). Cek dulu angkanya, lalu klik Simpan untuk membuat/menimpa resepnya di sistem.
+          Upload file Excel breakdown resep (kolom Nama Menu / Porsi / Bahan Baku / Gramasi), lalu
+          pilih nama Bahan Setengah Jadi untuk lihat & simpan resepnya ke sistem.
         </p>
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
-        <ImportTool
-          groups={groups}
-          ingredientPrices={priceMap}
-          existingNames={[...existingNames]}
-          action={boundSave}
-        />
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">1. Upload Data Excel</h2>
+        <UploadForm action={boundUpload} />
+      </div>
+
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">2. Pilih Menu &amp; Simpan Resep</h2>
+        {groups.length === 0 ? (
+          <p className="text-xs text-zinc-400">
+            Belum ada data. Upload file Excel dulu di bagian atas.
+          </p>
+        ) : (
+          <ImportTool
+            groups={groups}
+            ingredientPrices={priceMap}
+            existingNames={[...existingNames]}
+            action={boundSave}
+          />
+        )}
       </div>
     </div>
   );

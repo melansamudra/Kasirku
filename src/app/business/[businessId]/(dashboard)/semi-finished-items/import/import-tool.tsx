@@ -6,7 +6,7 @@ import type { ImportActionState } from "./actions";
 export type ImportGroup = {
   itemName: string;
   batchYield: number;
-  rows: { ingredientId: string; ingredientName: string; qtyPerBatch: number; unit: string }[];
+  rows: { ingredientId: string; qtyPerBatch: number; unit: string }[];
 };
 
 const initialState: ImportActionState = { error: null, success: false };
@@ -54,7 +54,7 @@ export default function ImportTool({
     const hargaBaris = r.qtyPerBatch * hargaSatuan;
     return {
       ...r,
-      displayName: price?.name ?? r.ingredientName,
+      displayName: price?.name ?? "(bahan tidak ditemukan)",
       hargaSatuan,
       hargaBaris,
       priceMissing: !price,

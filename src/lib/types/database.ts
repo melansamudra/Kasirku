@@ -2195,6 +2195,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      bsj_import_staging: {
+        Row: {
+          id: string;
+          business_id: string;
+          item_name: string;
+          ingredient_id: string;
+          qty_per_batch: number;
+          unit: string;
+          batch_yield: number;
+          source_file: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          item_name: string;
+          ingredient_id: string;
+          qty_per_batch: number;
+          unit: string;
+          batch_yield: number;
+          source_file?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          item_name?: string;
+          ingredient_id?: string;
+          qty_per_batch?: number;
+          unit?: string;
+          batch_yield?: number;
+          source_file?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       finished_products: {
         Row: {
           id: string;
