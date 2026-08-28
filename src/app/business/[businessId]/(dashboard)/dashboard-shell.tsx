@@ -102,13 +102,12 @@ function buildCostControlNavGroups(
         { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
       ],
     },
-    {
-      title: "Operasional",
-      items: [
-        { key: "outlets", href: `${base}/outlets`, label: "Outlet", icon: Store },
-        { key: "outlet-requests", href: `${base}/permintaan-resto`, label: "Permintaan Resto", icon: ClipboardList },
-      ],
-    },
+    // Grup "Operasional" (Outlet + Permintaan Resto) disembunyikan sementara
+    // atas permintaan user (2026-08-28) -- fitur ini belum pernah dipakai
+    // (tabel outlets masih kosong), dan konsepnya beda/belum nyambung dari
+    // stock_locations (Gudang Utama/Kitchen Atas/Dapur Produksi/Bar Llauk)
+    // yang sekarang dipakai. Rute /outlets & /permintaan-resto masih hidup,
+    // cuma tidak dilink di sidebar -- tinggal uncomment kalau mau dipakai lagi.
     // Satu grup sidebar per lokasi fisik (Gudang Utama/Kitchen Atas/dst) --
     // stok bahan baku & bahan setengah jadi di tiap lokasi dilacak terpisah
     // dari stok tunggal ingredients.stock/semi_finished_items.stock (yang
