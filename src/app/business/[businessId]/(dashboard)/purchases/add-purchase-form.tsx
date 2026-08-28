@@ -97,7 +97,6 @@ function PurchaseFormFields({
   const [amount, setAmount] = useState(prefill && prefill.amount > 0 ? String(prefill.amount) : "");
   const [paymentMode, setPaymentMode] = useState<"lunas" | "utang" | "sebagian">("lunas");
   const [paidAmount, setPaidAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
   const [stockOnly, setStockOnly] = useState(false);
   // Qty selalu diketik dalam satuan yang lagi dipilih (satuan stok, atau
   // salah satu varian satuan beli bahan itu) — yang dikirim ke server
@@ -404,26 +403,6 @@ function PurchaseFormFields({
               />
             )}
           </div>
-
-          {paymentMode !== "utang" && (
-            <div>
-              <label htmlFor="paymentMethod" className="mb-1 block text-xs font-medium text-zinc-600">
-                Metode Bayar
-              </label>
-              <select
-                id="paymentMethod"
-                name="paymentMethod"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                required
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              >
-                <option value="" disabled>— Pilih metode —</option>
-                <option value="tunai">💵 Tunai</option>
-                <option value="transfer">🏦 Transfer</option>
-              </select>
-            </div>
-          )}
 
           {paymentMode !== "lunas" && (
             <div>

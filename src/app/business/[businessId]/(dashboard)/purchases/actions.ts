@@ -18,7 +18,6 @@ export async function postPurchaseJournal(
   amount: number,
   paidAmount: number,
   debitAccountCode: string = "1-200",
-  paymentMethod?: "tunai" | "transfer",
 ): Promise<string | null> {
   const lines: { account_code: string; debit: number; credit: number }[] = [
     { account_code: debitAccountCode, debit: amount, credit: 0 },
@@ -30,28 +29,14 @@ export async function postPurchaseJournal(
   if (sisaUtang > 0) {
     lines.push({ account_code: "2-001", debit: 0, credit: sisaUtang });
   }
-  const { data: entryId, error } = await supabase.rpc("post_journal_entry", {
+  const { error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: description,
     p_lines: lines,
     p_source: "pembelian",
   });
-  if (error) return error.message;
-
-  // post_journal_entry() tidak punya parameter payment_method (lihat bug
-  // overload 2026-08-23 di kas-harian/actions.ts) -- diisi lewat RPC sempit
-  // terpisah, cuma kalau memang ada kas yang beneran keluar sekarang. Dipakai
-  // halaman PDO buat menyaring pembayaran supplier yang lewat transfer.
-  if (paidAmount > 0 && paymentMethod && entryId) {
-    const { error: paymentMethodError } = await supabase.rpc("set_journal_entry_payment_method", {
-      p_entry_id: entryId,
-      p_payment_method: paymentMethod,
-    });
-    if (paymentMethodError) return paymentMethodError.message;
-  }
-
-  return null;
+  return error?.message ?? null;
 }
 
 // Validasi akun beban yang dipilih untuk pembelian kategori "Lainnya" --
@@ -121,16 +106,6 @@ export async function addPurchase(
   if (paidAmount > amount) {
     return fail("Jumlah dibayar tidak boleh lebih besar dari total pembelian.");
   }
-
-  // Wajib diisi kalau ada kas yang beneran keluar sekarang (bukan stockOnly,
-  // yang kasnya sudah dicatat di alur lain) -- dipakai halaman PDO buat
-  // menyaring pembayaran supplier yang lewat transfer.
-  const paymentMethodRaw = (formData.get("paymentMethod") as string) || null;
-  if (!stockOnly && paidAmount > 0 && paymentMethodRaw !== "tunai" && paymentMethodRaw !== "transfer") {
-    return fail("Metode bayar wajib dipilih.");
-  }
-  const paymentMethod =
-    paymentMethodRaw === "tunai" || paymentMethodRaw === "transfer" ? paymentMethodRaw : undefined;
 
   const supabase = await createClient();
 
@@ -379,7 +354,6 @@ export async function addPurchase(
         amount,
         paidAmount,
         expenseAccountCode ?? "1-200",
-        paymentMethod,
       );
 
   await logActivity(
@@ -731,7 +705,6 @@ export async function addPurchasePayment(
   const date = formData.get("date") as string;
   const amountRaw = formData.get("amount") as string;
   const note = (formData.get("note") as string)?.trim();
-  const paymentMethod = formData.get("paymentMethod") as string;
 
   if (!date) {
     return { error: "Tanggal wajib diisi." };
@@ -740,10 +713,6 @@ export async function addPurchasePayment(
   const amount = Number(amountRaw);
   if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
     return { error: "Jumlah bayar harus angka lebih dari 0." };
-  }
-
-  if (paymentMethod !== "tunai" && paymentMethod !== "transfer") {
-    return { error: "Metode bayar wajib dipilih." };
   }
 
   const supabase = await createClient();
@@ -790,7 +759,7 @@ export async function addPurchasePayment(
     return { error: error.message };
   }
 
-  const { data: journalEntryId, error: journalRpcError } = await supabase.rpc("post_journal_entry", {
+  const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: "Bayar utang dagang",
@@ -799,18 +768,7 @@ export async function addPurchasePayment(
       { account_code: "1-001", debit: 0, credit: amount },
     ],
   });
-  let journalError = journalRpcError?.message ?? null;
-
-  // Sama pola dengan postPurchaseJournal -- diisi lewat RPC sempit terpisah
-  // karena post_journal_entry() tidak punya parameter payment_method. Dipakai
-  // halaman PDO buat menyaring pembayaran supplier yang lewat transfer.
-  if (!journalError && journalEntryId) {
-    const { error: paymentMethodError } = await supabase.rpc("set_journal_entry_payment_method", {
-      p_entry_id: journalEntryId,
-      p_payment_method: paymentMethod,
-    });
-    journalError = paymentMethodError?.message ?? null;
-  }
+  const journalError = journalRpcError?.message ?? null;
 
   await logActivity(
     supabase,

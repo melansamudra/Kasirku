@@ -18,7 +18,6 @@ export default function AddPaymentForm({
   const [amount, setAmount] = useState(String(sisaUtang));
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -34,17 +33,12 @@ export default function AddPaymentForm({
   }
 
   async function handleSubmit() {
-    if (paymentMethod !== "tunai" && paymentMethod !== "transfer") {
-      setError("Metode bayar wajib dipilih.");
-      return;
-    }
     setError(null);
     setPending(true);
     const formData = new FormData();
     formData.set("date", date);
     formData.set("amount", amount);
     formData.set("note", note);
-    formData.set("paymentMethod", paymentMethod);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -82,19 +76,6 @@ export default function AddPaymentForm({
             className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
           />
         </div>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-brand-800">Metode Bayar</label>
-        <select
-          value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
-          required
-          className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
-        >
-          <option value="" disabled>— Pilih metode —</option>
-          <option value="tunai">💵 Tunai</option>
-          <option value="transfer">🏦 Transfer</option>
-        </select>
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-brand-800">Catatan (opsional)</label>
