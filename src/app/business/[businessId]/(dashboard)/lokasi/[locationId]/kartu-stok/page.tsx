@@ -1,15 +1,24 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
+import { PERIOD_COOKIE_NAME, PERIOD_DESCRIPTIONS, getPeriodRange, parsePeriod } from "../../../reports/period";
+import PeriodTabs from "../../../reports/period-tabs";
 import KartuStokList, { type KartuStokRow } from "./kartu-stok-list";
 
 export default async function LocationKartuStokPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string; locationId: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   const { businessId, locationId } = await params;
+  const { period: periodParam, from, to } = await searchParams;
+  const cookieStore = await cookies();
+  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -38,14 +47,20 @@ export default async function LocationKartuStokPage({
       item_name: string;
       unit: string | null;
       diff: number;
-    }>((from, to) =>
-      supabase
+    }>((rangeFrom, rangeTo) => {
+      // Stok Data/Stok Riil di bawah tetap real-time (saldo & opname
+      // terakhir SAAT INI), cuma Stock Masuk/Keluar yang difilter periode --
+      // dua hal beda: saldo itu "sekarang", pergerakan itu "sepanjang
+      // periode yang dipilih".
+      let q = supabase
         .from("stock_adjustments")
         .select("ingredient_id, semi_finished_item_id, item_name, unit, diff")
         .eq("business_id", businessId)
-        .eq("location_id", locationId)
-        .range(from, to),
-    ),
+        .eq("location_id", locationId);
+      if (fromIso) q = q.gte("entry_date", fromIso.slice(0, 10));
+      if (toIsoExclusive) q = q.lt("entry_date", toIsoExclusive.slice(0, 10));
+      return q.range(rangeFrom, rangeTo);
+    }),
     supabase
       .from("ingredient_location_stock")
       .select("ingredient_id, stock, ingredients(name, unit)")
@@ -130,11 +145,49 @@ export default async function LocationKartuStokPage({
       >
         ← {location.name}
       </Link>
-      <h1 className="mt-2 text-lg font-bold text-zinc-900">Kartu Stok — {location.name}</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Stok Data (sistem), Stok Riil (opname terakhir), Selisih, status Verifikasi, dan total
-        Stock Masuk/Keluar sepanjang riwayat lokasi ini — per bahan.
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">Kartu Stok — {location.name}</h1>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Stock Masuk/Keluar: {PERIOD_DESCRIPTIONS[period]}
+          </p>
+        </div>
+        <PeriodTabs basePath={`/business/${businessId}/lokasi/${locationId}/kartu-stok`} period={period} />
+      </div>
+      <p className="mt-2 text-xs text-zinc-400">
+        Stok Data (sistem) & Stok Riil (opname terakhir) selalu saldo terkini. Stock Masuk/Keluar
+        mengikuti periode yang dipilih.
       </p>
+
+      {period === "custom" && (
+        <form method="get" className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4">
+          <input type="hidden" name="period" value="custom" />
+          <label className="text-xs font-medium text-zinc-600">
+            Dari
+            <input
+              type="date"
+              name="from"
+              defaultValue={from}
+              className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="text-xs font-medium text-zinc-600">
+            Sampai
+            <input
+              type="date"
+              name="to"
+              defaultValue={to}
+              className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+          >
+            Terapkan
+          </button>
+        </form>
+      )}
 
       <div className="mt-4">
         <KartuStokList items={list} />
