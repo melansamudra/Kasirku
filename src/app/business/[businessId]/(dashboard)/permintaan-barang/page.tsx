@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { regeneratePurchaseRequestSlug } from "./actions";
@@ -52,10 +53,13 @@ type RequestRow = {
 
 export default async function PermintaanBarangPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ lokasi?: string }>;
 }) {
   const { businessId } = await params;
+  const { lokasi: filterLocationId } = await searchParams;
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -152,18 +156,48 @@ export default async function PermintaanBarangPage({
     itemsByRequest.set(it.purchase_request_id, list);
   }
 
-  const rows = (requests ?? []) as RequestRow[];
+  const allRows = (requests ?? []) as RequestRow[];
+  const rows = filterLocationId ? allRows.filter((r) => r.location_id === filterLocationId) : allRows;
   const baruCount = rows.filter((r) => r.status === "baru").length;
+  const activeLocationName = filterLocationId
+    ? (locations ?? []).find((l) => l.id === filterLocationId)?.name
+    : null;
 
   const boundRegenerateSlug = regeneratePurchaseRequestSlug.bind(null, businessId);
   const procurementBudgetGateEnabled = business.procurement_budget_gate_enabled ?? false;
 
   return (
     <div className="w-full max-w-2xl">
-      <h1 className="text-lg font-bold text-zinc-900">Permintaan Barang — {business.name}</h1>
+      <h1 className="text-lg font-bold text-zinc-900">
+        Permintaan Barang{activeLocationName ? ` — ${activeLocationName}` : ""} — {business.name}
+      </h1>
       <p className="mt-0.5 text-xs text-zinc-500">
         Order barang dari staf dapur/bar/front — terima, alokasikan ke supplier, teruskan.
       </p>
+
+      {(locations ?? []).length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <Link
+            href={`/business/${businessId}/permintaan-barang`}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              !filterLocationId ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+            }`}
+          >
+            Semua Lokasi
+          </Link>
+          {(locations ?? []).map((l) => (
+            <Link
+              key={l.id}
+              href={`/business/${businessId}/permintaan-barang?lokasi=${l.id}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                filterLocationId === l.id ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+              }`}
+            >
+              {l.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {baruCount > 0 && (
         <p className="mt-2 text-xs font-medium text-amber-600">
