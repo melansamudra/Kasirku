@@ -8,6 +8,7 @@ import { updateAccountBankDetails } from "./actions";
 import PdoForm from "./pdo-form";
 import BankDetailsForm from "./bank-details-form";
 import PettyCashTunaiSection from "./petty-cash-tunai-section";
+import PdoHistoryList from "./pdo-history-list";
 
 const REKENING_UTAMA_CODE = "1-001";
 const REKENING_OPERASIONAL_CODE = "1-002";
@@ -29,19 +30,6 @@ function formatDateLabel(dateStr: string) {
     year: "numeric",
     timeZone: "UTC",
   });
-}
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Jakarta",
-  });
-}
-
-function formatRupiah(value: number) {
-  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
 
 export default async function PdoPage({
@@ -244,17 +232,7 @@ export default async function PdoPage({
               PDO yang sudah pernah diajukan & tercatat sebagai transfer.
             </p>
           </div>
-          <div className="divide-y divide-zinc-100">
-            {pdoHistory.map((h) => (
-              <div key={h.id} className="px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-zinc-400">{formatDateTime(h.date)}</span>
-                  <span className="text-sm font-bold text-brand-700">{formatRupiah(h.amount)}</span>
-                </div>
-                <p className="mt-0.5 text-xs text-zinc-600">{h.detail}</p>
-              </div>
-            ))}
-          </div>
+          <PdoHistoryList businessName={business.name} history={pdoHistory} />
         </div>
       )}
     </div>
