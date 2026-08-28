@@ -6,6 +6,53 @@ import { submitStockOpname } from "./actions";
 type ItemOption = { id: string; name: string; unit: string; currentStock: number };
 type Employee = { id: string; name: string };
 
+// Sengaja di LUAR OpnameClient (module scope), bukan didefinisikan lagi di
+// tiap render -- kalau di dalam, React anggap ini komponen BARU tiap parent
+// re-render (mis. tiap ketik 1 karakter lewat setValues), jadi input-nya
+// di-remount & kehilangan fokus setelah 1 keystroke (harus klik lagi tiap
+// ketik 1 digit).
+function ItemRow({
+  item,
+  itemKey,
+  value,
+  onChange,
+}: {
+  item: ItemOption;
+  itemKey: string;
+  value: string;
+  onChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-2 last:border-0">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm text-zinc-800">{item.name}</p>
+        <p className="text-[11px] text-zinc-400">
+          Sistem: {item.currentStock.toLocaleString("id-ID")} {item.unit}
+        </p>
+      </div>
+      <input
+        type="number"
+        min="0"
+        step="any"
+        inputMode="decimal"
+        placeholder={item.unit}
+        value={value}
+        onChange={(e) => onChange(itemKey, e.target.value)}
+        className="w-24 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-right text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+      />
+    </div>
+  );
+}
+
+function todayLabel() {
+  return new Date().toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export default function OpnameClient({
   slug,
   businessName,
@@ -31,6 +78,10 @@ export default function OpnameClient({
     () => Object.values(values).filter((v) => v.trim() !== "").length,
     [values],
   );
+
+  function handleValueChange(key: string, value: string) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+  }
 
   function filterItems(items: ItemOption[]) {
     const q = query.trim().toLowerCase();
@@ -86,30 +137,6 @@ export default function OpnameClient({
     setValues({});
   }
 
-  function ItemRow({ item, prefix }: { item: ItemOption; prefix: "ing" | "semi" }) {
-    const key = `${prefix}:${item.id}`;
-    return (
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-2 last:border-0">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-zinc-800">{item.name}</p>
-          <p className="text-[11px] text-zinc-400">
-            Sistem: {item.currentStock.toLocaleString("id-ID")} {item.unit}
-          </p>
-        </div>
-        <input
-          type="number"
-          min="0"
-          step="any"
-          inputMode="decimal"
-          placeholder={item.unit}
-          value={values[key] ?? ""}
-          onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
-          className="w-24 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-right text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </div>
-    );
-  }
-
   const visibleIngredients = filterItems(ingredients);
   const visibleSemiFinished = filterItems(semiFinishedItems);
 
@@ -117,6 +144,7 @@ export default function OpnameClient({
     <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
       <p className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{businessName}</p>
       <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Stok Opname — {location.name}</h1>
+      <p className="mt-1 text-center text-xs font-medium text-brand-700">{todayLabel()}</p>
       <p className="mt-1 text-center text-[11px] text-zinc-400">
         Isi stok fisik yang kamu hitung sekarang. Bahan yang tidak diisi tidak akan diubah.
       </p>
@@ -154,7 +182,13 @@ export default function OpnameClient({
             <p className="mb-1 text-xs font-semibold text-zinc-700">Bahan Baku</p>
             <div className="max-h-80 overflow-y-auto rounded-xl border border-zinc-200 px-3">
               {visibleIngredients.map((i) => (
-                <ItemRow key={i.id} item={i} prefix="ing" />
+                <ItemRow
+                  key={i.id}
+                  item={i}
+                  itemKey={`ing:${i.id}`}
+                  value={values[`ing:${i.id}`] ?? ""}
+                  onChange={handleValueChange}
+                />
               ))}
             </div>
           </div>
@@ -165,7 +199,13 @@ export default function OpnameClient({
             <p className="mb-1 text-xs font-semibold text-zinc-700">Bahan Setengah Jadi</p>
             <div className="max-h-80 overflow-y-auto rounded-xl border border-zinc-200 px-3">
               {visibleSemiFinished.map((s) => (
-                <ItemRow key={s.id} item={s} prefix="semi" />
+                <ItemRow
+                  key={s.id}
+                  item={s}
+                  itemKey={`semi:${s.id}`}
+                  value={values[`semi:${s.id}`] ?? ""}
+                  onChange={handleValueChange}
+                />
               ))}
             </div>
           </div>
