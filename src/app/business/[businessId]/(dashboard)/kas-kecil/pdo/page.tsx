@@ -8,6 +8,7 @@ import { updateAccountBankDetails } from "./actions";
 import PdoForm from "./pdo-form";
 import BankDetailsForm from "./bank-details-form";
 import PettyCashTunaiSection from "./petty-cash-tunai-section";
+import ManualNotaForm from "./manual-nota-form";
 
 const REKENING_UTAMA_CODE = "1-001";
 const REKENING_OPERASIONAL_CODE = "1-002";
@@ -59,14 +60,26 @@ export default async function PdoPage({
 
   const supabase = await createClient();
 
-  const [{ data: business }, { data: accounts }] = await Promise.all([
+  const [{ data: business }, { data: accounts }, { data: expenseAccountRows }] = await Promise.all([
     supabase.from("businesses").select("id, name").eq("id", businessId).single(),
     supabase
       .from("accounts")
       .select("code, name, bank_name, bank_account_number, bank_account_holder")
       .eq("business_id", businessId)
       .in("code", [REKENING_UTAMA_CODE, REKENING_OPERASIONAL_CODE]),
+    // Sama seperti daftar akun di Catat Kas Keluar (Kas & Bank) -- 1-001, 1-050,
+    // 1-060 dikeluarkan karena bukan kategori beban yang valid dipilih manual
+    // (lihat komentar di kas-harian/page.tsx).
+    supabase
+      .from("accounts")
+      .select("code, name")
+      .eq("business_id", businessId)
+      .neq("code", "1-001")
+      .neq("code", "1-050")
+      .neq("code", "1-060")
+      .order("code"),
   ]);
+  const expenseAccounts = expenseAccountRows ?? [];
 
   if (!business) {
     notFound();
@@ -181,6 +194,10 @@ export default async function PdoPage({
             Hitung Ulang
           </button>
         </form>
+      </div>
+
+      <div className="mt-4 print:hidden">
+        <ManualNotaForm businessId={businessId} today={today} accounts={expenseAccounts} />
       </div>
 
       <h2 className="mt-4 text-sm font-bold text-zinc-900 print:hidden">💵 Petty Cash Tunai</h2>
