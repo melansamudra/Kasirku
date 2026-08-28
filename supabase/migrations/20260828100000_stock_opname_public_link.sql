@@ -196,14 +196,14 @@ begin
       continue;
     end if;
 
-    -- Reset EKSPLISIT tiap iterasi -- kalau tidak, SELECT INTO di bawah yang
-    -- tidak nemu baris (bahan ini belum pernah ada stok di lokasi ini) akan
-    -- MEWARISKAN nilai v_before dari bahan sebelumnya di loop yang sama
-    -- (gotcha klasik PL/pgSQL: SELECT INTO 0-baris tidak mengosongkan target).
-    v_before := 0;
+    -- SELECT INTO yang tidak nemu baris (bahan ini belum pernah ada stok di
+    -- lokasi ini) mengisi v_before dengan NULL (bukan "tetap kosong" seperti
+    -- salah kira sebelumnya) -- coalesce WAJIB di baris berikutnya, kalau
+    -- tidak v_diff/stock_before ikut NULL dan bentrok NOT NULL constraint.
     select stock into v_before
     from public.ingredient_location_stock
     where business_id = v_business_id and location_id = p_location_id and ingredient_id = v_ingredient.id;
+    v_before := coalesce(v_before, 0);
     v_diff := v_stock - v_before;
     if v_diff = 0 then
       continue;
@@ -235,10 +235,10 @@ begin
       continue;
     end if;
 
-    v_before := 0;
     select stock into v_before
     from public.semi_finished_item_location_stock
     where business_id = v_business_id and location_id = p_location_id and semi_finished_item_id = v_semi.id;
+    v_before := coalesce(v_before, 0);
     v_diff := v_stock - v_before;
     if v_diff = 0 then
       continue;
