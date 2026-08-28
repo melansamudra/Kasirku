@@ -2306,6 +2306,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      finished_product_import_staging: {
+        Row: {
+          id: string;
+          business_id: string;
+          item_name: string;
+          component_type: string;
+          ingredient_id: string | null;
+          semi_finished_item_id: string | null;
+          qty_per_batch: number;
+          unit: string;
+          batch_yield: number;
+          source_file: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          item_name: string;
+          component_type: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          qty_per_batch: number;
+          unit: string;
+          batch_yield: number;
+          source_file?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          item_name?: string;
+          component_type?: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          qty_per_batch?: number;
+          unit?: string;
+          batch_yield?: number;
+          source_file?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       production_runs: {
         Row: {
           id: string;

@@ -40,11 +40,21 @@ export default async function FinishedProductsPage({
 
   return (
     <div className="w-full max-w-3xl">
-      <h1 className="text-lg font-bold text-zinc-900">Produk Jadi (HPP) — {business.name}</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Untuk kontrol biaya &amp; margin saja — produk ini <b>tidak dijual lewat POS Kasirku</b>.
-        HPP dihitung otomatis dari resep (bahan setengah jadi + bahan baku).
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">Produk Jadi (HPP) — {business.name}</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Untuk kontrol biaya &amp; margin saja — produk ini <b>tidak dijual lewat POS Kasirku</b>.
+            HPP dihitung otomatis dari resep (bahan setengah jadi + bahan baku).
+          </p>
+        </div>
+        <Link
+          href={`/business/${businessId}/finished-products/import`}
+          className="shrink-0 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+        >
+          Import dari Data Excel
+        </Link>
+      </div>
 
       <div className="mt-6 space-y-2">
         {products && products.length > 0 ? (
