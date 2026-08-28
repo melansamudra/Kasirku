@@ -31,35 +31,36 @@ export function TransactionActions({
   return (
     <>
       <div className="flex shrink-0 gap-2">
+        <a
+          href={`/business/${businessId}/transactions/export`}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+        >
+          ⬇️ Ekspor CSV
+        </a>
+        <a
+          href={`/business/${businessId}/transactions/export-full`}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+        >
+          ⬇️ Ekspor Lengkap
+        </a>
+        <button
+          type="button"
+          onClick={() => setImportOpen(true)}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+        >
+          📥 Impor CSV
+        </button>
+        {/* Moka POS itu produk POS pihak ketiga spesifik -- tidak relevan
+            buat bisnis cost-control (Llauk Nusantara dkk SENGAJA tidak jual
+            lewat POS Kasirku ataupun Moka sama sekali). */}
         {!costControlEnabled && (
-          <>
-            <a
-              href={`/business/${businessId}/transactions/export`}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              ⬇️ Ekspor CSV
-            </a>
-            <a
-              href={`/business/${businessId}/transactions/export-full`}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              ⬇️ Ekspor Lengkap
-            </a>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              📥 Impor CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => setMokaOpen(true)}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-            >
-              📥 Impor Moka POS
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => setMokaOpen(true)}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            📥 Impor Moka POS
+          </button>
         )}
         <Link
           href={`/business/${businessId}/transactions/new`}
@@ -104,7 +105,8 @@ export function TransactionActions({
               Kolom: Referensi, Tanggal (YYYY-MM-DD), Nama Produk, Qty, Metode Bayar, Pelanggan
               (opsional). Baris dengan Referensi yang sama digabung jadi satu transaksi — pakai
               ini untuk transaksi dengan lebih dari satu produk. Produk &amp; pelanggan harus sudah
-              ada di data toko ini.
+              ada di data toko ini
+              {costControlEnabled ? " — \"Nama Produk\" di sini harus sama persis dengan nama di Produk Jadi (HPP)." : "."}
             </p>
             <button
               type="button"

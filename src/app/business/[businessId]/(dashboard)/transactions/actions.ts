@@ -6,6 +6,7 @@ import { parseCsv } from "@/lib/csv";
 import { logActivity } from "@/lib/activity-log";
 import { buildReceiptBuffer } from "@/lib/receipt-print";
 import { buildKitchenPrintJobs, type KitchenPrintJobPayload } from "@/lib/kitchen-print";
+import { syncFinishedProductsToCatalog } from "@/lib/cost-control/sync-finished-products-catalog";
 import type { Json } from "@/lib/types/database";
 
 export type BuildReceiptPrintJobResult =
@@ -132,6 +133,19 @@ export async function importTransactions(
 
   const dataRows = rows.slice(1);
   const supabase = await createClient();
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled")
+    .eq("id", businessId)
+    .single();
+  // Bisnis cost-control tidak punya katalog `products` manual -- katalognya
+  // "Produk Jadi (HPP)" (finished_products) yang di-mirror ke `products` di
+  // sini biar cocok sama nama produk di CSV, sama seperti form Transaksi
+  // Manual (lihat sync-finished-products-catalog.ts).
+  if (business?.cost_control_enabled) {
+    await syncFinishedProductsToCatalog(supabase, businessId);
+  }
 
   const [{ data: products }, { data: customers }] = await Promise.all([
     supabase
