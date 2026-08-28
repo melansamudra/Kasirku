@@ -114,6 +114,23 @@ export async function addPurchase(
   // cost-control (lihat di bawah), bukan cuma buat link balik di akhir.
   const fromAllocationId = (formData.get("fromAllocationId") as string) || null;
 
+  // Cek di awal, SEBELUM stok/unit_cost diubah sama sekali -- kalau
+  // allocation ini sudah pernah dicatat jadi pembelian (dobel-klik tombol,
+  // atau dua admin submit form yang sama nyaris bersamaan), tolak sekarang
+  // juga. Tanpa ini: submit kedua tetap nambah stok+jurnal lagi, cuma
+  // menimpa purchase_id di allocation yang lama (dobel stok, dobel AP).
+  if (fromAllocationId) {
+    const { data: existingAllocation } = await supabase
+      .from("purchase_request_item_allocations")
+      .select("id, purchase_id")
+      .eq("id", fromAllocationId)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (existingAllocation?.purchase_id) {
+      return fail("Barang ini sudah pernah dicatat sebagai pembelian sebelumnya.");
+    }
+  }
+
   let ingredientId: string | null = null;
   let productId: string | null = null;
   let itemName = "";
@@ -339,12 +356,30 @@ export async function addPurchase(
 
   // Link balik alokasinya ke pembelian ini biar riwayatnya nyambung — best-
   // effort, kegagalan di sini tidak membatalkan pembelian yang sudah tersimpan.
+  // `.is("purchase_id", null)` jadi klaim atomik di level DB -- kalau baris
+  // yang keupdate 0 (allocation sempat diklaim submit lain persis di antara
+  // cek di atas & titik ini), stok+jurnal di atas TETAP tersimpan (tidak ada
+  // rollback otomatis di sini), tapi minimal dicatat sebagai warning supaya
+  // ada yang sadar & cek manual -- bukan diam-diam menimpa purchase_id lama.
   if (fromAllocationId) {
-    await supabase
+    const { data: claimed } = await supabase
       .from("purchase_request_item_allocations")
       .update({ purchase_id: newPurchase.id })
       .eq("id", fromAllocationId)
-      .eq("business_id", businessId);
+      .eq("business_id", businessId)
+      .is("purchase_id", null)
+      .select("id")
+      .maybeSingle();
+    if (!claimed) {
+      await logActivity(
+        supabase,
+        businessId,
+        "produk",
+        "warning",
+        `Kemungkinan pembelian dobel: ${itemName}`,
+        "Allocation sudah diklaim submit lain saat pembelian ini disimpan — cek manual purchase_request_item_allocations.",
+      );
+    }
     revalidatePath(`/business/${businessId}/permintaan-barang`);
   }
 

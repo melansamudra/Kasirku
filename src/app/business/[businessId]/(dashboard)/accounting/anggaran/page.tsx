@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Target, TrendingUp, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { setBudget } from "./actions";
 import AddBudgetForm from "./add-budget-form";
@@ -58,15 +59,22 @@ export default async function AnggaranPage({
     .eq("period", period);
 
   const { fromIso, toIsoExclusive } = monthRange(period);
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("journal_lines(debit, credit, account_id)")
-    .eq("business_id", businessId)
-    .gte("date", fromIso)
-    .lt("date", toIsoExclusive);
+  // fetchAllRows WAJIB -- select polos kena cap 1000 baris PostgREST, dan
+  // bisnis dengan kas kecil + pembelian + payroll harian bisa tembus itu
+  // dalam 1 bulan, bikin "Aktual" di sini senyap salah tanpa error.
+  const entries = await fetchAllRows<{ journal_lines: { debit: number; credit: number; account_id: string }[] }>(
+    (from, to) =>
+      supabase
+        .from("journal_entries")
+        .select("journal_lines(debit, credit, account_id)")
+        .eq("business_id", businessId)
+        .gte("date", fromIso)
+        .lt("date", toIsoExclusive)
+        .range(from, to),
+  );
 
   const actualByAccount = new Map<string, number>();
-  for (const e of entries ?? []) {
+  for (const e of entries) {
     const lines = e.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
     for (const l of lines) {
       const cur = actualByAccount.get(l.account_id) ?? 0;

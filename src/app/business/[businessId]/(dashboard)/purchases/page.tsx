@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { todayWibDateString } from "@/lib/wib";
 import { addPurchase, addPurchasePayment, updatePurchaseCategory, voidPurchase } from "./actions";
 import AddPaymentForm from "./add-payment-form";
@@ -92,7 +93,7 @@ export default async function PurchasesPage({
     { data: ingredients },
     { data: purchaseUnits },
     { data: products },
-    { data: purchases },
+    purchases,
     { data: expenseAccountRows },
     { data: locations },
   ] = await Promise.all([
@@ -122,15 +123,22 @@ export default async function PurchasesPage({
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
-    supabase
-      .from("purchases")
-      .select(
-        "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason, stock_only, expense_account_code",
-      )
-      .eq("business_id", businessId)
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(50),
+    // fetchAllRows WAJIB di sini -- Total Utang/Umur Utang di bawah dihitung
+    // dari SEMUA purchases yang belum lunas, bukan cuma yang terbaru. Dulu
+    // ini .limit(50) polos, jadi utang lama di luar 50 baris teratas hilang
+    // senyap dari total (pola bug yang sama yang sudah 3x kejadian di
+    // project ini -- Neraca, /reports, compute-cost.ts).
+    fetchAllRows<PurchaseRow>((from, to) =>
+      supabase
+        .from("purchases")
+        .select(
+          "id, date, due_date, category, qty, note, amount, paid_amount, supplier_id, ingredient_id, product_id, voided, void_reason, stock_only, expense_account_code",
+        )
+        .eq("business_id", businessId)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    ),
     supabase
       .from("accounts")
       .select("code, name")
@@ -164,8 +172,7 @@ export default async function PurchasesPage({
   const ingredientMap = new Map((ingredients ?? []).map((i) => [i.id, i.name]));
   const productMap = new Map((products ?? []).map((p) => [p.id, p.name]));
 
-  const rows = (purchases ?? []) as PurchaseRow[];
-  const activeRows = rows.filter((r) => !r.voided);
+  const activeRows = purchases.filter((r) => !r.voided);
   const totalUtang = activeRows.reduce((s, r) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
   const belumLunasCount = activeRows.filter((r) => Number(r.paid_amount) < Number(r.amount)).length;
 
@@ -176,6 +183,11 @@ export default async function PurchasesPage({
     const bucket = agingBucketOf(r.date, today);
     agingTotals.set(bucket, (agingTotals.get(bucket) ?? 0) + sisa);
   }
+
+  // Riwayat yang ditampilkan tetap dibatasi 50 terbaru (murni buat performa
+  // render) -- agregat di atas (Total Utang, Umur Utang, Belum Lunas) sudah
+  // dari `purchases` yang lengkap, jadi tidak ikut terpotong.
+  const rows = purchases.slice(0, 50);
 
   const boundAddPurchase = addPurchase.bind(null, businessId);
 

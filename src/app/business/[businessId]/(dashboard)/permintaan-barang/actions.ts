@@ -109,6 +109,13 @@ export async function markItemFulfillment(
     .single();
   if (!item) return { error: "Barang tidak ditemukan." };
 
+  // Jalur "ambil dari Gudang" TIDAK lewat purchase_request_item_allocations
+  // sama sekali, jadi kalau tidak dicek di sini, gerbang budget bisa
+  // dilewati begitu saja (barang tetap fisik pindah stok walau belum
+  // APPROVED IN BUDGET, padahal jalur ke supplier sudah diblokir).
+  const gateError = await requiresItemBudgetApproval(supabase, businessId, itemId);
+  if (gateError) return { error: gateError };
+
   // Kalau stoknya sudah beneran diterima/dipindah (receiveStockFulfillment
   // sudah jalan), tidak boleh ditandai ulang -- keputusan fulfillment sudah
   // final di titik itu.
@@ -437,19 +444,22 @@ export async function forwardAllocationsToSupplier(
     return { error: "Semua alokasi yang diteruskan bareng harus punya supplier yang sama." };
   }
 
-  const { error } = await supabase
-    .from("purchase_request_item_allocations")
-    .update({ forwarded_at: new Date().toISOString() })
-    .in("id", allocationIds)
-    .eq("business_id", businessId);
-
-  if (error) return { error: error.message };
-
   const { data: business } = await supabase
     .from("businesses")
     .select("cost_control_enabled")
     .eq("id", businessId)
     .single();
+
+  // PO (kalau cost-control) dibuat DULU, forwarded_at ditandai BELAKANGAN --
+  // sengaja dibalik dari urutan sebelumnya. Kalau insert PO gagal di tengah
+  // jalan, forwarded_at belum sempat keset, jadi alokasi masih kelihatan
+  // "belum diteruskan" di UI dan admin bisa coba lagi. Urutan lama (forwarded_at
+  // dulu, PO belakangan) bikin alokasi bisa nyangkut permanen "forwarded tapi
+  // PO gagal dibuat" tanpa jalur retry sama sekali kalau gagal di titik itu.
+  let poId: string | null = null;
+  let poNumber: string | null = null;
+  let poTotalAmount = 0;
+  let poItemCount = 0;
 
   if (business?.cost_control_enabled) {
     const { data: itemRows } = await supabase
@@ -477,13 +487,13 @@ export async function forwardAllocationsToSupplier(
     const totalAmount = poItems.reduce((sum, i) => sum + i.subtotal, 0);
     const now = new Date();
     const dateCompact = now.toISOString().slice(0, 10).replaceAll("-", "");
-    const poNumber = `PO-${dateCompact}-${Date.now().toString().slice(-6)}`;
+    const newPoNumber = `PO-${dateCompact}-${Date.now().toString().slice(-6)}`;
 
     const { data: po, error: poError } = await supabase
       .from("purchase_orders")
       .insert({
         business_id: businessId,
-        po_number: poNumber,
+        po_number: newPoNumber,
         supplier_id: supplierId,
         purchase_request_id: requestId,
         total_amount: totalAmount,
@@ -494,23 +504,42 @@ export async function forwardAllocationsToSupplier(
 
     if (poError || !po) return { error: poError?.message ?? "Gagal menerbitkan PO." };
 
-    await supabase.from("purchase_order_items").insert(
-      poItems.map((i) => ({ business_id: businessId, purchase_order_id: po.id, ...i })),
-    );
+    const { error: poItemsError } = await supabase
+      .from("purchase_order_items")
+      .insert(poItems.map((i) => ({ business_id: businessId, purchase_order_id: po.id, ...i })));
+    if (poItemsError) {
+      // PO header sudah kesave tanpa item -- hapus lagi supaya tidak
+      // nyangkut PO kosong yang bikin bingung, forwarded_at juga belum
+      // keset jadi retry dari awal aman.
+      await supabase.from("purchase_orders").delete().eq("id", po.id).eq("business_id", businessId);
+      return { error: poItemsError.message };
+    }
 
-    await supabase
-      .from("purchase_request_item_allocations")
-      .update({ purchase_order_id: po.id })
-      .in("id", allocationIds)
-      .eq("business_id", businessId);
+    poId = po.id;
+    poNumber = newPoNumber;
+    poTotalAmount = totalAmount;
+    poItemCount = poItems.length;
+  }
 
+  const { error } = await supabase
+    .from("purchase_request_item_allocations")
+    .update({
+      forwarded_at: new Date().toISOString(),
+      ...(poId ? { purchase_order_id: poId } : {}),
+    })
+    .in("id", allocationIds)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  if (poId && poNumber) {
     await logActivity(
       supabase,
       businessId,
       "produk",
       "sukses",
       `PO diterbitkan: ${poNumber}`,
-      `Rp${totalAmount.toLocaleString("id-ID")} — ${poItems.length} barang`,
+      `Rp${poTotalAmount.toLocaleString("id-ID")} — ${poItemCount} barang`,
     );
     revalidatePath(`/business/${businessId}/purchase-orders`);
   }
