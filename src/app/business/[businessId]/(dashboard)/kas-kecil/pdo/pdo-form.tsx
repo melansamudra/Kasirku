@@ -236,10 +236,18 @@ export default function PdoForm({
 
   const modalAwalValue = Number(modalAwal) || 0;
   const sisaSaldo = modalAwalValue - totalPengeluaran;
+  // Rincian per-item ditempel di bawah baris ringkasan (bukan cuma disimpan
+  // di state) supaya kebawa ke journal_entries.description -- PDO belum
+  // punya tabel tersendiri, jadi ini satu-satunya tempat rincian bisa
+  // dibaca lagi nanti buat cetak ulang dari Riwayat Permintaan (lihat
+  // pdo-history-list.tsx yang nge-parse balik format ini).
   const description =
     `PDO ${fromLabel} - ${toLabel} — Total Pengeluaran ${formatRupiah(totalPengeluaran)} (${rincian.length} item), ` +
     `Saldo Awal Rekening ${formatRupiah(modalAwalValue)}` +
-    (catatan.trim() ? ` — ${catatan.trim()}` : "");
+    (catatan.trim() ? ` — ${catatan.trim()}` : "") +
+    (rincian.length > 0
+      ? `\n\nRincian:\n${rincian.map((r) => `${formatDateShort(r.date)} — ${r.description}: ${formatRupiah(r.amount)}`).join("\n")}`
+      : "");
 
   const summaryProps = {
     businessName,
