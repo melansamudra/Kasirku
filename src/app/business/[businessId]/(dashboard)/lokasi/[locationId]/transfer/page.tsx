@@ -210,7 +210,7 @@ export default async function LocationTransferPage({
       </Link>
       <h1 className="mt-2 text-lg font-bold text-zinc-900">Transfer Internal — {location.name}</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Permintaan Bahan Setengah Jadi dari Kitchen Atas/Bar Llauk — proses & kirim dari sini.
+        Permintaan Bahan Setengah Jadi dari Kitchen Llauk/Bar Llauk — proses & kirim dari sini.
       </p>
 
       {requestingLocations.length > 0 && (

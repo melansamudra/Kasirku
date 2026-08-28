@@ -135,7 +135,7 @@ export default async function IngredientsPage({
                   </div>
                   {business.cost_control_enabled ? (
                     <p className="text-xs text-zinc-400">
-                      Stok fisik dikelola per lokasi — lihat menu Gudang Utama / Kitchen Atas / dst
+                      Stok fisik dikelola per lokasi — lihat menu Gudang Utama / Kitchen Llauk / dst
                       di sidebar.
                     </p>
                   ) : (

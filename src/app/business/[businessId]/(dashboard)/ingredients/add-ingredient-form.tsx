@@ -82,7 +82,7 @@ export default function AddIngredientForm({
 
       {costControlEnabled ? (
         <p className="text-xs text-zinc-400">
-          Stok fisik diatur lewat menu Gudang Utama / Kitchen Atas / dst di sidebar, bukan di
+          Stok fisik diatur lewat menu Gudang Utama / Kitchen Llauk / dst di sidebar, bukan di
           sini.
         </p>
       ) : (
