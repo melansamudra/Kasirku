@@ -146,6 +146,12 @@ function buildCostControlNavGroups(
           ? [
               { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
               {
+                key: `lokasi-${loc.id}-stock-opname`,
+                href: `${base}/lokasi/${loc.id}/stock-opname`,
+                label: "Stok Opname",
+                icon: CalendarCheck,
+              },
+              {
                 key: `lokasi-${loc.id}-permintaan-barang`,
                 href: `${base}/permintaan-barang?lokasi=${loc.id}`,
                 label: "Permintaan Barang",

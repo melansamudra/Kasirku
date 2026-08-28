@@ -312,6 +312,7 @@ export type Database = {
           cost_control_enabled: boolean;
           outlet_request_slug: string | null;
           production_scan_slug: string | null;
+          stock_opname_slug: string | null;
           procurement_budget_gate_enabled: boolean;
         };
         Insert: {
@@ -346,6 +347,7 @@ export type Database = {
           outlet_request_slug?: string | null;
           production_scan_slug?: string | null;
           procurement_budget_gate_enabled?: boolean;
+          stock_opname_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -378,6 +380,7 @@ export type Database = {
           cost_control_enabled?: boolean;
           outlet_request_slug?: string | null;
           production_scan_slug?: string | null;
+          stock_opname_slug?: string | null;
           procurement_budget_gate_enabled?: boolean;
         };
         Relationships: [];
@@ -3158,6 +3161,7 @@ export type Database = {
           reason: string;
           entry_date: string;
           created_at: string;
+          submitted_by_name: string | null;
         };
         Insert: {
           id?: string;
@@ -3174,6 +3178,7 @@ export type Database = {
           reason: string;
           entry_date?: string;
           created_at?: string;
+          submitted_by_name?: string | null;
         };
         Update: {
           id?: string;
@@ -3190,6 +3195,7 @@ export type Database = {
           reason?: string;
           entry_date?: string;
           created_at?: string;
+          submitted_by_name?: string | null;
         };
         Relationships: [];
       };
@@ -3907,6 +3913,24 @@ export type Database = {
       };
       get_purchase_request_info: {
         Args: { p_slug: string };
+        Returns: Json;
+      };
+      get_stock_opname_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      get_location_stock_snapshot: {
+        Args: { p_slug: string; p_location_id: string };
+        Returns: Json;
+      };
+      submit_stock_opname: {
+        Args: {
+          p_slug: string;
+          p_employee_id: string;
+          p_location_id: string;
+          p_ingredient_counts: Json;
+          p_semi_finished_counts: Json;
+        };
         Returns: Json;
       };
       submit_purchase_request: {
