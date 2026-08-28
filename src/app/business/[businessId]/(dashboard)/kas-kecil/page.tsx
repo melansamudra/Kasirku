@@ -327,7 +327,7 @@ export default async function KasKecilPage({
             href={`/business/${businessId}/kas-kecil/pdo`}
             className="shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
           >
-            📄 Form PDO
+            💵 Petty Cash
           </Link>
         )}
       </div>

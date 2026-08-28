@@ -7,6 +7,7 @@ import { addTransfer } from "../../accounting/transfer-kas/actions";
 import { updateAccountBankDetails } from "./actions";
 import PdoForm from "./pdo-form";
 import BankDetailsForm from "./bank-details-form";
+import PettyCashTunaiSection from "./petty-cash-tunai-section";
 
 const REKENING_UTAMA_CODE = "1-001";
 const REKENING_OPERASIONAL_CODE = "1-002";
@@ -148,10 +149,10 @@ export default async function PdoPage({
   return (
     <div className="w-full max-w-xl">
       <div className="print:hidden">
-        <h1 className="text-lg font-bold text-zinc-900">Permintaan Dana Operasional (PDO)</h1>
+        <h1 className="text-lg font-bold text-zinc-900">Petty Cash</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Ajukan top-up dari Rekening Utama ke Rekening Operasional sebesar nota kas keluar yang
-          sudah dipakai, lalu cetak slip permintaannya.
+          Rekap Petty Cash Tunai (dari omset) dan ajukan top-up Petty Cash Rekening (PDO) dari
+          Rekening Utama — sama-sama dihitung dari nota kas keluar periode ini.
         </p>
 
         <form method="get" className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
@@ -182,10 +183,23 @@ export default async function PdoPage({
         </form>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 print:hidden">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+      <h2 className="mt-4 text-sm font-bold text-zinc-900 print:hidden">💵 Petty Cash Tunai</h2>
+      <div className="mt-2">
+        <PettyCashTunaiSection
+          today={today}
+          fromLabel={formatDateLabel(from)}
+          toLabel={formatDateLabel(to)}
+          notaList={notaList}
+          businessName={business.name}
+        />
+      </div>
+
+      <h2 className="mt-6 text-sm font-bold text-zinc-900 print:hidden">📄 Petty Cash Rekening (PDO)</h2>
+
+      <div className="mt-2 rounded-2xl border border-zinc-200 bg-white p-4 print:hidden">
+        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
           Info Rekening Tujuan ({rekeningOperasional.name})
-        </h2>
+        </h3>
         <BankDetailsForm
           action={boundUpdateBankDetails}
           bankName={rekeningOperasional.bank_name ?? ""}
