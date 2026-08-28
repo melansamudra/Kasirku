@@ -176,27 +176,13 @@ export function TransactionActions({
               harga Produk Jadi <strong>saat ini</strong>, bukan harga historis di laporan sumbernya
               — kalau harga sudah berubah, total di sini bisa beda dari laporan aslinya.
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                const rows = [
-                  ["Menu", "Qty"],
-                  ["Nasi Goreng", "24"],
-                  ["Es Teh", "15"],
-                ];
-                const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "template-rekap-penjualan.csv";
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
+            <a
+              href="/template-rekap-penjualan"
+              download
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
             >
-              ⬇ Download Template CSV
-            </button>
+              ⬇ Download Template Excel
+            </a>
             <div className="mt-4">
               <ImportSalesRecapForm action={importRekapAction} />
             </div>
