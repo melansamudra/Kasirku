@@ -8,6 +8,7 @@ import PdoForm from "./pdo-form";
 import BankDetailsForm from "./bank-details-form";
 import PettyCashTunaiSection from "./petty-cash-tunai-section";
 import PdoHistoryList from "./pdo-history-list";
+import PrintClosureButton from "../print-closure-button";
 
 const REKENING_UTAMA_CODE = "1-001";
 const REKENING_OPERASIONAL_CODE = "1-002";
@@ -31,6 +32,18 @@ function formatDateLabel(dateStr: string) {
   });
 }
 
+function formatClosureDate(dateStr: string) {
+  return new Date(`${dateStr}T00:00:00+07:00`).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatRupiah(value: number) {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
+
 export default async function PdoPage({
   params,
   searchParams,
@@ -46,14 +59,26 @@ export default async function PdoPage({
 
   const supabase = await createClient();
 
-  const [{ data: business }, { data: accounts }] = await Promise.all([
+  const [{ data: business }, { data: accounts }, { data: closureHistoryRows }] = await Promise.all([
     supabase.from("businesses").select("id, name").eq("id", businessId).single(),
     supabase
       .from("accounts")
       .select("code, name, bank_name, bank_account_number, bank_account_holder")
       .eq("business_id", businessId)
       .in("code", [REKENING_UTAMA_CODE, REKENING_OPERASIONAL_CODE]),
+    // Riwayat Tutup Petty Cash beneran (bukan preview lokal Petty Cash Tunai
+    // di halaman ini) -- disimpan resmi di petty_cash_closures lewat
+    // close_petty_cash() RPC di halaman /kas-kecil. Ditarik ke sini juga
+    // biar kelihatan sekalian di satu halaman Petty Cash ini, bukan cuma di
+    // /kas-kecil.
+    supabase
+      .from("petty_cash_closures")
+      .select("id, date, total_allocated, total_tunai, total_hutang, hutang_count, expected_remaining, actual_remaining, difference")
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .limit(20),
   ]);
+  const closureHistory = closureHistoryRows ?? [];
 
   if (!business) {
     notFound();
@@ -180,6 +205,73 @@ export default async function PdoPage({
           businessName={business.name}
         />
       </div>
+
+      {closureHistory.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white print:hidden">
+          <div className="border-b border-zinc-100 px-4 py-3">
+            <h2 className="text-sm font-bold text-zinc-900">🔒 Riwayat Penutupan Petty Cash Tunai</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              Tunai yang sudah beneran ditutup &amp; tercatat lewat{" "}
+              <Link href={`/business/${businessId}/kas-kecil`} className="text-brand-600 hover:underline">
+                Kas Kecil
+              </Link>
+              .
+            </p>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {closureHistory.map((c) => (
+              <div key={c.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-zinc-400">{formatClosureDate(c.date)}</span>
+                  <PrintClosureButton businessId={businessId} closureId={c.id} />
+                </div>
+                <div className="mt-1.5 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Petty Cash Diberikan</span>
+                    <span className="font-medium text-zinc-900">{formatRupiah(Number(c.total_allocated))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Nota Tunai</span>
+                    <span className="font-medium text-red-600">-{formatRupiah(Number(c.total_tunai))}</span>
+                  </div>
+                  {Number(c.total_hutang) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Nota Hutang</span>
+                      <span className="font-medium text-zinc-900">
+                        {c.hutang_count} nota · {formatRupiah(Number(c.total_hutang))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-zinc-100 pt-1 font-semibold">
+                    <span className="text-zinc-700">Sisa Seharusnya</span>
+                    <span className="text-zinc-900">{formatRupiah(Number(c.expected_remaining))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Sisa Fisik Dihitung</span>
+                    <span className="font-medium text-zinc-900">{formatRupiah(Number(c.actual_remaining))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Selisih</span>
+                    <span
+                      className={`font-semibold ${
+                        Number(c.difference) === 0
+                          ? "text-zinc-700"
+                          : Number(c.difference) > 0
+                            ? "text-brand-700"
+                            : "text-red-600"
+                      }`}
+                    >
+                      {Number(c.difference) === 0
+                        ? "Pas"
+                        : `${Number(c.difference) > 0 ? "+" : ""}${formatRupiah(Number(c.difference))}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <h2 className="mt-6 text-sm font-bold text-zinc-900 print:hidden">📄 Petty Cash Rekening (PDO)</h2>
 
