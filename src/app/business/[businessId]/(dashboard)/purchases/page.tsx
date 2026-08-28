@@ -76,7 +76,7 @@ export default async function PurchasesPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type")
+    .select("id, name, business_type, cost_control_enabled")
     .eq("id", businessId)
     .single();
 
@@ -94,6 +94,7 @@ export default async function PurchasesPage({
     { data: products },
     { data: purchases },
     { data: expenseAccountRows },
+    { data: locations },
   ] = await Promise.all([
     supabase
       .from("suppliers")
@@ -136,6 +137,13 @@ export default async function PurchasesPage({
       .eq("business_id", businessId)
       .eq("type", "beban")
       .order("code", { ascending: true }),
+    business.cost_control_enabled
+      ? supabase
+          .from("stock_locations")
+          .select("id, name")
+          .eq("business_id", businessId)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const expenseAccounts = expenseAccountRows ?? [];
@@ -288,6 +296,7 @@ export default async function PurchasesPage({
         ingredients={ingredientsWithUnits}
         products={products ?? []}
         expenseAccounts={expenseAccounts}
+        locations={locations ?? []}
         lowStockIngredients={lowStockIngredients}
         lowStockProducts={lowStockProducts}
         initialPrefill={initialPrefill}

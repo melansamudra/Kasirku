@@ -14,6 +14,7 @@ type IngredientOption = {
 };
 type ProductOption = { id: string; name: string; stock: number };
 type ExpenseAccountOption = { code: string; name: string };
+type LocationOption = { id: string; name: string };
 
 type LowStockIngredient = {
   id: string;
@@ -46,6 +47,7 @@ export default function PurchaseFormWithRecommendations({
   ingredients,
   products,
   expenseAccounts,
+  locations,
   lowStockIngredients,
   lowStockProducts,
   initialPrefill,
@@ -57,6 +59,7 @@ export default function PurchaseFormWithRecommendations({
   ingredients: IngredientOption[];
   products: ProductOption[];
   expenseAccounts: ExpenseAccountOption[];
+  locations?: LocationOption[];
   lowStockIngredients: LowStockIngredient[];
   lowStockProducts: LowStockProduct[];
   initialPrefill?: PurchasePrefill | null;
@@ -160,6 +163,7 @@ export default function PurchaseFormWithRecommendations({
           ingredients={ingredients}
           products={products}
           expenseAccounts={expenseAccounts}
+          locations={locations}
           prefill={prefill}
         />
       </div>

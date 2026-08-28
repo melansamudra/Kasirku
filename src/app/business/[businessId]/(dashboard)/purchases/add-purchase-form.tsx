@@ -15,6 +15,7 @@ type IngredientOption = {
 };
 type ProductOption = { id: string; name: string; stock: number };
 type ExpenseAccountOption = { code: string; name: string };
+type LocationOption = { id: string; name: string };
 export type PurchasePrefill = {
   category: "Bahan Baku" | "Barang Dagang" | "Lainnya";
   itemId: string;
@@ -34,6 +35,7 @@ export default function AddPurchaseForm({
   ingredients,
   products,
   expenseAccounts,
+  locations,
   prefill,
 }: {
   action: (state: AddPurchaseState, formData: FormData) => Promise<AddPurchaseState>;
@@ -43,6 +45,7 @@ export default function AddPurchaseForm({
   ingredients: IngredientOption[];
   products: ProductOption[];
   expenseAccounts: ExpenseAccountOption[];
+  locations?: LocationOption[];
   prefill?: PurchasePrefill | null;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -59,6 +62,7 @@ export default function AddPurchaseForm({
       ingredients={ingredients}
       products={products}
       expenseAccounts={expenseAccounts}
+      locations={locations ?? []}
       prefill={prefill}
     />
   );
@@ -74,6 +78,7 @@ function PurchaseFormFields({
   ingredients,
   products,
   expenseAccounts,
+  locations,
   prefill,
 }: {
   formAction: (formData: FormData) => void;
@@ -85,6 +90,7 @@ function PurchaseFormFields({
   ingredients: IngredientOption[];
   products: ProductOption[];
   expenseAccounts: ExpenseAccountOption[];
+  locations: LocationOption[];
   prefill?: PurchasePrefill | null;
 }) {
   const [category, setCategory] = useState<string>(
@@ -276,6 +282,37 @@ function PurchaseFormFields({
             </p>
           )}
           <input type="hidden" name="qty" value={baseQty || ""} />
+          {locations.length > 0 && !prefill?.fromAllocationId && (
+            <div>
+              <label htmlFor="locationId" className="mb-1 block text-xs font-medium text-amber-800">
+                Lokasi Tujuan Stok
+              </label>
+              <select
+                id="locationId"
+                name="locationId"
+                required
+                defaultValue=""
+                className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="" disabled>
+                  — Pilih lokasi —
+                </option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10.5px] text-amber-700/80">
+                Stok bahan ini akan bertambah di lokasi yang dipilih, bukan otomatis Gudang Utama.
+              </p>
+            </div>
+          )}
+          {prefill?.fromAllocationId && (
+            <p className="text-[10.5px] text-amber-700/80">
+              Lokasi tujuan mengikuti Permintaan Barang asal pembelian ini.
+            </p>
+          )}
           <p className="text-[10.5px] text-amber-700/80">
             Stok bahan ini otomatis bertambah, harga/satuan disesuaikan (rata-rata tertimbang).
           </p>

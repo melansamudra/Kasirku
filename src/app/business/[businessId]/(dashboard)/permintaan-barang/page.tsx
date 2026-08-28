@@ -104,7 +104,7 @@ export default async function PermintaanBarangPage({
       .eq("business_id", businessId),
     supabase.from("ingredients").select("id, department, unit_cost").eq("business_id", businessId),
     supabase.from("products").select("id, cost").eq("business_id", businessId),
-    supabase.from("stock_locations").select("id, name").eq("business_id", businessId),
+    supabase.from("stock_locations").select("id, name, is_production").eq("business_id", businessId),
     supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
     fetchAllRows<FulfillmentRow>((from, to) =>
       supabase
@@ -126,6 +126,7 @@ export default async function PermintaanBarangPage({
   const priceByIngredient = new Map((ingredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
   const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
   const locationNameById = new Map((locations ?? []).map((l) => [l.id, l.name]));
+  const productionLocation = (locations ?? []).find((l) => l.is_production);
 
   const totalStockByIngredient = new Map<string, number>();
   for (const row of stockRows) {
@@ -180,6 +181,7 @@ export default async function PermintaanBarangPage({
             businessId={businessId}
             initialSlug={business.purchase_request_slug ?? ""}
             regenerateAction={boundRegenerateSlug}
+            productionLocationName={productionLocation?.name}
           />
         </div>
       </div>

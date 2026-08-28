@@ -199,21 +199,25 @@ export async function addPurchase(
           targetLocationId = request?.location_id ?? null;
         }
 
+        // Bukan dari Permintaan Barang -- staf/purchasing WAJIB pilih lokasi
+        // sendiri di form, tidak boleh diam-diam jatuh ke Gudang Utama lagi
+        // (dulu begitu, tapi bikin belanja buat lokasi lain salah tercatat
+        // tanpa siapa pun sadar).
         if (!targetLocationId) {
-          const { data: defaultLocation } = await supabase
+          const explicitLocationId = (formData.get("locationId") as string) || null;
+          if (!explicitLocationId) {
+            return fail("Pilih lokasi tujuan stok untuk pembelian bahan baku ini.");
+          }
+          const { data: chosenLocation } = await supabase
             .from("stock_locations")
             .select("id")
+            .eq("id", explicitLocationId)
             .eq("business_id", businessId)
-            .eq("is_default_purchase", true)
             .maybeSingle();
-          targetLocationId = defaultLocation?.id ?? null;
-        }
-
-        // Kalau lokasi default (Gudang Utama) entah kenapa tidak ada (mis.
-        // migration belum jalan), gagal eksplisit — jangan lanjut update
-        // unit_cost seolah qty-nya sudah tercatat padahal nyasar ke mana pun.
-        if (!targetLocationId) {
-          return fail("Lokasi default pembelian (Gudang Utama) tidak ditemukan. Hubungi admin untuk migrasi data lokasi.");
+          if (!chosenLocation) {
+            return fail("Lokasi yang dipilih tidak valid.");
+          }
+          targetLocationId = chosenLocation.id;
         }
         purchaseLocationId = targetLocationId;
 

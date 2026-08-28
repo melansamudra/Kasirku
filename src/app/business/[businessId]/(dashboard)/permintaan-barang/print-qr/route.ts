@@ -5,12 +5,14 @@ import QRCode from "qrcode";
 import { SITE_URL } from "@/lib/site";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ businessId: string }> },
 ) {
   const { businessId } = await params;
   const business = await assertBusinessAccess(businessId);
   if (!business) return new NextResponse("Forbidden", { status: 403 });
+
+  const isProduction = new URL(req.url).searchParams.get("lokasi") === "produksi";
 
   const supabase = await createClient();
 
@@ -27,7 +29,18 @@ export async function GET(
     });
   }
 
-  const url = `${SITE_URL}/permintaan-barang/${biz.purchase_request_slug}`;
+  let productionLocationName: string | null = null;
+  if (isProduction) {
+    const { data: loc } = await supabase
+      .from("stock_locations")
+      .select("name")
+      .eq("business_id", businessId)
+      .eq("is_production", true)
+      .maybeSingle();
+    productionLocationName = loc?.name ?? null;
+  }
+
+  const url = `${SITE_URL}/permintaan-barang/${biz.purchase_request_slug}${isProduction ? "?lokasi=produksi" : ""}`;
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, width: 320 });
 
   const html = `<!DOCTYPE html>
@@ -59,7 +72,11 @@ export async function GET(
   <div class="card">
     <div class="qr">${svg}</div>
     <h1>${escapeHtml(biz.name)}</h1>
-    <p class="sub">Scan buat order barang (staf dapur/bar/front)</p>
+    <p class="sub">${
+      productionLocationName
+        ? `Scan buat order barang — khusus ${escapeHtml(productionLocationName)}`
+        : "Scan buat order barang (staf dapur/bar/front)"
+    }</p>
     <p class="url">${escapeHtml(url)}</p>
   </div>
   <script>

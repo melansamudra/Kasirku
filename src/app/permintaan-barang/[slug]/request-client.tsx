@@ -62,6 +62,7 @@ export default function RequestClient({
   employees,
   items,
   stockLocations,
+  lockedLocation,
 }: {
   slug: string;
   businessName: string;
@@ -69,10 +70,11 @@ export default function RequestClient({
   employees: Employee[];
   items: MasterItem[];
   stockLocations: { id: string; name: string }[];
+  lockedLocation?: { id: string; name: string } | null;
 }) {
   const formId = useId();
   const [employeeId, setEmployeeId] = useState("");
-  const [locationId, setLocationId] = useState("");
+  const [locationId, setLocationId] = useState(lockedLocation?.id ?? "");
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<CartRow[]>([emptyRow(isFnb ? "" : "pcs")]);
   const [pending, setPending] = useState(false);
@@ -230,7 +232,7 @@ export default function RequestClient({
     setResult({ ok: true, message: "Order barang terkirim! Admin akan proses ke supplier." });
     setRows([emptyRow(isFnb ? "" : "pcs")]);
     setNote("");
-    setLocationId("");
+    setLocationId(lockedLocation?.id ?? "");
   }
 
   return (
@@ -260,22 +262,31 @@ export default function RequestClient({
           </select>
         </div>
 
-        {stockLocations.length > 0 && (
+        {lockedLocation ? (
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-600">Lokasi</label>
-            <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            >
-              <option value="">— Pilih lokasi —</option>
-              {stockLocations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-full rounded-xl border border-brand-200 bg-brand-50 px-3.5 py-2.5 text-sm font-medium text-brand-700">
+              📍 {lockedLocation.name}
+            </div>
           </div>
+        ) : (
+          stockLocations.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600">Lokasi</label>
+              <select
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="">— Pilih lokasi —</option>
+                {stockLocations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
         )}
 
         <div>
