@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { saveBsjImport } from "./actions";
-import { uploadDataglobalExcel } from "./upload-actions";
+import { parseDataglobalExcel, confirmDataglobalImport } from "./upload-actions";
 import ImportTool, { type ImportGroup } from "./import-tool";
 import UploadForm from "./upload-form";
 
@@ -52,7 +52,8 @@ export default async function ImportBsjPage({ params }: { params: Promise<{ busi
   const existingNames = new Set((existingItems ?? []).map((i) => i.name));
 
   const boundSave = saveBsjImport.bind(null, businessId);
-  const boundUpload = uploadDataglobalExcel.bind(null, businessId);
+  const boundParse = parseDataglobalExcel.bind(null, businessId);
+  const boundConfirm = confirmDataglobalImport.bind(null, businessId);
 
   return (
     <div className="w-full max-w-3xl">
@@ -65,14 +66,14 @@ export default async function ImportBsjPage({ params }: { params: Promise<{ busi
         </Link>
         <h1 className="mt-2 text-lg font-bold text-zinc-900">Import Resep dari Data Excel — {business.name}</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Upload file Excel breakdown resep (kolom Nama Menu / Porsi / Bahan Baku / Gramasi), lalu
-          pilih nama Bahan Setengah Jadi untuk lihat & simpan resepnya ke sistem.
+          Upload file Excel breakdown resep sesuai template, cek hasil pencocokan bahan bakunya,
+          lalu pilih nama Bahan Setengah Jadi untuk lihat &amp; simpan resepnya ke sistem.
         </p>
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">1. Upload Data Excel</h2>
-        <UploadForm action={boundUpload} />
+        <UploadForm parseAction={boundParse} confirmAction={boundConfirm} />
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
