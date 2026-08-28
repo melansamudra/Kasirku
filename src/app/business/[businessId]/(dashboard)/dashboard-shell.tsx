@@ -142,26 +142,33 @@ function buildCostControlNavGroups(
                 icon: Beaker,
               },
             ]),
+        // Stok Opname & Kartu Stok berlaku buat SEMUA lokasi tanpa syarat --
+        // Gudang Utama/Purchasing juga nyimpen stok fisik beneran (bahan
+        // baku yang belum diambil/dibelanjakan ke lokasi lain), jadi tetap
+        // butuh diaudit & dilihat riwayat pergerakannya sama seperti Dapur
+        // Produksi/Kitchen Atas/Bar Llauk. Dulu ini nyangkut di 2 kondisi
+        // beda (isProduction & kitchen/bar) sampai Gudang Utama kelewat sama
+        // sekali (2026-08-28) -- sekarang ditarik keluar jadi satu blok.
+        {
+          key: `lokasi-${loc.id}-stock-opname`,
+          href: `${base}/lokasi/${loc.id}/stock-opname`,
+          label: "Stok Opname",
+          icon: CalendarCheck,
+        },
+        {
+          key: `lokasi-${loc.id}-kartu-stok`,
+          href: `${base}/lokasi/${loc.id}/kartu-stok`,
+          label: "Kartu Stok",
+          icon: CreditCard,
+        },
         ...(loc.isProduction
           ? [
               { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
-              {
-                key: `lokasi-${loc.id}-stock-opname`,
-                href: `${base}/lokasi/${loc.id}/stock-opname`,
-                label: "Stok Opname",
-                icon: CalendarCheck,
-              },
               {
                 key: `lokasi-${loc.id}-transfer`,
                 href: `${base}/lokasi/${loc.id}/transfer`,
                 label: "Transfer Internal",
                 icon: ArrowLeftRight,
-              },
-              {
-                key: `lokasi-${loc.id}-kartu-stok`,
-                href: `${base}/lokasi/${loc.id}/kartu-stok`,
-                label: "Kartu Stok",
-                icon: CreditCard,
               },
               {
                 key: `lokasi-${loc.id}-permintaan-barang`,
@@ -190,31 +197,21 @@ function buildCostControlNavGroups(
             ]
           : []),
         // Kitchen Atas/Bar Llauk (bukan produksi, bukan default-purchase) --
-        // sekarang ikut dapat akses Stok Opname, Transfer Internal & Kartu
-        // Stok lokasi sendiri (2026-08-28), plus Permintaan Barang ke
+        // Transfer Internal (minta ke Dapur Produksi) & Permintaan Barang ke
         // Purchasing (sistemnya sama seperti Dapur Produksi, cuma difilter
         // ?lokasi=<id lokasi ini>). Sengaja TIDAK dapat "Produksi", "Purchase
         // Order", "Staf", "Biaya Operasional" -- itu tetap khusus lokasi
-        // produksi/purchasing.
+        // produksi/purchasing. Gudang Utama juga TIDAK dapat blok ini --
+        // bukan peminta ke Dapur Produksi, dan "Permintaan Barang" globalnya
+        // sudah ada di grup "Pembelian & Stok" (tidak perlu versi ?lokasi=
+        // filter ke dirinya sendiri).
         ...(!loc.isProduction && !loc.isDefaultPurchase
           ? [
-              {
-                key: `lokasi-${loc.id}-stock-opname`,
-                href: `${base}/lokasi/${loc.id}/stock-opname`,
-                label: "Stok Opname",
-                icon: CalendarCheck,
-              },
               {
                 key: `lokasi-${loc.id}-transfer`,
                 href: `${base}/lokasi/${loc.id}/transfer`,
                 label: "Transfer Internal",
                 icon: ArrowLeftRight,
-              },
-              {
-                key: `lokasi-${loc.id}-kartu-stok`,
-                href: `${base}/lokasi/${loc.id}/kartu-stok`,
-                label: "Kartu Stok",
-                icon: CreditCard,
               },
               {
                 key: `lokasi-${loc.id}-permintaan-barang`,
