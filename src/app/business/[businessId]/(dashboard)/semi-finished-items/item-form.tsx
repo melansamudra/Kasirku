@@ -14,7 +14,14 @@ export default function ItemForm({
   recipeBuilder,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  defaultValues?: { name: string; unit: string; minStock: number; fluctuationPct?: number; barcode?: string | null };
+  defaultValues?: {
+    name: string;
+    unit: string;
+    minStock: number;
+    fluctuationPct?: number;
+    barcode?: string | null;
+    category?: string | null;
+  };
   submitLabel: string;
   resetOnSuccess?: boolean;
   recipeBuilder?: {
@@ -56,6 +63,20 @@ export default function ItemForm({
           required
           className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
+      </div>
+      <div>
+        <label htmlFor="category" className="mb-1 block text-xs font-medium text-zinc-600">
+          Kategori (opsional)
+        </label>
+        <input
+          id="category"
+          name="category"
+          type="text"
+          placeholder="mis. Sambal, Ungkepan, Kuah"
+          defaultValue={defaultValues?.category ?? ""}
+          className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">Buat list-nya bisa difilter, tidak perlu scroll panjang.</p>
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         <div>

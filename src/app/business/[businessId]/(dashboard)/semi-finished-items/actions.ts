@@ -28,6 +28,7 @@ export async function addSemiFinishedItem(
   const fluctuationRaw = formData.get("fluctuationPct") as string;
   const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
   const barcode = (formData.get("barcode") as string)?.trim() || null;
+  const category = (formData.get("category") as string)?.trim() || null;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -68,6 +69,7 @@ export async function addSemiFinishedItem(
       min_stock: minStock,
       fluctuation_pct: fluctuationPct,
       barcode,
+      category,
     })
     .select("id")
     .single();
@@ -117,6 +119,7 @@ export async function updateSemiFinishedItem(
   const fluctuationRaw = formData.get("fluctuationPct") as string;
   const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
   const barcode = (formData.get("barcode") as string)?.trim() || null;
+  const category = (formData.get("category") as string)?.trim() || null;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -131,7 +134,7 @@ export async function updateSemiFinishedItem(
   const supabase = await createClient();
   const { error } = await supabase
     .from("semi_finished_items")
-    .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct, barcode })
+    .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct, barcode, category })
     .eq("id", itemId)
     .eq("business_id", businessId);
 

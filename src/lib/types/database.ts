@@ -2127,6 +2127,7 @@ export type Database = {
           min_stock: number;
           fluctuation_pct: number;
           barcode: string | null;
+          category: string | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2140,6 +2141,7 @@ export type Database = {
           min_stock?: number;
           fluctuation_pct?: number;
           barcode?: string | null;
+          category?: string | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2153,6 +2155,7 @@ export type Database = {
           min_stock?: number;
           fluctuation_pct?: number;
           barcode?: string | null;
+          category?: string | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;

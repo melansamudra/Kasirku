@@ -58,7 +58,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, stock, min_stock, fluctuation_pct, barcode")
+    .select("id, name, unit, stock, min_stock, fluctuation_pct, barcode, category")
     .eq("id", id)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -214,6 +214,7 @@ export default async function SemiFinishedItemDetailPage({
             minStock: item.min_stock,
             fluctuationPct: item.fluctuation_pct,
             barcode: item.barcode,
+            category: item.category,
           }}
           submitLabel="Simpan Perubahan"
           resetOnSuccess={false}

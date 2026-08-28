@@ -19,6 +19,7 @@ export type SemiFinishedItemRow = {
   unit: string;
   stock: number;
   minStock: number;
+  category: string | null;
   unitCost: number;
   rawCost: number;
   fluctuationPct: number;
@@ -115,32 +116,57 @@ export default function SemiFinishedItemsList({
   items: SemiFinishedItemRow[];
 }) {
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+
+  const categories = useMemo(
+    () => [...new Set(items.map((i) => i.category).filter((c): c is string => !!c))].sort(),
+    [items],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) => item.name.toLowerCase().includes(q));
-  }, [items, query]);
+    return items.filter((item) => {
+      if (category && item.category !== category) return false;
+      if (q && !item.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [items, query, category]);
 
   return (
     <div>
-      <div className="relative">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cek HPP — ketik nama bahan…"
-          className="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700 focus:border-brand-400 focus:outline-none"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600"
-            title="Bersihkan pencarian"
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cek HPP — ketik nama bahan…"
+            className="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700 focus:border-brand-400 focus:outline-none"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600"
+              title="Bersihkan pencarian"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {categories.length > 0 && (
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-700 focus:border-brand-400 focus:outline-none sm:w-48"
           >
-            ✕
-          </button>
+            <option value="">Semua kategori</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
@@ -153,12 +179,19 @@ export default function SemiFinishedItemsList({
               <div key={item.id} className="rounded-xl border border-zinc-200 bg-white">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
-                    <Link
-                      href={`/business/${businessId}/semi-finished-items/${item.id}`}
-                      className="text-sm font-medium text-zinc-900 hover:text-brand-600 hover:underline"
-                    >
-                      {item.name}
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Link
+                        href={`/business/${businessId}/semi-finished-items/${item.id}`}
+                        className="text-sm font-medium text-zinc-900 hover:text-brand-600 hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                      {item.category && (
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                          {item.category}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-zinc-500">
                       Stok {formatQty(item.stock)} {item.unit}
                       {low && <span className="ml-1.5 font-medium text-amber-600">· rendah</span>}
@@ -189,8 +222,8 @@ export default function SemiFinishedItemsList({
           })
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-            {query
-              ? `Tidak ada bahan yang cocok dengan "${query}".`
+            {query || category
+              ? "Tidak ada bahan yang cocok dengan filter ini."
               : "Belum ada bahan setengah jadi. Tambahkan dulu, lalu atur resepnya di halaman detail."}
           </p>
         )}
