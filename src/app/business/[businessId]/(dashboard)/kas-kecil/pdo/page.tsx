@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchKasBankLines } from "@/lib/kas-bank";
-import { addTransfer } from "../../accounting/transfer-kas/actions";
-import { updateAccountBankDetails } from "./actions";
+import { submitPdoTransfer, updateAccountBankDetails } from "./actions";
 import PdoForm from "./pdo-form";
 import BankDetailsForm from "./bank-details-form";
 import PettyCashTunaiSection from "./petty-cash-tunai-section";
@@ -131,7 +130,7 @@ export default async function PdoPage({
     detail: row.description.replace(/^Transfer:\s*/, ""),
   }));
 
-  const boundAddTransfer = addTransfer.bind(null, businessId);
+  const boundAddTransfer = submitPdoTransfer.bind(null, businessId);
   const boundUpdateBankDetails = updateAccountBankDetails.bind(null, businessId, REKENING_OPERASIONAL_CODE);
 
   return (

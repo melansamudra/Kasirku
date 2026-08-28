@@ -2,8 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { addTransfer, type TransferState } from "../../accounting/transfer-kas/actions";
 
 export type BankDetailsState = { error: string | null };
+
+// Tipis di atas addTransfer() -- addTransfer sendiri cuma revalidate halaman
+// Transfer Kas (dia gak tahu ada halaman PDO yang mengandalkan transfer yang
+// sama). Tanpa ini, Riwayat Permintaan & daftar nota di PDO baru ke-refresh
+// kalau halamannya di-reload manual.
+export async function submitPdoTransfer(
+  businessId: string,
+  prevState: TransferState,
+  formData: FormData,
+): Promise<TransferState> {
+  const result = await addTransfer(businessId, prevState, formData);
+  if (!result.error) {
+    revalidatePath(`/business/${businessId}/kas-kecil/pdo`);
+  }
+  return result;
+}
 
 export async function updateAccountBankDetails(
   businessId: string,
