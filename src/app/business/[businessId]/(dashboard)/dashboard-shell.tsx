@@ -146,36 +146,44 @@ function buildCostControlNavGroups(
         // Gudang Utama/Purchasing juga nyimpen stok fisik beneran (bahan
         // baku yang belum diambil/dibelanjakan ke lokasi lain), jadi tetap
         // butuh diaudit & dilihat riwayat pergerakannya sama seperti Dapur
-        // Produksi/Kitchen Atas/Bar Llauk. Dulu ini nyangkut di 2 kondisi
-        // beda (isProduction & kitchen/bar) sampai Gudang Utama kelewat sama
-        // sekali (2026-08-28) -- sekarang ditarik keluar jadi satu blok.
-        {
-          key: `lokasi-${loc.id}-stock-opname`,
-          href: `${base}/lokasi/${loc.id}/stock-opname`,
-          label: "Stok Opname",
-          icon: CalendarCheck,
-        },
-        {
-          key: `lokasi-${loc.id}-kartu-stok`,
-          href: `${base}/lokasi/${loc.id}/kartu-stok`,
-          label: "Kartu Stok",
-          icon: CreditCard,
-        },
-        ...(loc.isProduction
-          ? [
+        // Produksi/Kitchen Atas/Bar Llauk. Ditulis sekali di sini (bukan
+        // diduplikasi per cabang) tapi DIPOSISIKAN beda-beda per cabang di
+        // bawah -- supaya urutan tetap masuk akal per lokasi (Stok Opname
+        // nempel abis Produksi di Dapur Produksi, bukan nongol duluan
+        // sebelum Produksi kayak sempat kejadian 2026-08-28).
+        ...(() => {
+          const stockOpname = {
+            key: `lokasi-${loc.id}-stock-opname`,
+            href: `${base}/lokasi/${loc.id}/stock-opname`,
+            label: "Stok Opname",
+            icon: CalendarCheck,
+          };
+          const kartuStok = {
+            key: `lokasi-${loc.id}-kartu-stok`,
+            href: `${base}/lokasi/${loc.id}/kartu-stok`,
+            label: "Kartu Stok",
+            icon: CreditCard,
+          };
+          const transfer = {
+            key: `lokasi-${loc.id}-transfer`,
+            href: `${base}/lokasi/${loc.id}/transfer`,
+            label: "Transfer Internal",
+            icon: ArrowLeftRight,
+          };
+          const permintaanBarang = {
+            key: `lokasi-${loc.id}-permintaan-barang`,
+            href: `${base}/permintaan-barang?lokasi=${loc.id}`,
+            label: "Permintaan Barang",
+            icon: ClipboardList,
+          };
+
+          if (loc.isProduction) {
+            return [
               { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
-              {
-                key: `lokasi-${loc.id}-transfer`,
-                href: `${base}/lokasi/${loc.id}/transfer`,
-                label: "Transfer Internal",
-                icon: ArrowLeftRight,
-              },
-              {
-                key: `lokasi-${loc.id}-permintaan-barang`,
-                href: `${base}/permintaan-barang?lokasi=${loc.id}`,
-                label: "Permintaan Barang",
-                icon: ClipboardList,
-              },
+              stockOpname,
+              transfer,
+              kartuStok,
+              permintaanBarang,
               {
                 key: `lokasi-${loc.id}-purchase-orders`,
                 href: `${base}/purchase-orders?lokasi=${loc.id}`,
@@ -194,33 +202,19 @@ function buildCostControlNavGroups(
                 label: "Biaya Operasional",
                 icon: Wallet,
               },
-            ]
-          : []),
-        // Kitchen Atas/Bar Llauk (bukan produksi, bukan default-purchase) --
-        // Transfer Internal (minta ke Dapur Produksi) & Permintaan Barang ke
-        // Purchasing (sistemnya sama seperti Dapur Produksi, cuma difilter
-        // ?lokasi=<id lokasi ini>). Sengaja TIDAK dapat "Produksi", "Purchase
-        // Order", "Staf", "Biaya Operasional" -- itu tetap khusus lokasi
-        // produksi/purchasing. Gudang Utama juga TIDAK dapat blok ini --
-        // bukan peminta ke Dapur Produksi, dan "Permintaan Barang" globalnya
-        // sudah ada di grup "Pembelian & Stok" (tidak perlu versi ?lokasi=
-        // filter ke dirinya sendiri).
-        ...(!loc.isProduction && !loc.isDefaultPurchase
-          ? [
-              {
-                key: `lokasi-${loc.id}-transfer`,
-                href: `${base}/lokasi/${loc.id}/transfer`,
-                label: "Transfer Internal",
-                icon: ArrowLeftRight,
-              },
-              {
-                key: `lokasi-${loc.id}-permintaan-barang`,
-                href: `${base}/permintaan-barang?lokasi=${loc.id}`,
-                label: "Permintaan Barang",
-                icon: ClipboardList,
-              },
-            ]
-          : []),
+            ];
+          }
+
+          // Kitchen Atas/Bar Llauk (bukan produksi, bukan default-purchase).
+          if (!loc.isDefaultPurchase) {
+            return [stockOpname, transfer, kartuStok, permintaanBarang];
+          }
+
+          // Gudang Utama/Purchasing -- bukan peminta ke Dapur Produksi, jadi
+          // tidak dapat Transfer Internal/Permintaan Barang per-lokasi;
+          // "Permintaan Barang" globalnya sudah ada di grup "Pembelian & Stok".
+          return [stockOpname, kartuStok];
+        })(),
       ],
     })),
     {
