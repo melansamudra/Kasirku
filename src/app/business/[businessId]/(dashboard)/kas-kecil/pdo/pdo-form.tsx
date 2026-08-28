@@ -30,9 +30,7 @@ function SlipSummary({
   businessName,
   fromLabel,
   toLabel,
-  modalTunai,
-  modalRekening,
-  totalModalAwal,
+  modalAwal,
   totalNota,
   sisaSaldo,
   jumlahDiminta,
@@ -45,9 +43,7 @@ function SlipSummary({
   businessName: string;
   fromLabel: string;
   toLabel: string;
-  modalTunai: number;
-  modalRekening: number;
-  totalModalAwal: number;
+  modalAwal: number;
   totalNota: number;
   sisaSaldo: number;
   jumlahDiminta: number;
@@ -81,16 +77,8 @@ function SlipSummary({
 
       <div className="mt-4 space-y-1.5 border-t border-dashed border-zinc-300 pt-3 text-sm">
         <div className="flex justify-between">
-          <span className="text-zinc-500">Modal Awal — Tunai</span>
-          <span className="font-medium text-zinc-900">{formatRupiah(modalTunai)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Modal Awal — Rekening</span>
-          <span className="font-medium text-zinc-900">{formatRupiah(modalRekening)}</span>
-        </div>
-        <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
-          <span>Total Modal Awal</span>
-          <span>{formatRupiah(totalModalAwal)}</span>
+          <span className="text-zinc-500">Modal Awal</span>
+          <span className="font-medium text-zinc-900">{formatRupiah(modalAwal)}</span>
         </div>
         <div className="flex justify-between pt-1.5">
           <span className="text-zinc-500">Total Nota Dibayarkan ({selectedNotas.length} nota)</span>
@@ -163,8 +151,7 @@ export default function PdoForm({
   bankAccountHolder: string | null;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const [modalTunai, setModalTunai] = useState("");
-  const [modalRekening, setModalRekening] = useState("");
+  const [modalAwal, setModalAwal] = useState("");
   // Default: semua nota kecentang -- admin boleh uncheck yang nggak mau
   // dimasukkan (mis. sudah kepakai di permintaan PDO sebelumnya).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(notaList.map((n) => n.id)));
@@ -195,21 +182,18 @@ export default function PdoForm({
     });
   }
 
-  const totalModalAwal = (Number(modalTunai) || 0) + (Number(modalRekening) || 0);
-  const sisaSaldo = totalModalAwal - totalNota;
+  const modalAwalValue = Number(modalAwal) || 0;
+  const sisaSaldo = modalAwalValue - totalNota;
   const description =
     `PDO ${fromLabel} - ${toLabel} — Total Nota ${formatRupiah(totalNota)} (${selectedNotas.length}/${notaList.length} nota dipilih), ` +
-    `Modal Awal ${formatRupiah(totalModalAwal)} (Tunai ${formatRupiah(Number(modalTunai) || 0)} + ` +
-    `Rekening ${formatRupiah(Number(modalRekening) || 0)})` +
+    `Modal Awal ${formatRupiah(modalAwalValue)}` +
     (catatan.trim() ? ` — ${catatan.trim()}` : "");
 
   const summaryProps = {
     businessName,
     fromLabel,
     toLabel,
-    modalTunai: Number(modalTunai) || 0,
-    modalRekening: Number(modalRekening) || 0,
-    totalModalAwal,
+    modalAwal: modalAwalValue,
     totalNota,
     sisaSaldo,
     jumlahDiminta: Number(jumlahDiminta) || 0,
@@ -245,8 +229,7 @@ export default function PdoForm({
             onClick={() => {
               setAttempted(false);
               setPreviewMode(false);
-              setModalTunai("");
-              setModalRekening("");
+              setModalAwal("");
               setCatatan("");
               setAmountOverride(null);
               setSelectedIds(new Set(notaList.map((n) => n.id)));
@@ -358,40 +341,23 @@ export default function PdoForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600">Modal Awal — Tunai (Rp)</label>
-              <input
-                type="number"
-                min="0"
-                value={modalTunai}
-                onChange={(e) => setModalTunai(e.target.value)}
-                placeholder="mis. 2000000"
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600">Modal Awal — Rekening (Rp)</label>
-              <input
-                type="number"
-                min="0"
-                value={modalRekening}
-                onChange={(e) => setModalRekening(e.target.value)}
-                placeholder="mis. 10000000"
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
-            </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">
+              Modal Awal — {rekeningOperasionalName} (Rp)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={modalAwal}
+              onChange={(e) => setModalAwal(e.target.value)}
+              placeholder="mis. 10000000"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 text-sm">
-            <div className="rounded-xl border border-zinc-100 px-3 py-2">
-              <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Total Modal Awal</p>
-              <p className="font-bold text-zinc-900">{formatRupiah(totalModalAwal)}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-100 px-3 py-2">
-              <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Sisa Saldo</p>
-              <p className={`font-bold ${sisaSaldo < 0 ? "text-red-600" : "text-zinc-900"}`}>{formatRupiah(sisaSaldo)}</p>
-            </div>
+          <div className="rounded-xl border border-zinc-100 px-3 py-2 text-sm">
+            <p className="text-[10.5px] font-semibold uppercase text-zinc-400">Sisa Saldo</p>
+            <p className={`font-bold ${sisaSaldo < 0 ? "text-red-600" : "text-zinc-900"}`}>{formatRupiah(sisaSaldo)}</p>
           </div>
 
           <div>
