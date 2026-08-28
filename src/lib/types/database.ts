@@ -634,6 +634,7 @@ export type Database = {
           created_at: string;
           contract_end: string | null;
           lembur_rate_per_hour: number | null;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
@@ -648,6 +649,7 @@ export type Database = {
           created_at?: string;
           contract_end?: string | null;
           lembur_rate_per_hour?: number | null;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
@@ -662,6 +664,7 @@ export type Database = {
           created_at?: string;
           contract_end?: string | null;
           lembur_rate_per_hour?: number | null;
+          location_id?: string | null;
         };
         Relationships: [
           {
@@ -685,6 +688,7 @@ export type Database = {
           product_id: string | null;
           qty: number | null;
           created_at: string;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
@@ -697,6 +701,7 @@ export type Database = {
           product_id?: string | null;
           qty?: number | null;
           created_at?: string;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
@@ -709,6 +714,7 @@ export type Database = {
           product_id?: string | null;
           qty?: number | null;
           created_at?: string;
+          location_id?: string | null;
         };
         Relationships: [];
       };

@@ -13,6 +13,7 @@ function parseEmployeeFields(formData: FormData) {
   const note = (formData.get("note") as string)?.trim();
   const cashierId = (formData.get("cashierId") as string) || null;
   const contractEnd = (formData.get("contractEnd") as string) || null;
+  const locationId = (formData.get("locationId") as string) || null;
 
   if (!name) return { error: "Nama karyawan wajib diisi." } as const;
 
@@ -48,6 +49,7 @@ function parseEmployeeFields(formData: FormData) {
     note: note || null,
     cashierId,
     contractEnd,
+    locationId,
   } as const;
 }
 
@@ -72,6 +74,7 @@ export async function addEmployee(
     note: parsed.note,
     cashier_id: parsed.cashierId,
     contract_end: parsed.contractEnd,
+    location_id: parsed.locationId,
   });
 
   if (error) {
@@ -83,6 +86,9 @@ export async function addEmployee(
 
   await logActivity(supabase, businessId, "pengaturan", "sukses", `Karyawan baru: ${parsed.name}`);
   revalidatePath(`/business/${businessId}/employees`);
+  if (parsed.locationId) {
+    revalidatePath(`/business/${businessId}/lokasi/${parsed.locationId}/staf`);
+  }
   return { error: null };
 }
 
@@ -109,6 +115,7 @@ export async function editEmployee(
       note: parsed.note,
       cashier_id: parsed.cashierId,
       contract_end: parsed.contractEnd,
+      location_id: parsed.locationId,
     })
     .eq("id", employeeId)
     .eq("business_id", businessId);

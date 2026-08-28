@@ -8,9 +8,11 @@ const initialState: AddEmployeeState = { error: null };
 export default function AddEmployeeForm({
   cashiers,
   action,
+  lockedLocationId,
 }: {
   cashiers: { id: string; name: string }[];
   action: (state: AddEmployeeState, formData: FormData) => Promise<AddEmployeeState>;
+  lockedLocationId?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -29,6 +31,7 @@ export default function AddEmployeeForm({
       onReset={() => setSalaryType("harian")}
       className="space-y-4"
     >
+      {lockedLocationId && <input type="hidden" name="locationId" value={lockedLocationId} />}
       <div>
         <label htmlFor="name" className="mb-1 block text-xs font-medium text-zinc-600">
           Nama Karyawan

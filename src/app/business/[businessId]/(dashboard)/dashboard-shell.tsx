@@ -133,7 +133,21 @@ function buildCostControlNavGroups(
           icon: Beaker,
         },
         ...(loc.isProduction
-          ? [{ key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory }]
+          ? [
+              { key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory },
+              {
+                key: `lokasi-${loc.id}-staf`,
+                href: `${base}/lokasi/${loc.id}/staf`,
+                label: "Staf",
+                icon: UserCog,
+              },
+              {
+                key: `lokasi-${loc.id}-biaya`,
+                href: `${base}/lokasi/${loc.id}/biaya`,
+                label: "Biaya Operasional",
+                icon: Wallet,
+              },
+            ]
           : []),
       ],
     })),

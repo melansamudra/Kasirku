@@ -90,6 +90,7 @@ export async function addExpense(
   const category = (formData.get("category") as string)?.trim();
   const amountRaw = formData.get("amount") as string;
   const note = (formData.get("note") as string)?.trim();
+  const locationId = (formData.get("locationId") as string) || null;
 
   if (!date) {
     return { error: "Tanggal wajib diisi." };
@@ -200,6 +201,7 @@ export async function addExpense(
     ingredient_id: ingredientId,
     product_id: productId,
     qty,
+    location_id: locationId,
   });
 
   if (error) {
@@ -226,6 +228,9 @@ export async function addExpense(
       : `Rp${amount.toLocaleString("id-ID")}${note ? ` · ${note}` : ""}`,
   );
   revalidatePath(`/business/${businessId}/finance`);
+  if (locationId) {
+    revalidatePath(`/business/${businessId}/lokasi/${locationId}/biaya`);
+  }
   return {
     error: journalError
       ? `Pengeluaran tersimpan, tapi gagal posting ke jurnal (${journalError}). Tambahkan jurnal koreksi manual di halaman Akuntansi → Jurnal.`
@@ -240,7 +245,7 @@ export async function deleteExpense(businessId: string, expenseId: string) {
   // lain. Kalau salah input, sesuaikan stok manual di halaman terkait.
   const { data: expense } = await supabase
     .from("expenses")
-    .select("category, amount")
+    .select("category, amount, location_id")
     .eq("id", expenseId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -267,6 +272,9 @@ export async function deleteExpense(businessId: string, expenseId: string) {
     );
   }
   revalidatePath(`/business/${businessId}/finance`);
+  if (expense?.location_id) {
+    revalidatePath(`/business/${businessId}/lokasi/${expense.location_id}/biaya`);
+  }
 }
 
 export async function setMerchantFeePercent(businessId: string, method: string, feePercent: number) {

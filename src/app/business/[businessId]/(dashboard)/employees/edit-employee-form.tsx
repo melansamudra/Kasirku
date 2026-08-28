@@ -13,6 +13,7 @@ export default function EditEmployeeForm({
   note,
   cashierId,
   contractEnd,
+  locationId,
   cashiers,
   action,
 }: {
@@ -24,6 +25,7 @@ export default function EditEmployeeForm({
   note: string | null;
   cashierId: string | null;
   contractEnd: string | null;
+  locationId?: string | null;
   cashiers: { id: string; name: string }[];
   action: (state: EditEmployeeState, formData: FormData) => Promise<EditEmployeeState>;
 }) {
@@ -65,6 +67,7 @@ export default function EditEmployeeForm({
     formData.set("note", values.note);
     formData.set("cashierId", values.cashierId);
     formData.set("contractEnd", values.contractEnd);
+    formData.set("locationId", locationId ?? "");
     const result = await action({ error: null }, formData);
     setPending(false);
 
