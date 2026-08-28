@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
   LayoutDashboard,
@@ -456,9 +456,23 @@ const BUSINESS_TYPE_SUBTITLE: Record<string, string> = {
   tiket: "Tempat Wisata / Tiket",
 };
 
-function findActiveItem(groups: NavGroup[], pathname: string): NavItem | null {
+// Beberapa lokasi (Dapur Produksi, Kitchen Atas, Bar Llauk) punya item nav
+// yang pathname-nya SAMA PERSIS (mis. /permintaan-barang) tapi beda query
+// (?lokasi=<id>) buat filter per lokasi. usePathname() tidak pernah ikut
+// bawa query string, jadi item begitu WAJIB dicocokkan pakai pathname+query
+// gabungan -- kalau cuma pathname, semuanya keliru nyangkut ke item generik
+// tanpa query (grup "Pembelian & Stok"), sidebar jadi salah nyorot & buka
+// grup yang salah setiap kali diklik dari grup lokasi.
+function findActiveItem(groups: NavGroup[], pathname: string, search: string): NavItem | null {
   const allItems = groups.flatMap((g) => g.items);
-  const matches = allItems.filter((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
+  const currentFull = pathname + (search ? `?${search}` : "");
+  const matches = allItems.filter((i) => {
+    const queryIdx = i.href.indexOf("?");
+    if (queryIdx === -1) {
+      return pathname === i.href || pathname.startsWith(`${i.href}/`);
+    }
+    return currentFull === i.href;
+  });
   if (matches.length === 0) return null;
   return matches.sort((a, b) => b.href.length - a.href.length)[0];
 }
@@ -735,6 +749,7 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -785,7 +800,7 @@ export default function DashboardShell({
   // Active item is resolved against the FULL (unfiltered) list — a page a
   // staff member isn't allowed to see should still be recognized so we can
   // show "Akses Ditolak" instead of silently rendering nothing/wrong content.
-  const activeItem = findActiveItem(allGroups, pathname);
+  const activeItem = findActiveItem(allGroups, pathname, searchParams.toString());
   const activeHref = activeItem?.href ?? null;
   const isAllowed = activeItem
     ? isItemAllowed(activeItem, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter)
