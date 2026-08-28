@@ -49,10 +49,10 @@ export async function updateSession(request: NextRequest) {
   // /absen/* adalah halaman absen selfie karyawan (scan link/QR) — tanpa
   // login, sama alasannya dengan /order. /api/attendance-checkin adalah API
   // route yang dipanggil dari halaman itu, juga tanpa sesi browser.
-  // /permintaan-barang/*, /permintaan-resto/*, dan /produksi-scan/* adalah
-  // halaman scan link/QR tanpa login buat staf dapur/bar/front (submit lewat
-  // RPC security definer, bukan API route, jadi tidak perlu whitelist /api/*
-  // juga) — sama pola dengan /absen.
+  // /permintaan-barang/*, /permintaan-resto/*, /produksi-scan/*, dan
+  // /stok-opname/* adalah halaman scan link/QR tanpa login buat staf
+  // dapur/bar/front (submit lewat RPC security definer, bukan API route,
+  // jadi tidak perlu whitelist /api/* juga) — sama pola dengan /absen.
   // (/permintaan-gudang sempat ada di sini juga, tapi fitur "Gudang" lama
   // sudah dipensiunkan total — digantikan stok per lokasi + Permintaan
   // Barang yang sekarang sadar-lokasi.)
@@ -100,6 +100,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/permintaan-barang") ||
     request.nextUrl.pathname.startsWith("/permintaan-resto") ||
     request.nextUrl.pathname.startsWith("/produksi-scan") ||
+    request.nextUrl.pathname.startsWith("/stok-opname") ||
     request.nextUrl.pathname.startsWith("/api/attendance-checkin") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
