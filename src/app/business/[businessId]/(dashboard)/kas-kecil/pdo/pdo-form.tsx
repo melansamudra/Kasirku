@@ -13,6 +13,20 @@ type Nota = {
   created_at: string;
 };
 
+type ManualRow = {
+  id: string;
+  date: string;
+  description: string;
+  amount: string;
+};
+
+type RincianItem = {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+};
+
 function formatRupiah(value: number) {
   const sign = value < 0 ? "-" : "";
   return `${sign}Rp${Math.round(Math.abs(value)).toLocaleString("id-ID")}`;
@@ -26,16 +40,20 @@ function formatDateShort(iso: string) {
   });
 }
 
+function newManualRow(date: string): ManualRow {
+  return { id: crypto.randomUUID(), date, description: "", amount: "" };
+}
+
 function SlipSummary({
   businessName,
   fromLabel,
   toLabel,
   modalAwal,
-  totalNota,
+  totalPengeluaran,
   sisaSaldo,
   jumlahDiminta,
   catatan,
-  selectedNotas,
+  rincian,
   bankName,
   bankAccountNumber,
   bankAccountHolder,
@@ -44,11 +62,11 @@ function SlipSummary({
   fromLabel: string;
   toLabel: string;
   modalAwal: number;
-  totalNota: number;
+  totalPengeluaran: number;
   sisaSaldo: number;
   jumlahDiminta: number;
   catatan: string;
-  selectedNotas: Nota[];
+  rincian: RincianItem[];
   bankName: string | null;
   bankAccountNumber: string | null;
   bankAccountHolder: string | null;
@@ -77,31 +95,31 @@ function SlipSummary({
 
       <div className="mt-4 space-y-1.5 border-t border-dashed border-zinc-300 pt-3 text-sm">
         <div className="flex justify-between">
-          <span className="text-zinc-500">Modal Awal</span>
+          <span className="text-zinc-500">Saldo Awal Rekening</span>
           <span className="font-medium text-zinc-900">{formatRupiah(modalAwal)}</span>
         </div>
         <div className="flex justify-between pt-1.5">
-          <span className="text-zinc-500">Total Nota Dibayarkan ({selectedNotas.length} nota)</span>
-          <span className="font-medium text-red-600">{formatRupiah(totalNota)}</span>
+          <span className="text-zinc-500">Total Pengeluaran ({rincian.length} item)</span>
+          <span className="font-medium text-red-600">{formatRupiah(totalPengeluaran)}</span>
         </div>
         <div className="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold text-zinc-900">
           <span>Sisa Saldo</span>
           <span>{formatRupiah(sisaSaldo)}</span>
         </div>
         <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-base font-bold text-brand-700">
-          <span>Jumlah Diminta (Transfer)</span>
+          <span>Minta Dana (Transfer)</span>
           <span>{formatRupiah(jumlahDiminta)}</span>
         </div>
         {catatan.trim() && <p className="pt-1 text-xs text-zinc-500">Catatan: {catatan.trim()}</p>}
       </div>
 
-      {selectedNotas.length > 0 && (
+      {rincian.length > 0 && (
         <div className="mt-4 border-t border-dashed border-zinc-300 pt-3">
-          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Rincian Nota</p>
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Rincian Pengeluaran</p>
           <div className="space-y-1 text-xs">
-            {selectedNotas.map((n) => (
+            {rincian.map((n) => (
               <div key={n.id} className="flex justify-between text-zinc-600">
-                <span className="truncate pr-2">{formatDateShort(n.created_at)} — {n.description}</span>
+                <span className="truncate pr-2">{formatDateShort(n.date)} — {n.description}</span>
                 <span className="shrink-0 font-medium">{formatRupiah(n.amount)}</span>
               </div>
             ))}
@@ -155,6 +173,13 @@ export default function PdoForm({
   // Default: semua nota kecentang -- admin boleh uncheck yang nggak mau
   // dimasukkan (mis. sudah kepakai di permintaan PDO sebelumnya).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(notaList.map((n) => n.id)));
+  // Baris pengeluaran manual -- murni state lokal buat lampiran slip ini,
+  // TIDAK dikirim sebagai jurnal terpisah. Yang beneran tercatat ke jurnal
+  // cuma satu transfer (Rekening Utama -> Rekening Operasional) senilai
+  // "Minta Dana" saat form ini disubmit -- daftar pengeluaran di sini (baik
+  // ceklis dari notaList maupun input manual) cuma dasar hitungan angkanya,
+  // sifatnya sama seperti lampiran kertas di belakang slip.
+  const [manualRows, setManualRows] = useState<ManualRow[]>([]);
   const [amountOverride, setAmountOverride] = useState<string | null>(null);
   const [catatan, setCatatan] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
@@ -167,11 +192,30 @@ export default function PdoForm({
   const submitted = attempted && !pending && !state.error;
 
   const selectedNotas = useMemo(() => notaList.filter((n) => selectedIds.has(n.id)), [notaList, selectedIds]);
-  const totalNota = selectedNotas.reduce((s, n) => s + n.amount, 0);
-  // Jumlah Diminta ikut Total Nota otomatis selama admin belum pernah ubah
-  // manual -- begitu diubah manual, nilai itu yang dipakai terus walau
-  // centang berubah (dianggap keputusan sadar admin).
-  const jumlahDiminta = amountOverride ?? String(totalNota || "");
+  const totalNotaTerpilih = selectedNotas.reduce((s, n) => s + n.amount, 0);
+  const totalManual = manualRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalPengeluaran = totalNotaTerpilih + totalManual;
+
+  const rincian = useMemo<RincianItem[]>(
+    () =>
+      [
+        ...selectedNotas.map((n) => ({ id: n.id, date: n.created_at, description: n.description, amount: n.amount })),
+        ...manualRows
+          .filter((r) => (Number(r.amount) || 0) > 0)
+          .map((r) => ({
+            id: r.id,
+            date: `${r.date}T00:00:00+07:00`,
+            description: r.description.trim() || "(tanpa keterangan)",
+            amount: Number(r.amount) || 0,
+          })),
+      ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [selectedNotas, manualRows],
+  );
+
+  // Minta Dana ikut Total Pengeluaran otomatis selama admin belum pernah
+  // ubah manual -- begitu diubah manual, nilai itu yang dipakai terus walau
+  // ceklis/baris manual berubah (dianggap keputusan sadar admin).
+  const jumlahDiminta = amountOverride ?? String(totalPengeluaran || "");
 
   function toggleNota(id: string) {
     setSelectedIds((prev) => {
@@ -182,11 +226,19 @@ export default function PdoForm({
     });
   }
 
+  function updateManualRow(id: string, field: "date" | "description" | "amount", value: string) {
+    setManualRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  }
+
+  function removeManualRow(id: string) {
+    setManualRows((prev) => prev.filter((r) => r.id !== id));
+  }
+
   const modalAwalValue = Number(modalAwal) || 0;
-  const sisaSaldo = modalAwalValue - totalNota;
+  const sisaSaldo = modalAwalValue - totalPengeluaran;
   const description =
-    `PDO ${fromLabel} - ${toLabel} — Total Nota ${formatRupiah(totalNota)} (${selectedNotas.length}/${notaList.length} nota dipilih), ` +
-    `Modal Awal ${formatRupiah(modalAwalValue)}` +
+    `PDO ${fromLabel} - ${toLabel} — Total Pengeluaran ${formatRupiah(totalPengeluaran)} (${rincian.length} item), ` +
+    `Saldo Awal Rekening ${formatRupiah(modalAwalValue)}` +
     (catatan.trim() ? ` — ${catatan.trim()}` : "");
 
   const summaryProps = {
@@ -194,11 +246,11 @@ export default function PdoForm({
     fromLabel,
     toLabel,
     modalAwal: modalAwalValue,
-    totalNota,
+    totalPengeluaran,
     sisaSaldo,
     jumlahDiminta: Number(jumlahDiminta) || 0,
     catatan,
-    selectedNotas,
+    rincian,
     bankName,
     bankAccountNumber,
     bankAccountHolder,
@@ -232,6 +284,7 @@ export default function PdoForm({
               setModalAwal("");
               setCatatan("");
               setAmountOverride(null);
+              setManualRows([]);
               setSelectedIds(new Set(notaList.map((n) => n.id)));
             }}
             className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
@@ -286,6 +339,13 @@ export default function PdoForm({
         </>
       ) : (
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900">Pengeluaran</h3>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Manual atau pilih dari transaksi — cuma buat hitungan lampiran ini, tidak dicatat ke mana-mana.
+            </p>
+          </div>
+
           <div className="overflow-hidden rounded-xl border border-zinc-100">
             <div className="flex items-center justify-between bg-zinc-50 px-3.5 py-2 text-xs">
               <span className="font-medium text-zinc-600">
@@ -335,15 +395,59 @@ export default function PdoForm({
                 ))}
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-3.5 py-2">
-              <span className="text-xs font-medium text-zinc-500">Total Nota Terpilih</span>
-              <span className="text-base font-bold text-red-600">{formatRupiah(totalNota)}</span>
-            </div>
           </div>
 
-          <div>
+          <div className="space-y-2">
+            {manualRows.map((row) => (
+              <div key={row.id} className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={row.date}
+                  onChange={(e) => updateManualRow(row.id, "date", e.target.value)}
+                  className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs"
+                />
+                <input
+                  type="text"
+                  value={row.description}
+                  onChange={(e) => updateManualRow(row.id, "description", e.target.value)}
+                  placeholder="Keterangan"
+                  className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-xs"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={row.amount}
+                  onChange={(e) => updateManualRow(row.id, "amount", e.target.value)}
+                  placeholder="Jumlah (Rp)"
+                  className="w-28 shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeManualRow(row.id)}
+                  className="shrink-0 rounded-lg px-2 py-2 text-xs text-zinc-400 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setManualRows((prev) => [...prev, newManualRow(today)])}
+            className="text-xs font-semibold text-brand-600 hover:underline"
+          >
+            + Tambah Pengeluaran Manual
+          </button>
+
+          <div className="flex items-center justify-between border-t border-zinc-100 pt-2.5">
+            <span className="text-xs font-medium text-zinc-500">Total Pengeluaran</span>
+            <span className="text-base font-bold text-red-600">{formatRupiah(totalPengeluaran)}</span>
+          </div>
+
+          <div className="border-t border-zinc-100 pt-3">
             <label className="mb-1 block text-xs font-medium text-zinc-600">
-              Modal Awal — {rekeningOperasionalName} (Rp)
+              Saldo Awal Rekening — {rekeningOperasionalName} (Rp)
             </label>
             <input
               type="number"
@@ -362,7 +466,7 @@ export default function PdoForm({
 
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-600">
-              Jumlah Diminta / Ditransfer ke {rekeningOperasionalName} (Rp)
+              Minta Dana / Ditransfer ke {rekeningOperasionalName} (Rp)
             </label>
             <input
               type="number"
@@ -372,8 +476,8 @@ export default function PdoForm({
               className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
             <p className="mt-1 text-[11px] text-zinc-400">
-              Otomatis ikut Total Nota Terpilih di atas — kalau diubah manual, nilainya tidak lagi ikut
-              berubah walau centang nota diubah.
+              Otomatis ikut Total Pengeluaran di atas — kalau diubah manual, nilainya tidak lagi ikut
+              berubah walau daftar pengeluaran diubah.
             </p>
           </div>
 
