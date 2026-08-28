@@ -99,6 +99,12 @@ export default function ImportSalesRecapForm({
           <p>
             ✓ 1 transaksi rekap dibuat ({state.result.invoiceNumber}) — {state.result.itemCount} menu.
           </p>
+          {state.result.createdProducts.length > 0 && (
+            <p className="mt-1">
+              🆕 {state.result.createdProducts.length} Produk Jadi baru dibuat otomatis:{" "}
+              {state.result.createdProducts.join(", ")}.
+            </p>
+          )}
           {state.result.skipped.length > 0 && (
             <ul className="mt-1 list-disc space-y-0.5 pl-4 text-amber-600">
               {state.result.skipped.map((s, i) => (

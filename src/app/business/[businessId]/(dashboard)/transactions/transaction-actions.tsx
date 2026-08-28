@@ -170,11 +170,12 @@ export function TransactionActions({
             </div>
             <p className="text-xs text-zinc-500">
               Buat rekap dari laporan periode (mis. rekap bulanan dari POS lain) yang cuma punya
-              total qty per menu, bukan transaksi harian. Kolom: <strong>Menu, Qty</strong> — nama
-              menu harus sama persis dengan Produk Jadi (HPP). Semua baris digabung jadi{" "}
-              <strong>1 transaksi</strong> di tanggal yang kamu pilih. Harga & HPP dihitung dari
-              harga Produk Jadi <strong>saat ini</strong>, bukan harga historis di laporan sumbernya
-              — kalau harga sudah berubah, total di sini bisa beda dari laporan aslinya.
+              total qty per menu, bukan transaksi harian. Kolom:{" "}
+              <strong>Menu, Kategori, Harga, Qty</strong>. Menu yang <strong>sudah ada</strong> di
+              Produk Jadi (HPP) langsung dipakai (Kategori/Harga di baris itu diabaikan). Menu yang{" "}
+              <strong>belum ada</strong> otomatis dibuat sebagai Produk Jadi baru pakai Kategori &amp;
+              Harga dari baris itu — jadi kedua kolom itu wajib diisi buat menu yang belum ada.
+              Semua baris digabung jadi <strong>1 transaksi</strong> di tanggal yang kamu pilih.
             </p>
             <a
               href="/template-rekap-penjualan"
