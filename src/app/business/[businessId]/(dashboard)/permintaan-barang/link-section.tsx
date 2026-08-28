@@ -9,11 +9,13 @@ export default function PurchaseRequestLinkSection({
   initialSlug,
   regenerateAction,
   productionLocationName,
+  hideGeneralLink,
 }: {
   businessId: string;
   initialSlug: string;
   regenerateAction: () => Promise<RegenerateSlugState>;
   productionLocationName?: string;
+  hideGeneralLink?: boolean;
 }) {
   const [slug, setSlug] = useState(initialSlug);
   const [copied, setCopied] = useState(false);
@@ -52,30 +54,34 @@ export default function PurchaseRequestLinkSection({
 
   return (
     <div>
-      <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-        <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{url}</p>
-        <button
-          onClick={handleCopy}
-          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
-        >
-          {copied ? "✓ Tersalin" : "Salin Link"}
-        </button>
-        <Link
-          href={`/business/${businessId}/permintaan-barang/print-qr`}
-          target="_blank"
-          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
-        >
-          🖨️ Cetak QR
-        </Link>
-      </div>
-      <p className="mt-1.5 text-[11px] text-zinc-400">
-        Bagikan link ini ke staf dapur/bar/front (mis. print jadi poster/QR di dekat dapur, atau
-        kirim lewat grup WhatsApp). Siapa saja yang punya link ini bisa kirim order — jangan sebar
-        ke luar tim.
-      </p>
+      {!hideGeneralLink && (
+        <>
+          <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+            <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{url}</p>
+            <button
+              onClick={handleCopy}
+              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
+            >
+              {copied ? "✓ Tersalin" : "Salin Link"}
+            </button>
+            <Link
+              href={`/business/${businessId}/permintaan-barang/print-qr`}
+              target="_blank"
+              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:border-brand-300 hover:text-brand-700"
+            >
+              🖨️ Cetak QR
+            </Link>
+          </div>
+          <p className="mt-1.5 text-[11px] text-zinc-400">
+            Bagikan link ini ke staf dapur/bar/front (mis. print jadi poster/QR di dekat dapur, atau
+            kirim lewat grup WhatsApp). Siapa saja yang punya link ini bisa kirim order — jangan sebar
+            ke luar tim.
+          </p>
+        </>
+      )}
 
       {productionLocationName && (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+        <div className={hideGeneralLink ? "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5" : "mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5"}>
           <p className="mb-1.5 text-[11px] font-semibold text-amber-800">
             Link khusus {productionLocationName}
           </p>

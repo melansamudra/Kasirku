@@ -80,28 +80,35 @@ export default async function PurchaseOrdersPage({
         PO diterbitkan otomatis saat Permintaan Barang diteruskan ke supplier.
       </p>
 
-      {(locations ?? []).length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
+      {filterLocationId ? (
+        <div className="mt-3">
           <Link
             href={`/business/${businessId}/purchase-orders`}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              !filterLocationId ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
-            }`}
+            className="text-xs font-medium text-zinc-400 hover:text-brand-600 hover:underline"
           >
-            Semua Lokasi
+            ← Lihat semua lokasi
           </Link>
-          {(locations ?? []).map((l) => (
-            <Link
-              key={l.id}
-              href={`/business/${businessId}/purchase-orders?lokasi=${l.id}`}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filterLocationId === l.id ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
-              }`}
-            >
-              {l.name}
-            </Link>
-          ))}
         </div>
+      ) : (
+        (locations ?? []).length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <Link
+              href={`/business/${businessId}/purchase-orders`}
+              className="rounded-full bg-brand-600 px-3 py-1 text-xs font-medium text-white"
+            >
+              Semua Lokasi
+            </Link>
+            {(locations ?? []).map((l) => (
+              <Link
+                key={l.id}
+                href={`/business/${businessId}/purchase-orders?lokasi=${l.id}`}
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
+              >
+                {l.name}
+              </Link>
+            ))}
+          </div>
+        )
       )}
 
       {pendingCount > 0 && (

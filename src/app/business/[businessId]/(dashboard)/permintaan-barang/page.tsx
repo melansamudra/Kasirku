@@ -175,28 +175,38 @@ export default async function PermintaanBarangPage({
         Order barang dari staf dapur/bar/front — terima, alokasikan ke supplier, teruskan.
       </p>
 
-      {(locations ?? []).length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
+      {filterLocationId ? (
+        // Datang dari link khusus 1 lokasi (sidebar Dapur Produksi dkk) --
+        // tidak usah tampilkan tab lokasi lain, cukup jalan keluar kalau
+        // sewaktu-waktu mau lihat gabungan semua lokasi.
+        <div className="mt-3">
           <Link
             href={`/business/${businessId}/permintaan-barang`}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              !filterLocationId ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
-            }`}
+            className="text-xs font-medium text-zinc-400 hover:text-brand-600 hover:underline"
           >
-            Semua Lokasi
+            ← Lihat semua lokasi
           </Link>
-          {(locations ?? []).map((l) => (
-            <Link
-              key={l.id}
-              href={`/business/${businessId}/permintaan-barang?lokasi=${l.id}`}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filterLocationId === l.id ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
-              }`}
-            >
-              {l.name}
-            </Link>
-          ))}
         </div>
+      ) : (
+        (locations ?? []).length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <Link
+              href={`/business/${businessId}/permintaan-barang`}
+              className="rounded-full bg-brand-600 px-3 py-1 text-xs font-medium text-white"
+            >
+              Semua Lokasi
+            </Link>
+            {(locations ?? []).map((l) => (
+              <Link
+                key={l.id}
+                href={`/business/${businessId}/permintaan-barang?lokasi=${l.id}`}
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
+              >
+                {l.name}
+              </Link>
+            ))}
+          </div>
+        )
       )}
 
       {baruCount > 0 && (
@@ -205,20 +215,27 @@ export default async function PermintaanBarangPage({
         </p>
       )}
 
-      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">Link Order Barang</h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Bagikan link ini ke staf dapur/bar/front supaya bisa kirim order tanpa login.
-        </p>
-        <div className="mt-3">
-          <PurchaseRequestLinkSection
-            businessId={businessId}
-            initialSlug={business.purchase_request_slug ?? ""}
-            regenerateAction={boundRegenerateSlug}
-            productionLocationName={productionLocation?.name}
-          />
+      {(!filterLocationId || filterLocationId === productionLocation?.id) && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">
+            {filterLocationId ? `Link Order Barang — ${activeLocationName}` : "Link Order Barang"}
+          </h2>
+          {!filterLocationId && (
+            <p className="mt-1 text-xs text-zinc-500">
+              Bagikan link ini ke staf dapur/bar/front supaya bisa kirim order tanpa login.
+            </p>
+          )}
+          <div className="mt-3">
+            <PurchaseRequestLinkSection
+              businessId={businessId}
+              initialSlug={business.purchase_request_slug ?? ""}
+              regenerateAction={boundRegenerateSlug}
+              productionLocationName={productionLocation?.name}
+              hideGeneralLink={Boolean(filterLocationId)}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-4 space-y-2">
         {rows.length > 0 ? (
