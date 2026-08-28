@@ -135,6 +135,7 @@ export default function ImportTool({
                 <td className="px-3 py-2 text-zinc-800">
                   {r.displayName}
                   {r.priceMissing && <span className="ml-1 text-red-500">(harga tidak ditemukan)</span>}
+                  {r.qtyPerBatch <= 0 && <span className="ml-1 text-amber-500">(qty 0 — dilewati saat simpan)</span>}
                 </td>
                 <td className="px-3 py-2 text-zinc-600">{r.qtyPerBatch.toLocaleString("id-ID")}</td>
                 <td className="px-3 py-2 text-zinc-600">{r.unit}</td>

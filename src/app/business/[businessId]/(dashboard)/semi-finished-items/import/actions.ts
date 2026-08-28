@@ -73,18 +73,26 @@ export async function saveBsjImport(
     .eq("semi_finished_item_id", itemId);
   if (delErr) return { error: delErr.message, success: false };
 
-  const newRows = rows.map((r) => ({
-    business_id: businessId,
-    semi_finished_item_id: itemId,
-    component_type: "ingredient" as const,
-    ingredient_id: r.ingredient_id,
-    qty: r.qty_per_batch / porsi,
-    unit: r.unit,
-  }));
+  // Baris dengan gramasi 0 (bahan tercatat tapi qty-nya kosong di data
+  // Excel, mis. "Air" tanpa takaran) tidak boleh masuk -- semi_finished_recipes
+  // mewajibkan qty > 0 -- jadi cuma dilewati, bukan bikin simpan gagal total.
+  const newRows = rows
+    .filter((r) => r.qty_per_batch > 0)
+    .map((r) => ({
+      business_id: businessId,
+      semi_finished_item_id: itemId,
+      component_type: "ingredient" as const,
+      ingredient_id: r.ingredient_id,
+      qty: r.qty_per_batch / porsi,
+      unit: r.unit,
+    }));
+  if (newRows.length === 0) {
+    return { error: "Tidak ada bahan dengan qty > 0 untuk disimpan.", success: false };
+  }
   const { error: insRecipeErr } = await supabase.from("semi_finished_recipes").insert(newRows);
   if (insRecipeErr) return { error: insRecipeErr.message, success: false };
 
-  await logActivity(supabase, businessId, "produk", "sukses", `Resep diimpor dari Data Excel: ${itemName} (${rows.length} bahan)`);
+  await logActivity(supabase, businessId, "produk", "sukses", `Resep diimpor dari Data Excel: ${itemName} (${newRows.length} bahan)`);
 
   revalidatePath(`/business/${businessId}/semi-finished-items`);
   revalidatePath(`/business/${businessId}/semi-finished-items/import`);
