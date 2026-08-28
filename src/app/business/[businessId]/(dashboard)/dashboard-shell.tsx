@@ -152,6 +152,18 @@ function buildCostControlNavGroups(
                 icon: CalendarCheck,
               },
               {
+                key: `lokasi-${loc.id}-transfer`,
+                href: `${base}/lokasi/${loc.id}/transfer`,
+                label: "Transfer Internal",
+                icon: ArrowLeftRight,
+              },
+              {
+                key: `lokasi-${loc.id}-kartu-stok`,
+                href: `${base}/lokasi/${loc.id}/kartu-stok`,
+                label: "Kartu Stok",
+                icon: CreditCard,
+              },
+              {
                 key: `lokasi-${loc.id}-permintaan-barang`,
                 href: `${base}/permintaan-barang?lokasi=${loc.id}`,
                 label: "Permintaan Barang",

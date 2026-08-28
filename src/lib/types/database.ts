@@ -313,6 +313,7 @@ export type Database = {
           outlet_request_slug: string | null;
           production_scan_slug: string | null;
           stock_opname_slug: string | null;
+          location_transfer_slug: string | null;
           procurement_budget_gate_enabled: boolean;
         };
         Insert: {
@@ -348,6 +349,7 @@ export type Database = {
           production_scan_slug?: string | null;
           procurement_budget_gate_enabled?: boolean;
           stock_opname_slug?: string | null;
+          location_transfer_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -382,6 +384,7 @@ export type Database = {
           production_scan_slug?: string | null;
           stock_opname_slug?: string | null;
           procurement_budget_gate_enabled?: boolean;
+          location_transfer_slug?: string | null;
         };
         Relationships: [];
       };
@@ -3145,6 +3148,129 @@ export type Database = {
           },
         ];
       };
+      stock_opname_entries: {
+        Row: {
+          id: string;
+          business_id: string;
+          location_id: string;
+          component_type: string;
+          ingredient_id: string | null;
+          semi_finished_item_id: string | null;
+          item_name: string;
+          unit: string;
+          reported_stock: number;
+          system_stock_at_report: number;
+          submitted_by_name: string;
+          entry_date: string;
+          status: string;
+          verified_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          location_id: string;
+          component_type: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          item_name: string;
+          unit: string;
+          reported_stock: number;
+          system_stock_at_report: number;
+          submitted_by_name: string;
+          entry_date?: string;
+          status?: string;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          location_id?: string;
+          component_type?: string;
+          ingredient_id?: string | null;
+          semi_finished_item_id?: string | null;
+          item_name?: string;
+          unit?: string;
+          reported_stock?: number;
+          system_stock_at_report?: number;
+          submitted_by_name?: string;
+          entry_date?: string;
+          status?: string;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      location_transfers: {
+        Row: {
+          id: string;
+          business_id: string;
+          from_location_id: string;
+          to_location_id: string;
+          requested_by_name: string;
+          note: string | null;
+          status: string;
+          created_at: string;
+          fulfilled_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          from_location_id: string;
+          to_location_id: string;
+          requested_by_name: string;
+          note?: string | null;
+          status?: string;
+          created_at?: string;
+          fulfilled_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          from_location_id?: string;
+          to_location_id?: string;
+          requested_by_name?: string;
+          note?: string | null;
+          status?: string;
+          created_at?: string;
+          fulfilled_at?: string | null;
+        };
+        Relationships: [];
+      };
+      location_transfer_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          transfer_id: string;
+          semi_finished_item_id: string;
+          item_name: string;
+          unit: string;
+          qty_requested: number;
+          qty_sent: number | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          transfer_id: string;
+          semi_finished_item_id: string;
+          item_name: string;
+          unit: string;
+          qty_requested: number;
+          qty_sent?: number | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          transfer_id?: string;
+          semi_finished_item_id?: string;
+          item_name?: string;
+          unit?: string;
+          qty_requested?: number;
+          qty_sent?: number | null;
+        };
+        Relationships: [];
+      };
       stock_adjustments: {
         Row: {
           id: string;
@@ -3932,6 +4058,20 @@ export type Database = {
           p_semi_finished_counts: Json;
         };
         Returns: Json;
+      };
+      get_location_transfer_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_location_transfer_request: {
+        Args: {
+          p_slug: string;
+          p_requesting_location_id: string;
+          p_employee_id: string;
+          p_note: string | null;
+          p_items: Json;
+        };
+        Returns: string;
       };
       submit_purchase_request: {
         Args: {
