@@ -163,7 +163,7 @@ export async function addPurchase(
 
       const { data: ingredient } = await supabase
         .from("ingredients")
-        .select("id, name, business_id, stock, unit_cost")
+        .select("id, name, business_id, stock, unit_cost, unit")
         .eq("id", ingredientId)
         .single();
 
@@ -251,11 +251,13 @@ export async function addPurchase(
           newTotalOwned > 0 ? Math.round((oldValue + amount) / newTotalOwned) : Number(ingredient.unit_cost);
 
         const targetRow = (locStockRows ?? []).find((row) => row.location_id === targetLocationId);
+        const targetStockBefore = Number(targetRow?.stock ?? 0);
+        const targetStockAfter = targetStockBefore + qty;
         const stockError = targetRow
           ? (
               await supabase
                 .from("ingredient_location_stock")
-                .update({ stock: Number(targetRow.stock) + qty })
+                .update({ stock: targetStockAfter })
                 .eq("id", targetRow.id)
             ).error
           : (
@@ -273,9 +275,25 @@ export async function addPurchase(
           .update({ unit_cost: newUnitCost })
           .eq("id", ingredientId);
         if (costError) return fail(costError.message);
+
+        // Kartu Stok "Stock Masuk" cuma diisi dari stock_adjustments -- tanpa
+        // baris ini, Pembelian tidak pernah muncul di riwayat pergerakan
+        // walau saldo (Stok Data) sudah benar ter-update lewat update di atas.
+        await supabase.from("stock_adjustments").insert({
+          business_id: businessId,
+          ingredient_id: ingredientId,
+          location_id: targetLocationId,
+          item_name: ingredient.name,
+          unit: ingredient.unit,
+          stock_before: targetStockBefore,
+          stock_after: targetStockAfter,
+          diff: qty,
+          reason: "Pembelian",
+        });
       } else {
         const oldValue = Number(ingredient.stock) * Number(ingredient.unit_cost);
-        const newStock = Number(ingredient.stock) + qty;
+        const stockBefore = Number(ingredient.stock);
+        const newStock = stockBefore + qty;
         newUnitCost = newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(ingredient.unit_cost);
 
         const { error: updateError } = await supabase
@@ -286,6 +304,17 @@ export async function addPurchase(
         if (updateError) {
           return fail(updateError.message);
         }
+
+        await supabase.from("stock_adjustments").insert({
+          business_id: businessId,
+          ingredient_id: ingredientId,
+          item_name: ingredient.name,
+          unit: ingredient.unit,
+          stock_before: stockBefore,
+          stock_after: newStock,
+          diff: qty,
+          reason: "Pembelian",
+        });
       }
 
       if (newUnitCost !== Number(ingredient.unit_cost)) {
@@ -314,8 +343,9 @@ export async function addPurchase(
       }
       itemName = product.name;
 
-      const oldValue = Number(product.stock) * Number(product.cost);
-      const newStock = Number(product.stock) + qty;
+      const stockBefore = Number(product.stock);
+      const oldValue = stockBefore * Number(product.cost);
+      const newStock = stockBefore + qty;
       const newCost = newStock > 0 ? Math.round((oldValue + amount) / newStock) : Number(product.cost);
 
       const { error: updateError } = await supabase
@@ -326,6 +356,16 @@ export async function addPurchase(
       if (updateError) {
         return fail(updateError.message);
       }
+
+      await supabase.from("stock_adjustments").insert({
+        business_id: businessId,
+        product_id: productId,
+        item_name: product.name,
+        stock_before: stockBefore,
+        stock_after: newStock,
+        diff: qty,
+        reason: "Pembelian",
+      });
     }
   }
 
@@ -464,7 +504,7 @@ export async function voidPurchase(
   if (purchase.category === "Bahan Baku" && purchase.ingredient_id) {
     const { data: ingredient } = await supabase
       .from("ingredients")
-      .select("id, name, stock, unit_cost")
+      .select("id, name, stock, unit_cost, unit")
       .eq("id", purchase.ingredient_id)
       .single();
 
@@ -515,6 +555,22 @@ export async function voidPurchase(
             .eq("id", targetRow.id);
           if (stockError) return { error: stockError.message };
         }
+
+        // Simetris dengan baris "Pembelian" yang diinsert addPurchase --
+        // diff pakai targetAfter-targetBefore beneran (bukan -purchaseQty
+        // mentah), karena targetAfter di-floor ke 0 kalau sebagian stok
+        // sudah kepakai duluan.
+        await supabase.from("stock_adjustments").insert({
+          business_id: businessId,
+          ingredient_id: purchase.ingredient_id,
+          location_id: purchase.location_id,
+          item_name: ingredient.name,
+          unit: ingredient.unit,
+          stock_before: targetBefore,
+          stock_after: targetAfter,
+          diff: targetAfter - targetBefore,
+          reason: "Void Pembelian",
+        });
       } else {
         const stockBefore = Number(ingredient.stock);
         const stockAfter = Math.max(0, stockBefore - purchaseQty);
@@ -526,6 +582,17 @@ export async function voidPurchase(
           .update({ stock: stockAfter, unit_cost: unitCostAfter })
           .eq("id", purchase.ingredient_id);
         if (updateError) return { error: updateError.message };
+
+        await supabase.from("stock_adjustments").insert({
+          business_id: businessId,
+          ingredient_id: purchase.ingredient_id,
+          item_name: ingredient.name,
+          unit: ingredient.unit,
+          stock_before: stockBefore,
+          stock_after: stockAfter,
+          diff: stockAfter - stockBefore,
+          reason: "Void Pembelian",
+        });
       }
 
       if (unitCostAfter !== unitCostBefore) {
@@ -558,6 +625,16 @@ export async function voidPurchase(
         .update({ stock: stockAfter, cost: costAfter })
         .eq("id", purchase.product_id);
       if (updateError) return { error: updateError.message };
+
+      await supabase.from("stock_adjustments").insert({
+        business_id: businessId,
+        product_id: purchase.product_id,
+        item_name: product.name,
+        stock_before: stockBefore,
+        stock_after: stockAfter,
+        diff: stockAfter - stockBefore,
+        reason: "Void Pembelian",
+      });
     }
   }
 
