@@ -60,9 +60,12 @@ export default function SupplierGroup({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [prices, setPrices] = useState<Record<string, string>>(() =>
-    Object.fromEntries(allocations.map((a) => [a.allocationId, String(a.defaultUnitPrice || "")])),
-  );
+  // Sengaja DIKOSONGKAN, bukan prefill dari harga bahan baku tersimpan
+  // (ingredients.unit_cost) -- staf harus selalu ketik/konfirmasi harga
+  // kesepakatan aktual dengan supplier, biar tidak diam-diam terkirim
+  // harga lama tanpa disadari. Tombol "pakai" di sebelah tiap baris kasih
+  // jalan pintas kalau harganya memang masih sama.
+  const [prices, setPrices] = useState<Record<string, string>>({});
   const [issuedBy, setIssuedBy] = useState("");
 
   const total = allocations.reduce((sum, a) => sum + a.qty * (Number(prices[a.allocationId]) || 0), 0);
@@ -71,6 +74,13 @@ export default function SupplierGroup({
     if (costControlEnabled && !issuedBy) {
       setError("Pilih nama yang menerbitkan PO dulu.");
       return;
+    }
+    if (costControlEnabled) {
+      const missing = allocations.some((a) => !(Number(prices[a.allocationId]) > 0));
+      if (missing) {
+        setError("Isi harga setiap barang dulu (tidak boleh kosong/0).");
+        return;
+      }
     }
     setError(null);
     setPending(true);
@@ -118,25 +128,50 @@ export default function SupplierGroup({
       <p className="text-xs font-semibold text-zinc-900">Ke: {supplier.name}</p>
       {costControlEnabled ? (
         <div className="mt-1.5 space-y-1">
-          {allocations.map((a) => (
-            <div key={a.allocationId} className="flex items-center justify-between gap-2 text-[12px] text-zinc-600">
-              <span className="min-w-0 flex-1 truncate">
-                {a.itemName} — {a.qty}
-                {a.unit ? ` ${a.unit}` : ""}
-              </span>
-              <span className="flex shrink-0 items-center gap-1">
-                <span className="text-zinc-400">Rp</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={prices[a.allocationId] ?? ""}
-                  onChange={(e) => setPrices((prev) => ({ ...prev, [a.allocationId]: e.target.value }))}
-                  className="w-20 rounded-lg border border-zinc-200 px-1.5 py-1 text-right text-[11px] focus:border-brand-600 focus:outline-none"
-                />
-              </span>
-            </div>
-          ))}
+          {allocations.map((a) => {
+            const filled = Number(prices[a.allocationId]) > 0;
+            return (
+              <div key={a.allocationId} className="text-[12px] text-zinc-600">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate">
+                    {a.itemName} — {a.qty}
+                    {a.unit ? ` ${a.unit}` : ""}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    <span className="text-zinc-400">Rp</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={prices[a.allocationId] ?? ""}
+                      onChange={(e) => setPrices((prev) => ({ ...prev, [a.allocationId]: e.target.value }))}
+                      placeholder="wajib diisi"
+                      className={`w-24 rounded-lg border px-1.5 py-1 text-right text-[11px] focus:outline-none ${
+                        filled
+                          ? "border-zinc-200 focus:border-brand-600"
+                          : "border-amber-300 bg-amber-50 focus:border-amber-500"
+                      }`}
+                    />
+                  </span>
+                </div>
+                {!filled && a.defaultUnitPrice > 0 && (
+                  <p className="mt-0.5 text-right text-[10.5px] text-amber-600">
+                    Harga bahan tersimpan: {formatRupiah(a.defaultUnitPrice)} — belum tentu sama
+                    dengan harga {supplier.name} sekarang.{" "}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPrices((prev) => ({ ...prev, [a.allocationId]: String(a.defaultUnitPrice) }))
+                      }
+                      className="font-semibold underline hover:text-amber-700"
+                    >
+                      Pakai harga ini
+                    </button>
+                  </p>
+                )}
+              </div>
+            );
+          })}
           <p className="pt-1 text-right text-[11px] font-semibold text-zinc-700">
             Total PO: {formatRupiah(total)}
           </p>

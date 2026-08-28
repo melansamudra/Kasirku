@@ -466,6 +466,7 @@ export async function forwardAllocationsToSupplier(
       const unitPrice = Number(unitPrices?.[a.id] ?? 0);
       const qty = Number(a.qty);
       return {
+        allocation_id: a.id,
         item_name: item?.item_name ?? "(barang)",
         unit: item?.unit ?? "",
         qty,
@@ -558,6 +559,28 @@ export async function markAllocationReceived(
   allocationId: string,
 ): Promise<ActionState> {
   const supabase = await createClient();
+
+  // Gerbang approval PO (langkah "Otorisasi Formal PO" di memo) -- kalau
+  // alokasi ini punya PO (jalur supplier di bisnis cost-control), PO-nya
+  // WAJIB sudah di-approve dulu sebelum barang boleh ditandai datang.
+  // Sebelumnya cuma label status, tidak memblokir apa pun -- sekarang
+  // benar-benar dicek di sini. Alokasi tanpa PO (mis. jalur "Ambil dari
+  // Gudang", atau bisnis non-cost-control) tidak terdampak sama sekali.
+  const { data: poItem } = await supabase
+    .from("purchase_order_items")
+    .select("purchase_orders(status)")
+    .eq("allocation_id", allocationId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const poStatus = (poItem?.purchase_orders as unknown as { status: string } | null)?.status;
+  if (poStatus && poStatus !== "approved") {
+    return {
+      error:
+        poStatus === "rejected"
+          ? "PO untuk barang ini ditolak — tidak bisa ditandai datang. Buat ulang permintaannya kalau memang masih perlu."
+          : "PO untuk barang ini belum di-approve. Approve dulu di halaman Purchase Order sebelum menandai barang datang.",
+    };
+  }
 
   const { error } = await supabase
     .from("purchase_request_item_allocations")

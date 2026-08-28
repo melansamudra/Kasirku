@@ -2733,6 +2733,7 @@ export type Database = {
           qty: number;
           unit_price: number;
           subtotal: number;
+          allocation_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2743,6 +2744,7 @@ export type Database = {
           qty: number;
           unit_price?: number;
           subtotal?: number;
+          allocation_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2753,8 +2755,17 @@ export type Database = {
           qty?: number;
           unit_price?: number;
           subtotal?: number;
+          allocation_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey";
+            columns: ["purchase_order_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_orders";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       procurement_budget_lines: {
         Row: {
