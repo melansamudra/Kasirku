@@ -400,15 +400,21 @@ export default async function PermintaanBarangPage({
         <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
           <h2 className="text-sm font-semibold text-zinc-900">📅 Ringkasan per Tanggal</h2>
           <p className="mt-0.5 text-[11px] text-zinc-400">
-            Dari {mergedRows.length} order yang lagi dimuat di bawah (maksimal 50 PR + 50 BSJ terakhir).
+            {business.cost_control_enabled
+              ? `Dari ${mergedRows.length} order yang lagi dimuat di bawah (maksimal 50 PR + 50 BSJ terakhir).`
+              : `Dari ${rows.length} order yang lagi dimuat di bawah (maksimal 50 terakhir).`}
           </p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="text-zinc-400">
                 <tr className="border-b border-zinc-100">
                   <th className="py-1.5 pr-3 text-left font-medium">Tanggal</th>
-                  <th className="px-3 py-1.5 text-right font-medium">🛒 Ke Purchasing</th>
-                  <th className="px-3 py-1.5 text-right font-medium">🥡 Ke Dapur Produksi</th>
+                  <th className="px-3 py-1.5 text-right font-medium">
+                    {business.cost_control_enabled ? "🛒 Ke Purchasing" : "Jumlah PR"}
+                  </th>
+                  {business.cost_control_enabled && (
+                    <th className="px-3 py-1.5 text-right font-medium">🥡 Ke Dapur Produksi</th>
+                  )}
                   <th className="py-1.5 pl-3 text-right font-medium">Estimasi Nilai PR</th>
                 </tr>
               </thead>
@@ -419,7 +425,9 @@ export default async function PermintaanBarangPage({
                     <tr key={dateKey}>
                       <td className="py-1.5 pr-3 text-zinc-700">{formatDateLabel(dateKey)}</td>
                       <td className="px-3 py-1.5 text-right text-zinc-600">{s.prCount || "—"}</td>
-                      <td className="px-3 py-1.5 text-right text-zinc-600">{s.transferCount || "—"}</td>
+                      {business.cost_control_enabled && (
+                        <td className="px-3 py-1.5 text-right text-zinc-600">{s.transferCount || "—"}</td>
+                      )}
                       <td className="py-1.5 pl-3 text-right font-medium text-zinc-900">
                         {s.totalValue > 0 ? formatRupiah(s.totalValue) : "—"}
                       </td>

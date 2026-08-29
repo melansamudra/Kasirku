@@ -47,10 +47,10 @@ const PR_STATUS_STYLE: Record<string, string> = {
   diteruskan: "border-brand-600 bg-brand-50 text-brand-700",
 };
 
-const CONDITION_LABEL: Record<string, string> = { ok: "OK", rusak: "Rusak" };
+const CONDITION_LABEL: Record<string, string> = { ok: "OK", rejected: "Rusak / Tolak" };
 const CONDITION_STYLE: Record<string, string> = {
   ok: "bg-brand-50 text-brand-700",
-  rusak: "bg-red-50 text-red-600",
+  rejected: "bg-red-50 text-red-600",
 };
 
 const APPROVAL_THRESHOLD = 5_000_000;
@@ -375,14 +375,19 @@ async function PenerimaanBarangTab({ businessId }: { businessId: string }) {
             {(itemsByGrn.get(g.id) ?? []).map((it, idx) => {
               const detail = poItemById.get(it.purchase_order_item_id);
               return (
-                <div key={idx} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 flex-1 truncate text-zinc-700">{detail?.item_name ?? "(barang)"}</span>
-                  <span className="shrink-0 text-zinc-500">
-                    {Number(it.qty_received)} {detail?.unit ?? ""}
-                  </span>
-                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${CONDITION_STYLE[it.condition] ?? ""}`}>
-                    {CONDITION_LABEL[it.condition] ?? it.condition}
-                  </span>
+                <div key={idx} className="text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate text-zinc-700">{detail?.item_name ?? "(barang)"}</span>
+                    <span className="shrink-0 text-zinc-500">
+                      {Number(it.qty_received)} {detail?.unit ?? ""}
+                    </span>
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${CONDITION_STYLE[it.condition] ?? ""}`}>
+                      {CONDITION_LABEL[it.condition] ?? it.condition}
+                    </span>
+                  </div>
+                  {it.condition === "rejected" && it.condition_note && (
+                    <p className="mt-0.5 pl-0.5 text-[10px] text-red-500">↳ {it.condition_note}</p>
+                  )}
                 </div>
               );
             })}
