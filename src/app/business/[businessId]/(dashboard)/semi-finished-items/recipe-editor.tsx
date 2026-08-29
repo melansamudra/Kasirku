@@ -18,19 +18,37 @@ export default function RecipeEditor({
   action,
   ingredients,
   semiFinishedOptions,
+  batchYieldQty,
+  resultUnit,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   ingredients: { id: string; name: string; unit: string }[];
   semiFinishedOptions: { id: string; name: string; unit: string }[];
+  batchYieldQty?: number | null;
+  resultUnit?: string;
 }) {
+  // Staf terbiasa mikir "buat 1 batch pakai berapa" (sama seperti waktu
+  // bikin resep pertama kali / impor Excel), bukan qty per-1-satuan mentah
+  // yang disimpan di skema -- kalau batch_yield_qty item ini sudah diisi
+  // (lihat "Resep ini menghasilkan" di atas), tawarkan mode "per batch" dan
+  // bagi ke per-1-satuan di sini, sebelum submit. Pola sama persis dengan
+  // konversi kg/liter (CONVENIENCE_UNITS) di bawah -- server (addRecipeComponent)
+  // tidak berubah sama sekali, tetap terima qty per-1-satuan.
+  const hasBatchMode = !!batchYieldQty && batchYieldQty > 0 && batchYieldQty !== 1;
+
   const wrappedAction = async (state: ActionState, formData: FormData): Promise<ActionState> => {
     const qtyUnit = formData.get("qtyUnit") as string;
     const baseUnit = formData.get("baseUnit") as string;
+    const scaleMode = formData.get("scaleMode") as string;
     const convenience = CONVENIENCE_UNITS[baseUnit?.toLowerCase()];
+    let qty = Number(formData.get("qty"));
     if (convenience && qtyUnit === convenience.label) {
-      const qty = Number(formData.get("qty"));
-      formData.set("qty", String(qty * convenience.factor));
+      qty = qty * convenience.factor;
     }
+    if (hasBatchMode && scaleMode === "batch") {
+      qty = qty / batchYieldQty!;
+    }
+    formData.set("qty", String(qty));
     return action(state, formData);
   };
 
@@ -38,6 +56,7 @@ export default function RecipeEditor({
   const formRef = useRef<HTMLFormElement>(null);
   const [component, setComponent] = useState("");
   const [qtyUnit, setQtyUnit] = useState<string>("base");
+  const [scaleMode, setScaleMode] = useState<string>(hasBatchMode ? "batch" : "unit");
 
   useEffect(() => {
     if (!pending && !state.error) {
@@ -48,8 +67,10 @@ export default function RecipeEditor({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setComponent("");
       setQtyUnit("base");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScaleMode(hasBatchMode ? "batch" : "unit");
     }
-  }, [pending, state.error]);
+  }, [pending, state.error, hasBatchMode]);
 
   const noOptions = ingredients.length === 0 && semiFinishedOptions.length === 0;
 
@@ -102,6 +123,23 @@ export default function RecipeEditor({
         </select>
       </div>
       <input type="hidden" name="baseUnit" value={selectedUnit ?? ""} />
+      {hasBatchMode && (
+        <div className="w-40">
+          <label htmlFor="scaleMode" className="mb-1 block text-xs font-medium text-zinc-600">
+            Jumlah untuk
+          </label>
+          <select
+            id="scaleMode"
+            name="scaleMode"
+            value={scaleMode}
+            onChange={(e) => setScaleMode(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="batch">1 batch ({batchYieldQty} {resultUnit || "satuan"})</option>
+            <option value="unit">1 {resultUnit || "satuan"} hasil</option>
+          </select>
+        </div>
+      )}
       <div className="w-24">
         <label htmlFor="qty" className="mb-1 block text-xs font-medium text-zinc-600">
           Jumlah

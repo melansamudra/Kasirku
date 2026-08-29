@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
-import { addRecipeComponent, removeRecipeComponent, updateSemiFinishedItem } from "../actions";
+import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
 import ItemForm from "../item-form";
 import RecipeEditor from "../recipe-editor";
+import RecipeYieldForm from "../recipe-yield-form";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -58,7 +59,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, stock, min_stock, fluctuation_pct, barcode, category")
+    .select("id, name, unit, stock, min_stock, fluctuation_pct, barcode, category, batch_yield_qty")
     .eq("id", id)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -96,6 +97,8 @@ export default async function SemiFinishedItemDetailPage({
 
   const boundUpdate = updateSemiFinishedItem.bind(null, businessId, id);
   const boundAddComponent = addRecipeComponent.bind(null, businessId, id);
+  const boundUpdateYield = updateRecipeYield.bind(null, businessId, id);
+  const batchYieldQty = item.batch_yield_qty !== null ? Number(item.batch_yield_qty) : null;
 
   return (
     <div className="w-full max-w-3xl">
@@ -119,6 +122,14 @@ export default async function SemiFinishedItemDetailPage({
           Jumlah komponen di bawah dihitung PER 1 {item.unit} {item.name} yang dihasilkan — saat
           produksi, jumlah ini otomatis dikalikan dengan berapa banyak yang diproduksi.
         </p>
+
+        <div className="mb-4 rounded-lg bg-zinc-50 p-3">
+          <RecipeYieldForm action={boundUpdateYield} unit={item.unit} currentYieldQty={batchYieldQty} />
+          <p className="mt-1.5 text-[11px] text-zinc-400">
+            Dipakai buat isi/tampilkan jumlah komponen dalam bentuk "per batch" di bawah, bukan cuma
+            per-1-{item.unit}.
+          </p>
+        </div>
 
         {cost.breakdown.length > 0 ? (
           <div className="overflow-hidden rounded-xl border border-zinc-200">
@@ -183,6 +194,12 @@ export default async function SemiFinishedItemDetailPage({
                 >
                   <span>
                     {name ?? "(dihapus)"} — {formatQty(line.qty)} {line.unit}
+                    {batchYieldQty !== null && batchYieldQty !== 1 && (
+                      <span className="ml-1.5 text-zinc-400">
+                        (≈ {formatQty(Number(line.qty) * batchYieldQty)} {line.unit} / batch {batchYieldQty}{" "}
+                        {item.unit})
+                      </span>
+                    )}
                   </span>
                   <form action={removeRecipeComponent.bind(null, businessId, id, line.id)}>
                     <button type="submit" className="text-zinc-400 hover:text-red-500" title="Hapus komponen">
@@ -200,6 +217,8 @@ export default async function SemiFinishedItemDetailPage({
             action={boundAddComponent}
             ingredients={ingredients ?? []}
             semiFinishedOptions={otherItems ?? []}
+            batchYieldQty={batchYieldQty}
+            resultUnit={item.unit}
           />
         </div>
       </div>

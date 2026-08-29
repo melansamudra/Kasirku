@@ -49,6 +49,8 @@ export async function addSemiFinishedItem(
       return { error: "Data komponen resep tidak valid." };
     }
   }
+  const recipeYieldRaw = formData.get("recipeYieldQty") as string | null;
+  const recipeYieldQty = recipeYieldRaw ? Number(recipeYieldRaw) : null;
   for (const row of recipeRows) {
     const [componentType, componentId] = String(row.component ?? "").split(":");
     if ((componentType !== "ingredient" && componentType !== "semi_finished") || !componentId) {
@@ -70,6 +72,7 @@ export async function addSemiFinishedItem(
       fluctuation_pct: fluctuationPct,
       barcode,
       category,
+      batch_yield_qty: recipeRows.length > 0 && recipeYieldQty && recipeYieldQty > 0 ? recipeYieldQty : null,
     })
     .select("id")
     .single();
@@ -185,6 +188,35 @@ export async function deleteSemiFinishedItem(businessId: string, itemId: string)
     await logActivity(supabase, businessId, "produk", "warning", `Bahan setengah jadi dihapus: ${item.name}`);
   }
   revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null };
+}
+
+// "Resep ini menghasilkan berapa" -- batch size dipakai buat 2 hal: (1)
+// RecipeEditor bisa nawarin input qty "per batch" (dibagi ke per-1-satuan di
+// client sebelum submit, sama pola konversi kg/liter yang sudah ada), (2)
+// halaman detail bisa nampilin balik preview "per batch" dari qty per-1-
+// satuan yang tersimpan (qty * batch_yield_qty).
+export async function updateRecipeYield(
+  businessId: string,
+  itemId: string,
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const yieldQty = Number(formData.get("yieldQty"));
+  if (!(yieldQty > 0)) {
+    return { error: "Jumlah harus lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("semi_finished_items")
+    .update({ batch_yield_qty: yieldQty })
+    .eq("id", itemId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/semi-finished-items/${itemId}`);
   return { error: null };
 }
 

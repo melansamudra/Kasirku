@@ -68,6 +68,7 @@ export default function RecipeRowsBuilder({
   return (
     <div>
       <input type="hidden" name="recipeRows" value={JSON.stringify(serialized)} />
+      <input type="hidden" name="recipeYieldQty" value={yieldQty} />
       <label className="mb-1 block text-xs font-medium text-zinc-600">
         Komponen Resep (opsional — bisa ditambah/diubah lagi nanti)
       </label>

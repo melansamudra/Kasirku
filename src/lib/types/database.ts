@@ -2140,6 +2140,7 @@ export type Database = {
           fluctuation_pct: number;
           barcode: string | null;
           category: string | null;
+          batch_yield_qty: number | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2154,6 +2155,7 @@ export type Database = {
           fluctuation_pct?: number;
           barcode?: string | null;
           category?: string | null;
+          batch_yield_qty?: number | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2168,6 +2170,7 @@ export type Database = {
           fluctuation_pct?: number;
           barcode?: string | null;
           category?: string | null;
+          batch_yield_qty?: number | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;

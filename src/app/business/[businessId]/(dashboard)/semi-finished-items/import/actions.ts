@@ -50,14 +50,14 @@ export async function saveBsjImport(
     itemId = existing.id;
     const { error: updErr } = await supabase
       .from("semi_finished_items")
-      .update({ fluctuation_pct: lossFactorPct })
+      .update({ fluctuation_pct: lossFactorPct, batch_yield_qty: porsi })
       .eq("id", itemId)
       .eq("business_id", businessId);
     if (updErr) return { error: updErr.message, success: false };
   } else {
     const { data: created, error: insErr } = await supabase
       .from("semi_finished_items")
-      .insert({ business_id: businessId, name: itemName, unit: "porsi", fluctuation_pct: lossFactorPct })
+      .insert({ business_id: businessId, name: itemName, unit: "porsi", fluctuation_pct: lossFactorPct, batch_yield_qty: porsi })
       .select("id")
       .single();
     if (insErr || !created) return { error: insErr?.message ?? "Gagal membuat item.", success: false };
