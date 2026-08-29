@@ -4268,6 +4268,10 @@ export type Database = {
         Args: { p_slug: string };
         Returns: Json;
       };
+      get_purchasing_portal_incoming: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
       fulfill_location_transfer_public: {
         Args: { p_slug: string; p_employee_id: string; p_transfer_id: string; p_qty_sent: Json };
         Returns: Json;

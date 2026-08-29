@@ -89,28 +89,43 @@ export default async function PortalLokasiPage({
             </Link>
           )}
 
-          <Link
-            href={`/portal-lokasi/${slug}/terima`}
-            className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
-          >
-            <span className="flex items-center gap-2.5">
-              <span className="text-xl">📦</span>
-              <span className="text-sm font-medium text-zinc-800">Terima Barang dari Gudang</span>
-            </span>
-            {!!info.pending_receive_count && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                {info.pending_receive_count}
+          {/* Gudang Utama/Purchasing tidak "terima dari dirinya sendiri" dan
+              tim Purchasing sudah punya akses dashboard langsung buat proses
+              PR -- 2 tile ini cuma relevan buat lokasi peminta lain. */}
+          {!info.location.is_default_purchase && (
+            <Link
+              href={`/portal-lokasi/${slug}/terima`}
+              className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
+            >
+              <span className="flex items-center gap-2.5">
+                <span className="text-xl">📦</span>
+                <span className="text-sm font-medium text-zinc-800">Terima Barang dari Gudang</span>
               </span>
-            )}
-          </Link>
+              {!!info.pending_receive_count && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                  {info.pending_receive_count}
+                </span>
+              )}
+            </Link>
+          )}
 
-          {info.purchase_request_slug && (
+          {info.purchase_request_slug && !info.location.is_default_purchase && (
             <Link
               href={`/portal-lokasi/${slug}/permintaan-barang`}
               className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
             >
               <span className="text-xl">📝</span>
               <span className="text-sm font-medium text-zinc-800">Permintaan Barang</span>
+            </Link>
+          )}
+
+          {info.location.is_default_purchase && (
+            <Link
+              href={`/portal-lokasi/${slug}/yang-masuk`}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
+            >
+              <span className="text-xl">📋</span>
+              <span className="text-sm font-medium text-zinc-800">Yang Masuk (PR &amp; PO)</span>
             </Link>
           )}
 
