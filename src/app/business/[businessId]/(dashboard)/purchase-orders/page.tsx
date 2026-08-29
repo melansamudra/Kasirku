@@ -67,6 +67,40 @@ export default async function PurchaseOrdersPage({
     ? (allPos ?? []).filter((p) => locationIdByRequest.get(p.purchase_request_id ?? "") === filterLocationId)
     : (allPos ?? []);
   const pendingCount = pos.filter((p) => p.status === "issued").length;
+
+  const approvedPoIds = pos.filter((p) => p.status === "approved").map((p) => p.id);
+  let pendingReceiveCount = 0;
+  if (approvedPoIds.length > 0) {
+    const [{ data: poItems }, { data: grns }] = await Promise.all([
+      supabase
+        .from("purchase_order_items")
+        .select("id, purchase_order_id, qty")
+        .in("purchase_order_id", approvedPoIds),
+      supabase.from("goods_receipt_notes").select("id, purchase_order_id").in("purchase_order_id", approvedPoIds),
+    ]);
+    const grnIds = (grns ?? []).map((g) => g.id);
+    const receivedByPoItem = new Map<string, number>();
+    if (grnIds.length > 0) {
+      const { data: grnItems } = await supabase
+        .from("goods_receipt_note_items")
+        .select("grn_id, purchase_order_item_id, qty_received, condition")
+        .in("grn_id", grnIds)
+        .eq("condition", "ok");
+      for (const gi of grnItems ?? []) {
+        receivedByPoItem.set(
+          gi.purchase_order_item_id,
+          (receivedByPoItem.get(gi.purchase_order_item_id) ?? 0) + Number(gi.qty_received),
+        );
+      }
+    }
+    const poIdsWithOutstanding = new Set(
+      (poItems ?? [])
+        .filter((it) => Number(it.qty) - (receivedByPoItem.get(it.id) ?? 0) > 0.001)
+        .map((it) => it.purchase_order_id),
+    );
+    pendingReceiveCount = poIdsWithOutstanding.size;
+  }
+
   const activeLocationName = filterLocationId
     ? (locations ?? []).find((l) => l.id === filterLocationId)?.name
     : null;
@@ -113,6 +147,9 @@ export default async function PurchaseOrdersPage({
 
       {pendingCount > 0 && (
         <p className="mt-2 text-xs font-medium text-amber-600">⏳ {pendingCount} PO menunggu approval</p>
+      )}
+      {pendingReceiveCount > 0 && (
+        <p className="mt-1 text-xs font-medium text-amber-600">📦 {pendingReceiveCount} PO menunggu diterima</p>
       )}
 
       <div className="mt-4 space-y-2">

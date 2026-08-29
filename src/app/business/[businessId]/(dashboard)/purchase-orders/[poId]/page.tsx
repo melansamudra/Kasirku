@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PrintButton from "./print-button";
 import ApproveForm from "./approve-form";
+import GrnForm from "./grn-form";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -64,6 +65,58 @@ export default async function PurchaseOrderDetailPage({
     Number(po.total_amount) >= APPROVAL_THRESHOLD
       ? "Nominal ≥ Rp5.000.000 — Operations Supervisor / Owner"
       : "Nominal < Rp5.000.000 — Finance / Cost Control";
+
+  let grns: { id: string; grn_number: string; received_by: string; created_at: string }[] = [];
+  let grnItemsByGrnId = new Map<string, { item_name: string; unit: string; qty_received: number; condition: string; condition_note: string | null }[]>();
+  let outstandingItems: { poItemId: string; itemName: string; unit: string; remainingQty: number }[] = [];
+
+  if (po.status === "approved" && (items ?? []).length > 0) {
+    const poItemIds = (items ?? []).map((it) => it.id);
+    const { data: grnRows } = await supabase
+      .from("goods_receipt_notes")
+      .select("id, grn_number, received_by, created_at")
+      .eq("purchase_order_id", poId)
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false });
+    grns = grnRows ?? [];
+
+    const grnIds = grns.map((g) => g.id);
+    const receivedByPoItem = new Map<string, number>();
+    if (grnIds.length > 0) {
+      const { data: grnItems } = await supabase
+        .from("goods_receipt_note_items")
+        .select("grn_id, purchase_order_item_id, qty_received, condition, condition_note")
+        .in("grn_id", grnIds);
+
+      const poItemById = new Map((items ?? []).map((it) => [it.id, it]));
+      for (const gi of grnItems ?? []) {
+        const poItem = poItemById.get(gi.purchase_order_item_id);
+        const list = grnItemsByGrnId.get(gi.grn_id) ?? [];
+        list.push({
+          item_name: poItem?.item_name ?? "(barang)",
+          unit: poItem?.unit ?? "",
+          qty_received: Number(gi.qty_received),
+          condition: gi.condition,
+          condition_note: gi.condition_note,
+        });
+        grnItemsByGrnId.set(gi.grn_id, list);
+
+        if (gi.condition === "ok") {
+          receivedByPoItem.set(
+            gi.purchase_order_item_id,
+            (receivedByPoItem.get(gi.purchase_order_item_id) ?? 0) + Number(gi.qty_received),
+          );
+        }
+      }
+    }
+
+    outstandingItems = (items ?? [])
+      .map((it) => {
+        const remaining = Number(it.qty) - (receivedByPoItem.get(it.id) ?? 0);
+        return { poItemId: it.id, itemName: it.item_name, unit: it.unit, remainingQty: Math.round(remaining * 100) / 100 };
+      })
+      .filter((it) => it.remainingQty > 0);
+  }
 
   return (
     <div className="w-full max-w-2xl print:max-w-none">
@@ -157,6 +210,41 @@ export default async function PurchaseOrderDetailPage({
 
       {po.status === "issued" && (
         <ApproveForm businessId={businessId} poId={po.id} employees={employees ?? []} approvalLabel={approvalLabel} />
+      )}
+
+      {po.status === "approved" && grns.length > 0 && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4 print:hidden">
+          <h2 className="text-sm font-semibold text-zinc-900">Riwayat Penerimaan Barang (GRN)</h2>
+          <div className="mt-2 space-y-2">
+            {grns.map((g) => (
+              <div key={g.id} className="rounded-lg border border-zinc-100 p-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-zinc-800">{g.grn_number}</p>
+                  <p className="text-[10px] text-zinc-400">{formatDateTime(g.created_at)}</p>
+                </div>
+                <p className="text-[11px] text-zinc-500">Diterima oleh {g.received_by}</p>
+                <div className="mt-1.5 space-y-1">
+                  {(grnItemsByGrnId.get(g.id) ?? []).map((gi, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-700">{gi.item_name}</span>
+                      <span
+                        className={
+                          gi.condition === "ok" ? "font-medium text-brand-700" : "font-medium text-red-600"
+                        }
+                      >
+                        {gi.qty_received} {gi.unit} {gi.condition === "ok" ? "— OK" : `— Rusak (${gi.condition_note})`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {po.status === "approved" && outstandingItems.length > 0 && (
+        <GrnForm businessId={businessId} poId={po.id} employees={employees ?? []} outstandingItems={outstandingItems} />
       )}
 
       <div className="mt-4">

@@ -25,7 +25,7 @@ export default async function LocationBahanBakuPage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name")
+    .select("id, name, is_default_purchase")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -107,6 +107,61 @@ export default async function LocationBahanBakuPage({
     }
   }
 
+  // Barang dari supplier fisik selalu diterima di Gudang Utama (titik
+  // pembelian default) -- section GRN cuma tampil di lokasi ini, terpisah
+  // dari "Ambil dari Gudang" (transfer internal antar lokasi) di atas.
+  let pendingPos: { id: string; po_number: string; supplierName: string; outstandingCount: number }[] = [];
+  if (location.is_default_purchase) {
+    const { data: approvedPos } = await supabase
+      .from("purchase_orders")
+      .select("id, po_number, supplier_id")
+      .eq("business_id", businessId)
+      .eq("status", "approved");
+
+    if (approvedPos && approvedPos.length > 0) {
+      const approvedPoIds = approvedPos.map((p) => p.id);
+      const [{ data: poItems }, { data: suppliers }, { data: grns }] = await Promise.all([
+        supabase.from("purchase_order_items").select("id, purchase_order_id, qty").in("purchase_order_id", approvedPoIds),
+        supabase.from("suppliers").select("id, name").eq("business_id", businessId),
+        supabase.from("goods_receipt_notes").select("id, purchase_order_id").in("purchase_order_id", approvedPoIds),
+      ]);
+
+      const supplierNameById = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
+      const grnIds = (grns ?? []).map((g) => g.id);
+      const receivedByPoItem = new Map<string, number>();
+      if (grnIds.length > 0) {
+        const { data: grnItems } = await supabase
+          .from("goods_receipt_note_items")
+          .select("grn_id, purchase_order_item_id, qty_received")
+          .in("grn_id", grnIds)
+          .eq("condition", "ok");
+        for (const gi of grnItems ?? []) {
+          receivedByPoItem.set(
+            gi.purchase_order_item_id,
+            (receivedByPoItem.get(gi.purchase_order_item_id) ?? 0) + Number(gi.qty_received),
+          );
+        }
+      }
+
+      const outstandingCountByPo = new Map<string, number>();
+      for (const it of poItems ?? []) {
+        const remaining = Number(it.qty) - (receivedByPoItem.get(it.id) ?? 0);
+        if (remaining > 0.001) {
+          outstandingCountByPo.set(it.purchase_order_id, (outstandingCountByPo.get(it.purchase_order_id) ?? 0) + 1);
+        }
+      }
+
+      pendingPos = approvedPos
+        .filter((p) => outstandingCountByPo.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          po_number: p.po_number,
+          supplierName: supplierNameById.get(p.supplier_id ?? "") ?? "—",
+          outstandingCount: outstandingCountByPo.get(p.id) ?? 0,
+        }));
+    }
+  }
+
   return (
     <div className="w-full max-w-2xl">
       <p className="text-xs text-zinc-400">
@@ -123,6 +178,33 @@ export default async function LocationBahanBakuPage({
         baku pusat. Daftar bahannya sama (satu master untuk seluruh bisnis), cuma jumlah stoknya
         dilacak sendiri-sendiri per lokasi.
       </p>
+
+      {pendingPos.length > 0 && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <h2 className="text-sm font-semibold text-amber-800">🚚 PO Menunggu Diterima dari Supplier</h2>
+          <p className="mt-0.5 text-[11px] text-amber-700">
+            Barang dari PO ini belum dicatat penerimaannya (GRN). Buka PO-nya untuk input qty diterima
+            & kondisi barang.
+          </p>
+          <div className="mt-3 space-y-2">
+            {pendingPos.map((p) => (
+              <Link
+                key={p.id}
+                href={`/business/${businessId}/purchase-orders/${p.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 hover:shadow-sm"
+              >
+                <div>
+                  <p className="text-xs font-medium text-zinc-800">{p.po_number}</p>
+                  <p className="text-[10px] text-zinc-400">{p.supplierName}</p>
+                </div>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                  {p.outstandingCount} barang belum diterima
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {pendingFulfillments.length > 0 && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">

@@ -2773,6 +2773,92 @@ export type Database = {
           },
         ];
       };
+      goods_receipt_notes: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_order_id: string;
+          grn_number: string;
+          received_by: string;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_order_id: string;
+          grn_number: string;
+          received_by: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_order_id?: string;
+          grn_number?: string;
+          received_by?: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_notes_purchase_order_id_fkey";
+            columns: ["purchase_order_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      goods_receipt_note_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          grn_id: string;
+          purchase_order_item_id: string;
+          qty_received: number;
+          condition: string;
+          condition_note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          grn_id: string;
+          purchase_order_item_id: string;
+          qty_received: number;
+          condition: string;
+          condition_note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          grn_id?: string;
+          purchase_order_item_id?: string;
+          qty_received?: number;
+          condition?: string;
+          condition_note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_note_items_grn_id_fkey";
+            columns: ["grn_id"];
+            isOneToOne: false;
+            referencedRelation: "goods_receipt_notes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "goods_receipt_note_items_purchase_order_item_id_fkey";
+            columns: ["purchase_order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procurement_budget_lines: {
         Row: {
           id: string;
