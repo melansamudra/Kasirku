@@ -1,8 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { forwardAllocationsToSupplier } from "./actions";
+
+const PO_STATUS_LABEL: Record<string, string> = {
+  issued: "Menunggu Approval",
+  approved: "Approved",
+  rejected: "Ditolak",
+};
+const PO_STATUS_STYLE: Record<string, string> = {
+  issued: "bg-amber-50 text-amber-700",
+  approved: "bg-brand-50 text-brand-700",
+  rejected: "bg-red-50 text-red-700",
+};
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
@@ -31,6 +43,14 @@ type GroupAllocation = {
   defaultUnitPrice: number;
 };
 type Employee = { id: string; name: string };
+type PoInfo = {
+  id: string;
+  poNumber: string;
+  supplierId: string | null;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+};
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -46,6 +66,7 @@ export default function SupplierGroup({
   allocations,
   costControlEnabled = false,
   employees = [],
+  existingPos = [],
 }: {
   businessId: string;
   requestId: string;
@@ -56,6 +77,7 @@ export default function SupplierGroup({
   allocations: GroupAllocation[];
   costControlEnabled?: boolean;
   employees?: Employee[];
+  existingPos?: PoInfo[];
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -123,9 +145,24 @@ export default function SupplierGroup({
       });
   }
 
+  const openPo = existingPos.find((po) => po.status === "issued");
+  const sortedHistory = [...existingPos].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
   return (
     <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-3">
       <p className="text-xs font-semibold text-zinc-900">Ke: {supplier.name}</p>
+      {costControlEnabled && openPo && (
+        <p className="mt-1 text-[11px] text-zinc-500">
+          📄 Barang ini akan ditambahkan ke{" "}
+          <Link
+            href={`/business/${businessId}/purchase-orders/${openPo.id}`}
+            className="font-medium text-brand-600 hover:underline"
+          >
+            {openPo.poNumber}
+          </Link>{" "}
+          yang belum di-approve — bukan bikin PO baru.
+        </p>
+      )}
       {costControlEnabled ? (
         <div className="mt-1.5 space-y-1">
           {allocations.map((a) => {
@@ -210,6 +247,29 @@ export default function SupplierGroup({
             : `Teruskan ${allocations.length} Barang ke ${supplier.name}`}
       </button>
       {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
+
+      {costControlEnabled && sortedHistory.length > 0 && (
+        <div className="mt-2 border-t border-brand-100 pt-2">
+          <p className="text-[10.5px] font-medium text-zinc-500">Riwayat PO ke {supplier.name} dari order ini</p>
+          <div className="mt-1 space-y-1">
+            {sortedHistory.map((po) => (
+              <Link
+                key={po.id}
+                href={`/business/${businessId}/purchase-orders/${po.id}`}
+                className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1 text-[11px] hover:shadow-sm"
+              >
+                <span className="font-medium text-zinc-700">{po.poNumber}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-zinc-400">Rp{Math.round(po.totalAmount).toLocaleString("id-ID")}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${PO_STATUS_STYLE[po.status]}`}>
+                    {PO_STATUS_LABEL[po.status] ?? po.status}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

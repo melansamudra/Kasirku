@@ -18,6 +18,14 @@ type Allocation = {
   purchaseId: string | null;
 };
 type StockFulfillment = { qty: number; markedAt: string; receivedAt: string | null };
+type PoInfo = {
+  id: string;
+  poNumber: string;
+  supplierId: string | null;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+};
 type RequestItem = {
   id: string;
   itemName: string;
@@ -57,9 +65,11 @@ export default function RequestCard({
   employees,
   costControlEnabled,
   procurementBudgetGateEnabled,
+  purchaseOrders,
 }: {
   businessId: string;
   businessName: string;
+  purchaseOrders: PoInfo[];
   request: {
     id: string;
     employeeName: string;
@@ -270,6 +280,7 @@ export default function RequestCard({
                 allocations={allocations}
                 costControlEnabled={costControlEnabled}
                 employees={employees}
+                existingPos={purchaseOrders.filter((po) => po.supplierId === supplierId)}
               />
             );
           })}

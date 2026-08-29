@@ -51,6 +51,16 @@ type RequestRow = {
   pr_number: string | null;
 };
 
+type PurchaseOrderRow = {
+  id: string;
+  po_number: string;
+  supplier_id: string | null;
+  purchase_request_id: string | null;
+  status: string;
+  total_amount: number;
+  created_at: string;
+};
+
 export default async function PermintaanBarangPage({
   params,
   searchParams,
@@ -125,6 +135,23 @@ export default async function PermintaanBarangPage({
         .range(from, to),
     ),
   ]);
+
+  const requestIds = (requests ?? []).map((r) => r.id);
+  const { data: purchaseOrders } = requestIds.length > 0
+    ? await supabase
+        .from("purchase_orders")
+        .select("id, po_number, supplier_id, purchase_request_id, status, total_amount, created_at")
+        .eq("business_id", businessId)
+        .in("purchase_request_id", requestIds)
+    : { data: [] as PurchaseOrderRow[] };
+
+  const posByRequest = new Map<string, PurchaseOrderRow[]>();
+  for (const po of (purchaseOrders ?? []) as PurchaseOrderRow[]) {
+    if (!po.purchase_request_id) continue;
+    const list = posByRequest.get(po.purchase_request_id) ?? [];
+    list.push(po);
+    posByRequest.set(po.purchase_request_id, list);
+  }
 
   const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
   const priceByIngredient = new Map((ingredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
@@ -258,6 +285,14 @@ export default async function PermintaanBarangPage({
               employees={employees ?? []}
               costControlEnabled={business.cost_control_enabled ?? false}
               procurementBudgetGateEnabled={procurementBudgetGateEnabled}
+              purchaseOrders={(posByRequest.get(r.id) ?? []).map((po) => ({
+                id: po.id,
+                poNumber: po.po_number,
+                supplierId: po.supplier_id,
+                status: po.status,
+                totalAmount: Number(po.total_amount),
+                createdAt: po.created_at,
+              }))}
               request={{
                 id: r.id,
                 employeeName: r.employee_name,

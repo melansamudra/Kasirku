@@ -460,6 +460,7 @@ export async function forwardAllocationsToSupplier(
   let poNumber: string | null = null;
   let poTotalAmount = 0;
   let poItemCount = 0;
+  let mergedIntoExisting = false;
 
   if (business?.cost_control_enabled) {
     const { data: itemRows } = await supabase
@@ -485,39 +486,83 @@ export async function forwardAllocationsToSupplier(
       };
     });
     const totalAmount = poItems.reduce((sum, i) => sum + i.subtotal, 0);
-    const now = new Date();
-    const dateCompact = now.toISOString().slice(0, 10).replaceAll("-", "");
-    const newPoNumber = `PO-${dateCompact}-${Date.now().toString().slice(-6)}`;
 
-    const { data: po, error: poError } = await supabase
+    // Kalau supplier ini masih punya PO "issued" (belum di-approve/ditolak)
+    // untuk PR yang sama, barang baru DITAMBAHKAN ke situ -- bukan bikin PO
+    // terpisah. Sebelumnya tiap kali "Teruskan" diklik selalu bikin PO baru,
+    // jadi supplier yang sama bisa punya beberapa PO cuma karena barangnya
+    // diteruskan di waktu berbeda-beda (laporan user 2026-08-29).
+    const { data: existingPo } = await supabase
       .from("purchase_orders")
-      .insert({
-        business_id: businessId,
-        po_number: newPoNumber,
-        supplier_id: supplierId,
-        purchase_request_id: requestId,
-        total_amount: totalAmount,
-        issued_by: issuedBy?.trim() || null,
-      })
-      .select("id")
-      .single();
+      .select("id, po_number, total_amount")
+      .eq("business_id", businessId)
+      .eq("supplier_id", supplierId)
+      .eq("purchase_request_id", requestId)
+      .eq("status", "issued")
+      .maybeSingle();
 
-    if (poError || !po) return { error: poError?.message ?? "Gagal menerbitkan PO." };
+    let targetPoId: string;
+    let targetPoNumber: string;
+    let newTotalAmount: number;
+
+    if (existingPo) {
+      targetPoId = existingPo.id;
+      targetPoNumber = existingPo.po_number;
+      newTotalAmount = Number(existingPo.total_amount) + totalAmount;
+      const { error: updTotalErr } = await supabase
+        .from("purchase_orders")
+        .update({ total_amount: newTotalAmount })
+        .eq("id", targetPoId)
+        .eq("business_id", businessId);
+      if (updTotalErr) return { error: updTotalErr.message };
+      mergedIntoExisting = true;
+    } else {
+      const now = new Date();
+      const dateCompact = now.toISOString().slice(0, 10).replaceAll("-", "");
+      targetPoNumber = `PO-${dateCompact}-${Date.now().toString().slice(-6)}`;
+      newTotalAmount = totalAmount;
+
+      const { data: po, error: poError } = await supabase
+        .from("purchase_orders")
+        .insert({
+          business_id: businessId,
+          po_number: targetPoNumber,
+          supplier_id: supplierId,
+          purchase_request_id: requestId,
+          total_amount: totalAmount,
+          issued_by: issuedBy?.trim() || null,
+        })
+        .select("id")
+        .single();
+
+      if (poError || !po) return { error: poError?.message ?? "Gagal menerbitkan PO." };
+      targetPoId = po.id;
+    }
 
     const { error: poItemsError } = await supabase
       .from("purchase_order_items")
-      .insert(poItems.map((i) => ({ business_id: businessId, purchase_order_id: po.id, ...i })));
+      .insert(poItems.map((i) => ({ business_id: businessId, purchase_order_id: targetPoId, ...i })));
     if (poItemsError) {
-      // PO header sudah kesave tanpa item -- hapus lagi supaya tidak
-      // nyangkut PO kosong yang bikin bingung, forwarded_at juga belum
-      // keset jadi retry dari awal aman.
-      await supabase.from("purchase_orders").delete().eq("id", po.id).eq("business_id", businessId);
+      if (mergedIntoExisting) {
+        // Balikin total_amount PO existing -- barangnya gagal masuk, jangan
+        // biarkan totalnya kadung nambah.
+        await supabase
+          .from("purchase_orders")
+          .update({ total_amount: existingPo!.total_amount })
+          .eq("id", targetPoId)
+          .eq("business_id", businessId);
+      } else {
+        // PO header sudah kesave tanpa item -- hapus lagi supaya tidak
+        // nyangkut PO kosong yang bikin bingung, forwarded_at juga belum
+        // keset jadi retry dari awal aman.
+        await supabase.from("purchase_orders").delete().eq("id", targetPoId).eq("business_id", businessId);
+      }
       return { error: poItemsError.message };
     }
 
-    poId = po.id;
-    poNumber = newPoNumber;
-    poTotalAmount = totalAmount;
+    poId = targetPoId;
+    poNumber = targetPoNumber;
+    poTotalAmount = newTotalAmount;
     poItemCount = poItems.length;
   }
 
@@ -538,8 +583,10 @@ export async function forwardAllocationsToSupplier(
       businessId,
       "produk",
       "sukses",
-      `PO diterbitkan: ${poNumber}`,
-      `Rp${poTotalAmount.toLocaleString("id-ID")} — ${poItemCount} barang`,
+      mergedIntoExisting ? `Barang ditambahkan ke PO: ${poNumber}` : `PO diterbitkan: ${poNumber}`,
+      mergedIntoExisting
+        ? `+${poItemCount} barang — total PO sekarang Rp${poTotalAmount.toLocaleString("id-ID")}`
+        : `Rp${poTotalAmount.toLocaleString("id-ID")} — ${poItemCount} barang`,
     );
     revalidatePath(`/business/${businessId}/purchase-orders`);
   }
