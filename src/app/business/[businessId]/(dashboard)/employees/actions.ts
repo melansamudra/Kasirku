@@ -162,3 +162,41 @@ export async function setEmployeeActive(businessId: string, employeeId: string, 
   }
   revalidatePath(`/business/${businessId}/employees`);
 }
+
+export type SetPinState = { error: string | null };
+
+// PIN Portal Lokasi -- terpisah total dari PIN kasir (cashiers.pin_hash).
+// Hash dilakukan di RPC (pgcrypto), bukan di sini -- lihat migration
+// 20260829040000_location_portal_pin.sql.
+export async function setEmployeePin(
+  businessId: string,
+  employeeId: string,
+  locationId: string,
+  _prevState: SetPinState,
+  formData: FormData,
+): Promise<SetPinState> {
+  const pin = formData.get("pin") as string;
+  const confirmPin = formData.get("confirmPin") as string;
+
+  if (!/^\d{4}$/.test(pin)) {
+    return { error: "PIN harus 4 digit angka." };
+  }
+  if (pin !== confirmPin) {
+    return { error: "PIN dan konfirmasi PIN tidak sama." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_employee_pin", {
+    p_business_id: businessId,
+    p_employee_id: employeeId,
+    p_pin: pin,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(supabase, businessId, "pengaturan", "info", "PIN Portal Lokasi diset/diganti untuk staf");
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/staf`);
+  return { error: null };
+}

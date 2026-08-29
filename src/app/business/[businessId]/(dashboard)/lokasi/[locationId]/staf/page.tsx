@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { addEmployee } from "../../../employees/actions";
+import { addEmployee, setEmployeePin } from "../../../employees/actions";
 import AddEmployeeForm from "../../../employees/add-employee-form";
+import SetPinButton from "./set-pin-button";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -37,7 +38,7 @@ export default async function LocationStafPage({
 
   const { data: employees } = await supabase
     .from("employees")
-    .select("id, name, salary_type, daily_rate, monthly_rate, note, active")
+    .select("id, name, salary_type, daily_rate, monthly_rate, note, active, has_pin")
     .eq("business_id", businessId)
     .eq("location_id", locationId)
     .order("created_at", { ascending: true });
@@ -95,6 +96,10 @@ export default async function LocationStafPage({
                     : `${formatRupiah(Number(e.daily_rate))}/hari`}
                   {e.note && ` · ${e.note}`}
                 </p>
+                <SetPinButton
+                  action={setEmployeePin.bind(null, businessId, e.id, locationId)}
+                  hasPin={e.has_pin ?? false}
+                />
               </div>
             </div>
           ))

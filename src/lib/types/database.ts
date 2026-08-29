@@ -315,6 +315,7 @@ export type Database = {
           stock_opname_slug: string | null;
           location_transfer_slug: string | null;
           receive_stock_slug: string | null;
+          location_portal_slug: string | null;
           procurement_budget_gate_enabled: boolean;
         };
         Insert: {
@@ -352,6 +353,7 @@ export type Database = {
           stock_opname_slug?: string | null;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
+          location_portal_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -388,6 +390,7 @@ export type Database = {
           procurement_budget_gate_enabled?: boolean;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
+          location_portal_slug?: string | null;
         };
         Relationships: [];
       };
@@ -644,6 +647,8 @@ export type Database = {
           contract_end: string | null;
           lembur_rate_per_hour: number | null;
           location_id: string | null;
+          pin_hash: string | null;
+          has_pin: boolean | null;
         };
         Insert: {
           id?: string;
@@ -659,6 +664,7 @@ export type Database = {
           contract_end?: string | null;
           lembur_rate_per_hour?: number | null;
           location_id?: string | null;
+          pin_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -674,6 +680,7 @@ export type Database = {
           contract_end?: string | null;
           lembur_rate_per_hour?: number | null;
           location_id?: string | null;
+          pin_hash?: string | null;
         };
         Relationships: [
           {
@@ -3396,6 +3403,7 @@ export type Database = {
           status: string;
           created_at: string;
           fulfilled_at: string | null;
+          fulfilled_by_name: string | null;
         };
         Insert: {
           id?: string;
@@ -3407,6 +3415,7 @@ export type Database = {
           status?: string;
           created_at?: string;
           fulfilled_at?: string | null;
+          fulfilled_by_name?: string | null;
         };
         Update: {
           id?: string;
@@ -3418,6 +3427,7 @@ export type Database = {
           status?: string;
           created_at?: string;
           fulfilled_at?: string | null;
+          fulfilled_by_name?: string | null;
         };
         Relationships: [];
       };
@@ -4240,6 +4250,26 @@ export type Database = {
           p_ingredient_counts: Json;
           p_semi_finished_counts: Json;
         };
+        Returns: Json;
+      };
+      set_employee_pin: {
+        Args: { p_business_id: string; p_employee_id: string; p_pin: string };
+        Returns: undefined;
+      };
+      verify_employee_pin: {
+        Args: { p_slug: string; p_employee_id: string; p_pin: string };
+        Returns: { employee_id: string; employee_name: string }[];
+      };
+      get_location_portal_home: {
+        Args: { p_slug: string; p_location_id: string };
+        Returns: Json;
+      };
+      get_location_portal_transfers: {
+        Args: { p_slug: string; p_location_id: string };
+        Returns: Json;
+      };
+      fulfill_location_transfer_public: {
+        Args: { p_slug: string; p_employee_id: string; p_transfer_id: string; p_qty_sent: Json };
         Returns: Json;
       };
       get_receive_stock_info: {
