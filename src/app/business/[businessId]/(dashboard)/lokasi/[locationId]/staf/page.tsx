@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addEmployee, setEmployeePin } from "../../../employees/actions";
 import AddEmployeeForm from "../../../employees/add-employee-form";
 import SetPinButton from "./set-pin-button";
+import PortalLinkBox from "./portal-link-box";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -19,7 +20,7 @@ export default async function LocationStafPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, location_portal_slug")
     .eq("id", businessId)
     .single();
   if (!business || !business.cost_control_enabled) {
@@ -67,6 +68,10 @@ export default async function LocationStafPage({
         </Link>{" "}
         (business-wide).
       </p>
+
+      {business.location_portal_slug && (
+        <PortalLinkBox businessId={businessId} locationId={locationId} initialSlug={business.location_portal_slug} />
+      )}
 
       {totalGajiBulanan > 0 && (
         <div className="mt-4 rounded-xl bg-brand-50 px-4 py-3">
