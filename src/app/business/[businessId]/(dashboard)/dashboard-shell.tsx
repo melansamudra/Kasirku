@@ -116,7 +116,16 @@ function buildCostControlNavGroups(
     // "Produksi" -- Produksi cuma terjadi & memotong stok di lokasi itu.
     // Kosong (tidak ada baris stock_locations) = tidak ada grup tambahan,
     // jadi bisnis cost-control lain yang belum pakai fitur ini tidak terdampak.
-    ...stockLocations.map((loc) => ({
+    // Kitchen Atas/Bar Llauk DIKELUARKAN dari loop ini (filter di bawah) --
+    // menunya identik persis satu sama lain (Bahan Baku, Bahan Setengah
+    // Jadi, Stok Opname, Transfer Internal, Kartu Stok, Permintaan Barang),
+    // jadi digabung 1 pintu masuk "Operasional" (grup di bawah loop ini)
+    // alih-alih tiap lokasi punya grup sidebar sendiri -- 12 baris jadi 1.
+    // Dapur Produksi & Gudang Utama/Purchasing TIDAK ikut -- menunya lebih
+    // berat/beda karakter, tetap grup sendiri seperti sebelumnya.
+    ...stockLocations
+      .filter((loc) => loc.isProduction || loc.isDefaultPurchase)
+      .map((loc) => ({
       // Gudang Utama (is_default_purchase) ditampilkan sebagai "Purchasing"
       // di sidebar -- itu peran tim yang pegang lokasi ini (terima
       // Permintaan Barang dari semua unit, belanja ke supplier), bukan
@@ -217,6 +226,22 @@ function buildCostControlNavGroups(
         })(),
       ],
     })),
+    // Lokasi yang MENUNYA identik (Kitchen Atas/Bar Llauk -- bukan produksi,
+    // bukan default-purchase) digabung 1 pintu masuk di sini alih-alih grup
+    // sidebar sendiri-sendiri (lihat komentar di loop `stockLocations` di
+    // atas). Frame kanan (halaman /operasional) yang urus pilih lokasi lalu
+    // menu-nya, sidebar cukup 1 baris. Kosong = tidak ada lokasi begitu,
+    // grup ini tidak muncul sama sekali.
+    ...(stockLocations.some((loc) => !loc.isProduction && !loc.isDefaultPurchase)
+      ? [
+          {
+            title: "Operasional",
+            items: [
+              { key: "operasional", href: `${base}/operasional`, label: "Kitchen & Bar", icon: Store },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Pembelian & Stok",
       items: [
