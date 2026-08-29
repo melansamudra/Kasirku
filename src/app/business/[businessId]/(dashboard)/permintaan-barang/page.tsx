@@ -7,6 +7,26 @@ import PurchaseRequestLinkSection from "./link-section";
 import RequestCard from "./request-card";
 import TransferRequestCard from "./transfer-request-card";
 
+function formatRupiah(value: number) {
+  return value.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+}
+
+// Kunci tanggal buat pengelompokan Ringkasan per Tanggal -- dikonversi ke
+// zona Jakarta dulu (server bisa jalan di UTC), format en-CA (YYYY-MM-DD)
+// biar sortable sebagai string biasa.
+function jakartaDateKey(iso: string) {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
+
+function formatDateLabel(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00+07:00`).toLocaleDateString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
 type ItemRow = {
   id: string;
   purchase_request_id: string;
@@ -278,6 +298,19 @@ export default async function PermintaanBarangPage({
     itemsByRequest.set(it.purchase_request_id, list);
   }
 
+  const estimatedValueByRequestId = new Map<string, number>();
+  for (const [requestId, reqItems] of itemsByRequest) {
+    const value = reqItems.reduce((sum, it) => {
+      const price = it.ingredient_id
+        ? (priceByIngredient.get(it.ingredient_id) ?? 0)
+        : it.product_id
+          ? (priceByProduct.get(it.product_id) ?? 0)
+          : 0;
+      return sum + price * Number(it.qty_ordered);
+    }, 0);
+    estimatedValueByRequestId.set(requestId, value);
+  }
+
   const allRows = (requests ?? []) as RequestRow[];
   const rows = filterLocationId ? allRows.filter((r) => r.location_id === filterLocationId) : allRows;
   const filteredTransfers = filterLocationId
@@ -293,6 +326,23 @@ export default async function PermintaanBarangPage({
     ...rows.map((r): MergedRow => ({ kind: "pr", createdAt: r.created_at, data: r })),
     ...filteredTransfers.map((t): MergedRow => ({ kind: "transfer", createdAt: t.created_at, data: t })),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  // Ringkasan per Tanggal -- Owner minta rekap volume order harian (2026-08-29),
+  // dihitung dari data yang sama yang sudah dimuat (50 PR + 50 transfer
+  // terakhir, ikut filter lokasi kalau aktif) -- bukan query terpisah.
+  const summaryByDate = new Map<string, { prCount: number; transferCount: number; totalValue: number }>();
+  for (const row of mergedRows) {
+    const key = jakartaDateKey(row.createdAt);
+    const entry = summaryByDate.get(key) ?? { prCount: 0, transferCount: 0, totalValue: 0 };
+    if (row.kind === "pr") {
+      entry.prCount += 1;
+      entry.totalValue += estimatedValueByRequestId.get(row.data.id) ?? 0;
+    } else {
+      entry.transferCount += 1;
+    }
+    summaryByDate.set(key, entry);
+  }
+  const summaryDates = [...summaryByDate.keys()].sort((a, b) => b.localeCompare(a));
 
   const boundRegenerateSlug = regeneratePurchaseRequestSlug.bind(null, businessId);
   const procurementBudgetGateEnabled = business.procurement_budget_gate_enabled ?? false;
@@ -344,6 +394,42 @@ export default async function PermintaanBarangPage({
         <p className="mt-2 text-xs font-medium text-amber-600">
           📥 {baruCount} order baru menunggu diterima
         </p>
+      )}
+
+      {summaryDates.length > 0 && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
+          <h2 className="text-sm font-semibold text-zinc-900">📅 Ringkasan per Tanggal</h2>
+          <p className="mt-0.5 text-[11px] text-zinc-400">
+            Dari {mergedRows.length} order yang lagi dimuat di bawah (maksimal 50 PR + 50 BSJ terakhir).
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-zinc-400">
+                <tr className="border-b border-zinc-100">
+                  <th className="py-1.5 pr-3 text-left font-medium">Tanggal</th>
+                  <th className="px-3 py-1.5 text-right font-medium">🛒 Ke Purchasing</th>
+                  <th className="px-3 py-1.5 text-right font-medium">🥡 Ke Dapur Produksi</th>
+                  <th className="py-1.5 pl-3 text-right font-medium">Estimasi Nilai PR</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {summaryDates.map((dateKey) => {
+                  const s = summaryByDate.get(dateKey)!;
+                  return (
+                    <tr key={dateKey}>
+                      <td className="py-1.5 pr-3 text-zinc-700">{formatDateLabel(dateKey)}</td>
+                      <td className="px-3 py-1.5 text-right text-zinc-600">{s.prCount || "—"}</td>
+                      <td className="px-3 py-1.5 text-right text-zinc-600">{s.transferCount || "—"}</td>
+                      <td className="py-1.5 pl-3 text-right font-medium text-zinc-900">
+                        {s.totalValue > 0 ? formatRupiah(s.totalValue) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
@@ -402,14 +488,7 @@ export default async function PermintaanBarangPage({
 
             const r = row.data;
             const reqItems = itemsByRequest.get(r.id) ?? [];
-            const estimatedValue = reqItems.reduce((sum, it) => {
-              const price = it.ingredient_id
-                ? (priceByIngredient.get(it.ingredient_id) ?? 0)
-                : it.product_id
-                  ? (priceByProduct.get(it.product_id) ?? 0)
-                  : 0;
-              return sum + price * Number(it.qty_ordered);
-            }, 0);
+            const estimatedValue = estimatedValueByRequestId.get(r.id) ?? 0;
             return (
             <RequestCard
               key={r.id}
