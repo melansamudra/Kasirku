@@ -11,6 +11,7 @@ type PortalHome = {
   stock_opname_slug: string | null;
   production_scan_slug: string | null;
   purchase_request_slug: string | null;
+  location_transfer_slug: string | null;
   location: { id: string; name: string; is_production: boolean; is_default_purchase: boolean } | null;
   employees?: { id: string; name: string }[];
   pending_transfer_count?: number;
@@ -106,6 +107,20 @@ export default async function PortalLokasiPage({
                   {info.pending_receive_count}
                 </span>
               )}
+            </Link>
+          )}
+
+          {/* Kitchen/Bar (non-produksi, non-Gudang) -- kebutuhan mereka 2 hal
+              beda: minta Bahan Setengah Jadi ke Dapur Produksi (tile ini,
+              reuse Transfer Internal) vs minta bahan baku/dagang ke
+              Purchasing (tile "Permintaan Barang" di bawah). */}
+          {!info.location.is_production && !info.location.is_default_purchase && info.location_transfer_slug && (
+            <Link
+              href={`/portal-lokasi/${slug}/minta-bahan`}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
+            >
+              <span className="text-xl">🥡</span>
+              <span className="text-sm font-medium text-zinc-800">Minta Bahan ke Dapur Produksi</span>
             </Link>
           )}
 
