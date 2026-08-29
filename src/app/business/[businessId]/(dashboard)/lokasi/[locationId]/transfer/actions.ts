@@ -152,9 +152,14 @@ export async function fulfillLocationTransfer(
     return { error: "Isi jumlah yang dikirim untuk minimal 1 bahan." };
   }
 
+  // dn_number -- pola sama fulfill_location_transfer_public (RPC Portal),
+  // biar Surat Jalan tetap dapat nomor terlepas dari staf kirimnya lewat
+  // dashboard (di sini) atau Portal scan.
+  const dnNumber = `SJ-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${transferId.replaceAll("-", "").slice(-6)}`;
+
   await supabase
     .from("location_transfers")
-    .update({ status: "dikirim", fulfilled_at: new Date().toISOString() })
+    .update({ status: "dikirim", fulfilled_at: new Date().toISOString(), dn_number: dnNumber })
     .eq("id", transferId);
 
   await logActivity(

@@ -35,7 +35,7 @@ export default async function LocationTransferPage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name, is_production, is_default_purchase")
+    .select("id, name, is_production, is_default_purchase, portal_slug")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -177,7 +177,7 @@ export default async function LocationTransferPage({
 
   const { data: history } = await supabase
     .from("location_transfers")
-    .select("id, to_location_id, requested_by_name, note, created_at, fulfilled_at")
+    .select("id, to_location_id, requested_by_name, note, created_at, fulfilled_at, dn_number")
     .eq("business_id", businessId)
     .eq("from_location_id", locationId)
     .eq("status", "dikirim")
@@ -265,10 +265,22 @@ export default async function LocationTransferPage({
           <div className="space-y-2">
             {history.map((t) => (
               <div key={t.id} className="rounded-xl bg-white shadow-sm px-4 py-3">
-                <p className="text-sm font-medium text-zinc-900">
-                  {locationNameById.get(t.to_location_id) ?? "Lokasi lain"}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-zinc-900">
+                    {locationNameById.get(t.to_location_id) ?? "Lokasi lain"}
+                  </p>
+                  {location.portal_slug && (
+                    <Link
+                      href={`/portal-lokasi/${location.portal_slug}/kirim/riwayat/${t.id}/cetak`}
+                      target="_blank"
+                      className="text-[11px] font-medium text-brand-600 hover:underline"
+                    >
+                      🖨️ Cetak Surat Jalan
+                    </Link>
+                  )}
+                </div>
                 <p className="text-[11px] text-zinc-400">
+                  {t.dn_number ? `${t.dn_number} · ` : ""}
                   {t.requested_by_name} · dikirim {t.fulfilled_at ? formatDateTime(t.fulfilled_at) : "-"}
                 </p>
                 <div className="mt-1.5 space-y-0.5">

@@ -185,6 +185,11 @@ export default function RequestCard({
                 📍 {request.locationName}
               </span>
             )}
+            {costControlEnabled && (
+              <span className="ml-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+                🛒 → Purchasing
+              </span>
+            )}
           </p>
           <p className="text-[11px] text-zinc-400">
             {formatDateTime(request.createdAt)}

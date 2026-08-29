@@ -5,6 +5,7 @@ import { fetchAllRows } from "@/lib/pagination";
 import { regeneratePurchaseRequestSlug } from "./actions";
 import PurchaseRequestLinkSection from "./link-section";
 import RequestCard from "./request-card";
+import TransferRequestCard from "./transfer-request-card";
 
 type ItemRow = {
   id: string;
@@ -65,6 +66,26 @@ type PurchaseOrderRow = {
   created_at: string;
 };
 
+type TransferRow = {
+  id: string;
+  from_location_id: string;
+  to_location_id: string;
+  requested_by_name: string;
+  note: string | null;
+  status: string;
+  created_at: string;
+  dn_number: string | null;
+};
+type TransferItemRow = { id: string; transfer_id: string; item_name: string; unit: string; qty_requested: number; qty_sent: number | null };
+
+// Baris gabungan buat 1 list yang sama -- purchase_requests (ke Purchasing)
+// dan location_transfers (Bahan Setengah Jadi ke Dapur Produksi) itu 2
+// sistem/tabel TERPISAH TOTAL (beda alur kerja: PR butuh alokasi
+// supplier/budget, Transfer cuma 1x kirim tuntas) -- digabung di level
+// TAMPILAN saja (disortir bareng by tanggal, dikasih label sumbernya),
+// bukan digabung skemanya (arahan user 2026-08-29).
+type MergedRow = { kind: "pr"; createdAt: string; data: RequestRow } | { kind: "transfer"; createdAt: string; data: TransferRow };
+
 export default async function PermintaanBarangPage({
   params,
   searchParams,
@@ -97,6 +118,7 @@ export default async function PermintaanBarangPage({
     { data: employees },
     fulfillments,
     stockRows,
+    { data: transfers },
   ] = await Promise.all([
     supabase
       .from("suppliers")
@@ -122,7 +144,7 @@ export default async function PermintaanBarangPage({
       .eq("business_id", businessId),
     supabase.from("ingredients").select("id, department, unit_cost").eq("business_id", businessId),
     supabase.from("products").select("id, cost").eq("business_id", businessId),
-    supabase.from("stock_locations").select("id, name, is_production").eq("business_id", businessId),
+    supabase.from("stock_locations").select("id, name, is_production, portal_slug").eq("business_id", businessId),
     supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
     fetchAllRows<FulfillmentRow>((from, to) =>
       supabase
@@ -138,7 +160,29 @@ export default async function PermintaanBarangPage({
         .eq("business_id", businessId)
         .range(from, to),
     ),
+    supabase
+      .from("location_transfers")
+      .select("id, from_location_id, to_location_id, requested_by_name, note, status, created_at, dn_number")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
+
+  const dapurProduksi = (locations ?? []).find((l) => l.is_production);
+  const transferRows = (transfers ?? []) as TransferRow[];
+  const transferIds = transferRows.map((t) => t.id);
+  const { data: transferItems } = transferIds.length > 0
+    ? await supabase
+        .from("location_transfer_items")
+        .select("id, transfer_id, item_name, unit, qty_requested, qty_sent")
+        .in("transfer_id", transferIds)
+    : { data: [] as TransferItemRow[] };
+  const transferItemsByTransfer = new Map<string, TransferItemRow[]>();
+  for (const it of (transferItems ?? []) as TransferItemRow[]) {
+    const list = transferItemsByTransfer.get(it.transfer_id) ?? [];
+    list.push(it);
+    transferItemsByTransfer.set(it.transfer_id, list);
+  }
 
   const requestIds = (requests ?? []).map((r) => r.id);
   const { data: purchaseOrders } = requestIds.length > 0
@@ -236,10 +280,19 @@ export default async function PermintaanBarangPage({
 
   const allRows = (requests ?? []) as RequestRow[];
   const rows = filterLocationId ? allRows.filter((r) => r.location_id === filterLocationId) : allRows;
-  const baruCount = rows.filter((r) => r.status === "baru").length;
+  const filteredTransfers = filterLocationId
+    ? transferRows.filter((t) => t.to_location_id === filterLocationId)
+    : transferRows;
+  const baruCount =
+    rows.filter((r) => r.status === "baru").length + filteredTransfers.filter((t) => t.status === "baru").length;
   const activeLocationName = filterLocationId
     ? (locations ?? []).find((l) => l.id === filterLocationId)?.name
     : null;
+
+  const mergedRows: MergedRow[] = [
+    ...rows.map((r): MergedRow => ({ kind: "pr", createdAt: r.created_at, data: r })),
+    ...filteredTransfers.map((t): MergedRow => ({ kind: "transfer", createdAt: t.created_at, data: t })),
+  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const boundRegenerateSlug = regeneratePurchaseRequestSlug.bind(null, businessId);
   const procurementBudgetGateEnabled = business.procurement_budget_gate_enabled ?? false;
@@ -316,8 +369,38 @@ export default async function PermintaanBarangPage({
       </div>
 
       <div className="mt-4 space-y-2">
-        {rows.length > 0 ? (
-          rows.map((r) => {
+        {mergedRows.length > 0 ? (
+          mergedRows.map((row) => {
+            if (row.kind === "transfer") {
+              const t = row.data;
+              const tItems = transferItemsByTransfer.get(t.id) ?? [];
+              return (
+                <TransferRequestCard
+                  key={`transfer-${t.id}`}
+                  businessId={businessId}
+                  dapurProduksiLocationId={dapurProduksi?.id ?? ""}
+                  dapurProduksiPortalSlug={dapurProduksi?.portal_slug ?? null}
+                  transfer={{
+                    id: t.id,
+                    requestedByName: t.requested_by_name,
+                    toLocationName: locationNameById.get(t.to_location_id) ?? "—",
+                    status: t.status as "baru" | "dikirim",
+                    note: t.note,
+                    createdAt: t.created_at,
+                    dnNumber: t.dn_number,
+                    items: tItems.map((it) => ({
+                      id: it.id,
+                      itemName: it.item_name,
+                      unit: it.unit,
+                      qtyRequested: Number(it.qty_requested),
+                      qtySent: it.qty_sent !== null ? Number(it.qty_sent) : null,
+                    })),
+                  }}
+                />
+              );
+            }
+
+            const r = row.data;
             const reqItems = itemsByRequest.get(r.id) ?? [];
             const estimatedValue = reqItems.reduce((sum, it) => {
               const price = it.ingredient_id
