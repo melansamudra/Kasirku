@@ -16,6 +16,7 @@ import DepartmentSelect from "./department-select";
 import EditIngredientForm from "./edit-ingredient-form";
 import GenerateBarcodesButton from "./generate-barcodes-button";
 import ImportIngredientsForm from "./import-ingredients-form";
+import IngredientSearch from "./ingredient-search";
 import PurchaseUnitsManager from "./purchase-units-manager";
 
 function formatRupiah(value: number) {
@@ -117,9 +118,10 @@ export default async function IngredientsPage({
           </div>
         </div>
 
-        <div className="mt-6 space-y-2">
+        <div className="mt-6">
           {ingredients && ingredients.length > 0 ? (
-            ingredients.map((i) => (
+            <IngredientSearch names={ingredients.map((i) => i.name)}>
+              {ingredients.map((i) => (
               <div
                 key={i.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
@@ -180,7 +182,8 @@ export default async function IngredientsPage({
                   ingredientName={i.name}
                 />
               </div>
-            ))
+              ))}
+            </IngredientSearch>
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
               Belum ada bahan baku. Tambahkan minimal satu supaya bisa dipakai di resep.
