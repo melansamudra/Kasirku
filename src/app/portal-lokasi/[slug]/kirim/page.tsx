@@ -45,9 +45,14 @@ export default async function PortalKirimPage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
-        <Link href={`/portal-lokasi/${slug}`} className="text-xs text-zinc-400 hover:text-brand-600">
-          ← {location.name}
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href={`/portal-lokasi/${slug}`} className="text-xs text-zinc-400 hover:text-brand-600">
+            ← {location.name}
+          </Link>
+          <Link href={`/portal-lokasi/${slug}/kirim/riwayat`} className="text-xs font-medium text-brand-600 hover:underline">
+            📜 Riwayat & Cetak
+          </Link>
+        </div>
         <h1 className="mt-2 text-lg font-bold text-zinc-900">🚚 Kirim Bahan Setengah Jadi</h1>
         <p className="mt-1 text-[11px] text-zinc-400">Sebagai {session.name}</p>
 

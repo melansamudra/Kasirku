@@ -3401,6 +3401,7 @@ export type Database = {
           created_at: string;
           fulfilled_at: string | null;
           fulfilled_by_name: string | null;
+          dn_number: string | null;
         };
         Insert: {
           id?: string;
@@ -3413,6 +3414,7 @@ export type Database = {
           created_at?: string;
           fulfilled_at?: string | null;
           fulfilled_by_name?: string | null;
+          dn_number?: string | null;
         };
         Update: {
           id?: string;
@@ -3425,6 +3427,7 @@ export type Database = {
           created_at?: string;
           fulfilled_at?: string | null;
           fulfilled_by_name?: string | null;
+          dn_number?: string | null;
         };
         Relationships: [];
       };
@@ -4270,6 +4273,14 @@ export type Database = {
       };
       get_purchasing_portal_incoming: {
         Args: { p_slug: string };
+        Returns: Json;
+      };
+      get_location_portal_transfer_history: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      get_location_transfer_delivery_note: {
+        Args: { p_slug: string; p_transfer_id: string };
         Returns: Json;
       };
       fulfill_location_transfer_public: {
