@@ -18,18 +18,13 @@ type ProductionScanInfo = {
 
 export default async function PortalProduksiPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lokasi?: string }>;
 }) {
   const { slug } = await params;
-  const { lokasi } = await searchParams;
   const supabase = await createClient();
 
-  if (!lokasi) notFound();
-
-  const { data } = await supabase.rpc("get_location_portal_home", { p_slug: slug, p_location_id: lokasi });
+  const { data } = await supabase.rpc("get_location_portal_home", { p_slug: slug });
   if (!data) notFound();
   const info = data as unknown as PortalHome;
   if (!info.location) notFound();
@@ -38,7 +33,7 @@ export default async function PortalProduksiPage({
 
   const session = await getProductionSession(info.business_id, location.id);
   if (!session) {
-    redirect(`/portal-lokasi/${slug}?lokasi=${lokasi}`);
+    redirect(`/portal-lokasi/${slug}`);
   }
 
   if (!info.production_scan_slug) {
@@ -57,10 +52,7 @@ export default async function PortalProduksiPage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
-        <Link
-          href={`/portal-lokasi/${slug}?lokasi=${lokasi}`}
-          className="text-xs text-zinc-400 hover:text-brand-600"
-        >
+        <Link href={`/portal-lokasi/${slug}`} className="text-xs text-zinc-400 hover:text-brand-600">
           ← {location.name}
         </Link>
         <h1 className="mt-2 text-lg font-bold text-zinc-900">🏭 Catat Produksi</h1>

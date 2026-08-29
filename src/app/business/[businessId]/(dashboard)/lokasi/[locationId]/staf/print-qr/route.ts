@@ -15,21 +15,26 @@ export async function GET(
   const supabase = await createClient();
 
   const [{ data: biz }, { data: location }] = await Promise.all([
-    supabase.from("businesses").select("name, location_portal_slug").eq("id", businessId).single(),
-    supabase.from("stock_locations").select("name").eq("id", locationId).eq("business_id", businessId).maybeSingle(),
+    supabase.from("businesses").select("name").eq("id", businessId).single(),
+    supabase
+      .from("stock_locations")
+      .select("name, portal_slug")
+      .eq("id", locationId)
+      .eq("business_id", businessId)
+      .maybeSingle(),
   ]);
 
-  if (!biz?.location_portal_slug) {
+  if (!location || !biz) {
+    return new NextResponse("Lokasi tidak ditemukan.", { status: 404 });
+  }
+  if (!location.portal_slug) {
     return new NextResponse("Link Portal Lokasi belum tersedia.", {
       status: 200,
       headers: { "Content-Type": "text/plain" },
     });
   }
-  if (!location) {
-    return new NextResponse("Lokasi tidak ditemukan.", { status: 404 });
-  }
 
-  const url = `${SITE_URL}/portal-lokasi/${biz.location_portal_slug}?lokasi=${locationId}`;
+  const url = `${SITE_URL}/portal-lokasi/${location.portal_slug}`;
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, width: 320 });
   const locationName = location?.name ?? "Lokasi";
 

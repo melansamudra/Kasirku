@@ -19,8 +19,7 @@ export default function PortalLinkBox({
   const [error, setError] = useState<string | null>(null);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
-  const url =
-    typeof window !== "undefined" ? `${window.location.origin}/portal-lokasi/${slug}?lokasi=${locationId}` : "";
+  const url = typeof window !== "undefined" ? `${window.location.origin}/portal-lokasi/${slug}` : "";
 
   async function handleCopy() {
     await navigator.clipboard.writeText(url);

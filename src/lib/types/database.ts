@@ -315,7 +315,6 @@ export type Database = {
           stock_opname_slug: string | null;
           location_transfer_slug: string | null;
           receive_stock_slug: string | null;
-          location_portal_slug: string | null;
           procurement_budget_gate_enabled: boolean;
         };
         Insert: {
@@ -353,7 +352,6 @@ export type Database = {
           stock_opname_slug?: string | null;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
-          location_portal_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -390,7 +388,6 @@ export type Database = {
           procurement_budget_gate_enabled?: boolean;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
-          location_portal_slug?: string | null;
         };
         Relationships: [];
       };
@@ -3527,6 +3524,7 @@ export type Database = {
           created_at: string;
           is_default_purchase: boolean;
           is_production: boolean;
+          portal_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -3536,6 +3534,7 @@ export type Database = {
           created_at?: string;
           is_default_purchase?: boolean;
           is_production?: boolean;
+          portal_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -3545,6 +3544,7 @@ export type Database = {
           created_at?: string;
           is_default_purchase?: boolean;
           is_production?: boolean;
+          portal_slug?: string | null;
         };
         Relationships: [];
       };
@@ -4261,11 +4261,11 @@ export type Database = {
         Returns: { employee_id: string; employee_name: string }[];
       };
       get_location_portal_home: {
-        Args: { p_slug: string; p_location_id: string };
+        Args: { p_slug: string };
         Returns: Json;
       };
       get_location_portal_transfers: {
-        Args: { p_slug: string; p_location_id: string };
+        Args: { p_slug: string };
         Returns: Json;
       };
       fulfill_location_transfer_public: {

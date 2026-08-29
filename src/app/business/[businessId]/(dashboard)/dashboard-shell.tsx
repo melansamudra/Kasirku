@@ -200,12 +200,6 @@ function buildCostControlNavGroups(
                 icon: FileText,
               },
               {
-                key: `lokasi-${loc.id}-staf`,
-                href: `${base}/lokasi/${loc.id}/staf`,
-                label: "Staf",
-                icon: UserCog,
-              },
-              {
                 key: `lokasi-${loc.id}-biaya`,
                 href: `${base}/lokasi/${loc.id}/biaya`,
                 label: "Biaya Operasional",
@@ -263,7 +257,22 @@ function buildCostControlNavGroups(
     },
     {
       title: "Tim",
-      items: [{ key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog }],
+      items: [
+        { key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog },
+        // 1 link "Staf {lokasi}" per lokasi fisik -- dulu cuma nempel di
+        // grup sidebar Dapur Produksi sendiri (dan Kitchen Atas/Bar Llauk/
+        // Purchasing sama sekali tidak dapat entry point ke halaman ini),
+        // sekarang dikumpulkan di 1 tempat "Tim" biar Owner bisa atur PIN +
+        // ambil link Portal Lokasi buat staf di lokasi mana pun dari sini
+        // (arahan user 2026-08-29). Halaman `lokasi/[locationId]/staf` itu
+        // sendiri sudah generic dari awal, tidak perlu diubah.
+        ...stockLocations.map((loc) => ({
+          key: `lokasi-${loc.id}-staf`,
+          href: `${base}/lokasi/${loc.id}/staf`,
+          label: `Staf ${loc.isDefaultPurchase ? "Purchasing" : loc.name}`,
+          icon: UserCog,
+        })),
+      ],
     },
     {
       title: "Pengaturan",

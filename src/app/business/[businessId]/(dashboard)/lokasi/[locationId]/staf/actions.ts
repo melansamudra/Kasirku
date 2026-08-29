@@ -13,7 +13,11 @@ export async function regeneratePortalSlug(
   const supabase = await createClient();
   const slug = crypto.randomUUID().replace(/-/g, "");
 
-  const { error } = await supabase.from("businesses").update({ location_portal_slug: slug }).eq("id", businessId);
+  const { error } = await supabase
+    .from("stock_locations")
+    .update({ portal_slug: slug })
+    .eq("id", locationId)
+    .eq("business_id", businessId);
 
   if (error) return { error: error.message, slug: null };
 

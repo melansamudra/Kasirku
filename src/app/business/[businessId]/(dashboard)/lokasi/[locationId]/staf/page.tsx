@@ -20,7 +20,7 @@ export default async function LocationStafPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, location_portal_slug")
+    .select("id, name, cost_control_enabled")
     .eq("id", businessId)
     .single();
   if (!business || !business.cost_control_enabled) {
@@ -29,7 +29,7 @@ export default async function LocationStafPage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name")
+    .select("id, name, portal_slug")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -69,8 +69,8 @@ export default async function LocationStafPage({
         (business-wide).
       </p>
 
-      {business.location_portal_slug && (
-        <PortalLinkBox businessId={businessId} locationId={locationId} initialSlug={business.location_portal_slug} />
+      {location.portal_slug && (
+        <PortalLinkBox businessId={businessId} locationId={locationId} initialSlug={location.portal_slug} />
       )}
 
       {totalGajiBulanan > 0 && (

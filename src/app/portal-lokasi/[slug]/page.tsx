@@ -17,43 +17,24 @@ type PortalHome = {
   pending_receive_count?: number;
 };
 
-function LinkBelumDiarahkan() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
-        <p className="text-sm font-semibold text-zinc-900">Link belum diarahkan ke lokasi</p>
-        <p className="mt-1.5 text-xs text-zinc-500">
-          Minta admin kirim ulang link portal yang benar (harus ada bagian &quot;?lokasi=...&quot; di
-          alamatnya).
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default async function PortalLokasiPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lokasi?: string }>;
 }) {
   const { slug } = await params;
-  const { lokasi } = await searchParams;
   const supabase = await createClient();
 
-  if (!lokasi) {
-    return <LinkBelumDiarahkan />;
-  }
-
-  const { data } = await supabase.rpc("get_location_portal_home", { p_slug: slug, p_location_id: lokasi });
+  // Slug 1x per LOKASI (bukan per bisnis lagi) -- ketemu langsung resolve
+  // lokasi + businessnya, jadi kalau slug ini ada di DB, `location` di
+  // respons RPC dijamin tidak pernah null.
+  const { data } = await supabase.rpc("get_location_portal_home", { p_slug: slug });
   if (!data) {
     notFound();
   }
   const info = data as unknown as PortalHome;
-
   if (!info.location) {
-    return <LinkBelumDiarahkan />;
+    notFound();
   }
 
   const session = await getProductionSession(info.business_id, info.location.id);
@@ -83,7 +64,7 @@ export default async function PortalLokasiPage({
         <div className="mt-5 space-y-2.5">
           {info.location.is_production && info.production_scan_slug && (
             <Link
-              href={`/portal-lokasi/${slug}/produksi?lokasi=${info.location.id}`}
+              href={`/portal-lokasi/${slug}/produksi`}
               className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
             >
               <span className="text-xl">🏭</span>
@@ -93,7 +74,7 @@ export default async function PortalLokasiPage({
 
           {info.location.is_production && (
             <Link
-              href={`/portal-lokasi/${slug}/kirim?lokasi=${info.location.id}`}
+              href={`/portal-lokasi/${slug}/kirim`}
               className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
             >
               <span className="flex items-center gap-2.5">
@@ -109,7 +90,7 @@ export default async function PortalLokasiPage({
           )}
 
           <Link
-            href={`/portal-lokasi/${slug}/terima?lokasi=${info.location.id}`}
+            href={`/portal-lokasi/${slug}/terima`}
             className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
           >
             <span className="flex items-center gap-2.5">
@@ -125,7 +106,7 @@ export default async function PortalLokasiPage({
 
           {info.purchase_request_slug && (
             <Link
-              href={`/portal-lokasi/${slug}/permintaan-barang?lokasi=${info.location.id}`}
+              href={`/portal-lokasi/${slug}/permintaan-barang`}
               className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
             >
               <span className="text-xl">📝</span>
