@@ -244,6 +244,7 @@ function buildCostControlNavGroups(
       title: "Pengaturan",
       items: [
         { key: "settings", href: `${base}/settings`, label: "Pengaturan", icon: Settings, ownerOnly: true },
+        { key: "admins", href: `${base}/admins`, label: "Kelola Admin", icon: ShieldCheck, ownerOnly: true },
         { key: "notifikasi", href: `${base}/notifikasi`, label: "Notifikasi", icon: Bell },
         { key: "activity", href: `${base}/activity`, label: "Aktivitas", icon: Activity, ownerOnly: true },
         ...(mirroringEnabled
