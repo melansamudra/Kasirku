@@ -22,6 +22,15 @@ type Allocation = {
   forwardedAt: string | null;
   receivedAt: string | null;
   purchaseId: string | null;
+  poId: string | null;
+  poStatus: string | null;
+  grnOkQty: number | null;
+};
+
+const PO_STATUS_LABEL: Record<string, string> = {
+  issued: "Menunggu Approval",
+  approved: "Approved",
+  rejected: "Ditolak",
 };
 type StockFulfillment = { qty: number; markedAt: string; receivedAt: string | null };
 
@@ -255,11 +264,11 @@ export default function ItemRow({
       });
   }
 
-  function purchaseHref(allocation: Allocation) {
+  function purchaseHref(allocation: Allocation, qtyOverride?: number) {
     const params = new URLSearchParams({
       prefillCategory: item.itemType === "ingredient" ? "Bahan Baku" : "Barang Dagang",
       prefillItemId: (item.itemType === "ingredient" ? item.ingredientId : item.productId) ?? "",
-      prefillQty: String(allocation.qty),
+      prefillQty: String(qtyOverride ?? allocation.qty),
       fromAllocationId: allocation.id,
     });
     if (allocation.supplierId) params.set("prefillSupplierId", allocation.supplierId);
@@ -478,7 +487,45 @@ export default function ItemRow({
                         </button>
                       )}
                     </div>
-                    {a.forwardedAt && !a.receivedAt && (
+                    {/* GRN Fase 2: allocation yang punya PO pakai status PO+GRN buat
+                        nentuin kapan siap dicatat pembelian, bukan flip manual
+                        "Tandai Barang Datang" lagi (itu cuma buat allocation
+                        TANPA PO -- bisnis non-cost-control/data lama). */}
+                    {a.forwardedAt && a.poId && !a.purchaseId && (
+                      <div className="mt-1 flex items-center justify-between">
+                        {a.poStatus === "approved" ? (
+                          a.grnOkQty && a.grnOkQty > 0 ? (
+                            <p className="text-brand-700">
+                              ✓ {a.grnOkQty}/{a.qty}
+                              {item.unit ? ` ${item.unit}` : ""} diterima (GRN)
+                            </p>
+                          ) : (
+                            <p className="text-amber-700">✓ Diteruskan · PO Approved — menunggu GRN</p>
+                          )
+                        ) : (
+                          <p className={a.poStatus === "rejected" ? "text-red-600" : "text-amber-700"}>
+                            {a.poStatus === "rejected" ? "✗ PO Ditolak" : "⏳"}{" "}
+                            {PO_STATUS_LABEL[a.poStatus ?? ""] ?? a.poStatus}
+                          </p>
+                        )}
+                        {a.poStatus === "approved" && a.grnOkQty && a.grnOkQty > 0 ? (
+                          <Link
+                            href={purchaseHref(a, a.grnOkQty)}
+                            className="rounded-md bg-brand-600 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700"
+                          >
+                            Catat sebagai Pembelian
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/business/${businessId}/purchase-orders/${a.poId}`}
+                            className="rounded-md border border-zinc-200 px-2 py-1 text-[10.5px] font-medium text-zinc-600 hover:bg-zinc-50"
+                          >
+                            {a.poStatus === "approved" ? "Catat GRN di halaman PO" : "Lihat PO"}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                    {a.forwardedAt && !a.poId && !a.receivedAt && (
                       <div className="mt-1 flex items-center justify-between">
                         <p className="text-brand-700">✓ Diteruskan</p>
                         <button
@@ -490,7 +537,7 @@ export default function ItemRow({
                         </button>
                       </div>
                     )}
-                    {a.receivedAt && !a.purchaseId && (
+                    {a.forwardedAt && !a.poId && a.receivedAt && !a.purchaseId && (
                       <div className="mt-1 flex items-center justify-between">
                         <p className="text-brand-700">✓ Diteruskan · 📦 Barang datang</p>
                         <Link

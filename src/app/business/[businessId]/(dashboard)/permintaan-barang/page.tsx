@@ -33,6 +33,10 @@ type AllocationRow = {
   purchase_id: string | null;
 };
 
+type PoItemLinkRow = { id: string; allocation_id: string; purchase_order_id: string; unit: string };
+type PoStatusRow = { id: string; status: string };
+type GrnOkQtyRow = { purchase_order_item_id: string; qty_received: number };
+
 type FulfillmentRow = {
   id: string;
   purchase_request_item_id: string;
@@ -151,6 +155,54 @@ export default async function PermintaanBarangPage({
     const list = posByRequest.get(po.purchase_request_id) ?? [];
     list.push(po);
     posByRequest.set(po.purchase_request_id, list);
+  }
+
+  // GRN Fase 2 (2026-08-29) -- barang lewat jalur supplier sekarang punya PO,
+  // dan PO punya GRN sendiri (qty diterima OK vs Rusak, lihat
+  // goods_receipt_note_items). Sebelumnya "Catat sebagai Pembelian" dibuka
+  // oleh tombol "Tandai Barang Datang" yang terpisah total dari GRN --
+  // sekarang disambungkan: allocation yang punya PO pakai status PO+GRN buat
+  // nentuin kapan siap dicatat, bukan flip manual lagi. Allocation TANPA PO
+  // (bisnis non-cost-control, atau data lama) tetap pakai `received_at`
+  // seperti sebelumnya -- map ini cuma diisi kalau memang ada PO.
+  const allocationIds = (allocations ?? []).map((a) => a.id);
+  const poLinkByAllocation = new Map<string, { poId: string; poStatus: string; grnOkQty: number; unit: string }>();
+  if (allocationIds.length > 0) {
+    const { data: poItems } = await supabase
+      .from("purchase_order_items")
+      .select("id, allocation_id, purchase_order_id, unit")
+      .in("allocation_id", allocationIds);
+    const poItemRows = (poItems ?? []) as PoItemLinkRow[];
+
+    if (poItemRows.length > 0) {
+      const poIds = [...new Set(poItemRows.map((p) => p.purchase_order_id))];
+      const poItemIds = poItemRows.map((p) => p.id);
+      const [{ data: poStatusRows }, { data: grnRows }] = await Promise.all([
+        supabase.from("purchase_orders").select("id, status").in("id", poIds),
+        supabase
+          .from("goods_receipt_note_items")
+          .select("purchase_order_item_id, qty_received")
+          .in("purchase_order_item_id", poItemIds)
+          .eq("condition", "ok"),
+      ]);
+      const statusByPoId = new Map(((poStatusRows ?? []) as PoStatusRow[]).map((p) => [p.id, p.status]));
+      const grnOkQtyByPoItemId = new Map<string, number>();
+      for (const g of (grnRows ?? []) as GrnOkQtyRow[]) {
+        grnOkQtyByPoItemId.set(
+          g.purchase_order_item_id,
+          (grnOkQtyByPoItemId.get(g.purchase_order_item_id) ?? 0) + Number(g.qty_received),
+        );
+      }
+
+      for (const poItem of poItemRows) {
+        poLinkByAllocation.set(poItem.allocation_id, {
+          poId: poItem.purchase_order_id,
+          poStatus: statusByPoId.get(poItem.purchase_order_id) ?? "issued",
+          grnOkQty: grnOkQtyByPoItemId.get(poItem.id) ?? 0,
+          unit: poItem.unit,
+        });
+      }
+    }
   }
 
   const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
@@ -328,14 +380,20 @@ export default async function PermintaanBarangPage({
                       : it.product_id
                         ? (priceByProduct.get(it.product_id) ?? 0)
                         : 0,
-                    allocations: (allocationsByItem.get(it.id) ?? []).map((a) => ({
-                      id: a.id,
-                      supplierId: a.supplier_id,
-                      qty: Number(a.qty),
-                      forwardedAt: a.forwarded_at,
-                      receivedAt: a.received_at,
-                      purchaseId: a.purchase_id,
-                    })),
+                    allocations: (allocationsByItem.get(it.id) ?? []).map((a) => {
+                      const poLink = poLinkByAllocation.get(a.id);
+                      return {
+                        id: a.id,
+                        supplierId: a.supplier_id,
+                        qty: Number(a.qty),
+                        forwardedAt: a.forwarded_at,
+                        receivedAt: a.received_at,
+                        purchaseId: a.purchase_id,
+                        poId: poLink?.poId ?? null,
+                        poStatus: poLink?.poStatus ?? null,
+                        grnOkQty: poLink?.grnOkQty ?? null,
+                      };
+                    }),
                   };
                 }),
               }}

@@ -16,6 +16,9 @@ type Allocation = {
   forwardedAt: string | null;
   receivedAt: string | null;
   purchaseId: string | null;
+  poId: string | null;
+  poStatus: string | null;
+  grnOkQty: number | null;
 };
 type StockFulfillment = { qty: number; markedAt: string; receivedAt: string | null };
 type PoInfo = {

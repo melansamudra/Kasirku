@@ -155,6 +155,34 @@ export async function addPurchase(
     }
     qty = qtyVal;
 
+    // GRN Fase 2 -- kalau alokasi ini punya PO, qty yang dicatat sebagai
+    // pembelian TIDAK BOLEH melebihi total yang sudah diverifikasi GRN
+    // (condition='ok'). Tanpa ini, barang yang ditandai Rusak/Tolak di GRN
+    // tetap bisa kecatat/kebayar penuh kalau staf ngetik ulang qty manual di
+    // form ini -- prefill di UI (item-row.tsx) cuma penunjuk arah, bukan
+    // penegakan, jadi validasinya harus di server juga.
+    if (fromAllocationId) {
+      const { data: poItem } = await supabase
+        .from("purchase_order_items")
+        .select("id, unit")
+        .eq("allocation_id", fromAllocationId)
+        .eq("business_id", businessId)
+        .maybeSingle();
+      if (poItem) {
+        const { data: grnRows } = await supabase
+          .from("goods_receipt_note_items")
+          .select("qty_received")
+          .eq("purchase_order_item_id", poItem.id)
+          .eq("condition", "ok");
+        const grnOkQty = (grnRows ?? []).reduce((sum, r) => sum + Number(r.qty_received), 0);
+        if (qty > grnOkQty) {
+          return fail(
+            `Qty melebihi yang sudah diverifikasi GRN (${grnOkQty} ${poItem.unit}). Catat GRN dulu di halaman PO kalau barangnya memang sudah datang lebih banyak.`,
+          );
+        }
+      }
+    }
+
     if (category === "Bahan Baku") {
       ingredientId = formData.get("ingredientId") as string;
       if (!ingredientId) {
