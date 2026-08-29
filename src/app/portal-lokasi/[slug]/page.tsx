@@ -9,6 +9,8 @@ type PortalHome = {
   business_id: string;
   business_name: string;
   stock_opname_slug: string | null;
+  production_scan_slug: string | null;
+  purchase_request_slug: string | null;
   location: { id: string; name: string; is_production: boolean; is_default_purchase: boolean } | null;
   employees?: { id: string; name: string }[];
   pending_transfer_count?: number;
@@ -79,6 +81,16 @@ export default async function PortalLokasiPage({
         <p className="mt-1 text-center text-[11px] text-zinc-400">Masuk sebagai {session.name}</p>
 
         <div className="mt-5 space-y-2.5">
+          {info.location.is_production && info.production_scan_slug && (
+            <Link
+              href={`/portal-lokasi/${slug}/produksi?lokasi=${info.location.id}`}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
+            >
+              <span className="text-xl">🏭</span>
+              <span className="text-sm font-medium text-zinc-800">Catat Produksi</span>
+            </Link>
+          )}
+
           {info.location.is_production && (
             <Link
               href={`/portal-lokasi/${slug}/kirim?lokasi=${info.location.id}`}
@@ -110,6 +122,16 @@ export default async function PortalLokasiPage({
               </span>
             )}
           </Link>
+
+          {info.purchase_request_slug && (
+            <Link
+              href={`/portal-lokasi/${slug}/permintaan-barang?lokasi=${info.location.id}`}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
+            >
+              <span className="text-xl">📝</span>
+              <span className="text-sm font-medium text-zinc-800">Permintaan Barang</span>
+            </Link>
+          )}
 
           {info.stock_opname_slug && (
             <Link
