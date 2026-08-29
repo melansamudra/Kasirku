@@ -73,11 +73,14 @@ export async function fulfillLocationTransfer(
       .eq("semi_finished_item_id", item.semi_finished_item_id)
       .maybeSingle();
     const sourceStock = Number(sourceRow?.stock ?? 0);
-    if (sourceStock < qty) {
-      return {
-        error: `Stok "${item.item_name}" di ${fromLoc?.name ?? "lokasi asal"} cuma ${sourceStock} ${item.unit}, tidak cukup untuk kirim ${qty} ${item.unit}.`,
-      };
-    }
+    // SEMENTARA (buat uji coba, 2026-08-29): cek "stok tidak cukup"
+    // dimatikan -- stok sumber bisa jadi minus selama ini aktif. WAJIB
+    // dikembalikan (uncomment blok di bawah) setelah uji coba selesai.
+    // if (sourceStock < qty) {
+    //   return {
+    //     error: `Stok "${item.item_name}" di ${fromLoc?.name ?? "lokasi asal"} cuma ${sourceStock} ${item.unit}, tidak cukup untuk kirim ${qty} ${item.unit}.`,
+    //   };
+    // }
 
     const { data: destRow } = await supabase
       .from("semi_finished_item_location_stock")
