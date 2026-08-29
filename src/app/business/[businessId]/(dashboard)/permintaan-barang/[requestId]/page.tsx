@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PrintButton from "./print-button";
+import DeliveryNoteForm from "./delivery-note-form";
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
@@ -46,7 +48,7 @@ export default async function PurchaseRequisitionPrintPage({
     supabase
       .from("purchase_request_items")
       .select(
-        "id, item_name, unit, qty_ordered, approved_qty, budget_status, budget_approved_by, budget_approved_at, budget_note",
+        "id, item_name, unit, qty_ordered, approved_qty, budget_status, budget_approved_by, budget_approved_at, budget_note, fulfillment_source",
       )
       .eq("purchase_request_id", requestId)
       .eq("business_id", businessId)
@@ -59,6 +61,127 @@ export default async function PurchaseRequisitionPrintPage({
   const showBudgetGate = business.procurement_budget_gate_enabled ?? false;
   const rows = items ?? [];
   const rejectedRows = rows.filter((it) => it.budget_status === "rejected" && it.budget_note);
+
+  // Surat Jalan -- kumpulkan barang yang "siap dikirim" (sudah ditandai
+  // ambil dari Gudang, atau sudah diterima lewat GRN dengan condition OK)
+  // tapi belum pernah masuk Surat Jalan manapun (lihat delivery-note-actions.ts).
+  const stockItemIds = rows.filter((it) => it.fulfillment_source === "stock").map((it) => it.id);
+  const supplierItemIds = rows.filter((it) => it.fulfillment_source === "supplier").map((it) => it.id);
+  const prItemById = new Map(rows.map((it) => [it.id, it]));
+
+  type EligibleItem = {
+    sourceType: "stock_fulfillment" | "grn_item";
+    sourceId: string;
+    itemName: string;
+    unit: string;
+    qty: number;
+    sourceLabel: string;
+  };
+  let eligibleItems: EligibleItem[] = [];
+  let employees: { id: string; name: string }[] = [];
+  let deliveryNotes: { id: string; dn_number: string; to_location_name: string; prepared_by: string; created_at: string; itemCount: number }[] = [];
+
+  if (stockItemIds.length > 0 || supplierItemIds.length > 0) {
+    const [{ data: employeeRows }, { data: fulfillments }, { data: allocations }] = await Promise.all([
+      supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
+      stockItemIds.length > 0
+        ? supabase
+            .from("purchase_request_item_stock_fulfillments")
+            .select("id, purchase_request_item_id, qty")
+            .eq("business_id", businessId)
+            .in("purchase_request_item_id", stockItemIds)
+        : Promise.resolve({ data: [] }),
+      supplierItemIds.length > 0
+        ? supabase
+            .from("purchase_request_item_allocations")
+            .select("id, purchase_request_item_id")
+            .eq("business_id", businessId)
+            .in("purchase_request_item_id", supplierItemIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+    employees = employeeRows ?? [];
+
+    let grnItems: { id: string; qty_received: number; purchase_order_item_id: string; item_name: string; unit: string }[] = [];
+    if ((allocations ?? []).length > 0) {
+      const allocationIds = (allocations ?? []).map((a) => a.id);
+      const { data: poItems } = await supabase
+        .from("purchase_order_items")
+        .select("id, item_name, unit, allocation_id")
+        .in("allocation_id", allocationIds);
+      const poItemById = new Map((poItems ?? []).map((p) => [p.id, p]));
+      const poItemIds = (poItems ?? []).map((p) => p.id);
+      if (poItemIds.length > 0) {
+        const { data: grnRows } = await supabase
+          .from("goods_receipt_note_items")
+          .select("id, qty_received, purchase_order_item_id")
+          .in("purchase_order_item_id", poItemIds)
+          .eq("condition", "ok");
+        grnItems = (grnRows ?? []).map((g) => {
+          const poItem = poItemById.get(g.purchase_order_item_id);
+          return {
+            id: g.id,
+            qty_received: Number(g.qty_received),
+            purchase_order_item_id: g.purchase_order_item_id,
+            item_name: poItem?.item_name ?? "(barang)",
+            unit: poItem?.unit ?? "",
+          };
+        });
+      }
+    }
+
+    const candidateSourceIds = [...(fulfillments ?? []).map((f) => f.id), ...grnItems.map((g) => g.id)];
+    let usedSourceIds = new Set<string>();
+    if (candidateSourceIds.length > 0) {
+      const { data: usedRows } = await supabase
+        .from("delivery_note_items")
+        .select("source_id")
+        .eq("business_id", businessId)
+        .in("source_id", candidateSourceIds);
+      usedSourceIds = new Set((usedRows ?? []).map((u) => u.source_id));
+    }
+
+    eligibleItems = [
+      ...(fulfillments ?? [])
+        .filter((f) => !usedSourceIds.has(f.id))
+        .map((f) => {
+          const prItem = prItemById.get(f.purchase_request_item_id);
+          return {
+            sourceType: "stock_fulfillment" as const,
+            sourceId: f.id,
+            itemName: prItem?.item_name ?? "(barang)",
+            unit: prItem?.unit ?? "",
+            qty: Number(f.qty),
+            sourceLabel: "Ambil Gudang",
+          };
+        }),
+      ...grnItems
+        .filter((g) => !usedSourceIds.has(g.id))
+        .map((g) => ({
+          sourceType: "grn_item" as const,
+          sourceId: g.id,
+          itemName: g.item_name,
+          unit: g.unit,
+          qty: g.qty_received,
+          sourceLabel: "Dari Supplier",
+        })),
+    ];
+
+    const { data: dnRows } = await supabase
+      .from("delivery_notes")
+      .select("id, dn_number, to_location_name, prepared_by, created_at")
+      .eq("purchase_request_id", requestId)
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false });
+    if ((dnRows ?? []).length > 0) {
+      const dnIds = (dnRows ?? []).map((d) => d.id);
+      const { data: dnItemRows } = await supabase.from("delivery_note_items").select("delivery_note_id").in("delivery_note_id", dnIds);
+      const countByDn = new Map<string, number>();
+      for (const r of dnItemRows ?? []) {
+        countByDn.set(r.delivery_note_id, (countByDn.get(r.delivery_note_id) ?? 0) + 1);
+      }
+      deliveryNotes = (dnRows ?? []).map((d) => ({ ...d, itemCount: countByDn.get(d.id) ?? 0 }));
+    }
+  }
 
   return (
     <div className="w-full max-w-2xl print:max-w-none">
@@ -155,6 +278,40 @@ export default async function PurchaseRequisitionPrintPage({
           </div>
         )}
       </div>
+
+      {eligibleItems.length > 0 && (
+        <DeliveryNoteForm
+          businessId={businessId}
+          requestId={requestId}
+          employees={employees}
+          eligibleItems={eligibleItems}
+        />
+      )}
+
+      {deliveryNotes.length > 0 && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4 print:hidden">
+          <h2 className="text-sm font-semibold text-zinc-900">Riwayat Surat Jalan</h2>
+          <div className="mt-2 space-y-2">
+            {deliveryNotes.map((dn) => (
+              <Link
+                key={dn.id}
+                href={`/business/${businessId}/permintaan-barang/${requestId}/surat-jalan/${dn.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2 text-xs hover:bg-zinc-50"
+              >
+                <div>
+                  <p className="font-medium text-zinc-800">{dn.dn_number}</p>
+                  <p className="text-[10px] text-zinc-400">
+                    Ke {dn.to_location_name} · Disiapkan oleh {dn.prepared_by} · {formatDateTime(dn.created_at)}
+                  </p>
+                </div>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                  {dn.itemCount} barang
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         <PrintButton businessId={businessId} />

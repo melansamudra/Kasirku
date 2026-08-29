@@ -2859,6 +2859,97 @@ export type Database = {
           },
         ];
       };
+      delivery_notes: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_request_id: string;
+          dn_number: string;
+          from_location_id: string;
+          to_location_name: string;
+          to_location_id: string | null;
+          prepared_by: string;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_request_id: string;
+          dn_number: string;
+          from_location_id: string;
+          to_location_name: string;
+          to_location_id?: string | null;
+          prepared_by: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_request_id?: string;
+          dn_number?: string;
+          from_location_id?: string;
+          to_location_name?: string;
+          to_location_id?: string | null;
+          prepared_by?: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "delivery_notes_purchase_request_id_fkey";
+            columns: ["purchase_request_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_note_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          delivery_note_id: string;
+          source_type: string;
+          source_id: string;
+          item_name: string;
+          unit: string;
+          qty: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          delivery_note_id: string;
+          source_type: string;
+          source_id: string;
+          item_name: string;
+          unit: string;
+          qty: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          delivery_note_id?: string;
+          source_type?: string;
+          source_id?: string;
+          item_name?: string;
+          unit?: string;
+          qty?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "delivery_note_items_delivery_note_id_fkey";
+            columns: ["delivery_note_id"];
+            isOneToOne: false;
+            referencedRelation: "delivery_notes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procurement_budget_lines: {
         Row: {
           id: string;
