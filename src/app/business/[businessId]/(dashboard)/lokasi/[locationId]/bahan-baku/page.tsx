@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import { adjustIngredientLocationStock } from "./actions";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
+import ReceiveLinkBox from "./receive-link-box";
 
 export default async function LocationBahanBakuPage({
   params,
@@ -15,7 +16,7 @@ export default async function LocationBahanBakuPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, receive_stock_slug")
     .eq("id", businessId)
     .single();
 
@@ -178,6 +179,10 @@ export default async function LocationBahanBakuPage({
         baku pusat. Daftar bahannya sama (satu master untuk seluruh bisnis), cuma jumlah stoknya
         dilacak sendiri-sendiri per lokasi.
       </p>
+
+      {business.receive_stock_slug && (
+        <ReceiveLinkBox businessId={businessId} locationId={locationId} initialSlug={business.receive_stock_slug} />
+      )}
 
       {pendingPos.length > 0 && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">

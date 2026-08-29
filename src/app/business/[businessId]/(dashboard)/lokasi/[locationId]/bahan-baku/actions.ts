@@ -97,3 +97,24 @@ export async function adjustIngredientLocationStock(
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
   return { error: null };
 }
+
+export type RegenerateReceiveSlugState = { error: string | null; slug: string | null };
+
+// Slug per BISNIS (bukan per lokasi, pola sama stock_opname_slug) -- lokasi
+// dikunci lewat ?lokasi=<uuid> di URL, dibagikan dari halaman lokasi
+// masing-masing lewat ReceiveLinkBox.
+export async function regenerateReceiveStockSlug(
+  businessId: string,
+  locationId: string,
+): Promise<RegenerateReceiveSlugState> {
+  const supabase = await createClient();
+  const slug = crypto.randomUUID().replace(/-/g, "");
+
+  const { error } = await supabase.from("businesses").update({ receive_stock_slug: slug }).eq("id", businessId);
+
+  if (error) return { error: error.message, slug: null };
+
+  await logActivity(supabase, businessId, "pengaturan", "warning", "Link terima barang diganti");
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null, slug };
+}

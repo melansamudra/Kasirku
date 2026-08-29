@@ -314,6 +314,7 @@ export type Database = {
           production_scan_slug: string | null;
           stock_opname_slug: string | null;
           location_transfer_slug: string | null;
+          receive_stock_slug: string | null;
           procurement_budget_gate_enabled: boolean;
         };
         Insert: {
@@ -350,6 +351,7 @@ export type Database = {
           procurement_budget_gate_enabled?: boolean;
           stock_opname_slug?: string | null;
           location_transfer_slug?: string | null;
+          receive_stock_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -385,6 +387,7 @@ export type Database = {
           stock_opname_slug?: string | null;
           procurement_budget_gate_enabled?: boolean;
           location_transfer_slug?: string | null;
+          receive_stock_slug?: string | null;
         };
         Relationships: [];
       };
@@ -4237,6 +4240,14 @@ export type Database = {
           p_ingredient_counts: Json;
           p_semi_finished_counts: Json;
         };
+        Returns: Json;
+      };
+      get_receive_stock_info: {
+        Args: { p_slug: string; p_location_id: string };
+        Returns: Json;
+      };
+      receive_stock_fulfillment_public: {
+        Args: { p_slug: string; p_fulfillment_id: string; p_employee_id: string };
         Returns: Json;
       };
       get_location_transfer_info: {
