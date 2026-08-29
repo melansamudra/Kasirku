@@ -81,6 +81,21 @@ export default function RequestClient({
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [scanInput, setScanInput] = useState("");
   const [scanFeedback, setScanFeedback] = useState<string | null>(null);
+  // "Cek Order" dulu sebelum beneran kirim — staf lihat ringkasan barang +
+  // qty, bisa kembali edit kalau ada yang salah, baru tekan "Ya, Kirim" buat
+  // submit ke DB (arahan user 2026-08-29: sebelumnya sekali klik langsung
+  // final, tidak ada tahap cek ulang).
+  const [step, setStep] = useState<"form" | "review">("form");
+  const [reviewItems, setReviewItems] = useState<
+    {
+      itemId: string | null;
+      newItemName: string | null;
+      unit: string | null;
+      qtyOrdered: number;
+      currentStock: number | null;
+    }[]
+    | null
+  >(null);
 
   const itemMap = new Map(items.map((i) => [i.id, i]));
   const groupedItems = groupItemsByDepartment(items);
@@ -220,8 +235,14 @@ export default function RequestClient({
       }
     }
 
+    setReviewItems(preparedItems);
+    setStep("review");
+  }
+
+  async function handleConfirmSend() {
+    if (!reviewItems) return;
     setPending(true);
-    const res = await submitPurchaseRequest(slug, employeeId, note, preparedItems, locationId || null);
+    const res = await submitPurchaseRequest(slug, employeeId, note, reviewItems, locationId || null);
     setPending(false);
 
     if (!res.success) {
@@ -233,6 +254,13 @@ export default function RequestClient({
     setRows([emptyRow(isFnb ? "" : "pcs")]);
     setNote("");
     setLocationId(lockedLocation?.id ?? "");
+    setReviewItems(null);
+    setStep("form");
+  }
+
+  function handleBackToForm() {
+    setResult(null);
+    setStep("form");
   }
 
   return (
@@ -245,6 +273,84 @@ export default function RequestClient({
         Isi barang yang mau diorder, qty, dan stok yang kamu lihat sekarang.
       </p>
 
+      {step === "review" ? (
+        <div className="mt-4 space-y-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-xs font-semibold text-amber-800">Cek dulu sebelum dikirim</p>
+            <p className="mt-0.5 text-[11px] text-amber-700">
+              Pastikan barang &amp; qty di bawah sudah benar. Kalau ada yang salah, tekan "Kembali" buat edit lagi.
+            </p>
+          </div>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Nama</span>
+              <span className="font-medium text-zinc-900">
+                {employees.find((e) => e.id === employeeId)?.name ?? "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Lokasi</span>
+              <span className="font-medium text-zinc-900">
+                {lockedLocation?.name ?? stockLocations.find((l) => l.id === locationId)?.name ?? "—"}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {(reviewItems ?? []).map((it, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              >
+                <span className="text-zinc-800">
+                  {it.itemId ? (itemMap.get(it.itemId)?.name ?? "(barang)") : it.newItemName}
+                  {!it.itemId && <span className="ml-1.5 text-[10px] text-zinc-400">(baru)</span>}
+                </span>
+                <span className="font-medium text-zinc-900">
+                  {it.qtyOrdered} {it.unit}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {note.trim() && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-zinc-600">Catatan</p>
+              <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">{note}</p>
+            </div>
+          )}
+
+          {result && (
+            <p
+              className={`rounded-lg px-3 py-2 text-xs ${
+                result.ok ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
+              }`}
+            >
+              {result.message}
+            </p>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleBackToForm}
+              disabled={pending}
+              className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              ← Kembali
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmSend}
+              disabled={pending}
+              className="flex-1 rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? "Mengirim…" : "✓ Ya, Kirim Order"}
+            </button>
+          </div>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda</label>
@@ -458,12 +564,12 @@ export default function RequestClient({
 
         <button
           type="submit"
-          disabled={pending}
-          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
-          {pending ? "Mengirim…" : "Kirim Order"}
+          Cek Order Dulu →
         </button>
       </form>
+      )}
     </div>
   );
 }
