@@ -209,7 +209,6 @@ export default async function PermintaanBarangPage({
   const priceByIngredient = new Map((ingredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
   const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
   const locationNameById = new Map((locations ?? []).map((l) => [l.id, l.name]));
-  const productionLocation = (locations ?? []).find((l) => l.is_production);
 
   const totalStockByIngredient = new Map<string, number>();
   for (const row of stockRows) {
@@ -294,27 +293,27 @@ export default async function PermintaanBarangPage({
         </p>
       )}
 
-      {(!filterLocationId || filterLocationId === productionLocation?.id) && (
-        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">
-            {filterLocationId ? `Link Order Barang — ${activeLocationName}` : "Link Order Barang"}
-          </h2>
-          {!filterLocationId && (
-            <p className="mt-1 text-xs text-zinc-500">
-              Bagikan link ini ke staf dapur/bar/front supaya bisa kirim order tanpa login.
-            </p>
-          )}
-          <div className="mt-3">
-            <PurchaseRequestLinkSection
-              businessId={businessId}
-              initialSlug={business.purchase_request_slug ?? ""}
-              regenerateAction={boundRegenerateSlug}
-              productionLocationName={productionLocation?.name}
-              hideGeneralLink={Boolean(filterLocationId)}
-            />
-          </div>
+      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">
+          {filterLocationId ? `Link Order Barang — ${activeLocationName}` : "Link Order Barang"}
+        </h2>
+        {!filterLocationId && (
+          <p className="mt-1 text-xs text-zinc-500">
+            Bagikan link ini ke staf dapur/bar/front supaya bisa kirim order tanpa login.
+          </p>
+        )}
+        <div className="mt-3">
+          <PurchaseRequestLinkSection
+            businessId={businessId}
+            initialSlug={business.purchase_request_slug ?? ""}
+            regenerateAction={boundRegenerateSlug}
+            lockedLocation={
+              filterLocationId && activeLocationName ? { id: filterLocationId, name: activeLocationName } : null
+            }
+            hideGeneralLink={Boolean(filterLocationId)}
+          />
         </div>
-      )}
+      </div>
 
       <div className="mt-4 space-y-2">
         {rows.length > 0 ? (

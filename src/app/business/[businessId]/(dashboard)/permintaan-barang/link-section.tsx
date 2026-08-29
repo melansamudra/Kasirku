@@ -8,24 +8,24 @@ export default function PurchaseRequestLinkSection({
   businessId,
   initialSlug,
   regenerateAction,
-  productionLocationName,
+  lockedLocation,
   hideGeneralLink,
 }: {
   businessId: string;
   initialSlug: string;
   regenerateAction: () => Promise<RegenerateSlugState>;
-  productionLocationName?: string;
+  lockedLocation?: { id: string; name: string } | null;
   hideGeneralLink?: boolean;
 }) {
   const [slug, setSlug] = useState(initialSlug);
   const [copied, setCopied] = useState(false);
-  const [productionCopied, setProductionCopied] = useState(false);
+  const [lockedCopied, setLockedCopied] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   const url = typeof window !== "undefined" ? `${window.location.origin}/permintaan-barang/${slug}` : "";
-  const productionUrl = url ? `${url}?lokasi=produksi` : "";
+  const lockedUrl = url && lockedLocation ? `${url}?lokasi=${lockedLocation.id}` : "";
 
   async function handleCopy() {
     await navigator.clipboard.writeText(url);
@@ -33,10 +33,10 @@ export default function PurchaseRequestLinkSection({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleCopyProduction() {
-    await navigator.clipboard.writeText(productionUrl);
-    setProductionCopied(true);
-    setTimeout(() => setProductionCopied(false), 2000);
+  async function handleCopyLocked() {
+    await navigator.clipboard.writeText(lockedUrl);
+    setLockedCopied(true);
+    setTimeout(() => setLockedCopied(false), 2000);
   }
 
   async function handleRegenerate() {
@@ -80,21 +80,21 @@ export default function PurchaseRequestLinkSection({
         </>
       )}
 
-      {productionLocationName && (
+      {lockedLocation && (
         <div className={hideGeneralLink ? "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5" : "mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5"}>
           <p className="mb-1.5 text-[11px] font-semibold text-amber-800">
-            Link khusus {productionLocationName}
+            Link khusus {lockedLocation.name}
           </p>
           <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate text-xs text-amber-700">{productionUrl}</p>
+            <p className="min-w-0 flex-1 truncate text-xs text-amber-700">{lockedUrl}</p>
             <button
-              onClick={handleCopyProduction}
+              onClick={handleCopyLocked}
               className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:border-amber-400"
             >
-              {productionCopied ? "✓ Tersalin" : "Salin Link"}
+              {lockedCopied ? "✓ Tersalin" : "Salin Link"}
             </button>
             <Link
-              href={`/business/${businessId}/permintaan-barang/print-qr?lokasi=produksi`}
+              href={`/business/${businessId}/permintaan-barang/print-qr?lokasi=${lockedLocation.id}`}
               target="_blank"
               className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:border-amber-400"
             >
@@ -102,7 +102,7 @@ export default function PurchaseRequestLinkSection({
             </Link>
           </div>
           <p className="mt-1.5 text-[10.5px] text-amber-700/80">
-            Lokasinya sudah terkunci ke {productionLocationName} — staf yang order dari link ini
+            Lokasinya sudah terkunci ke {lockedLocation.name} — staf yang order dari link ini
             tidak perlu (dan tidak bisa) pilih lokasi lain, supaya stoknya selalu kecatat di sini.
           </p>
         </div>

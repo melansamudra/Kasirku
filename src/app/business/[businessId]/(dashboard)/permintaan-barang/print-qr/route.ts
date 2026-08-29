@@ -12,7 +12,7 @@ export async function GET(
   const business = await assertBusinessAccess(businessId);
   if (!business) return new NextResponse("Forbidden", { status: 403 });
 
-  const isProduction = new URL(req.url).searchParams.get("lokasi") === "produksi";
+  const lokasiParam = new URL(req.url).searchParams.get("lokasi");
 
   const supabase = await createClient();
 
@@ -29,18 +29,29 @@ export async function GET(
     });
   }
 
-  let productionLocationName: string | null = null;
-  if (isProduction) {
+  // "?lokasi=produksi" (lama) atau "?lokasi=<uuid lokasi>" (pola generik
+  // sekarang, sama seperti Stok Opname/Terima Barang/Transfer Internal) --
+  // keduanya di-resolve ke id lokasi asli sebelum dipasang ke URL QR.
+  let lockedLocation: { id: string; name: string } | null = null;
+  if (lokasiParam === "produksi") {
     const { data: loc } = await supabase
       .from("stock_locations")
-      .select("name")
+      .select("id, name")
       .eq("business_id", businessId)
       .eq("is_production", true)
       .maybeSingle();
-    productionLocationName = loc?.name ?? null;
+    lockedLocation = loc ?? null;
+  } else if (lokasiParam) {
+    const { data: loc } = await supabase
+      .from("stock_locations")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .eq("id", lokasiParam)
+      .maybeSingle();
+    lockedLocation = loc ?? null;
   }
 
-  const url = `${SITE_URL}/permintaan-barang/${biz.purchase_request_slug}${isProduction ? "?lokasi=produksi" : ""}`;
+  const url = `${SITE_URL}/permintaan-barang/${biz.purchase_request_slug}${lockedLocation ? `?lokasi=${lockedLocation.id}` : ""}`;
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, width: 320 });
 
   const html = `<!DOCTYPE html>
@@ -73,8 +84,8 @@ export async function GET(
     <div class="qr">${svg}</div>
     <h1>${escapeHtml(biz.name)}</h1>
     <p class="sub">${
-      productionLocationName
-        ? `Scan buat order barang — khusus ${escapeHtml(productionLocationName)}`
+      lockedLocation
+        ? `Scan buat order barang — khusus ${escapeHtml(lockedLocation.name)}`
         : "Scan buat order barang (staf dapur/bar/front)"
     }</p>
     <p class="url">${escapeHtml(url)}</p>

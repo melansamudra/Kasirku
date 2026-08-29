@@ -38,12 +38,16 @@ export default async function PermintaanBarangPage({
 
   const info = data as unknown as PurchaseRequestInfo;
 
-  // Link "?lokasi=produksi" datang dari QR/link khusus yang dipasang di
-  // Dapur Produksi -- lokasi dikunci ke lokasi yang ditandai is_production,
-  // staf tidak perlu (dan tidak bisa) pilih lokasi lain, supaya stok bahan
-  // yang mereka order selalu tercatat di lokasi yang benar.
+  // Link "?lokasi=<uuid lokasi>" dari QR/link khusus 1 lokasi (dashboard
+  // Permintaan Barang, difilter per lokasi) -- lokasi dikunci, staf tidak
+  // perlu (dan tidak bisa) pilih lokasi lain, supaya stok bahan yang
+  // mereka order selalu tercatat di lokasi yang benar. "?lokasi=produksi"
+  // tetap dikenali buat backward-compat -- poster QR lama yang sudah
+  // ditempel/dicetak sebelum link ini digeneralisasi per-lokasi.
   const lockedLocation =
-    lokasi === "produksi" ? (info.stock_locations ?? []).find((l) => l.is_production) : undefined;
+    lokasi === "produksi"
+      ? (info.stock_locations ?? []).find((l) => l.is_production)
+      : (info.stock_locations ?? []).find((l) => l.id === lokasi);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
