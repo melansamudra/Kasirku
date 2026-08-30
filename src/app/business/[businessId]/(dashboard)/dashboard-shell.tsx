@@ -93,6 +93,22 @@ function buildCostControlNavGroups(
       items: [
         { key: "dashboard", href: base, label: "Dashboard", icon: LayoutDashboard },
         { key: "transactions", href: `${base}/transactions`, label: "Penjualan", icon: Receipt },
+        { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas & Bank", icon: Wallet },
+      ],
+    },
+    {
+      title: "Akuntansi",
+      items: [
+        { key: "accounting-daftar-akun", href: `${base}/accounting/daftar-akun`, label: "Daftar Akun", icon: BookOpen },
+        { key: "accounting-jurnal", href: `${base}/accounting/jurnal`, label: "Jurnal Transaksi", icon: FileText },
+        { key: "accounting-buku-besar", href: `${base}/accounting/buku-besar`, label: "Buku Besar", icon: Library },
+        { key: "accounting-neraca", href: `${base}/accounting/neraca`, label: "Neraca", icon: Scale },
+        { key: "accounting-laba-rugi", href: `${base}/accounting/laba-rugi`, label: "Laba Rugi (Akrual)", icon: TrendingUp },
+        { key: "accounting-arus-kas", href: `${base}/accounting/arus-kas`, label: "Arus Kas", icon: RefreshCw },
+        { key: "accounting-modal", href: `${base}/accounting/modal`, label: "Perubahan Modal", icon: ScrollText },
+        { key: "accounting-rekonsiliasi", href: `${base}/accounting/rekonsiliasi`, label: "Rekonsiliasi Rekening", icon: Landmark },
+        { key: "accounting-tutup-buku", href: `${base}/accounting/tutup-buku`, label: "Tutup Buku", icon: Lock },
+        { key: "accounting-transfer-kas", href: `${base}/accounting/transfer-kas`, label: "Transfer Kas/Bank", icon: ArrowLeftRight },
       ],
     },
     {
@@ -270,9 +286,12 @@ function buildCostControlNavGroups(
       ],
     },
     {
-      title: "Tim",
+      title: "SDM & Payroll",
       items: [
         { key: "employees", href: `${base}/employees`, label: "Karyawan", icon: UserCog },
+        { key: "attendance", href: `${base}/attendance`, label: "Absensi", icon: CalendarCheck },
+        { key: "jadwal-shift", href: `${base}/jadwal-shift`, label: "Jadwal Shift", icon: CalendarClock },
+        { key: "payroll", href: `${base}/payroll`, label: "Payroll", icon: Banknote },
         // 1 link "Staf {lokasi}" per lokasi fisik -- dulu cuma nempel di
         // grup sidebar Dapur Produksi sendiri (dan Kitchen Atas/Bar Llauk/
         // Purchasing sama sekali tidak dapat entry point ke halaman ini),
