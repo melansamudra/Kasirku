@@ -278,7 +278,7 @@ export default function RequestClient({
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-xs font-semibold text-amber-800">Cek dulu sebelum dikirim</p>
             <p className="mt-0.5 text-[11px] text-amber-700">
-              Pastikan barang &amp; qty di bawah sudah benar. Kalau ada yang salah, tekan "Kembali" buat edit lagi.
+              Pastikan barang &amp; qty di bawah sudah benar. Kalau ada yang salah, tekan &quot;Kembali&quot; buat edit lagi.
             </p>
           </div>
 

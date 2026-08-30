@@ -46,7 +46,7 @@ export default function ReceiveLinkBox({
       <h2 className="text-sm font-semibold text-zinc-900">Link Konfirmasi Terima (Scan)</h2>
       <p className="mt-1 text-[11px] text-zinc-400">
         Bagikan link ini ke staf lokasi ini (print jadi poster/QR, atau kirim lewat grup WhatsApp) —
-        mereka bisa konfirmasi "Ambil dari Gudang" sudah sampai tanpa perlu login.
+        mereka bisa konfirmasi &quot;Ambil dari Gudang&quot; sudah sampai tanpa perlu login.
       </p>
       <div className="mt-2 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
         <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{url}</p>

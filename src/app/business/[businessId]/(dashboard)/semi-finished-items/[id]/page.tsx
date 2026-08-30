@@ -126,7 +126,7 @@ export default async function SemiFinishedItemDetailPage({
         <div className="mb-4 rounded-lg bg-zinc-50 p-3">
           <RecipeYieldForm action={boundUpdateYield} unit={item.unit} currentYieldQty={batchYieldQty} />
           <p className="mt-1.5 text-[11px] text-zinc-400">
-            Dipakai buat isi/tampilkan jumlah komponen dalam bentuk "per batch" di bawah, bukan cuma
+            Dipakai buat isi/tampilkan jumlah komponen dalam bentuk &quot;per batch&quot; di bawah, bukan cuma
             per-1-{item.unit}.
           </p>
         </div>

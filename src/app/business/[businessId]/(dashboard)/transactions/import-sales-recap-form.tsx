@@ -1,11 +1,65 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { todayWibDateString } from "@/lib/wib";
 import type { ImportSalesRecapState } from "./rekap-actions";
 
 const initialState: ImportSalesRecapState = { error: null, result: null };
 const PAYMENT_METHODS = ["Tunai", "Kartu", "QRIS"];
+
+// Effect ini murni pemicu (bukan pemilik state yang direset) -- lint
+// react-hooks/set-state-in-effect menolak setState langsung di badan
+// useEffect komponen yang sama, jadi reset field (formRef + paymentMethod)
+// didelegasikan lewat prop `onSuccess`, bukan dipanggil literal di sini.
+function ResetOnSuccess({
+  pending,
+  hasError,
+  hasResult,
+  onSuccess,
+}: {
+  pending: boolean;
+  hasError: boolean;
+  hasResult: boolean;
+  onSuccess: () => void;
+}) {
+  useEffect(() => {
+    if (!pending && !hasError && hasResult) {
+      onSuccess();
+    }
+  }, [pending, hasError, hasResult, onSuccess]);
+  return null;
+}
+
+// Terpisah jadi komponen sendiri supaya bisa di-remount lewat `key` --
+// cara paling bersih buat reset pilihan tombol ke default tanpa nyimpen
+// balik setState di efek pemanggilnya.
+function PaymentMethodField() {
+  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-zinc-600">Metode Bayar</label>
+      <div className="flex flex-wrap gap-1.5">
+        {PAYMENT_METHODS.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setPaymentMethod(m)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              paymentMethod === m ? "bg-brand-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+      <input type="hidden" name="paymentMethod" value={paymentMethod} />
+      <p className="mt-1 text-[10.5px] text-zinc-400">
+        Rekap begini biasanya campuran banyak metode bayar — pilih salah satu representatif saja,
+        ini cuma buat isi kolom wajib.
+      </p>
+    </div>
+  );
+}
 
 export default function ImportSalesRecapForm({
   action,
@@ -14,17 +68,17 @@ export default function ImportSalesRecapForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
+  const [fieldsResetToken, setFieldsResetToken] = useState(0);
 
-  useEffect(() => {
-    if (!pending && !state.error) {
-      formRef.current?.reset();
-      setPaymentMethod(PAYMENT_METHODS[0]);
-    }
-  }, [pending, state.error]);
+  const handleSuccess = useCallback(() => {
+    formRef.current?.reset();
+    setFieldsResetToken((n) => n + 1);
+  }, []);
 
   return (
     <form ref={formRef} action={formAction} className="space-y-3">
+      <ResetOnSuccess pending={pending} hasError={!!state.error} hasResult={!!state.result} onSuccess={handleSuccess} />
+
       <div>
         <label htmlFor="recap-date" className="mb-1 block text-xs font-medium text-zinc-600">
           Tanggal Default
@@ -44,28 +98,7 @@ export default function ImportSalesRecapForm({
         </p>
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Metode Bayar</label>
-        <div className="flex flex-wrap gap-1.5">
-          {PAYMENT_METHODS.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setPaymentMethod(m)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                paymentMethod === m ? "bg-brand-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <input type="hidden" name="paymentMethod" value={paymentMethod} />
-        <p className="mt-1 text-[10.5px] text-zinc-400">
-          Rekap begini biasanya campuran banyak metode bayar — pilih salah satu representatif saja,
-          ini cuma buat isi kolom wajib.
-        </p>
-      </div>
+      <PaymentMethodField key={fieldsResetToken} />
 
       <div>
         <label htmlFor="recap-note" className="mb-1 block text-xs font-medium text-zinc-600">

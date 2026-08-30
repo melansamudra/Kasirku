@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import type { ParseState, ConfirmState, BahanResolution, BahanDecision, MatchCandidate } from "./upload-actions";
 
 const emptyParseState: ParseState = { error: null, fileName: null, rows: null, resolutions: null, skipped: [] };
@@ -56,7 +56,13 @@ function UploadWizard({
   const [confirmState, runConfirm, confirmPending] = useActionState(confirmAction, emptyConfirmState);
   const [decisions, setDecisions] = useState<Record<string, DecisionLocal>>({});
 
-  useEffect(() => {
+  // Turunan dari parseState.resolutions tiap kali hasil parse berubah --
+  // "adjusting state during render" (bukan useEffect+setState) sesuai pola
+  // resmi React buat kasus prop/state berubah, biar tidak kena lint
+  // react-hooks/set-state-in-effect.
+  const [prevResolutions, setPrevResolutions] = useState(parseState.resolutions);
+  if (parseState.resolutions !== prevResolutions) {
+    setPrevResolutions(parseState.resolutions);
     if (parseState.resolutions) {
       const init: Record<string, DecisionLocal> = {};
       for (const r of parseState.resolutions) {
@@ -72,8 +78,7 @@ function UploadWizard({
       }
       setDecisions(init);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseState.resolutions]);
+  }
 
   if (confirmState.report && !confirmPending) {
     return (
