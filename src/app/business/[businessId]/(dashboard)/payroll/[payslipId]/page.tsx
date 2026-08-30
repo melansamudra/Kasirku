@@ -109,19 +109,15 @@ export default async function PayslipDetailPage({
   const lateDeduction = Number(payslip.late_deduction);
   const kasbonDeduction = Number(payslip.kasbon_deduction);
   const personalLoanDeduction = Number(payslip.personal_loan_deduction);
-  const totalDiterima =
-    basePay +
-    mealAllowance +
-    attendanceAllowance +
-    lemburAmount +
-    thrAmount +
-    totalTunjangan -
-    totalPotongan -
-    izinDeduction -
-    izinWeekendPenalty -
-    lateDeduction -
-    kasbonDeduction -
+  const totalPendapatan = basePay + mealAllowance + attendanceAllowance + lemburAmount + thrAmount + totalTunjangan;
+  const totalSemuaPotongan =
+    totalPotongan +
+    izinDeduction +
+    izinWeekendPenalty +
+    lateDeduction +
+    kasbonDeduction +
     personalLoanDeduction;
+  const totalDiterima = totalPendapatan - totalSemuaPotongan;
 
   const boundAddAdjustment = addPayslipAdjustment.bind(null, businessId, payslipId);
   const boundUpdateExtras = updatePayslipExtras.bind(null, businessId, payslipId);
@@ -300,6 +296,14 @@ export default async function PayslipDetailPage({
                 <span>{formatRupiah(personalLoanDeduction)}</span>
               </div>
             )}
+            <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-sm font-semibold text-zinc-700">
+              <span>Total Pendapatan</span>
+              <span>{formatRupiah(totalPendapatan)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold text-red-600">
+              <span>Total Potongan</span>
+              <span>−{formatRupiah(totalSemuaPotongan)}</span>
+            </div>
             <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-base font-bold text-zinc-900">
               <span>Total Diterima</span>
               <span>{formatRupiah(totalDiterima)}</span>

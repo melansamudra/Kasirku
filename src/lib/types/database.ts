@@ -625,6 +625,44 @@ export type Database = {
           },
         ];
       };
+      employee_recurring_allowances: {
+        Row: {
+          id: string;
+          business_id: string;
+          employee_id: string;
+          label: string;
+          amount: number;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          employee_id: string;
+          label: string;
+          amount: number;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          employee_id?: string;
+          label?: string;
+          amount?: number;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "employee_recurring_allowances_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       employee_shift_assignments: {
         Row: {
           id: string;

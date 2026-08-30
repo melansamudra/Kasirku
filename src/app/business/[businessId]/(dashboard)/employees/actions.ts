@@ -275,3 +275,128 @@ export async function addPersonalLoan(
   revalidatePath(`/business/${businessId}/employees`);
   return { error: null };
 }
+
+export type AddRecurringAllowanceState = { error: string | null };
+
+// Tunjangan Tetap -- template yang otomatis disalin ke payslip_adjustments
+// tiap kali slip gaji baru dibuat (lihat createPayslip di payroll/actions.ts),
+// jadi tidak perlu diketik ulang tiap bulan. Bisa lebih dari satu per
+// karyawan (mis. Tunjangan Jabatan + Kesehatan + Bonus Bulanan sekaligus).
+export async function addRecurringAllowance(
+  businessId: string,
+  employeeId: string,
+  _prevState: AddRecurringAllowanceState,
+  formData: FormData,
+): Promise<AddRecurringAllowanceState> {
+  const label = (formData.get("label") as string)?.trim();
+  const amount = Number(formData.get("amount"));
+
+  if (!label) {
+    return { error: "Nama tunjangan wajib diisi." };
+  }
+  if (Number.isNaN(amount) || amount < 0) {
+    return { error: "Nominal tunjangan harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("name")
+    .eq("id", employeeId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  const { error } = await supabase.from("employee_recurring_allowances").insert({
+    business_id: businessId,
+    employee_id: employeeId,
+    label,
+    amount,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (employee) {
+    await logActivity(
+      supabase,
+      businessId,
+      "pengaturan",
+      "info",
+      `Tunjangan tetap ditambahkan: ${employee.name}`,
+      `${label} — Rp${amount.toLocaleString("id-ID")}/bulan`,
+    );
+  }
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null };
+}
+
+export async function updateRecurringAllowance(
+  businessId: string,
+  allowanceId: string,
+  label: string,
+  amount: number,
+): Promise<{ error: string | null }> {
+  const trimmedLabel = label.trim();
+  if (!trimmedLabel) {
+    return { error: "Nama tunjangan wajib diisi." };
+  }
+  if (Number.isNaN(amount) || amount < 0) {
+    return { error: "Nominal tunjangan harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("employee_recurring_allowances")
+    .update({ label: trimmedLabel, amount })
+    .eq("id", allowanceId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null };
+}
+
+export async function toggleRecurringAllowanceActive(
+  businessId: string,
+  allowanceId: string,
+  active: boolean,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("employee_recurring_allowances")
+    .update({ active })
+    .eq("id", allowanceId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null };
+}
+
+export async function deleteRecurringAllowance(
+  businessId: string,
+  allowanceId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("employee_recurring_allowances")
+    .delete()
+    .eq("id", allowanceId)
+    .eq("business_id", businessId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null };
+}

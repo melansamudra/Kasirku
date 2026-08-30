@@ -8,6 +8,7 @@ import AddEmployeeForm from "./add-employee-form";
 import EditEmployeeForm from "./edit-employee-form";
 import ToggleActiveButton from "./toggle-active-button";
 import PersonalLoanButton from "./personal-loan-button";
+import RecurringAllowancesButton from "./recurring-allowances-button";
 
 export default async function EmployeesPage({
   params,
@@ -66,6 +67,22 @@ export default async function EmployeesPage({
       s.employee_id,
       (personalLoanSettledByEmployee.get(s.employee_id) ?? 0) + Number(s.personal_loan_deduction),
     );
+  }
+
+  const { data: recurringAllowances } = await supabase
+    .from("employee_recurring_allowances")
+    .select("id, employee_id, label, amount, active")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: true });
+
+  const recurringAllowancesByEmployee = new Map<
+    string,
+    { id: string; label: string; amount: number; active: boolean }[]
+  >();
+  for (const a of recurringAllowances ?? []) {
+    const list = recurringAllowancesByEmployee.get(a.employee_id) ?? [];
+    list.push({ id: a.id, label: a.label, amount: Number(a.amount), active: a.active });
+    recurringAllowancesByEmployee.set(a.employee_id, list);
   }
 
   const linkedCashierIds = new Set((employees ?? []).map((e) => e.cashier_id).filter(Boolean));
@@ -139,7 +156,12 @@ export default async function EmployeesPage({
                       })}
                     </p>
                   )}
-                  <div className="mt-1.5">
+                  <div className="mt-1.5 space-y-1.5">
+                    <RecurringAllowancesButton
+                      businessId={businessId}
+                      employeeId={e.id}
+                      allowances={recurringAllowancesByEmployee.get(e.id) ?? []}
+                    />
                     <PersonalLoanButton
                       businessId={businessId}
                       employeeId={e.id}

@@ -229,7 +229,7 @@ export async function createPayslip(
 
   const supabase = await createClient();
 
-  const [{ data: employee }, { data: business }, { data: lateTierRows }, { data: holidayRows }] = await Promise.all([
+  const [{ data: employee }, { data: business }, { data: lateTierRows }, { data: holidayRows }, { data: recurringAllowances }] = await Promise.all([
     supabase
       .from("employees")
       .select(
@@ -255,6 +255,15 @@ export async function createPayslip(
       .eq("business_id", businessId)
       .gte("holiday_date", periodStart)
       .lte("holiday_date", periodEnd),
+    supabase
+      .from("employee_recurring_allowances")
+      .select("label, amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .eq("active", true)
+      // Template yang nominalnya belum diisi (0) dilewati -- belum siap
+      // dipakai, biar tidak nongol jadi baris "Rp0" yang aneh di slip.
+      .gt("amount", 0),
   ]);
 
   if (!employee) {
@@ -340,6 +349,20 @@ export async function createPayslip(
 
   if (error || !payslip) {
     return { success: false, error: error?.message ?? "Gagal membuat slip gaji." };
+  }
+
+  // Tunjangan Tetap yang aktif otomatis disalin jadi payslip_adjustments di
+  // slip baru ini -- snapshot lepas, jadi kalau nanti template-nya diedit/
+  // dihapus/dinonaktifkan, slip yang sudah dibuat tidak ikut berubah.
+  if (recurringAllowances && recurringAllowances.length > 0) {
+    await supabase.from("payslip_adjustments").insert(
+      recurringAllowances.map((a) => ({
+        payslip_id: payslip.id,
+        type: "tunjangan",
+        label: a.label,
+        amount: a.amount,
+      })),
+    );
   }
 
   await logActivity(
