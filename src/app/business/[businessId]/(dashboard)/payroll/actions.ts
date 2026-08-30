@@ -232,7 +232,9 @@ export async function createPayslip(
   const [{ data: employee }, { data: business }, { data: lateTierRows }, { data: holidayRows }] = await Promise.all([
     supabase
       .from("employees")
-      .select("name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour")
+      .select(
+        "name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance",
+      )
       .eq("id", employeeId)
       .eq("business_id", businessId)
       .maybeSingle(),
@@ -273,12 +275,14 @@ export async function createPayslip(
   const salaryType = employee.salary_type === "bulanan" ? "bulanan" : "harian";
   const dailyRate = Number(employee.daily_rate);
   const monthlyRate = Number(employee.monthly_rate);
+  const dailyMealAllowance = Number(employee.daily_meal_allowance);
+  const dailyAttendanceAllowance = Number(employee.daily_attendance_allowance);
 
   const calc = calcPayslip(
     periodStart,
     periodEnd,
     (attendanceRows ?? []).map((r) => ({ ...r, lateMinutes: r.late_minutes })),
-    { salaryType, dailyRate, monthlyRate },
+    { salaryType, dailyRate, monthlyRate, dailyMealAllowance, dailyAttendanceAllowance },
     {
       izinDeductionMode: business.izin_deduction_mode === "full_day" ? "full_day" : "flat",
       izinDeductionWeekday: Number(business.izin_deduction_weekday),
@@ -319,11 +323,17 @@ export async function createPayslip(
       off_count: calc.offCount,
       izin_weekday_count: calc.izinWeekdayCount,
       izin_weekend_count: calc.izinWeekendCount,
+      izin_noted_count: calc.izinNotedCount,
+      izin_unnoted_count: calc.izinUnnotedCount,
+      izin_unnoted_weekend_count: calc.izinUnnotedWeekendCount,
       izin_deduction: calc.izinDeduction,
+      izin_weekend_penalty: calc.izinWeekendPenalty,
       late_count: calc.lateCount,
       late_deduction: calc.lateDeduction,
       hari_kerja_efektif: calc.hariKerjaEfektif,
       base_pay: calc.basePay,
+      meal_allowance: calc.mealAllowance,
+      attendance_allowance: calc.attendanceAllowance,
     })
     .select("id")
     .single();
@@ -380,7 +390,7 @@ export async function markPayslipPaid(
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, base_pay, lembur_amount, thr_amount, izin_deduction, late_deduction, kasbon_deduction, paid_at, period_end, employees(name)",
+      "id, base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, paid_at, period_end, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -406,11 +416,14 @@ export async function markPayslipPaid(
     .reduce((s, a) => s + Number(a.amount), 0);
   const total =
     Number(payslip.base_pay) +
+    Number(payslip.meal_allowance) +
+    Number(payslip.attendance_allowance) +
     Number(payslip.lembur_amount) +
     Number(payslip.thr_amount) +
     tunjangan -
     potongan -
     Number(payslip.izin_deduction) -
+    Number(payslip.izin_weekend_penalty) -
     Number(payslip.late_deduction) -
     Number(payslip.kasbon_deduction);
 

@@ -83,7 +83,9 @@ export default async function PayrollRekapPage({
       .single(),
     supabase
       .from("employees")
-      .select("id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, active")
+      .select(
+        "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, active",
+      )
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
     supabase.from("late_deduction_tiers").select("threshold_minutes, amount").eq("business_id", businessId),
@@ -111,7 +113,7 @@ export default async function PayrollRekapPage({
     supabase
       .from("payslips")
       .select(
-        "id, employee_id, base_pay, izin_deduction, late_deduction, lembur_amount, thr_amount, kasbon_deduction, payslip_adjustments(type, amount)",
+        "id, employee_id, base_pay, meal_allowance, attendance_allowance, izin_deduction, izin_weekend_penalty, late_deduction, lembur_amount, thr_amount, kasbon_deduction, payslip_adjustments(type, amount)",
       )
       .eq("business_id", businessId)
       .eq("period_start", monthStart)
@@ -152,19 +154,33 @@ export default async function PayrollRekapPage({
       const thrAmount = Number(s.thr_amount);
       const kasbonDeduction = Number(s.kasbon_deduction);
       const izinDeduction = Number(s.izin_deduction);
+      const izinWeekendPenalty = Number(s.izin_weekend_penalty);
       const lateDeduction = Number(s.late_deduction);
       const totalDiterima =
         Number(s.base_pay) +
+        Number(s.meal_allowance) +
+        Number(s.attendance_allowance) +
         lemburAmount +
         thrAmount +
         tunjanganTotal -
         potonganLainTotal -
         izinDeduction -
+        izinWeekendPenalty -
         lateDeduction -
         kasbonDeduction;
       return [
         s.employee_id,
-        { izinDeduction, lateDeduction, lemburAmount, thrAmount, tunjanganTotal, potonganLainTotal, kasbonDeduction, totalDiterima },
+        {
+          izinDeduction,
+          izinWeekendPenalty,
+          lateDeduction,
+          lemburAmount,
+          thrAmount,
+          tunjanganTotal,
+          potonganLainTotal,
+          kasbonDeduction,
+          totalDiterima,
+        },
       ];
     }),
   );
@@ -189,6 +205,8 @@ export default async function PayrollRekapPage({
         salaryType: e.salary_type === "bulanan" ? "bulanan" : "harian",
         dailyRate: Number(e.daily_rate),
         monthlyRate: Number(e.monthly_rate),
+        dailyMealAllowance: Number(e.daily_meal_allowance),
+        dailyAttendanceAllowance: Number(e.daily_attendance_allowance),
       },
       settings,
       weekendDaysForBusiness(businessId),

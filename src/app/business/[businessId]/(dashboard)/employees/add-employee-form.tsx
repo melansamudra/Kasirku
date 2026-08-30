@@ -109,6 +109,41 @@ export default function AddEmployeeForm({
         </div>
       )}
 
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label htmlFor="dailyMealAllowance" className="mb-1 block text-xs font-medium text-zinc-600">
+            Uang Makan Harian (Rp, opsional)
+          </label>
+          <input
+            id="dailyMealAllowance"
+            name="dailyMealAllowance"
+            type="number"
+            min="0"
+            step="1"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="mis. 15000"
+          />
+        </div>
+        <div>
+          <label htmlFor="dailyAttendanceAllowance" className="mb-1 block text-xs font-medium text-zinc-600">
+            Tunjangan Kehadiran (Rp, opsional)
+          </label>
+          <input
+            id="dailyAttendanceAllowance"
+            name="dailyAttendanceAllowance"
+            type="number"
+            min="0"
+            step="1"
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="mis. 10000"
+          />
+        </div>
+      </div>
+      <p className="-mt-2 text-[11px] text-zinc-400">
+        Keduanya dikali jumlah hari HADIR (bukan izin) tiap dibuatkan slip gaji, di luar Gaji Pokok.
+        Kosongkan kalau tidak berlaku untuk karyawan ini.
+      </p>
+
       <div>
         <label htmlFor="lemburRatePerHour" className="mb-1 block text-xs font-medium text-zinc-600">
           Rate Lembur per Jam (Rp, opsional)

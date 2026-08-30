@@ -643,6 +643,8 @@ export type Database = {
           created_at: string;
           contract_end: string | null;
           lembur_rate_per_hour: number | null;
+          daily_meal_allowance: number;
+          daily_attendance_allowance: number;
           location_id: string | null;
           pin_hash: string | null;
           has_pin: boolean | null;
@@ -660,6 +662,8 @@ export type Database = {
           created_at?: string;
           contract_end?: string | null;
           lembur_rate_per_hour?: number | null;
+          daily_meal_allowance?: number;
+          daily_attendance_allowance?: number;
           location_id?: string | null;
           pin_hash?: string | null;
         };
@@ -676,6 +680,8 @@ export type Database = {
           created_at?: string;
           contract_end?: string | null;
           lembur_rate_per_hour?: number | null;
+          daily_meal_allowance?: number;
+          daily_attendance_allowance?: number;
           location_id?: string | null;
           pin_hash?: string | null;
         };
@@ -1525,6 +1531,8 @@ export type Database = {
           alpa_count: number;
           off_count: number;
           base_pay: number;
+          meal_allowance: number;
+          attendance_allowance: number;
           created_at: string;
           paid_at: string | null;
           lembur_amount: number;
@@ -1533,7 +1541,11 @@ export type Database = {
           kasbon_deduction: number;
           izin_weekday_count: number;
           izin_weekend_count: number;
+          izin_noted_count: number;
+          izin_unnoted_count: number;
+          izin_unnoted_weekend_count: number;
           izin_deduction: number;
+          izin_weekend_penalty: number;
           late_count: number;
           hari_kerja_efektif: number;
           lembur_hours: number;
@@ -1554,6 +1566,8 @@ export type Database = {
           alpa_count?: number;
           off_count?: number;
           base_pay?: number;
+          meal_allowance?: number;
+          attendance_allowance?: number;
           created_at?: string;
           paid_at?: string | null;
           lembur_amount?: number;
@@ -1562,7 +1576,11 @@ export type Database = {
           kasbon_deduction?: number;
           izin_weekday_count?: number;
           izin_weekend_count?: number;
+          izin_noted_count?: number;
+          izin_unnoted_count?: number;
+          izin_unnoted_weekend_count?: number;
           izin_deduction?: number;
+          izin_weekend_penalty?: number;
           late_count?: number;
           hari_kerja_efektif?: number;
           lembur_hours?: number;
@@ -1583,6 +1601,8 @@ export type Database = {
           alpa_count?: number;
           off_count?: number;
           base_pay?: number;
+          meal_allowance?: number;
+          attendance_allowance?: number;
           created_at?: string;
           paid_at?: string | null;
           lembur_amount?: number;
@@ -1591,7 +1611,11 @@ export type Database = {
           kasbon_deduction?: number;
           izin_weekday_count?: number;
           izin_weekend_count?: number;
+          izin_noted_count?: number;
+          izin_unnoted_count?: number;
+          izin_unnoted_weekend_count?: number;
           izin_deduction?: number;
+          izin_weekend_penalty?: number;
           late_count?: number;
           hari_kerja_efektif?: number;
           lembur_hours?: number;

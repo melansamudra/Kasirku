@@ -10,6 +10,8 @@ function parseEmployeeFields(formData: FormData) {
   const dailyRateRaw = formData.get("dailyRate") as string;
   const monthlyRateRaw = formData.get("monthlyRate") as string;
   const lemburRateRaw = formData.get("lemburRatePerHour") as string;
+  const dailyMealAllowanceRaw = formData.get("dailyMealAllowance") as string;
+  const dailyAttendanceAllowanceRaw = formData.get("dailyAttendanceAllowance") as string;
   const note = (formData.get("note") as string)?.trim();
   const cashierId = (formData.get("cashierId") as string) || null;
   const contractEnd = (formData.get("contractEnd") as string) || null;
@@ -39,6 +41,16 @@ function parseEmployeeFields(formData: FormData) {
     }
   }
 
+  const dailyMealAllowance = dailyMealAllowanceRaw ? Number(dailyMealAllowanceRaw) : 0;
+  if (Number.isNaN(dailyMealAllowance) || dailyMealAllowance < 0) {
+    return { error: "Uang makan harian harus angka dan tidak boleh negatif." } as const;
+  }
+
+  const dailyAttendanceAllowance = dailyAttendanceAllowanceRaw ? Number(dailyAttendanceAllowanceRaw) : 0;
+  if (Number.isNaN(dailyAttendanceAllowance) || dailyAttendanceAllowance < 0) {
+    return { error: "Tunjangan kehadiran harian harus angka dan tidak boleh negatif." } as const;
+  }
+
   return {
     error: null,
     name,
@@ -46,6 +58,8 @@ function parseEmployeeFields(formData: FormData) {
     dailyRate,
     monthlyRate,
     lemburRatePerHour,
+    dailyMealAllowance,
+    dailyAttendanceAllowance,
     note: note || null,
     cashierId,
     contractEnd,
@@ -71,6 +85,8 @@ export async function addEmployee(
     daily_rate: parsed.dailyRate,
     monthly_rate: parsed.monthlyRate,
     lembur_rate_per_hour: parsed.lemburRatePerHour,
+    daily_meal_allowance: parsed.dailyMealAllowance,
+    daily_attendance_allowance: parsed.dailyAttendanceAllowance,
     note: parsed.note,
     cashier_id: parsed.cashierId,
     contract_end: parsed.contractEnd,
@@ -112,6 +128,8 @@ export async function editEmployee(
       daily_rate: parsed.dailyRate,
       monthly_rate: parsed.monthlyRate,
       lembur_rate_per_hour: parsed.lemburRatePerHour,
+      daily_meal_allowance: parsed.dailyMealAllowance,
+      daily_attendance_allowance: parsed.dailyAttendanceAllowance,
       note: parsed.note,
       cashier_id: parsed.cashierId,
       contract_end: parsed.contractEnd,
