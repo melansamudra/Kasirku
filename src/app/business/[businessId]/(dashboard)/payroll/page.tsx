@@ -60,11 +60,15 @@ type PayslipAgg = {
   period_start: string;
   period_end: string;
   base_pay: number;
+  meal_allowance: number;
+  attendance_allowance: number;
   lembur_amount: number;
   thr_amount: number;
   izin_deduction: number;
+  izin_weekend_penalty: number;
   late_deduction: number;
   kasbon_deduction: number;
+  personal_loan_deduction: number;
   hadir_count: number;
   created_at: string;
   paid_at: string | null;
@@ -81,13 +85,17 @@ function payslipTotal(p: PayslipAgg) {
     .reduce((s, a) => s + Number(a.amount), 0);
   return (
     Number(p.base_pay) +
+    Number(p.meal_allowance) +
+    Number(p.attendance_allowance) +
     Number(p.lembur_amount) +
     Number(p.thr_amount) +
     tunjangan -
     potongan -
     Number(p.izin_deduction) -
+    Number(p.izin_weekend_penalty) -
     Number(p.late_deduction) -
-    Number(p.kasbon_deduction)
+    Number(p.kasbon_deduction) -
+    Number(p.personal_loan_deduction)
   );
 }
 
@@ -140,7 +148,7 @@ export default async function PayrollPage({
       supabase
         .from("payslips")
         .select(
-          "id, employee_id, period_start, period_end, base_pay, lembur_amount, thr_amount, izin_deduction, late_deduction, kasbon_deduction, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
+          "id, employee_id, period_start, period_end, base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
         )
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })

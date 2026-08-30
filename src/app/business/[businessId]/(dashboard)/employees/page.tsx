@@ -7,6 +7,7 @@ import { addEmployee, editEmployee } from "./actions";
 import AddEmployeeForm from "./add-employee-form";
 import EditEmployeeForm from "./edit-employee-form";
 import ToggleActiveButton from "./toggle-active-button";
+import PersonalLoanButton from "./personal-loan-button";
 
 export default async function EmployeesPage({
   params,
@@ -39,6 +40,33 @@ export default async function EmployeesPage({
     .select("id, name")
     .eq("business_id", businessId)
     .order("name", { ascending: true });
+
+  // Sisa Pinjaman Pribadi = total pinjaman yang pernah dicatat dikurangi
+  // personal_loan_deduction dari slip-slip yang SUDAH dibayar -- sama pola
+  // kayak getOutstandingKasbon/getOutstandingPersonalLoan di payroll/actions.ts.
+  const [{ data: personalLoans }, { data: paidSlipsLoans }] = await Promise.all([
+    supabase.from("employee_personal_loans").select("employee_id, amount").eq("business_id", businessId),
+    supabase
+      .from("payslips")
+      .select("employee_id, personal_loan_deduction")
+      .eq("business_id", businessId)
+      .not("paid_at", "is", null),
+  ]);
+
+  const personalLoanGivenByEmployee = new Map<string, number>();
+  for (const l of personalLoans ?? []) {
+    personalLoanGivenByEmployee.set(
+      l.employee_id,
+      (personalLoanGivenByEmployee.get(l.employee_id) ?? 0) + Number(l.amount),
+    );
+  }
+  const personalLoanSettledByEmployee = new Map<string, number>();
+  for (const s of paidSlipsLoans ?? []) {
+    personalLoanSettledByEmployee.set(
+      s.employee_id,
+      (personalLoanSettledByEmployee.get(s.employee_id) ?? 0) + Number(s.personal_loan_deduction),
+    );
+  }
 
   const linkedCashierIds = new Set((employees ?? []).map((e) => e.cashier_id).filter(Boolean));
 
@@ -111,6 +139,17 @@ export default async function EmployeesPage({
                       })}
                     </p>
                   )}
+                  <div className="mt-1.5">
+                    <PersonalLoanButton
+                      businessId={businessId}
+                      employeeId={e.id}
+                      outstanding={Math.max(
+                        0,
+                        (personalLoanGivenByEmployee.get(e.id) ?? 0) -
+                          (personalLoanSettledByEmployee.get(e.id) ?? 0),
+                      )}
+                    />
+                  </div>
                 </div>
                 {!e.active && (
                   <div className="shrink-0">

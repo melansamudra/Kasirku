@@ -587,6 +587,44 @@ export type Database = {
           },
         ];
       };
+      employee_personal_loans: {
+        Row: {
+          id: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          employee_id?: string;
+          date?: string;
+          amount?: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "employee_personal_loans_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       employee_shift_assignments: {
         Row: {
           id: string;
@@ -1539,6 +1577,7 @@ export type Database = {
           thr_amount: number;
           late_deduction: number;
           kasbon_deduction: number;
+          personal_loan_deduction: number;
           izin_weekday_count: number;
           izin_weekend_count: number;
           izin_noted_count: number;
@@ -1574,6 +1613,7 @@ export type Database = {
           thr_amount?: number;
           late_deduction?: number;
           kasbon_deduction?: number;
+          personal_loan_deduction?: number;
           izin_weekday_count?: number;
           izin_weekend_count?: number;
           izin_noted_count?: number;
@@ -1609,6 +1649,7 @@ export type Database = {
           thr_amount?: number;
           late_deduction?: number;
           kasbon_deduction?: number;
+          personal_loan_deduction?: number;
           izin_weekday_count?: number;
           izin_weekend_count?: number;
           izin_noted_count?: number;

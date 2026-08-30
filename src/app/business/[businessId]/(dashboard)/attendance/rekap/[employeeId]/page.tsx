@@ -2,7 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { setAttendance, setAttendanceLate, setAttendanceTime, type AttendanceStatus } from "../../actions";
+import {
+  setAttendance,
+  setAttendanceLate,
+  setAttendanceTime,
+  setAttendanceOvertime,
+  type AttendanceStatus,
+} from "../../actions";
 import AttendanceRow from "../../attendance-row";
 import { calcPayslip, weekendDaysForBusiness } from "../../../payroll/calc";
 import PrintSlipButton from "./print-slip-button";
@@ -155,7 +161,7 @@ export default async function EmployeeAttendanceRekapPage({
 
   const { data: rows } = await supabase
     .from("attendance")
-    .select("date, status, late, late_minutes, check_in_at, check_out_at, note")
+    .select("date, status, late, late_minutes, check_in_at, check_out_at, overtime_hours, note")
     .eq("business_id", businessId)
     .eq("employee_id", employeeId)
     .gte("date", monthStart)
@@ -166,12 +172,14 @@ export default async function EmployeeAttendanceRekapPage({
   const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   let lateCount = 0;
   let totalJamKerja = 0;
+  let totalLembur = 0;
   for (const r of rows ?? []) {
     counts[r.status as keyof typeof counts] += 1;
     if (r.late) lateCount += 1;
     if (r.check_in_at && r.check_out_at) {
       totalJamKerja += (new Date(r.check_out_at).getTime() - new Date(r.check_in_at).getTime()) / 3600000;
     }
+    totalLembur += Number(r.overtime_hours);
   }
 
   const calc = calcPayslip(
@@ -304,6 +312,7 @@ export default async function EmployeeAttendanceRekapPage({
         </table>
         <div className="border-t border-zinc-200 px-2.5 py-2.5 text-xs space-y-0.5">
           <p>Total Jam Kerja: <span className="font-semibold">{formatJam(totalJamKerja)}</span></p>
+          <p>Total Jam Lembur: <span className="font-semibold">{totalLembur} jam</span></p>
           <p>Terlambat: <span className="font-semibold">{lateCount} kali</span> (potongan {formatRupiah(calc.lateDeduction)})</p>
           <p>Potongan Izin: <span className="font-semibold">{formatRupiah(calc.izinDeduction)}</span></p>
           <p className="font-semibold">Total Potongan: {formatRupiah(totalPotongan)}</p>
@@ -326,6 +335,8 @@ export default async function EmployeeAttendanceRekapPage({
               action={setAttendance.bind(null, businessId, employeeId, dateStr)}
               lateAction={setAttendanceLate.bind(null, businessId, employeeId, dateStr)}
               timeAction={setAttendanceTime.bind(null, businessId, employeeId, dateStr)}
+              overtimeHours={Number(row?.overtime_hours ?? 0)}
+              overtimeAction={setAttendanceOvertime.bind(null, businessId, employeeId, dateStr)}
               selfie={
                 row?.check_in_at || row?.check_out_at
                   ? {
@@ -339,7 +350,7 @@ export default async function EmployeeAttendanceRekapPage({
                       checkOutLat: null,
                       checkOutLng: null,
                       lateMinutes: 0,
-                      overtimeHours: 0,
+                      overtimeHours: Number(row?.overtime_hours ?? 0),
                       verified: false,
                     }
                   : null

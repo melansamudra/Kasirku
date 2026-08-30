@@ -164,6 +164,51 @@ export async function setAttendanceLate(
   return { error: null };
 }
 
+// Jam lembur per hari -- sebelumnya cuma keisi otomatis dari jalur selfie
+// /absen/[slug] (bandingin jam pulang vs jadwal shift). Ini buat isi/ubah
+// manual (mis. bisnis belum pakai selfie, atau mau koreksi angka otomatis)
+// supaya lembur kerekap harian di Absensi, bukan cuma satu angka gelondongan
+// yang diketik pas bikin slip gaji di Payroll (walau field itu masih ada
+// buat override terakhir kalau perlu -- lihat CreateSlipButton/
+// CreatePayslipForm, defaultHours-nya sudah otomatis dari total sini).
+export async function setAttendanceOvertime(
+  businessId: string,
+  employeeId: string,
+  date: string,
+  hours: number,
+): Promise<{ error: string | null }> {
+  if (Number.isNaN(hours) || hours < 0) {
+    return { error: "Jam lembur harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("attendance")
+    .select("id, status")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId)
+    .eq("date", date)
+    .maybeSingle();
+
+  if (!existing || existing.status !== "hadir") {
+    return { error: "Tandai Hadir dulu sebelum mengisi jam lembur." };
+  }
+
+  const { error } = await supabase
+    .from("attendance")
+    .update({ overtime_hours: hours })
+    .eq("id", existing.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/attendance`);
+  revalidatePath(`/business/${businessId}/attendance/rekap`);
+  return { error: null };
+}
+
 // Cuma hapus data absen selfie-nya (foto, jam, telat/lembur terdeteksi,
 // verifikasi) — status Hadir/Izin/dst yang mungkin sudah ditandai manual
 // TIDAK ikut kehapus, biar admin bisa isi ulang manual atau minta

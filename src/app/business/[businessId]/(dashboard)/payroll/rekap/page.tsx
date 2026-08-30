@@ -113,7 +113,7 @@ export default async function PayrollRekapPage({
     supabase
       .from("payslips")
       .select(
-        "id, employee_id, base_pay, meal_allowance, attendance_allowance, izin_deduction, izin_weekend_penalty, late_deduction, lembur_amount, thr_amount, kasbon_deduction, payslip_adjustments(type, amount)",
+        "id, employee_id, base_pay, meal_allowance, attendance_allowance, izin_deduction, izin_weekend_penalty, late_deduction, lembur_amount, thr_amount, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount)",
       )
       .eq("business_id", businessId)
       .eq("period_start", monthStart)
@@ -153,6 +153,7 @@ export default async function PayrollRekapPage({
       const lemburAmount = Number(s.lembur_amount);
       const thrAmount = Number(s.thr_amount);
       const kasbonDeduction = Number(s.kasbon_deduction);
+      const personalLoanDeduction = Number(s.personal_loan_deduction);
       const izinDeduction = Number(s.izin_deduction);
       const izinWeekendPenalty = Number(s.izin_weekend_penalty);
       const lateDeduction = Number(s.late_deduction);
@@ -167,13 +168,15 @@ export default async function PayrollRekapPage({
         izinDeduction -
         izinWeekendPenalty -
         lateDeduction -
-        kasbonDeduction;
+        kasbonDeduction -
+        personalLoanDeduction;
       return [
         s.employee_id,
         {
           izinDeduction,
           izinWeekendPenalty,
           lateDeduction,
+          personalLoanDeduction,
           lemburAmount,
           thrAmount,
           tunjanganTotal,

@@ -70,6 +70,8 @@ export default function AttendanceRow({
   verifyAction,
   deleteSelfieAction,
   timeAction,
+  overtimeHours,
+  overtimeAction,
 }: {
   employeeName: string;
   currentStatus: AttendanceStatus | null;
@@ -82,6 +84,8 @@ export default function AttendanceRow({
   verifyAction?: () => Promise<{ error: string | null }>;
   deleteSelfieAction?: () => Promise<{ error: string | null }>;
   timeAction?: (checkInTime: string | null, checkOutTime: string | null) => Promise<{ error: string | null }>;
+  overtimeHours?: number;
+  overtimeAction?: (hours: number) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -92,6 +96,8 @@ export default function AttendanceRow({
   const [checkOutTime, setCheckOutTime] = useState(selfie?.checkOutAt ? toTimeInputValue(selfie.checkOutAt) : "");
   const [noteDraft, setNoteDraft] = useState(note ?? "");
   const [noteSaved, setNoteSaved] = useState(true);
+  const [editingOvertime, setEditingOvertime] = useState(false);
+  const [overtimeDraft, setOvertimeDraft] = useState(overtimeHours ? String(overtimeHours) : "");
 
   function handleSaveTime() {
     if (!timeAction) return;
@@ -129,6 +135,20 @@ export default function AttendanceRow({
         return;
       }
       setNoteSaved(true);
+      router.refresh();
+    });
+  }
+
+  function handleSaveOvertime() {
+    if (!overtimeAction) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await overtimeAction(Number(overtimeDraft) || 0);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setEditingOvertime(false);
       router.refresh();
     });
   }
@@ -199,8 +219,45 @@ export default function AttendanceRow({
               {late ? "⏰ Terlambat" : "Tandai Terlambat"}
             </button>
           )}
+          {currentStatus === "hadir" && overtimeAction && (
+            <button
+              onClick={() => setEditingOvertime((v) => !v)}
+              disabled={isPending}
+              className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                overtimeHours && overtimeHours > 0
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-zinc-200 text-zinc-400 hover:border-zinc-300"
+              }`}
+            >
+              {overtimeHours && overtimeHours > 0 ? `⏱️ Lembur ${overtimeHours} jam` : "Isi Lembur"}
+            </button>
+          )}
         </div>
       </div>
+
+      {currentStatus === "hadir" && overtimeAction && editingOvertime && (
+        <div className="mt-2 flex items-end gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+          <div className="flex-1">
+            <label className="mb-1 block text-[10px] font-medium text-zinc-500">Jam Lembur Hari Ini</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={overtimeDraft}
+              onChange={(e) => setOvertimeDraft(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          <button
+            onClick={handleSaveOvertime}
+            disabled={isPending}
+            className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+          >
+            Simpan
+          </button>
+        </div>
+      )}
 
       {timeAction && editingTime && (
         <div className="mt-2 flex items-end gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-2">

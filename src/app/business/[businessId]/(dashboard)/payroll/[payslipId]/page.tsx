@@ -5,11 +5,13 @@ import {
   markPayslipPaid,
   updatePayslipExtras,
   updateKasbonDeduction,
+  updatePersonalLoanDeduction,
 } from "../actions";
 import AddAdjustmentForm from "./add-adjustment-form";
 import DeleteAdjustmentButton from "./delete-adjustment-button";
 import LemburThrForm from "./lembur-thr-form";
 import DeductionsForm from "./deductions-form";
+import PersonalLoanDeductionForm from "./personal-loan-deduction-form";
 import MarkPaidButton from "./mark-paid-button";
 import PrintButton from "./print-button";
 
@@ -43,7 +45,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_noted_count, izin_unnoted_count, izin_unnoted_weekend_count, izin_deduction, izin_weekend_penalty, late_count, late_deduction, hari_kerja_efektif, base_pay, meal_allowance, attendance_allowance, lembur_amount, lembur_hours, lembur_rate, thr_amount, kasbon_deduction, created_at, paid_at, employees(name)",
+      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_noted_count, izin_unnoted_count, izin_unnoted_weekend_count, izin_deduction, izin_weekend_penalty, late_count, late_deduction, hari_kerja_efektif, base_pay, meal_allowance, attendance_allowance, lembur_amount, lembur_hours, lembur_rate, thr_amount, kasbon_deduction, personal_loan_deduction, created_at, paid_at, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -53,28 +55,44 @@ export default async function PayslipDetailPage({
     notFound();
   }
 
-  const [{ data: adjustments }, { data: advances }, { data: paidSlips }] = await Promise.all([
-    supabase
-      .from("payslip_adjustments")
-      .select("id, type, label, amount")
-      .eq("payslip_id", payslipId)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("employee_advances")
-      .select("amount")
-      .eq("business_id", businessId)
-      .eq("employee_id", payslip.employee_id),
-    supabase
-      .from("payslips")
-      .select("kasbon_deduction")
-      .eq("business_id", businessId)
-      .eq("employee_id", payslip.employee_id)
-      .not("paid_at", "is", null),
-  ]);
+  const [{ data: adjustments }, { data: advances }, { data: paidSlips }, { data: personalLoans }, { data: paidSlipsLoans }] =
+    await Promise.all([
+      supabase
+        .from("payslip_adjustments")
+        .select("id, type, label, amount")
+        .eq("payslip_id", payslipId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("employee_advances")
+        .select("amount")
+        .eq("business_id", businessId)
+        .eq("employee_id", payslip.employee_id),
+      supabase
+        .from("payslips")
+        .select("kasbon_deduction")
+        .eq("business_id", businessId)
+        .eq("employee_id", payslip.employee_id)
+        .not("paid_at", "is", null),
+      supabase
+        .from("employee_personal_loans")
+        .select("amount")
+        .eq("business_id", businessId)
+        .eq("employee_id", payslip.employee_id),
+      supabase
+        .from("payslips")
+        .select("personal_loan_deduction")
+        .eq("business_id", businessId)
+        .eq("employee_id", payslip.employee_id)
+        .not("paid_at", "is", null),
+    ]);
 
   const kasbonGiven = (advances ?? []).reduce((s, a) => s + Number(a.amount), 0);
   const kasbonSettled = (paidSlips ?? []).reduce((s, p) => s + Number(p.kasbon_deduction), 0);
   const outstandingKasbon = Math.max(0, kasbonGiven - kasbonSettled);
+
+  const personalLoanGiven = (personalLoans ?? []).reduce((s, a) => s + Number(a.amount), 0);
+  const personalLoanSettled = (paidSlipsLoans ?? []).reduce((s, p) => s + Number(p.personal_loan_deduction), 0);
+  const outstandingPersonalLoan = Math.max(0, personalLoanGiven - personalLoanSettled);
 
   const employee = payslip.employees as unknown as { name: string } | null;
   const tunjangan = (adjustments ?? []).filter((a) => a.type === "tunjangan");
@@ -90,6 +108,7 @@ export default async function PayslipDetailPage({
   const izinWeekendPenalty = Number(payslip.izin_weekend_penalty);
   const lateDeduction = Number(payslip.late_deduction);
   const kasbonDeduction = Number(payslip.kasbon_deduction);
+  const personalLoanDeduction = Number(payslip.personal_loan_deduction);
   const totalDiterima =
     basePay +
     mealAllowance +
@@ -101,11 +120,13 @@ export default async function PayslipDetailPage({
     izinDeduction -
     izinWeekendPenalty -
     lateDeduction -
-    kasbonDeduction;
+    kasbonDeduction -
+    personalLoanDeduction;
 
   const boundAddAdjustment = addPayslipAdjustment.bind(null, businessId, payslipId);
   const boundUpdateExtras = updatePayslipExtras.bind(null, businessId, payslipId);
   const boundUpdateKasbon = updateKasbonDeduction.bind(null, businessId, payslipId);
+  const boundUpdatePersonalLoan = updatePersonalLoanDeduction.bind(null, businessId, payslipId);
   const boundMarkPaid = markPayslipPaid.bind(null, businessId, payslipId);
   const isPaid = Boolean(payslip.paid_at);
 
@@ -273,6 +294,12 @@ export default async function PayslipDetailPage({
                 <span>{formatRupiah(kasbonDeduction)}</span>
               </div>
             )}
+            {personalLoanDeduction > 0 && (
+              <div className="flex justify-between text-red-500">
+                <span>− Potongan Pinjaman Pribadi</span>
+                <span>{formatRupiah(personalLoanDeduction)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-dashed border-zinc-300 pt-2 text-base font-bold text-zinc-900">
               <span>Total Diterima</span>
               <span>{formatRupiah(totalDiterima)}</span>
@@ -302,6 +329,11 @@ export default async function PayslipDetailPage({
                 action={boundUpdateKasbon}
                 initialKasbon={kasbonDeduction}
                 outstandingKasbon={outstandingKasbon}
+              />
+              <PersonalLoanDeductionForm
+                action={boundUpdatePersonalLoan}
+                initialPersonalLoan={personalLoanDeduction}
+                outstandingPersonalLoan={outstandingPersonalLoan}
               />
               <MarkPaidButton action={boundMarkPaid} totalDiterima={totalDiterima} />
             </div>

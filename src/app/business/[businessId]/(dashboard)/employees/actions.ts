@@ -218,3 +218,60 @@ export async function setEmployeePin(
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/staf`);
   return { error: null };
 }
+
+export type AddPersonalLoanState = { error: string | null };
+
+// Pinjaman Pribadi -- BEDA dari Kasbon (yang lewat Kas Kecil, ada jurnal
+// & kas beneran keluar). Ini cuma catatan/tanda, tidak menyentuh kas atau
+// jurnal sama sekali -- lihat migration 20260830130000. Potongannya nanti
+// dipilih manual per-slip di halaman detail slip gaji (mirip Kasbon).
+export async function addPersonalLoan(
+  businessId: string,
+  employeeId: string,
+  _prevState: AddPersonalLoanState,
+  formData: FormData,
+): Promise<AddPersonalLoanState> {
+  const amount = Number(formData.get("amount"));
+  const note = (formData.get("note") as string)?.trim();
+  const dateRaw = formData.get("date") as string;
+  const date = dateRaw || new Date().toISOString().slice(0, 10);
+
+  if (Number.isNaN(amount) || amount <= 0) {
+    return { error: "Nominal pinjaman harus angka lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("name")
+    .eq("id", employeeId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  const { error } = await supabase.from("employee_personal_loans").insert({
+    business_id: businessId,
+    employee_id: employeeId,
+    date,
+    amount,
+    note: note || null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (employee) {
+    await logActivity(
+      supabase,
+      businessId,
+      "pengaturan",
+      "info",
+      `Pinjaman pribadi dicatat: ${employee.name}`,
+      `Rp${amount.toLocaleString("id-ID")}${note ? ` — ${note}` : ""}`,
+    );
+  }
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null };
+}

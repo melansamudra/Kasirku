@@ -8,6 +8,7 @@ import {
   setAttendanceNote,
   setAttendanceLate,
   setAttendanceTime,
+  setAttendanceOvertime,
   verifyAttendance,
   deleteAttendanceSelfie,
   type AttendanceStatus,
@@ -150,6 +151,8 @@ export default async function AttendancePage({
                 noteAction={setAttendanceNote.bind(null, businessId, e.id, date)}
                 lateAction={setAttendanceLate.bind(null, businessId, e.id, date)}
                 timeAction={setAttendanceTime.bind(null, businessId, e.id, date)}
+                overtimeHours={selfieByEmployee.get(e.id)?.overtimeHours ?? 0}
+                overtimeAction={setAttendanceOvertime.bind(null, businessId, e.id, date)}
                 selfie={selfieByEmployee.get(e.id) ?? null}
                 verifyAction={
                   selfieByEmployee.get(e.id)

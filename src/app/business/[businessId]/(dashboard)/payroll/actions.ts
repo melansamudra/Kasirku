@@ -390,7 +390,7 @@ export async function markPayslipPaid(
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, paid_at, period_end, employees(name)",
+      "id, base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, paid_at, period_end, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -425,7 +425,8 @@ export async function markPayslipPaid(
     Number(payslip.izin_deduction) -
     Number(payslip.izin_weekend_penalty) -
     Number(payslip.late_deduction) -
-    Number(payslip.kasbon_deduction);
+    Number(payslip.kasbon_deduction) -
+    Number(payslip.personal_loan_deduction);
 
   if (total <= 0) {
     return { error: "Total gaji harus lebih dari 0 untuk ditandai dibayar." };
@@ -642,6 +643,90 @@ async function getOutstandingKasbon(
   const given = (advances ?? []).reduce((s, a) => s + Number(a.amount), 0);
   const settled = (paidSlips ?? []).reduce((s, p) => s + Number(p.kasbon_deduction), 0);
   return Math.max(0, given - settled);
+}
+
+// Potongan Pinjaman Pribadi -- BEDA dari Kasbon: dicatat dari halaman
+// Karyawan (bukan Kas Kecil), tidak pernah menyentuh kas/jurnal. Sisa
+// pinjaman dihitung sama persis polanya kayak getOutstandingKasbon di
+// atas, cuma sumbernya employee_personal_loans + personal_loan_deduction.
+async function getOutstandingPersonalLoan(
+  supabase: SupabaseServerClient,
+  businessId: string,
+  employeeId: string,
+): Promise<number> {
+  const [{ data: loans }, { data: paidSlips }] = await Promise.all([
+    supabase
+      .from("employee_personal_loans")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId),
+    supabase
+      .from("payslips")
+      .select("personal_loan_deduction")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .not("paid_at", "is", null),
+  ]);
+
+  const given = (loans ?? []).reduce((s, a) => s + Number(a.amount), 0);
+  const settled = (paidSlips ?? []).reduce((s, p) => s + Number(p.personal_loan_deduction), 0);
+  return Math.max(0, given - settled);
+}
+
+export async function updatePersonalLoanDeduction(
+  businessId: string,
+  payslipId: string,
+  personalLoanDeduction: number,
+): Promise<{ error: string | null }> {
+  if (Number.isNaN(personalLoanDeduction) || personalLoanDeduction < 0) {
+    return { error: "Nominal potongan pinjaman pribadi harus angka 0 atau lebih." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: payslip } = await supabase
+    .from("payslips")
+    .select("id, employee_id, paid_at")
+    .eq("id", payslipId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!payslip) {
+    return { error: "Slip gaji tidak ditemukan." };
+  }
+  if (payslip.paid_at) {
+    return { error: "Slip gaji sudah dibayar, tidak bisa diubah lagi." };
+  }
+
+  if (personalLoanDeduction > 0) {
+    const outstanding = await getOutstandingPersonalLoan(supabase, businessId, payslip.employee_id);
+    if (personalLoanDeduction > outstanding) {
+      return {
+        error: `Potongan pinjaman pribadi (Rp${personalLoanDeduction.toLocaleString("id-ID")}) melebihi sisa pinjaman karyawan ini (Rp${outstanding.toLocaleString("id-ID")}).`,
+      };
+    }
+  }
+
+  const { error } = await supabase
+    .from("payslips")
+    .update({ personal_loan_deduction: personalLoanDeduction })
+    .eq("id", payslipId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "info",
+    "Potongan pinjaman pribadi diperbarui",
+    `Rp${personalLoanDeduction.toLocaleString("id-ID")}`,
+  );
+
+  revalidatePath(`/business/${businessId}/payroll/${payslipId}`);
+  return { error: null };
 }
 
 export type AdjustmentType = "tunjangan" | "potongan";
