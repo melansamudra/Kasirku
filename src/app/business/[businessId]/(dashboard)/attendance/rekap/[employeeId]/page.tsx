@@ -207,7 +207,7 @@ export default async function EmployeeAttendanceRekapPage({
     new Set((holidayRows ?? []).map((h) => h.holiday_date)),
   );
 
-  const totalPotongan = calc.izinDeduction + calc.lateDeduction;
+  const totalPotongan = calc.izinDeduction + calc.izinWeekendPenalty + calc.lateDeduction;
 
   const kasbonThisMonth = (advancesThisMonth ?? []).reduce((s, a) => s + Number(a.amount), 0);
   const kasbonGivenAll = (allAdvances ?? []).reduce((s, a) => s + Number(a.amount), 0);
@@ -264,6 +264,11 @@ export default async function EmployeeAttendanceRekapPage({
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 print:py-1.5">
           <p className="text-[9px] font-semibold uppercase text-amber-700">Potongan Izin</p>
           <p className="text-base font-bold text-amber-700">{formatRupiah(calc.izinDeduction)}</p>
+          {calc.izinWeekendPenalty > 0 && (
+            <p className="text-[9px] text-amber-600">
+              + {formatRupiah(calc.izinWeekendPenalty)} denda weekend
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 print:py-1.5">
           <p className="text-[9px] font-semibold uppercase text-red-600">Potongan Telat</p>
@@ -315,6 +320,9 @@ export default async function EmployeeAttendanceRekapPage({
           <p>Total Jam Lembur: <span className="font-semibold">{totalLembur} jam</span></p>
           <p>Terlambat: <span className="font-semibold">{lateCount} kali</span> (potongan {formatRupiah(calc.lateDeduction)})</p>
           <p>Potongan Izin: <span className="font-semibold">{formatRupiah(calc.izinDeduction)}</span></p>
+          {calc.izinWeekendPenalty > 0 && (
+            <p>Denda Izin Weekend/Tanggal Merah: <span className="font-semibold">{formatRupiah(calc.izinWeekendPenalty)}</span></p>
+          )}
           <p className="font-semibold">Total Potongan: {formatRupiah(totalPotongan)}</p>
           <p className="pt-1">Kasbon Bulan Ini: <span className="font-semibold">{formatRupiah(kasbonThisMonth)}</span></p>
           {kasbonOutstanding > 0 && (
