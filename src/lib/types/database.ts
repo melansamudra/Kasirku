@@ -3099,6 +3099,80 @@ export type Database = {
           },
         ];
       };
+      manual_delivery_notes: {
+        Row: {
+          id: string;
+          business_id: string;
+          location_id: string;
+          dn_number: string;
+          destination: string;
+          note: string | null;
+          created_by_user_id: string | null;
+          created_by_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          location_id: string;
+          dn_number: string;
+          destination: string;
+          note?: string | null;
+          created_by_user_id?: string | null;
+          created_by_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          location_id?: string;
+          dn_number?: string;
+          destination?: string;
+          note?: string | null;
+          created_by_user_id?: string | null;
+          created_by_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      manual_delivery_note_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          manual_delivery_note_id: string;
+          item_name: string;
+          unit: string | null;
+          qty: number;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          manual_delivery_note_id: string;
+          item_name: string;
+          unit?: string | null;
+          qty: number;
+          sort_order?: number;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          manual_delivery_note_id?: string;
+          item_name?: string;
+          unit?: string | null;
+          qty?: number;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "manual_delivery_note_items_manual_delivery_note_id_fkey";
+            columns: ["manual_delivery_note_id"];
+            isOneToOne: false;
+            referencedRelation: "manual_delivery_notes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procurement_budget_lines: {
         Row: {
           id: string;
