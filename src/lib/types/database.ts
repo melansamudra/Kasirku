@@ -2046,6 +2046,7 @@ export type Database = {
           approved_qty: number | null;
           budget_status: string;
           budget_approved_by: string | null;
+          budget_approved_by_user_id: string | null;
           budget_approved_at: string | null;
           budget_note: string | null;
           fulfillment_source: string;
@@ -2065,6 +2066,7 @@ export type Database = {
           approved_qty?: number | null;
           budget_status?: string;
           budget_approved_by?: string | null;
+          budget_approved_by_user_id?: string | null;
           budget_approved_at?: string | null;
           budget_note?: string | null;
           fulfillment_source?: string;
@@ -2084,6 +2086,7 @@ export type Database = {
           approved_qty?: number | null;
           budget_status?: string;
           budget_approved_by?: string | null;
+          budget_approved_by_user_id?: string | null;
           budget_approved_at?: string | null;
           budget_note?: string | null;
           fulfillment_source?: string;
@@ -2922,6 +2925,41 @@ export type Database = {
           },
         ];
       };
+      purchase_order_contributors: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_order_id: string;
+          user_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_order_id: string;
+          user_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_order_id?: string;
+          user_id?: string;
+          name?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_contributors_purchase_order_id_fkey";
+            columns: ["purchase_order_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       goods_receipt_notes: {
         Row: {
           id: string;
@@ -2929,6 +2967,7 @@ export type Database = {
           purchase_order_id: string;
           grn_number: string;
           received_by: string;
+          received_by_user_id: string | null;
           note: string | null;
           created_at: string;
         };
@@ -2938,6 +2977,7 @@ export type Database = {
           purchase_order_id: string;
           grn_number: string;
           received_by: string;
+          received_by_user_id?: string | null;
           note?: string | null;
           created_at?: string;
         };
@@ -2947,6 +2987,7 @@ export type Database = {
           purchase_order_id?: string;
           grn_number?: string;
           received_by?: string;
+          received_by_user_id?: string | null;
           note?: string | null;
           created_at?: string;
         };

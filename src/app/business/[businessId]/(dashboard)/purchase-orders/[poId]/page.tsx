@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
+import { findApprovalBlockReason } from "../actions";
 import PrintButton from "./print-button";
 import ApproveForm from "./approve-form";
 import GrnForm from "./grn-form";
@@ -51,9 +52,12 @@ export default async function PurchaseOrderDetailPage({
 
   const actor = await getCurrentActor(supabase, businessId);
   const canApprove = actor ? canApprovePo(actor) : false;
-  const isIssuer = actor ? po.issued_by_user_id === actor.userId : false;
+  const identityBlockReason =
+    actor && canApprove && po.status === "issued"
+      ? await findApprovalBlockReason(supabase, poId, po.issued_by_user_id, actor)
+      : null;
 
-  const [{ data: items }, { data: supplier }, { data: request }, { data: employees }] = await Promise.all([
+  const [{ data: items }, { data: supplier }, { data: request }] = await Promise.all([
     supabase
       .from("purchase_order_items")
       .select("id, item_name, unit, qty, unit_price, subtotal")
@@ -63,7 +67,6 @@ export default async function PurchaseOrderDetailPage({
     po.purchase_request_id
       ? supabase.from("purchase_requests").select("pr_number").eq("id", po.purchase_request_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
   ]);
 
   const approvalLabel =
@@ -219,7 +222,7 @@ export default async function PurchaseOrderDetailPage({
           approvalLabel={approvalLabel}
           actorName={actor?.name ?? "—"}
           canApprove={canApprove}
-          isIssuer={isIssuer}
+          blockedReason={identityBlockReason}
         />
       )}
 
@@ -255,7 +258,7 @@ export default async function PurchaseOrderDetailPage({
       )}
 
       {po.status === "approved" && outstandingItems.length > 0 && (
-        <GrnForm businessId={businessId} poId={po.id} employees={employees ?? []} outstandingItems={outstandingItems} />
+        <GrnForm businessId={businessId} poId={po.id} actorName={actor?.name ?? "—"} outstandingItems={outstandingItems} />
       )}
 
       <div className="mt-4">

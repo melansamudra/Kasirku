@@ -10,14 +10,14 @@ export default function ApproveForm({
   approvalLabel,
   actorName,
   canApprove,
-  isIssuer,
+  blockedReason,
 }: {
   businessId: string;
   poId: string;
   approvalLabel: string;
   actorName: string;
   canApprove: boolean;
-  isIssuer: boolean;
+  blockedReason: string | null;
 }) {
   const router = useRouter();
   const [showReject, setShowReject] = useState(false);
@@ -74,10 +74,8 @@ export default function ApproveForm({
           <span className="text-[11px] text-zinc-600">
             Masuk sebagai <span className="font-semibold text-zinc-800">{actorName}</span>
           </span>
-          {isIssuer ? (
-            <span className="text-[11px] text-amber-700">
-              Anda menerbitkan PO ini sendiri — tidak bisa menyetujui PO sendiri.
-            </span>
+          {blockedReason ? (
+            <span className="text-[11px] text-amber-700">{blockedReason}</span>
           ) : (
             <button
               onClick={handleApprove}

@@ -57,6 +57,8 @@ export default function ItemRow({
   employees,
   costControlEnabled,
   procurementBudgetGateEnabled,
+  currentActorName,
+  canApproveBudget,
   item,
 }: {
   businessId: string;
@@ -64,6 +66,8 @@ export default function ItemRow({
   employees: Employee[];
   costControlEnabled: boolean;
   procurementBudgetGateEnabled: boolean;
+  currentActorName: string | null;
+  canApproveBudget: boolean;
   item: {
     id: string;
     itemName: string;
@@ -93,7 +97,6 @@ export default function ItemRow({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false);
-  const [budgetApproverName, setBudgetApproverName] = useState("");
   const [budgetRejectNote, setBudgetRejectNote] = useState("");
   const [showBudgetRejectForm, setShowBudgetRejectForm] = useState(false);
   const [fulfillmentMarkedBy, setFulfillmentMarkedBy] = useState("");
@@ -224,13 +227,9 @@ export default function ItemRow({
   }
 
   function handleApproveBudget(decision: "approved_in_budget" | "rejected") {
-    if (!budgetApproverName) {
-      setError("Pilih nama yang menyetujui/menolak dulu.");
-      return;
-    }
     setError(null);
     setPending(true);
-    approveItemBudget(businessId, item.id, decision, budgetApproverName, budgetRejectNote)
+    approveItemBudget(businessId, item.id, decision, budgetRejectNote)
       .then((res) => {
         setPending(false);
         if (res.error) {
@@ -357,52 +356,50 @@ export default function ItemRow({
           {item.budgetStatus === "pending" && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-2">
               <p className="text-[10.5px] font-semibold text-amber-800">Verifikasi & Otorisasi Anggaran</p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <select
-                  value={budgetApproverName}
-                  onChange={(e) => setBudgetApproverName(e.target.value)}
-                  className="rounded-lg border border-zinc-200 px-2 py-1 text-[10.5px] focus:border-brand-600 focus:outline-none"
-                >
-                  <option value="">— Disetujui/ditolak oleh —</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.name}>
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => handleApproveBudget("approved_in_budget")}
-                  disabled={pending}
-                  className="rounded-lg bg-brand-600 px-2.5 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-                >
-                  ✓ APPROVED IN BUDGET
-                </button>
-                {showBudgetRejectForm ? (
-                  <span className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={budgetRejectNote}
-                      onChange={(e) => setBudgetRejectNote(e.target.value)}
-                      placeholder="Alasan penolakan…"
-                      className="rounded-lg border border-zinc-200 px-2 py-1 text-[10.5px] focus:border-brand-600 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => handleApproveBudget("rejected")}
-                      disabled={pending}
-                      className="rounded-lg border border-red-300 px-2.5 py-1 text-[10.5px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      Kirim
-                    </button>
+              {!canApproveBudget ? (
+                <p className="mt-1 text-[10.5px] text-amber-700">
+                  Akun Anda tidak punya izin Setujui PO/Budget. Minta Owner aktifkan permission &quot;Setujui
+                  PO&quot; di Kelola Admin.
+                </p>
+              ) : (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10.5px] text-zinc-600">
+                    Masuk sebagai <span className="font-semibold text-zinc-800">{currentActorName}</span>
                   </span>
-                ) : (
                   <button
-                    onClick={() => setShowBudgetRejectForm(true)}
-                    className="text-[10.5px] text-zinc-500 hover:text-red-600"
+                    onClick={() => handleApproveBudget("approved_in_budget")}
+                    disabled={pending}
+                    className="rounded-lg bg-brand-600 px-2.5 py-1 text-[10.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                   >
-                    Tolak
+                    ✓ APPROVED IN BUDGET
                   </button>
-                )}
-              </div>
+                  {showBudgetRejectForm ? (
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={budgetRejectNote}
+                        onChange={(e) => setBudgetRejectNote(e.target.value)}
+                        placeholder="Alasan penolakan…"
+                        className="rounded-lg border border-zinc-200 px-2 py-1 text-[10.5px] focus:border-brand-600 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleApproveBudget("rejected")}
+                        disabled={pending}
+                        className="rounded-lg border border-red-300 px-2.5 py-1 text-[10.5px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Kirim
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setShowBudgetRejectForm(true)}
+                      className="text-[10.5px] text-zinc-500 hover:text-red-600"
+                    >
+                      Tolak
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {item.budgetStatus === "approved_in_budget" && (

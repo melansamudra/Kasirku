@@ -68,6 +68,8 @@ export default function RequestCard({
   employees,
   costControlEnabled,
   procurementBudgetGateEnabled,
+  currentActorName,
+  canApproveBudget,
   purchaseOrders,
 }: {
   businessId: string;
@@ -88,6 +90,8 @@ export default function RequestCard({
   employees: Employee[];
   costControlEnabled: boolean;
   procurementBudgetGateEnabled: boolean;
+  currentActorName: string | null;
+  canApproveBudget: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -266,6 +270,8 @@ export default function RequestCard({
             employees={employees}
             costControlEnabled={costControlEnabled}
             procurementBudgetGateEnabled={procurementBudgetGateEnabled}
+            currentActorName={currentActorName}
+            canApproveBudget={canApproveBudget}
             item={it}
           />
         ))}

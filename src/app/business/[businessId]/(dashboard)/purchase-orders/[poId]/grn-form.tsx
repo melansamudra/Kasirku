@@ -4,22 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createGoodsReceiptNote, type GrnItemInput } from "../grn-actions";
 
-type Employee = { id: string; name: string };
 type OutstandingItem = { poItemId: string; itemName: string; unit: string; remainingQty: number };
 
 export default function GrnForm({
   businessId,
   poId,
-  employees,
+  actorName,
   outstandingItems,
 }: {
   businessId: string;
   poId: string;
-  employees: Employee[];
+  actorName: string;
   outstandingItems: OutstandingItem[];
 }) {
   const router = useRouter();
-  const [receivedBy, setReceivedBy] = useState("");
   const [rows, setRows] = useState<Record<string, { qty: string; condition: "ok" | "rejected"; note: string }>>(
     Object.fromEntries(
       outstandingItems.map((it) => [it.poItemId, { qty: String(it.remainingQty), condition: "ok" as const, note: "" }]),
@@ -33,10 +31,6 @@ export default function GrnForm({
   }
 
   function handleSubmit() {
-    if (!receivedBy) {
-      setError("Pilih nama yang menerima barang dulu.");
-      return;
-    }
     const items: GrnItemInput[] = outstandingItems.map((it) => {
       const row = rows[it.poItemId];
       return {
@@ -48,7 +42,7 @@ export default function GrnForm({
     });
     setError(null);
     setPending(true);
-    createGoodsReceiptNote(businessId, poId, receivedBy, items)
+    createGoodsReceiptNote(businessId, poId, items)
       .then((res) => {
         setPending(false);
         if (res.error) {
@@ -114,18 +108,9 @@ export default function GrnForm({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select
-          value={receivedBy}
-          onChange={(e) => setReceivedBy(e.target.value)}
-          className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] focus:border-brand-600 focus:outline-none"
-        >
-          <option value="">— Diterima oleh —</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.name}>
-              {e.name}
-            </option>
-          ))}
-        </select>
+        <span className="text-[11px] text-zinc-600">
+          Diterima oleh <span className="font-semibold text-zinc-800">{actorName}</span>
+        </span>
         <button
           onClick={handleSubmit}
           disabled={pending}

@@ -3,9 +3,48 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
-import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
+import { getCurrentActor, canApprovePo, type CurrentActor } from "@/lib/current-actor";
 
 export type ActionState = { error: string | null };
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+// Cek "boleh approve PO ini atau tidak" dari sisi IDENTITAS (bukan
+// permission -- itu sudah dicek terpisah lewat canApprovePo). Ditemukan
+// audit 2026-08-31, 2 celah:
+// 1. PO yang di-merge (barang ditambahkan ke PO "issued" oleh akun LAIN dari
+//    penerbit pertama, lihat forwardAllocationsToSupplier) -- akun kedua itu
+//    tidak pernah tercatat di `issued_by_user_id` tunggal, jadi bisa lolos
+//    approve PO yang sebagian isinya dia sendiri minta. Fix: cek ke tabel
+//    purchase_order_contributors (SEMUA akun yang pernah menerbitkan/nambah
+//    barang ke PO ini), bukan cuma issued_by_user_id.
+// 2. PO lama (dibuat sebelum kolom issued_by_user_id ada, jadi NULL) bikin
+//    pengecekan lama `if (issued_by_user_id && ...)` diam-diam DILEWATI
+//    TOTAL (fail-open). Fix: fail-closed -- PO tanpa identitas penerbit
+//    cuma boleh diproses Owner.
+export async function findApprovalBlockReason(
+  supabase: SupabaseServerClient,
+  poId: string,
+  issuedByUserId: string | null,
+  actor: CurrentActor,
+): Promise<string | null> {
+  if (!issuedByUserId) {
+    return actor.isOwner
+      ? null
+      : "PO ini dibuat sebelum sistem identitas penerbit ada (data lama) — hanya akun Owner yang bisa menyetujuinya.";
+  }
+  if (issuedByUserId === actor.userId) {
+    return "Tidak bisa menyetujui PO yang Anda terbitkan sendiri.";
+  }
+  const { data: contributors } = await supabase
+    .from("purchase_order_contributors")
+    .select("user_id")
+    .eq("purchase_order_id", poId);
+  if ((contributors ?? []).some((c) => c.user_id === actor.userId)) {
+    return "Tidak bisa menyetujui PO ini — Anda ikut menambahkan barang ke PO gabungan ini.";
+  }
+  return null;
+}
 
 export async function approvePurchaseOrder(businessId: string, poId: string): Promise<ActionState> {
   const supabase = await createClient();
@@ -24,11 +63,14 @@ export async function approvePurchaseOrder(businessId: string, poId: string): Pr
     .single();
   if (!po) return { error: "PO tidak ditemukan." };
   if (po.status !== "issued") return { error: "PO ini sudah diproses sebelumnya." };
-  if (po.issued_by_user_id && po.issued_by_user_id === actor.userId) {
-    return { error: "Tidak bisa menyetujui PO yang Anda terbitkan sendiri." };
-  }
 
-  const { error } = await supabase
+  const blockReason = await findApprovalBlockReason(supabase, poId, po.issued_by_user_id, actor);
+  if (blockReason) return { error: blockReason };
+
+  // .eq("status", "issued") di klausa UPDATE-nya sendiri (bukan cuma dicek
+  // terpisah di atas) -- mencegah race 2 approve/reject nyaris bersamaan
+  // sama-sama lolos pengecekan status yang sama lalu dua-duanya jalan.
+  const { data: updated, error } = await supabase
     .from("purchase_orders")
     .update({
       status: "approved",
@@ -37,9 +79,13 @@ export async function approvePurchaseOrder(businessId: string, poId: string): Pr
       approved_at: new Date().toISOString(),
     })
     .eq("id", poId)
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .eq("status", "issued")
+    .select("id")
+    .maybeSingle();
 
   if (error) return { error: error.message };
+  if (!updated) return { error: "PO ini baru saja diproses pihak lain — refresh halaman untuk lihat status terbaru." };
 
   await logActivity(supabase, businessId, "produk", "sukses", `PO disetujui: ${po.po_number}`, `Oleh ${actor.name}`);
   revalidatePath(`/business/${businessId}/purchase-orders`);
@@ -69,13 +115,17 @@ export async function rejectPurchaseOrder(businessId: string, poId: string, reas
   if (!po) return { error: "PO tidak ditemukan." };
   if (po.status !== "issued") return { error: "PO ini sudah diproses sebelumnya." };
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("purchase_orders")
     .update({ status: "rejected", note: reason.trim() })
     .eq("id", poId)
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .eq("status", "issued")
+    .select("id")
+    .maybeSingle();
 
   if (error) return { error: error.message };
+  if (!updated) return { error: "PO ini baru saja diproses pihak lain — refresh halaman untuk lihat status terbaru." };
 
   await logActivity(supabase, businessId, "produk", "warning", `PO ditolak: ${po.po_number}`, `Oleh ${actor.name} — ${reason.trim()}`);
   revalidatePath(`/business/${businessId}/purchase-orders`);

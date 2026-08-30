@@ -63,7 +63,12 @@ export async function createManualDeliveryNote(
       sort_order: idx,
     })),
   );
-  if (itemsError) return { error: itemsError.message };
+  if (itemsError) {
+    // Header sudah kesave tanpa item -- hapus lagi supaya tidak nyangkut
+    // dokumen kosong yang bikin bingung riwayat (pola sama grn-actions.ts).
+    await supabase.from("manual_delivery_notes").delete().eq("id", dn.id).eq("business_id", businessId);
+    return { error: itemsError.message };
+  }
 
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/dokumen-manual`);
   return { error: null };
@@ -109,7 +114,10 @@ export async function createManualPurchaseRequest(
       sort_order: idx,
     })),
   );
-  if (itemsError) return { error: itemsError.message };
+  if (itemsError) {
+    await supabase.from("manual_purchase_requests").delete().eq("id", pr.id).eq("business_id", businessId);
+    return { error: itemsError.message };
+  }
 
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/dokumen-manual`);
   return { error: null };
@@ -156,7 +164,10 @@ export async function createManualStockOpname(
       sort_order: idx,
     })),
   );
-  if (itemsError) return { error: itemsError.message };
+  if (itemsError) {
+    await supabase.from("manual_stock_opnames").delete().eq("id", op.id).eq("business_id", businessId);
+    return { error: itemsError.message };
+  }
 
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/dokumen-manual`);
   return { error: null };

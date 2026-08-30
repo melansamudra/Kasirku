@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
+import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
 import { regeneratePurchaseRequestSlug } from "./actions";
 import PurchaseRequestLinkSection from "./link-section";
 import RequestCard from "./request-card";
@@ -126,6 +127,9 @@ export default async function PermintaanBarangPage({
   if (!business) {
     notFound();
   }
+
+  const actor = await getCurrentActor(supabase, businessId);
+  const canApproveBudget = actor ? canApprovePo(actor) : false;
 
   const [
     { data: suppliers },
@@ -506,6 +510,8 @@ export default async function PermintaanBarangPage({
               employees={employees ?? []}
               costControlEnabled={business.cost_control_enabled ?? false}
               procurementBudgetGateEnabled={procurementBudgetGateEnabled}
+              currentActorName={actor?.name ?? null}
+              canApproveBudget={canApproveBudget}
               purchaseOrders={(posByRequest.get(r.id) ?? []).map((po) => ({
                 id: po.id,
                 poNumber: po.po_number,

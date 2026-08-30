@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
-import { getCurrentActor } from "@/lib/current-actor";
+import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
 
 export type ActionState = { error: string | null };
 
@@ -41,29 +41,35 @@ async function requiresItemBudgetApproval(
 
 // Verifikasi & Otorisasi Anggaran (langkah 2 di memo) -- Cost Control
 // menyetujui/menolak PER ITEM (bukan seluruh PR sekaligus) terhadap sisa
-// kuota RAB bulan berjalan. `approverName` dipilih dari daftar karyawan
-// (belum ada login staf terpisah per peran).
+// kuota RAB bulan berjalan. Dulu approver dipilih bebas dari dropdown nama
+// karyawan (tidak terikat sesi login) -- diperbaiki 2026-08-31 (audit
+// cost-control) pakai pola sama seperti approve PO: identitas dari sesi
+// login, permission "Setujui PO" (purchase-orders-approve) dipakai ulang di
+// sini karena satu rangkaian otorisasi keuangan yang sama (memo langkah 2 &
+// langkah 4), belum perlu permission key terpisah.
 export async function approveItemBudget(
   businessId: string,
   itemId: string,
   decision: "approved_in_budget" | "rejected",
-  approverName: string,
   note: string,
 ): Promise<ActionState> {
-  if (!approverName.trim()) {
-    return { error: "Pilih nama yang menyetujui/menolak." };
-  }
   if (decision === "rejected" && !note.trim()) {
     return { error: "Alasan penolakan wajib diisi." };
   }
 
   const supabase = await createClient();
+  const actor = await getCurrentActor(supabase, businessId);
+  if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+  if (!canApprovePo(actor)) {
+    return { error: "Akun Anda tidak punya izin Setujui PO/Budget. Minta Owner aktifkan permission ini." };
+  }
 
   const { data: item, error } = await supabase
     .from("purchase_request_items")
     .update({
       budget_status: decision,
-      budget_approved_by: approverName.trim(),
+      budget_approved_by: actor.name,
+      budget_approved_by_user_id: actor.userId,
       budget_approved_at: new Date().toISOString(),
       budget_note: note.trim() || null,
     })
@@ -80,7 +86,7 @@ export async function approveItemBudget(
     "produk",
     decision === "approved_in_budget" ? "sukses" : "warning",
     decision === "approved_in_budget" ? `Item disetujui — APPROVED IN BUDGET: ${item.item_name}` : `Item ditolak (budget): ${item.item_name}`,
-    note.trim() || undefined,
+    `Oleh ${actor.name}${note.trim() ? ` — ${note.trim()}` : ""}`,
   );
 
   revalidatePath(`/business/${businessId}/permintaan-barang`);
@@ -520,6 +526,17 @@ export async function forwardAllocationsToSupplier(
         .eq("business_id", businessId);
       if (updTotalErr) return { error: updTotalErr.message };
       mergedIntoExisting = true;
+
+      // Akun yang menambahkan barang ke PO gabungan ini HARUS ikut tercatat
+      // sebagai kontributor -- kalau tidak, dia bisa lolos approve PO yang
+      // sebagian isinya dia sendiri minta (celah ditemukan audit 2026-08-31,
+      // lihat findApprovalBlockReason di purchase-orders/actions.ts).
+      // upsert+ignoreDuplicates supaya aman kalau akun yang sama menambah
+      // barang ke PO ini lebih dari sekali.
+      await supabase.from("purchase_order_contributors").upsert(
+        { business_id: businessId, purchase_order_id: targetPoId, user_id: actor.userId, name: actor.name },
+        { onConflict: "purchase_order_id,user_id", ignoreDuplicates: true },
+      );
     } else {
       const now = new Date();
       const dateCompact = now.toISOString().slice(0, 10).replaceAll("-", "");
@@ -542,6 +559,10 @@ export async function forwardAllocationsToSupplier(
 
       if (poError || !po) return { error: poError?.message ?? "Gagal menerbitkan PO." };
       targetPoId = po.id;
+
+      await supabase
+        .from("purchase_order_contributors")
+        .insert({ business_id: businessId, purchase_order_id: targetPoId, user_id: actor.userId, name: actor.name });
     }
 
     const { error: poItemsError } = await supabase
