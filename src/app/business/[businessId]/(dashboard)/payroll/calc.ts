@@ -81,12 +81,29 @@ export function effectiveLemburRate(
   return employeeRatePerHour ?? businessDefaultRatePerHour;
 }
 
+// Hari yang dianggap "weekend" buat potongan izin, per hari-dalam-minggu
+// (0 = Minggu ... 6 = Sabtu). Default Sabtu-Minggu untuk semua bisnis,
+// kecuali override eksplisit di sini. Adi's Culinary Pleburan liburnya
+// Jumat-Sabtu (bukan Sabtu-Minggu seperti kebanyakan), jadi izin di hari itu
+// yang kena denda tambahan, bukan Minggu.
+const WEEKEND_DAYS_OVERRIDE: Record<string, number[]> = {
+  "356ada11-270d-4249-b45c-0a30c12de58c": [5, 6], // ADIS'S CULINARY PLEBURAN
+};
+
+export function weekendDaysForBusiness(businessId: string): number[] {
+  return WEEKEND_DAYS_OVERRIDE[businessId] ?? [0, 6];
+}
+
 export function calcPayslip(
   periodStart: string,
   periodEnd: string,
   attendanceRows: AttendanceForCalc[],
   employee: EmployeeForCalc,
   settings: PayrollSettings,
+  weekendDays: number[] = [0, 6],
+  // Tanggal merah/libur tambahan (di luar weekendDays) yang ditandai admin
+  // lewat Kalender Libur Payroll -- ikut kena denda "izin weekend" yang sama.
+  holidayDates: ReadonlySet<string> = new Set(),
 ): PayslipCalcResult {
   const counts = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
   let izinWeekdayCount = 0;
@@ -97,7 +114,7 @@ export function calcPayslip(
     if (r.status in counts) counts[r.status as keyof typeof counts] += 1;
     if (r.status === "izin") {
       const dow = new Date(`${r.date}T00:00:00Z`).getUTCDay(); // 0 = Minggu, 6 = Sabtu
-      const isWeekend = dow === 0 || dow === 6;
+      const isWeekend = weekendDays.includes(dow) || holidayDates.has(r.date);
       const hasNote = !!r.note && r.note.trim().length > 0;
       // Weekend + keterangan jelas = dispensasi, dipotong seperti hari
       // biasa (tanpa denda tambahan weekend) -- lihat catatan di

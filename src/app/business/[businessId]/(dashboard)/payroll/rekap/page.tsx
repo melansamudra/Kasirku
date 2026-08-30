@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PillBadge } from "@/components/ui/pill-badge";
 import { createPayslip } from "../actions";
-import { calcPayslip, effectiveLemburRate } from "../calc";
+import { calcPayslip, effectiveLemburRate, weekendDaysForBusiness } from "../calc";
 import CreateSlipButton from "./create-slip-button";
 import PrintRekapButton from "./print-rekap-button";
 
@@ -73,7 +73,7 @@ export default async function PayrollRekapPage({
 
   const supabase = await createClient();
 
-  const [{ data: business }, { data: employees }, { data: lateTierRows }] = await Promise.all([
+  const [{ data: business }, { data: employees }, { data: lateTierRows }, { data: holidayRows }] = await Promise.all([
     supabase
       .from("businesses")
       .select(
@@ -87,11 +87,19 @@ export default async function PayrollRekapPage({
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
     supabase.from("late_deduction_tiers").select("threshold_minutes, amount").eq("business_id", businessId),
+    supabase
+      .from("payroll_holidays")
+      .select("holiday_date")
+      .eq("business_id", businessId)
+      .gte("holiday_date", monthStart)
+      .lte("holiday_date", monthEnd),
   ]);
 
   if (!business) {
     notFound();
   }
+
+  const holidayDates = new Set((holidayRows ?? []).map((h) => h.holiday_date));
 
   const [{ data: attendanceRows }, { data: existingSlips }] = await Promise.all([
     supabase
@@ -183,6 +191,8 @@ export default async function PayrollRekapPage({
         monthlyRate: Number(e.monthly_rate),
       },
       settings,
+      weekendDaysForBusiness(businessId),
+      holidayDates,
     );
     return {
       employee: e,

@@ -1450,6 +1450,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      payroll_holidays: {
+        Row: {
+          id: string;
+          business_id: string;
+          holiday_date: string;
+          label: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          holiday_date: string;
+          label?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          holiday_date?: string;
+          label?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       payslip_adjustments: {
         Row: {
           id: string;

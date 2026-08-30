@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { setAttendance, setAttendanceLate, setAttendanceTime, type AttendanceStatus } from "../../actions";
 import AttendanceRow from "../../attendance-row";
-import { calcPayslip } from "../../../payroll/calc";
+import { calcPayslip, weekendDaysForBusiness } from "../../../payroll/calc";
 import PrintSlipButton from "./print-slip-button";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
@@ -99,6 +99,7 @@ export default async function EmployeeAttendanceRekapPage({
     { data: employee },
     { data: business },
     { data: lateTierRows },
+    { data: holidayRows },
     { data: advancesThisMonth },
     { data: allAdvances },
     { data: paidSlips },
@@ -118,6 +119,12 @@ export default async function EmployeeAttendanceRekapPage({
       .from("late_deduction_tiers")
       .select("threshold_minutes, amount")
       .eq("business_id", businessId),
+    supabase
+      .from("payroll_holidays")
+      .select("holiday_date")
+      .eq("business_id", businessId)
+      .gte("holiday_date", monthStart)
+      .lte("holiday_date", monthEnd),
     supabase
       .from("employee_advances")
       .select("amount")
@@ -186,6 +193,8 @@ export default async function EmployeeAttendanceRekapPage({
         amount: Number(t.amount),
       })),
     },
+    weekendDaysForBusiness(businessId),
+    new Set((holidayRows ?? []).map((h) => h.holiday_date)),
   );
 
   const totalPotongan = calc.izinDeduction + calc.lateDeduction;

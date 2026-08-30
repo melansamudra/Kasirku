@@ -16,6 +16,7 @@ import DeletePayslipButton from "./delete-payslip-button";
 import PayrollDeductionsForm from "./payroll-deductions-form";
 import AddLateTierForm from "./add-late-tier-form";
 import DeleteLateTierButton from "./delete-late-tier-button";
+import PayrollHolidaysSection from "./payroll-holidays-section";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -118,6 +119,12 @@ export default async function PayrollPage({
     .select("id, threshold_minutes, amount")
     .eq("business_id", businessId)
     .order("threshold_minutes", { ascending: true });
+
+  const { data: payrollHolidays } = await supabase
+    .from("payroll_holidays")
+    .select("id, holiday_date, label")
+    .eq("business_id", businessId)
+    .order("holiday_date", { ascending: true });
 
   const { data: employees } = await supabase
     .from("employees")
@@ -317,6 +324,8 @@ export default async function PayrollPage({
             <AddLateTierForm action={addLateTier.bind(null, businessId)} />
           </div>
         </div>
+
+        <PayrollHolidaysSection businessId={businessId} holidays={payrollHolidays ?? []} />
 
         <div className="mt-6 space-y-2">
           <h2 className="text-sm font-semibold text-zinc-900">Daftar Karyawan &amp; Rekap</h2>

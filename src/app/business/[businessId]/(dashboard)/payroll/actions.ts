@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
-import { calcPayslip, effectiveLemburRate } from "./calc";
+import { calcPayslip, effectiveLemburRate, weekendDaysForBusiness } from "./calc";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -115,6 +115,61 @@ export async function deleteLateTier(businessId: string, tierId: string): Promis
   return { error: null };
 }
 
+export type PayrollHolidayState = { error: string | null };
+
+export async function addPayrollHoliday(
+  businessId: string,
+  _prevState: PayrollHolidayState,
+  formData: FormData,
+): Promise<PayrollHolidayState> {
+  const holidayDate = formData.get("holidayDate") as string;
+  const label = (formData.get("label") as string)?.trim();
+
+  if (!holidayDate || !/^\d{4}-\d{2}-\d{2}$/.test(holidayDate)) {
+    return { error: "Tanggal libur wajib diisi." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("payroll_holidays").insert({
+    business_id: businessId,
+    holiday_date: holidayDate,
+    label: label || null,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Tanggal ini sudah ditandai sebagai hari libur." };
+    }
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "sukses",
+    "Tanggal libur payroll ditambahkan",
+    label ? `${holidayDate} — ${label}` : holidayDate,
+  );
+
+  revalidatePath(`/business/${businessId}/payroll`);
+  return { error: null };
+}
+
+export async function deletePayrollHoliday(businessId: string, holidayId: string): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payroll_holidays")
+    .delete()
+    .eq("id", holidayId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/payroll`);
+  return { error: null };
+}
+
 // Return value: pesan error kalau posting jurnal gagal, null kalau sukses.
 // Baris payslips sudah kadung ditandai dibayar di titik ini (lihat pemanggil)
 // — jadi kegagalan di sini tidak dibatalkan, hanya dilaporkan (lihat pola yang
@@ -174,7 +229,7 @@ export async function createPayslip(
 
   const supabase = await createClient();
 
-  const [{ data: employee }, { data: business }, { data: lateTierRows }] = await Promise.all([
+  const [{ data: employee }, { data: business }, { data: lateTierRows }, { data: holidayRows }] = await Promise.all([
     supabase
       .from("employees")
       .select("name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour")
@@ -192,6 +247,12 @@ export async function createPayslip(
       .from("late_deduction_tiers")
       .select("threshold_minutes, amount")
       .eq("business_id", businessId),
+    supabase
+      .from("payroll_holidays")
+      .select("holiday_date")
+      .eq("business_id", businessId)
+      .gte("holiday_date", periodStart)
+      .lte("holiday_date", periodEnd),
   ]);
 
   if (!employee) {
@@ -228,6 +289,8 @@ export async function createPayslip(
         amount: Number(t.amount),
       })),
     },
+    weekendDaysForBusiness(businessId),
+    new Set((holidayRows ?? []).map((h) => h.holiday_date)),
   );
 
   const lemburRate = effectiveLemburRate(
