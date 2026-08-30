@@ -17,6 +17,7 @@ import PayrollDeductionsForm from "./payroll-deductions-form";
 import AddLateTierForm from "./add-late-tier-form";
 import DeleteLateTierButton from "./delete-late-tier-button";
 import PayrollHolidaysSection from "./payroll-holidays-section";
+import { payslipTotal } from "@/lib/payroll/payslip-total";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -75,29 +76,6 @@ type PayslipAgg = {
   employees: { name: string } | null;
   payslip_adjustments: { type: string; amount: number }[];
 };
-
-function payslipTotal(p: PayslipAgg) {
-  const tunjangan = p.payslip_adjustments
-    .filter((a) => a.type === "tunjangan")
-    .reduce((s, a) => s + Number(a.amount), 0);
-  const potongan = p.payslip_adjustments
-    .filter((a) => a.type === "potongan")
-    .reduce((s, a) => s + Number(a.amount), 0);
-  return (
-    Number(p.base_pay) +
-    Number(p.meal_allowance) +
-    Number(p.attendance_allowance) +
-    Number(p.lembur_amount) +
-    Number(p.thr_amount) +
-    tunjangan -
-    potongan -
-    Number(p.izin_deduction) -
-    Number(p.izin_weekend_penalty) -
-    Number(p.late_deduction) -
-    Number(p.kasbon_deduction) -
-    Number(p.personal_loan_deduction)
-  );
-}
 
 export default async function PayrollPage({
   params,
