@@ -233,17 +233,18 @@ function buildCostControlNavGroups(
           // Gudang Utama/Purchasing -- bukan peminta ke Dapur Produksi, jadi
           // tidak dapat Transfer Internal/Permintaan Barang per-lokasi;
           // "Permintaan Barang" globalnya sudah ada di grup "Pembelian & Stok".
-          // "Surat Jalan" di sini SENGAJA terpisah dari Surat Jalan otomatis
-          // (turunan PR fulfillment/GRN) -- murni form manual ketik bebas,
-          // dipakai selama rantai otomatisnya belum diuji coba buat order
-          // sungguhan (arahan user 2026-08-30).
+          // "Dokumen Manual" (Surat Jalan/Permintaan Barang/Stock Opname, 1
+          // hub bertab) SENGAJA terpisah dari alur digital otomatis masing2
+          // -- murni form ketik bebas, dipakai selama alur digital berlapis
+          // itu belum terbukti jalan mulus buat operasional harian sungguhan
+          // (arahan user 2026-08-30, diperluas 2026-08-31).
           return [
             stockOpname,
             kartuStok,
             {
-              key: `lokasi-${loc.id}-surat-jalan-manual`,
-              href: `${base}/lokasi/${loc.id}/surat-jalan-manual`,
-              label: "Surat Jalan",
+              key: `lokasi-${loc.id}-dokumen-manual`,
+              href: `${base}/lokasi/${loc.id}/dokumen-manual`,
+              label: "Dokumen Manual",
               icon: Truck,
             },
           ];

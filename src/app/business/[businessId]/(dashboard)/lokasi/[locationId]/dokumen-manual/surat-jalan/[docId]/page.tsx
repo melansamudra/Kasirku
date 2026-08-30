@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import PrintButton from "./print-button";
+import PrintButton from "../../print-button";
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
@@ -13,12 +13,12 @@ function formatDateTime(iso: string) {
   });
 }
 
-export default async function ManualDeliveryNotePrintPage({
+export default async function SuratJalanManualPrintPage({
   params,
 }: {
-  params: Promise<{ businessId: string; locationId: string; dnId: string }>;
+  params: Promise<{ businessId: string; locationId: string; docId: string }>;
 }) {
-  const { businessId, locationId, dnId } = await params;
+  const { businessId, locationId, docId } = await params;
   const supabase = await createClient();
 
   const { data: business } = await supabase.from("businesses").select("name").eq("id", businessId).single();
@@ -32,19 +32,19 @@ export default async function ManualDeliveryNotePrintPage({
     .maybeSingle();
   if (!location) notFound();
 
-  const { data: dn } = await supabase
+  const { data: doc } = await supabase
     .from("manual_delivery_notes")
     .select("id, dn_number, destination, note, created_by_name, created_at")
-    .eq("id", dnId)
+    .eq("id", docId)
     .eq("business_id", businessId)
     .eq("location_id", locationId)
     .single();
-  if (!dn) notFound();
+  if (!doc) notFound();
 
   const { data: items } = await supabase
     .from("manual_delivery_note_items")
     .select("item_name, unit, qty")
-    .eq("manual_delivery_note_id", dnId)
+    .eq("manual_delivery_note_id", docId)
     .order("sort_order", { ascending: true });
 
   return (
@@ -57,7 +57,7 @@ export default async function ManualDeliveryNotePrintPage({
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-lg font-bold text-zinc-900">SURAT JALAN</h1>
-            <p className="text-xs text-zinc-400">{dn.dn_number}</p>
+            <p className="text-xs text-zinc-400">{doc.dn_number}</p>
           </div>
         </div>
 
@@ -68,13 +68,13 @@ export default async function ManualDeliveryNotePrintPage({
           </div>
           <div className="text-right">
             <p className="text-zinc-400">Tanggal</p>
-            <p className="mt-0.5 font-semibold text-zinc-900">{formatDateTime(dn.created_at)}</p>
+            <p className="mt-0.5 font-semibold text-zinc-900">{formatDateTime(doc.created_at)}</p>
           </div>
         </div>
 
         <div className="mt-3 text-xs">
           <p className="text-zinc-400">Tujuan Pengiriman</p>
-          <p className="mt-0.5 font-semibold text-zinc-900">{dn.destination}</p>
+          <p className="mt-0.5 font-semibold text-zinc-900">{doc.destination}</p>
         </div>
 
         <div className="mt-4 overflow-hidden rounded-lg border border-zinc-100">
@@ -98,13 +98,13 @@ export default async function ManualDeliveryNotePrintPage({
           </table>
         </div>
 
-        {dn.note && <p className="mt-3 text-xs text-zinc-500">Catatan: {dn.note}</p>}
+        {doc.note && <p className="mt-3 text-xs text-zinc-500">Catatan: {doc.note}</p>}
 
         <div className="mt-8 grid grid-cols-2 gap-4 text-xs">
           <div>
             <p className="text-zinc-400">Dikirim oleh</p>
             <p className="mt-8 border-t border-zinc-300 pt-1 font-medium text-zinc-700">
-              {dn.created_by_name ?? "________________"}
+              {doc.created_by_name ?? "________________"}
             </p>
           </div>
           <div>
@@ -115,7 +115,10 @@ export default async function ManualDeliveryNotePrintPage({
       </div>
 
       <div className="mt-4">
-        <PrintButton businessId={businessId} locationId={locationId} />
+        <PrintButton
+          backHref={`/business/${businessId}/lokasi/${locationId}/dokumen-manual`}
+          cetakLabel="Cetak Surat Jalan"
+        />
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createManualDeliveryNote } from "./actions";
+import type { ManualDocItemInput } from "./actions";
 
 type Row = { itemName: string; unit: string; qty: string };
 
@@ -10,9 +10,36 @@ function emptyRow(): Row {
   return { itemName: "", unit: "", qty: "" };
 }
 
-export default function CreateManualDnForm({ businessId, locationId }: { businessId: string; locationId: string }) {
+export type ManualDocSubmit = (
+  context: string,
+  note: string,
+  items: ManualDocItemInput[],
+) => Promise<{ error: string | null }>;
+
+// Form generik dipakai ke-3 jenis dokumen manual (Surat Jalan/Permintaan
+// Barang/Stock Opname) -- bentuknya identik (barang+qty+satuan berulang),
+// bedanya cuma ada/tidaknya field konteks (Tujuan) dan label-labelnya.
+export default function ManualDocForm({
+  onSubmit,
+  title,
+  helperText,
+  contextLabel,
+  contextPlaceholder,
+  qtyColumnLabel = "Qty",
+  submitLabel,
+  submitPendingLabel,
+}: {
+  onSubmit: ManualDocSubmit;
+  title: string;
+  helperText: string;
+  contextLabel?: string;
+  contextPlaceholder?: string;
+  qtyColumnLabel?: string;
+  submitLabel: string;
+  submitPendingLabel: string;
+}) {
   const router = useRouter();
-  const [destination, setDestination] = useState("");
+  const [context, setContext] = useState("");
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [pending, setPending] = useState(false);
@@ -31,12 +58,14 @@ export default function CreateManualDnForm({ businessId, locationId }: { busines
   }
 
   function handleSubmit() {
+    if (contextLabel && !context.trim()) {
+      setError(`${contextLabel} wajib diisi.`);
+      return;
+    }
     setError(null);
     setPending(true);
-    createManualDeliveryNote(
-      businessId,
-      locationId,
-      destination,
+    onSubmit(
+      context,
       note,
       rows.map((r) => ({ itemName: r.itemName, unit: r.unit, qty: Number(r.qty) })),
     )
@@ -46,7 +75,7 @@ export default function CreateManualDnForm({ businessId, locationId }: { busines
           setError(res.error);
           return;
         }
-        setDestination("");
+        setContext("");
         setNote("");
         setRows([emptyRow()]);
         router.refresh();
@@ -59,22 +88,22 @@ export default function CreateManualDnForm({ businessId, locationId }: { busines
 
   return (
     <div className="rounded-xl bg-white shadow-sm p-5">
-      <h2 className="text-sm font-semibold text-zinc-900">Buat Surat Jalan Baru</h2>
-      <p className="mt-0.5 text-xs text-zinc-500">
-        Isi bebas — tidak terhubung ke Permintaan Barang/PO manapun. Murni dokumen pengiriman.
-      </p>
+      <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+      <p className="mt-0.5 text-xs text-zinc-500">{helperText}</p>
 
       <div className="mt-3 space-y-3">
-        <div>
-          <label className="text-xs font-medium text-zinc-600">Tujuan Pengiriman</label>
-          <input
-            type="text"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder="mis. Kitchen Atas / Nama toko / Alamat"
-            className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
-          />
-        </div>
+        {contextLabel && (
+          <div>
+            <label className="text-xs font-medium text-zinc-600">{contextLabel}</label>
+            <input
+              type="text"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder={contextPlaceholder}
+              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+          </div>
+        )}
 
         <div>
           <label className="text-xs font-medium text-zinc-600">Daftar Barang</label>
@@ -94,7 +123,7 @@ export default function CreateManualDnForm({ businessId, locationId }: { busines
                   step="any"
                   value={row.qty}
                   onChange={(e) => updateRow(idx, { qty: e.target.value })}
-                  placeholder="Qty"
+                  placeholder={qtyColumnLabel}
                   className="w-20 rounded-lg border border-zinc-200 px-2 py-1.5 text-right text-[13px] focus:border-brand-600 focus:outline-none"
                 />
                 <input
@@ -115,11 +144,7 @@ export default function CreateManualDnForm({ businessId, locationId }: { busines
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={addRow}
-            className="mt-2 text-xs font-medium text-brand-600 hover:underline"
-          >
+          <button type="button" onClick={addRow} className="mt-2 text-xs font-medium text-brand-600 hover:underline">
             + Tambah Barang
           </button>
         </div>
@@ -141,7 +166,7 @@ export default function CreateManualDnForm({ businessId, locationId }: { busines
           disabled={pending}
           className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
-          {pending ? "Menyimpan…" : "Simpan & Buat Surat Jalan"}
+          {pending ? submitPendingLabel : submitLabel}
         </button>
       </div>
     </div>

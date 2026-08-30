@@ -3173,6 +3173,148 @@ export type Database = {
           },
         ];
       };
+      manual_purchase_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          location_id: string;
+          pr_number: string;
+          note: string | null;
+          created_by_user_id: string | null;
+          created_by_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          location_id: string;
+          pr_number: string;
+          note?: string | null;
+          created_by_user_id?: string | null;
+          created_by_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          location_id?: string;
+          pr_number?: string;
+          note?: string | null;
+          created_by_user_id?: string | null;
+          created_by_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      manual_purchase_request_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          manual_purchase_request_id: string;
+          item_name: string;
+          unit: string | null;
+          qty: number;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          manual_purchase_request_id: string;
+          item_name: string;
+          unit?: string | null;
+          qty: number;
+          sort_order?: number;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          manual_purchase_request_id?: string;
+          item_name?: string;
+          unit?: string | null;
+          qty?: number;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "manual_purchase_request_items_manual_purchase_request_id_fkey";
+            columns: ["manual_purchase_request_id"];
+            isOneToOne: false;
+            referencedRelation: "manual_purchase_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      manual_stock_opnames: {
+        Row: {
+          id: string;
+          business_id: string;
+          location_id: string;
+          opname_number: string;
+          note: string | null;
+          created_by_user_id: string | null;
+          created_by_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          location_id: string;
+          opname_number: string;
+          note?: string | null;
+          created_by_user_id?: string | null;
+          created_by_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          location_id?: string;
+          opname_number?: string;
+          note?: string | null;
+          created_by_user_id?: string | null;
+          created_by_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      manual_stock_opname_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          manual_stock_opname_id: string;
+          item_name: string;
+          unit: string | null;
+          qty: number;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          manual_stock_opname_id: string;
+          item_name: string;
+          unit?: string | null;
+          qty: number;
+          sort_order?: number;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          manual_stock_opname_id?: string;
+          item_name?: string;
+          unit?: string | null;
+          qty?: number;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "manual_stock_opname_items_manual_stock_opname_id_fkey";
+            columns: ["manual_stock_opname_id"];
+            isOneToOne: false;
+            referencedRelation: "manual_stock_opnames";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procurement_budget_lines: {
         Row: {
           id: string;
