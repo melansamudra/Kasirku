@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   addPayslipAdjustment,
   markPayslipPaid,
+  unmarkPayslipPaid,
   updatePayslipExtras,
   updateKasbonDeduction,
   updatePersonalLoanDeduction,
@@ -13,6 +14,7 @@ import LemburThrForm from "./lembur-thr-form";
 import DeductionsForm from "./deductions-form";
 import PersonalLoanDeductionForm from "./personal-loan-deduction-form";
 import MarkPaidButton from "./mark-paid-button";
+import UnmarkPaidButton from "./unmark-paid-button";
 import PrintButton from "./print-button";
 
 function formatRupiah(value: number) {
@@ -124,6 +126,7 @@ export default async function PayslipDetailPage({
   const boundUpdateKasbon = updateKasbonDeduction.bind(null, businessId, payslipId);
   const boundUpdatePersonalLoan = updatePersonalLoanDeduction.bind(null, businessId, payslipId);
   const boundMarkPaid = markPayslipPaid.bind(null, businessId, payslipId);
+  const boundUnmarkPaid = unmarkPayslipPaid.bind(null, businessId, payslipId);
   const isPaid = Boolean(payslip.paid_at);
 
   return (
@@ -318,8 +321,11 @@ export default async function PayslipDetailPage({
 
         <div className="mt-4 print:hidden">
           {isPaid ? (
-            <div className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-center text-xs font-medium text-brand-700">
-              ✓ Slip ini sudah dibayar dan tercatat di jurnal (Beban Gaji / Kas &amp; Bank).
+            <div className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-center">
+              <p className="text-xs font-medium text-brand-700">
+                ✓ Slip ini sudah dibayar dan tercatat di jurnal (Beban Gaji / Kas &amp; Bank).
+              </p>
+              <UnmarkPaidButton action={boundUnmarkPaid} />
             </div>
           ) : (
             <div className="space-y-3">

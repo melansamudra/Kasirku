@@ -1616,6 +1616,8 @@ export type Database = {
           late_deduction: number;
           kasbon_deduction: number;
           personal_loan_deduction: number;
+          journal_entry_id: string | null;
+          expense_id: string | null;
           izin_weekday_count: number;
           izin_weekend_count: number;
           izin_noted_count: number;
@@ -1652,6 +1654,8 @@ export type Database = {
           late_deduction?: number;
           kasbon_deduction?: number;
           personal_loan_deduction?: number;
+          journal_entry_id?: string | null;
+          expense_id?: string | null;
           izin_weekday_count?: number;
           izin_weekend_count?: number;
           izin_noted_count?: number;
@@ -1688,6 +1692,8 @@ export type Database = {
           late_deduction?: number;
           kasbon_deduction?: number;
           personal_loan_deduction?: number;
+          journal_entry_id?: string | null;
+          expense_id?: string | null;
           izin_weekday_count?: number;
           izin_weekend_count?: number;
           izin_noted_count?: number;
@@ -4721,6 +4727,13 @@ export type Database = {
         Args: {
           p_business_id: string;
           p_enabled: boolean;
+        };
+        Returns: undefined;
+      };
+      unmark_payslip_paid: {
+        Args: {
+          p_business_id: string;
+          p_payslip_id: string;
         };
         Returns: undefined;
       };

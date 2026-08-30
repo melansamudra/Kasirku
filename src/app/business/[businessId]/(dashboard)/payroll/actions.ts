@@ -190,7 +190,7 @@ async function postPayrollJournal(
   description: string,
   netAmount: number,
   kasbonDeduction: number,
-): Promise<string | null> {
+): Promise<{ entryId: string | null; error: string | null }> {
   const lines: { account_code: string; debit: number; credit: number }[] = [
     { account_code: "5-100", debit: netAmount + kasbonDeduction, credit: 0 },
   ];
@@ -199,14 +199,14 @@ async function postPayrollJournal(
   }
   lines.push({ account_code: "1-001", debit: 0, credit: netAmount });
 
-  const { error } = await supabase.rpc("post_journal_entry", {
+  const { data, error } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: description,
     p_lines: lines,
     p_source: "payroll",
   });
-  return error?.message ?? null;
+  return { entryId: data ?? null, error: error?.message ?? null };
 }
 
 export type CreatePayslipResult =
@@ -477,7 +477,7 @@ export async function markPayslipPaid(
     return { error: "Slip gaji ini sudah ditandai dibayar (mungkin oleh proses lain)." };
   }
 
-  const journalError = await postPayrollJournal(
+  const { entryId: journalEntryId, error: journalError } = await postPayrollJournal(
     supabase,
     businessId,
     payslip.period_end,
@@ -495,13 +495,27 @@ export async function markPayslipPaid(
   // Keuangan → Catat Pengeluaran. Tidak lewat postExpenseJournal — jurnal
   // untuk baris ini sudah diposting di atas lewat postPayrollJournal,
   // insert langsung ke sini biar tidak dobel post jurnal untuk slip yang sama.
-  const { error: expenseError } = await supabase.from("expenses").insert({
-    business_id: businessId,
-    date: payslip.period_end,
-    category: "Gaji & Upah",
-    amount: total,
-    note: `Gaji: ${employeeName}`,
-  });
+  const { data: expense, error: expenseError } = await supabase
+    .from("expenses")
+    .insert({
+      business_id: businessId,
+      date: payslip.period_end,
+      category: "Gaji & Upah",
+      amount: total,
+      note: `Gaji: ${employeeName}`,
+    })
+    .select("id")
+    .single();
+
+  // Disimpan balik ke payslip supaya "Batalkan Pembayaran" (unmarkPayslipPaid)
+  // bisa nemu & membalik persis jurnal/expense ini, bukan nebak dari
+  // deskripsi teks yang gampang salah kalau ada nama karyawan yang mirip.
+  if (journalEntryId || expense) {
+    await supabase
+      .from("payslips")
+      .update({ journal_entry_id: journalEntryId, expense_id: expense?.id ?? null })
+      .eq("id", payslipId);
+  }
 
   await logActivity(
     supabase,
@@ -529,6 +543,57 @@ export async function markPayslipPaid(
       error: `Slip gaji ditandai dibayar dan sudah masuk jurnal, tapi gagal dicatat ke Laporan Laba Rugi (${expenseError.message}). Tambahkan manual di halaman Keuangan → Catat Pengeluaran.`,
     };
   }
+  return { error: null };
+}
+
+// Kebalikan markPayslipPaid -- buat kasus salah klik "Tandai Sudah Dibayar".
+// TIDAK menghapus jurnal/expense aslinya (itu praktik akuntansi yang buruk,
+// riwayat jadi hilang) -- posting jurnal KOREKSI baru (debit/kredit
+// dibalik dari yang asli, lihat unmark_payslip_paid RPC) dan hapus baris
+// expenses-nya, lalu buka kunci slip (paid_at = null) supaya bisa diedit/
+// dihapus lagi. Kasbon otomatis kembali jadi "belum lunas" karena
+// getOutstandingKasbon cuma menghitung slip yang paid_at-nya terisi.
+export async function unmarkPayslipPaid(
+  businessId: string,
+  payslipId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: payslip } = await supabase
+    .from("payslips")
+    .select("paid_at, employees(name)")
+    .eq("id", payslipId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!payslip) {
+    return { error: "Slip gaji tidak ditemukan." };
+  }
+  if (!payslip.paid_at) {
+    return { error: "Slip ini belum ditandai dibayar." };
+  }
+
+  const { error } = await supabase.rpc("unmark_payslip_paid", {
+    p_business_id: businessId,
+    p_payslip_id: payslipId,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  const employeeName = (payslip.employees as unknown as { name: string } | null)?.name ?? "Karyawan terhapus";
+  await logActivity(
+    supabase,
+    businessId,
+    "sistem",
+    "warning",
+    `Pembayaran gaji dibatalkan: ${employeeName}`,
+    "Jurnal koreksi otomatis diposting, slip dibuka kunci lagi.",
+  );
+
+  revalidatePath(`/business/${businessId}/payroll`);
+  revalidatePath(`/business/${businessId}/payroll/${payslipId}`);
   return { error: null };
 }
 
