@@ -42,7 +42,6 @@ type GroupAllocation = {
   qty: number;
   defaultUnitPrice: number;
 };
-type Employee = { id: string; name: string };
 type PoInfo = {
   id: string;
   poNumber: string;
@@ -65,7 +64,6 @@ export default function SupplierGroup({
   supplier,
   allocations,
   costControlEnabled = false,
-  employees = [],
   existingPos = [],
 }: {
   businessId: string;
@@ -76,7 +74,6 @@ export default function SupplierGroup({
   supplier: { id: string; name: string; phone: string | null };
   allocations: GroupAllocation[];
   costControlEnabled?: boolean;
-  employees?: Employee[];
   existingPos?: PoInfo[];
 }) {
   const router = useRouter();
@@ -88,15 +85,10 @@ export default function SupplierGroup({
   // harga lama tanpa disadari. Tombol "pakai" di sebelah tiap baris kasih
   // jalan pintas kalau harganya memang masih sama.
   const [prices, setPrices] = useState<Record<string, string>>({});
-  const [issuedBy, setIssuedBy] = useState("");
 
   const total = allocations.reduce((sum, a) => sum + a.qty * (Number(prices[a.allocationId]) || 0), 0);
 
   function handleForward() {
-    if (costControlEnabled && !issuedBy) {
-      setError("Pilih nama yang menerbitkan PO dulu.");
-      return;
-    }
     if (costControlEnabled) {
       const missing = allocations.some((a) => !(Number(prices[a.allocationId]) > 0));
       if (missing) {
@@ -114,7 +106,6 @@ export default function SupplierGroup({
       requestId,
       allocations.map((a) => a.allocationId),
       unitPrices,
-      costControlEnabled ? issuedBy : undefined,
     )
       .then((res) => {
         setPending(false);
@@ -212,18 +203,6 @@ export default function SupplierGroup({
           <p className="pt-1 text-right text-[11px] font-semibold text-zinc-700">
             Total PO: {formatRupiah(total)}
           </p>
-          <select
-            value={issuedBy}
-            onChange={(e) => setIssuedBy(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-[11px] focus:border-brand-600 focus:outline-none"
-          >
-            <option value="">— PO diterbitkan oleh —</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.name}>
-                {e.name}
-              </option>
-            ))}
-          </select>
         </div>
       ) : (
         <ul className="mt-1.5 space-y-0.5">

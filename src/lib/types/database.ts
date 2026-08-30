@@ -2837,7 +2837,9 @@ export type Database = {
           status: string;
           total_amount: number;
           issued_by: string | null;
+          issued_by_user_id: string | null;
           approved_by: string | null;
+          approved_by_user_id: string | null;
           approved_at: string | null;
           note: string | null;
           created_at: string;
@@ -2851,7 +2853,9 @@ export type Database = {
           status?: string;
           total_amount?: number;
           issued_by?: string | null;
+          issued_by_user_id?: string | null;
           approved_by?: string | null;
+          approved_by_user_id?: string | null;
           approved_at?: string | null;
           note?: string | null;
           created_at?: string;
@@ -2865,7 +2869,9 @@ export type Database = {
           status?: string;
           total_amount?: number;
           issued_by?: string | null;
+          issued_by_user_id?: string | null;
           approved_by?: string | null;
+          approved_by_user_id?: string | null;
           approved_at?: string | null;
           note?: string | null;
           created_at?: string;

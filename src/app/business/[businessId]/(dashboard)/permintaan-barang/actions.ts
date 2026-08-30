@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { getCurrentActor } from "@/lib/current-actor";
 
 export type ActionState = { error: string | null };
 
@@ -410,14 +411,14 @@ export async function deleteItemAllocation(
 // dapat alokasi dari 10 barang, ini satu kali panggilan (satu WA) yang
 // menandai forwarded_at ke-10 alokasi itu sekaligus. Untuk bisnis
 // cost-control, momen ini JUGA penerbitan PO resmi (langkah 3 memo) --
-// unitPrices/issuedBy dipakai buat itu; bisnis non-cost-control sama sekali
+// unitPrices dipakai buat itu, issued_by diambil dari akun yang sedang login
+// (bukan dropdown nama bebas lagi); bisnis non-cost-control sama sekali
 // tidak terdampak (PO tidak dibuat, perilaku persis seperti sebelumnya).
 export async function forwardAllocationsToSupplier(
   businessId: string,
   requestId: string,
   allocationIds: string[],
   unitPrices?: Record<string, number>,
-  issuedBy?: string,
 ): Promise<ActionState> {
   if (allocationIds.length === 0) {
     return { error: "Tidak ada barang yang dipilih." };
@@ -463,6 +464,9 @@ export async function forwardAllocationsToSupplier(
   let mergedIntoExisting = false;
 
   if (business?.cost_control_enabled) {
+    const actor = await getCurrentActor(supabase, businessId);
+    if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+
     const { data: itemRows } = await supabase
       .from("purchase_request_items")
       .select("id, item_name, unit")
@@ -530,7 +534,8 @@ export async function forwardAllocationsToSupplier(
           supplier_id: supplierId,
           purchase_request_id: requestId,
           total_amount: totalAmount,
-          issued_by: issuedBy?.trim() || null,
+          issued_by: actor.name,
+          issued_by_user_id: actor.userId,
         })
         .select("id")
         .single();

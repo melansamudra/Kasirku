@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
 import PrintButton from "./print-button";
 import ApproveForm from "./approve-form";
 import GrnForm from "./grn-form";
@@ -41,12 +42,16 @@ export default async function PurchaseOrderDetailPage({
   const { data: po } = await supabase
     .from("purchase_orders")
     .select(
-      "id, po_number, supplier_id, purchase_request_id, status, total_amount, issued_by, approved_by, approved_at, note, created_at",
+      "id, po_number, supplier_id, purchase_request_id, status, total_amount, issued_by, issued_by_user_id, approved_by, approved_at, note, created_at",
     )
     .eq("id", poId)
     .eq("business_id", businessId)
     .single();
   if (!po) notFound();
+
+  const actor = await getCurrentActor(supabase, businessId);
+  const canApprove = actor ? canApprovePo(actor) : false;
+  const isIssuer = actor ? po.issued_by_user_id === actor.userId : false;
 
   const [{ data: items }, { data: supplier }, { data: request }, { data: employees }] = await Promise.all([
     supabase
@@ -67,11 +72,10 @@ export default async function PurchaseOrderDetailPage({
       : "Nominal < Rp5.000.000 — Finance / Cost Control";
 
   let grns: { id: string; grn_number: string; received_by: string; created_at: string }[] = [];
-  let grnItemsByGrnId = new Map<string, { item_name: string; unit: string; qty_received: number; condition: string; condition_note: string | null }[]>();
+  const grnItemsByGrnId = new Map<string, { item_name: string; unit: string; qty_received: number; condition: string; condition_note: string | null }[]>();
   let outstandingItems: { poItemId: string; itemName: string; unit: string; remainingQty: number }[] = [];
 
   if (po.status === "approved" && (items ?? []).length > 0) {
-    const poItemIds = (items ?? []).map((it) => it.id);
     const { data: grnRows } = await supabase
       .from("goods_receipt_notes")
       .select("id, grn_number, received_by, created_at")
@@ -209,7 +213,14 @@ export default async function PurchaseOrderDetailPage({
       </div>
 
       {po.status === "issued" && (
-        <ApproveForm businessId={businessId} poId={po.id} employees={employees ?? []} approvalLabel={approvalLabel} />
+        <ApproveForm
+          businessId={businessId}
+          poId={po.id}
+          approvalLabel={approvalLabel}
+          actorName={actor?.name ?? "—"}
+          canApprove={canApprove}
+          isIssuer={isIssuer}
+        />
       )}
 
       {po.status === "approved" && grns.length > 0 && (

@@ -3,41 +3,45 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
 
 export type ActionState = { error: string | null };
 
-// Otorisasi Formal PO (langkah 4 memo) -- ambang nominal (< Rp5jt vs >=
-// Rp5jt) cuma ditampilkan sebagai label di UI, belum di-enforce lewat peran
-// login terpisah (belum ada login staf per jabatan).
-export async function approvePurchaseOrder(
-  businessId: string,
-  poId: string,
-  approverName: string,
-): Promise<ActionState> {
-  if (!approverName.trim()) {
-    return { error: "Pilih nama yang menyetujui PO ini." };
-  }
-
+export async function approvePurchaseOrder(businessId: string, poId: string): Promise<ActionState> {
   const supabase = await createClient();
+
+  const actor = await getCurrentActor(supabase, businessId);
+  if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+  if (!canApprovePo(actor)) {
+    return { error: "Akun Anda tidak punya izin Setujui PO. Minta Owner aktifkan permission ini." };
+  }
 
   const { data: po } = await supabase
     .from("purchase_orders")
-    .select("id, po_number, status")
+    .select("id, po_number, status, issued_by_user_id")
     .eq("id", poId)
     .eq("business_id", businessId)
     .single();
   if (!po) return { error: "PO tidak ditemukan." };
   if (po.status !== "issued") return { error: "PO ini sudah diproses sebelumnya." };
+  if (po.issued_by_user_id && po.issued_by_user_id === actor.userId) {
+    return { error: "Tidak bisa menyetujui PO yang Anda terbitkan sendiri." };
+  }
 
   const { error } = await supabase
     .from("purchase_orders")
-    .update({ status: "approved", approved_by: approverName.trim(), approved_at: new Date().toISOString() })
+    .update({
+      status: "approved",
+      approved_by: actor.name,
+      approved_by_user_id: actor.userId,
+      approved_at: new Date().toISOString(),
+    })
     .eq("id", poId)
     .eq("business_id", businessId);
 
   if (error) return { error: error.message };
 
-  await logActivity(supabase, businessId, "produk", "sukses", `PO disetujui: ${po.po_number}`, `Oleh ${approverName.trim()}`);
+  await logActivity(supabase, businessId, "produk", "sukses", `PO disetujui: ${po.po_number}`, `Oleh ${actor.name}`);
   revalidatePath(`/business/${businessId}/purchase-orders`);
   revalidatePath(`/business/${businessId}/purchase-orders/${poId}`);
   return { error: null };
@@ -49,6 +53,12 @@ export async function rejectPurchaseOrder(businessId: string, poId: string, reas
   }
 
   const supabase = await createClient();
+
+  const actor = await getCurrentActor(supabase, businessId);
+  if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+  if (!canApprovePo(actor)) {
+    return { error: "Akun Anda tidak punya izin Setujui PO. Minta Owner aktifkan permission ini." };
+  }
 
   const { data: po } = await supabase
     .from("purchase_orders")
@@ -67,7 +77,7 @@ export async function rejectPurchaseOrder(businessId: string, poId: string, reas
 
   if (error) return { error: error.message };
 
-  await logActivity(supabase, businessId, "produk", "warning", `PO ditolak: ${po.po_number}`, reason.trim());
+  await logActivity(supabase, businessId, "produk", "warning", `PO ditolak: ${po.po_number}`, `Oleh ${actor.name} — ${reason.trim()}`);
   revalidatePath(`/business/${businessId}/purchase-orders`);
   revalidatePath(`/business/${businessId}/purchase-orders/${poId}`);
   return { error: null };

@@ -287,7 +287,6 @@ export default function RequestCard({
                 supplier={supplier}
                 allocations={allocations}
                 costControlEnabled={costControlEnabled}
-                employees={employees}
                 existingPos={purchaseOrders.filter((po) => po.supplierId === supplierId)}
               />
             );

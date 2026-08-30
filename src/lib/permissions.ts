@@ -50,6 +50,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "purchases", label: "Pembelian & Hutang" },
       { key: "purchase-requests", label: "Permintaan Barang" },
       { key: "purchase-orders", label: "Purchase Order" },
+      { key: "purchase-orders-approve", label: "Setujui PO (Otorisasi Formal)" },
       { key: "rab-pembelian", label: "RAB Pembelian" },
       { key: "kas-kecil", label: "Kas Kecil" },
       { key: "suppliers", label: "Supplier" },
