@@ -41,8 +41,15 @@ export type PayrollSettings = {
 // "> N menit = Rp Y" — cari tier tertinggi yang thresholdnya masih
 // terlampaui. Tidak ada tier yang cocok (mis. telat 3 menit tapi tier
 // termurah "> 5 menit") = 0, tidak kena potongan.
+//
+// Dipanggil cuma kalau r.late sudah true (lihat calcPayslip), jadi kalau
+// tidak ada Tingkatan Custom (mode flat), langsung pakai flatFallback --
+// TIDAK disyaratkan minutes > 0 dulu. late_minutes sering 0 kalau telat
+// ditandai manual lewat tombol "Tandai Terlambat" (bukan dari absen selfie
+// yang otomatis hitung menitnya) -- sebelumnya itu bikin potongan flat
+// gagal kena walau sudah ditandai terlambat.
 function lateDeductionForMinutes(minutes: number, tiers: LateTier[], flatFallback: number): number {
-  if (tiers.length === 0) return minutes > 0 ? flatFallback : 0;
+  if (tiers.length === 0) return flatFallback;
   const sorted = [...tiers].sort((a, b) => a.thresholdMinutes - b.thresholdMinutes);
   let amount = 0;
   for (const t of sorted) {
