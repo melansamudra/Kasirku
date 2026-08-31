@@ -5,6 +5,7 @@ import AdjustStockForm from "@/components/adjust-stock-form";
 import { adjustIngredientLocationStock } from "./actions";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
 import ReceiveLinkBox from "./receive-link-box";
+import IngredientSearch from "../../../ingredients/ingredient-search";
 
 export default async function LocationBahanBakuPage({
   params,
@@ -232,30 +233,32 @@ export default async function LocationBahanBakuPage({
         </div>
       )}
 
-      <div className="mt-6 space-y-2">
+      <div className="mt-6">
         {ingredients && ingredients.length > 0 ? (
-          ingredients.map((i) => {
-            const stock = stockByIngredient.get(i.id) ?? 0;
-            return (
-              <div
-                key={i.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-900">{i.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    Stok di {location.name}: {stock} {i.unit}
-                  </p>
+          <IngredientSearch names={ingredients.map((i) => i.name)}>
+            {ingredients.map((i) => {
+              const stock = stockByIngredient.get(i.id) ?? 0;
+              return (
+                <div
+                  key={i.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      Stok di {location.name}: {stock} {i.unit}
+                    </p>
+                  </div>
+                  <AdjustStockForm
+                    itemName={i.name}
+                    currentStock={stock}
+                    unit={i.unit}
+                    action={adjustIngredientLocationStock.bind(null, businessId, locationId, i.id)}
+                  />
                 </div>
-                <AdjustStockForm
-                  itemName={i.name}
-                  currentStock={stock}
-                  unit={i.unit}
-                  action={adjustIngredientLocationStock.bind(null, businessId, locationId, i.id)}
-                />
-              </div>
-            );
-          })
+              );
+            })}
+          </IngredientSearch>
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             Belum ada bahan baku — tambahkan dulu di halaman Bahan Baku.
