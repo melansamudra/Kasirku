@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type Employee = { id: string; name: string };
-type CheckinResult = { ok: boolean; message?: string; error?: string };
+type CheckinResult = { ok: boolean; message?: string; error?: string; onBreak?: boolean };
 type LocationStatus = "pending" | "ok" | "denied" | "unsupported";
 
 // Foto langsung dari kamera HP bisa beberapa MB — di jaringan outlet yang
@@ -41,17 +41,21 @@ export default function CheckinClient({
   slug,
   businessName,
   employees,
+  breakEnabled = false,
 }: {
   slug: string;
   businessName: string;
   employees: Employee[];
+  breakEnabled?: boolean;
 }) {
   const [employeeId, setEmployeeId] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
-  const [pending, setPending] = useState<"in" | "out" | null>(null);
+  const [pending, setPending] = useState<"in" | "out" | "break-start" | "break-end" | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
+  const [onBreak, setOnBreak] = useState(false);
+  const [breakResult, setBreakResult] = useState<CheckinResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
@@ -120,6 +124,36 @@ export default function CheckinClient({
       if (data.ok) resetPhoto();
     } catch {
       setResult({ ok: false, error: "Gagal mengirim — cek koneksi internet lalu coba lagi." });
+    } finally {
+      setPending(null);
+    }
+  }
+
+  // Absen istirahat sengaja tanpa foto -- cuma toggle kecil, jadi jauh lebih
+  // ringan dari handleSubmit (yang wajib selfie). Label toggle mengikuti
+  // state lokal `onBreak`, dikoreksi balik ke state server kalau responsnya
+  // beda (mis. dibuka di tab lain / sudah ditoggle sebelumnya).
+  async function handleBreakToggle() {
+    if (!employeeId) {
+      setBreakResult({ ok: false, error: "Pilih nama dulu." });
+      return;
+    }
+    const action = onBreak ? "break-end" : "break-start";
+    setPending(action);
+    setBreakResult(null);
+
+    const formData = new FormData();
+    formData.set("slug", slug);
+    formData.set("employeeId", employeeId);
+    formData.set("action", action);
+
+    try {
+      const res = await fetch("/api/attendance-checkin", { method: "POST", body: formData });
+      const data = (await res.json()) as CheckinResult;
+      setBreakResult(data);
+      if (data.ok && typeof data.onBreak === "boolean") setOnBreak(data.onBreak);
+    } catch {
+      setBreakResult({ ok: false, error: "Gagal mengirim — cek koneksi internet lalu coba lagi." });
     } finally {
       setPending(null);
     }
@@ -226,6 +260,38 @@ export default function CheckinClient({
           {pending === "out" ? "Mengirim…" : "Absen Pulang"}
         </button>
       </div>
+
+      {breakEnabled && (
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-2.5">
+          <span className="text-xs font-medium text-zinc-600">
+            {onBreak ? "🟡 Sedang istirahat" : "Istirahat"}
+          </span>
+          <button
+            onClick={handleBreakToggle}
+            disabled={pending !== null || compressing}
+            role="switch"
+            aria-checked={onBreak}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              onBreak ? "bg-amber-500" : "bg-zinc-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                onBreak ? "translate-x-[22px]" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+      )}
+      {breakEnabled && breakResult && (
+        <p
+          className={`mt-1.5 text-center text-[11px] ${
+            breakResult.ok ? "text-amber-700" : "text-red-600"
+          }`}
+        >
+          {breakResult.ok ? breakResult.message : breakResult.error}
+        </p>
+      )}
     </div>
   );
 }

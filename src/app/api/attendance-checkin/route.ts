@@ -51,26 +51,38 @@ export async function POST(request: Request) {
   const lat = latRaw ? Number(latRaw) : null;
   const lng = lngRaw ? Number(lngRaw) : null;
 
-  if (!slug || !employeeId || (action !== "in" && action !== "out") || !file) {
+  const isBreakAction = action === "break-start" || action === "break-end";
+
+  if (!slug || !employeeId || (action !== "in" && action !== "out" && !isBreakAction)) {
     return Response.json({ ok: false, error: "Data tidak lengkap." }, { status: 400 });
   }
-  if (file.size > MAX_SIZE) {
-    return Response.json({ ok: false, error: "Ukuran foto maksimal 3 MB." }, { status: 400 });
-  }
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return Response.json({ ok: false, error: "Format foto harus JPG, PNG, atau WEBP." }, { status: 400 });
+  // Absen istirahat sengaja TANPA foto -- cuma toggle kecil, beda dengan
+  // absen masuk/pulang yang wajib selfie buat verifikasi kehadiran fisik.
+  if (!isBreakAction) {
+    if (!file) {
+      return Response.json({ ok: false, error: "Data tidak lengkap." }, { status: 400 });
+    }
+    if (file.size > MAX_SIZE) {
+      return Response.json({ ok: false, error: "Ukuran foto maksimal 3 MB." }, { status: 400 });
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return Response.json({ ok: false, error: "Format foto harus JPG, PNG, atau WEBP." }, { status: 400 });
+    }
   }
 
   const supabase = createServiceClient();
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id")
+    .select("id, break_attendance_enabled")
     .eq("attendance_qr_slug", slug)
     .maybeSingle();
 
   if (!business) {
     return Response.json({ ok: false, error: "Link absen tidak valid." }, { status: 404 });
+  }
+  if (isBreakAction && !business.break_attendance_enabled) {
+    return Response.json({ ok: false, error: "Fitur absen istirahat belum aktif untuk bisnis ini." }, { status: 403 });
   }
 
   const date = todayWib();
@@ -92,7 +104,7 @@ export async function POST(request: Request) {
       .maybeSingle(),
     supabase
       .from("attendance")
-      .select("id, check_in_at, check_out_at, shift_template_id")
+      .select("id, check_in_at, check_out_at, shift_template_id, break_start_at, break_end_at")
       .eq("business_id", business.id)
       .eq("employee_id", employeeId)
       .eq("date", date)
@@ -126,16 +138,62 @@ export async function POST(request: Request) {
     });
   }
 
+  // Istirahat cuma valid di antara absen masuk & pulang, tanpa foto -- jadi
+  // di-handle terpisah di sini, sebelum masuk ke alur upload selfie di bawah.
+  if (isBreakAction) {
+    if (!existing?.check_in_at) {
+      return Response.json({ ok: false, error: "Belum absen masuk hari ini — absen masuk dulu." }, { status: 400 });
+    }
+    if (existing.check_out_at) {
+      return Response.json({ ok: false, error: "Sudah absen pulang hari ini — istirahat tidak berlaku lagi." }, { status: 400 });
+    }
+    if (action === "break-start") {
+      if (existing.break_start_at && !existing.break_end_at) {
+        return Response.json({
+          ok: true,
+          message: `${employee.name} sudah mulai istirahat jam ${new Date(existing.break_start_at).toLocaleTimeString("id-ID", { timeZone: REPORT_TIMEZONE, hour: "2-digit", minute: "2-digit" })}.`,
+          onBreak: true,
+        });
+      }
+      const { error } = await supabase
+        .from("attendance")
+        .update({ break_start_at: new Date().toISOString(), break_end_at: null })
+        .eq("id", existing.id);
+      if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+      return Response.json({ ok: true, message: `Mulai istirahat jam ${nowWibTimeLabel()}.`, onBreak: true });
+    }
+    // action === "break-end"
+    if (!existing.break_start_at) {
+      return Response.json({ ok: false, error: "Belum mulai istirahat." }, { status: 400 });
+    }
+    if (existing.break_end_at) {
+      return Response.json({
+        ok: true,
+        message: `${employee.name} sudah selesai istirahat jam ${new Date(existing.break_end_at).toLocaleTimeString("id-ID", { timeZone: REPORT_TIMEZONE, hour: "2-digit", minute: "2-digit" })}.`,
+        onBreak: false,
+      });
+    }
+    const { error } = await supabase
+      .from("attendance")
+      .update({ break_end_at: new Date().toISOString() })
+      .eq("id", existing.id);
+    if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+    return Response.json({ ok: true, message: `Selesai istirahat jam ${nowWibTimeLabel()}.`, onBreak: false });
+  }
+
   const shift = assignment?.shift_templates as unknown as
     | { start_time: string; end_time: string }
     | null;
 
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  // Sudah dipastikan non-null di validasi awal (cuma break-start/break-end
+  // yang boleh tanpa foto, dan itu sudah return lebih dulu di atas).
+  const selfieFile = file!;
+  const ext = selfieFile.type === "image/png" ? "png" : selfieFile.type === "image/webp" ? "webp" : "jpg";
   const path = `${business.id}/${employeeId}/${date}-${action}-${crypto.randomUUID()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("attendance-selfies")
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, selfieFile, { contentType: selfieFile.type, upsert: false });
 
   if (uploadError) {
     return Response.json({ ok: false, error: uploadError.message }, { status: 500 });

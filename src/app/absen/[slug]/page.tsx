@@ -17,11 +17,17 @@ export default async function AbsenPage({
   }
 
   const businessName = rows[0].business_name;
+  const breakEnabled = rows[0].break_attendance_enabled ?? false;
   const employees = rows.map((r) => ({ id: r.employee_id, name: r.employee_name }));
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      <CheckinClient slug={slug} businessName={businessName} employees={employees} />
+      <CheckinClient
+        slug={slug}
+        businessName={businessName}
+        employees={employees}
+        breakEnabled={breakEnabled}
+      />
     </div>
   );
 }

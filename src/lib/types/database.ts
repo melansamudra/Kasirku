@@ -168,6 +168,8 @@ export type Database = {
           check_in_lng: number | null;
           check_out_lat: number | null;
           check_out_lng: number | null;
+          break_start_at: string | null;
+          break_end_at: string | null;
         };
         Insert: {
           id?: string;
@@ -191,6 +193,8 @@ export type Database = {
           check_in_lng?: number | null;
           check_out_lat?: number | null;
           check_out_lng?: number | null;
+          break_start_at?: string | null;
+          break_end_at?: string | null;
         };
         Update: {
           id?: string;
@@ -214,6 +218,8 @@ export type Database = {
           check_in_lng?: number | null;
           check_out_lat?: number | null;
           check_out_lng?: number | null;
+          break_start_at?: string | null;
+          break_end_at?: string | null;
         };
         Relationships: [];
       };
@@ -316,6 +322,7 @@ export type Database = {
           location_transfer_slug: string | null;
           receive_stock_slug: string | null;
           procurement_budget_gate_enabled: boolean;
+          break_attendance_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -352,6 +359,7 @@ export type Database = {
           stock_opname_slug?: string | null;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
+          break_attendance_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -388,6 +396,7 @@ export type Database = {
           procurement_budget_gate_enabled?: boolean;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
+          break_attendance_enabled?: boolean;
         };
         Relationships: [];
       };
@@ -4627,6 +4636,7 @@ export type Database = {
           business_name: string;
           employee_id: string;
           employee_name: string;
+          break_attendance_enabled: boolean;
         }[];
       };
       get_purchase_request_info: {
