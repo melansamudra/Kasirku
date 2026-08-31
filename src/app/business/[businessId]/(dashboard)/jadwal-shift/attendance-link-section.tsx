@@ -19,7 +19,8 @@ export default function AttendanceLinkSection({
   const [error, setError] = useState<string | null>(null);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
-  const url = typeof window !== "undefined" ? `${window.location.origin}/absen/${slug}` : "";
+  const hasSlug = slug.length > 0;
+  const url = typeof window !== "undefined" && hasSlug ? `${window.location.origin}/absen/${slug}` : "";
 
   async function handleCopy() {
     await navigator.clipboard.writeText(url);
@@ -38,6 +39,22 @@ export default function AttendanceLinkSection({
       return;
     }
     if (result.slug) setSlug(result.slug);
+  }
+
+  if (!hasSlug) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3">
+        <p className="text-xs text-zinc-500">Link absen selfie belum pernah dibuat untuk bisnis ini.</p>
+        <button
+          onClick={handleRegenerate}
+          disabled={pending}
+          className="mt-2 rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          {pending ? "Membuat…" : "🔗 Buat Link"}
+        </button>
+        {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+      </div>
+    );
   }
 
   return (
