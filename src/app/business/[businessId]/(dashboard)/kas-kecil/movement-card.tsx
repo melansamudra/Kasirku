@@ -47,6 +47,7 @@ export default function MovementCard({
     origin: "kasir" | "admin";
     cashierName: string | null;
     employeeName?: string | null;
+    createdByEmployeeName?: string | null;
   };
 }) {
   const router = useRouter();
@@ -121,7 +122,13 @@ export default function MovementCard({
               <span>{formatDateTime(movement.createdAt)}</span>
             )}
             <span>·</span>
-            <span>{movement.origin === "admin" ? "Input Admin" : movement.cashierName ?? "Kasir"}</span>
+            <span>
+              {movement.createdByEmployeeName
+                ? `Portal — ${movement.createdByEmployeeName}`
+                : movement.origin === "admin"
+                  ? "Input Admin"
+                  : (movement.cashierName ?? "Kasir")}
+            </span>
             {movement.category && (
               <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600">
                 {movement.category}

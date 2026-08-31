@@ -39,6 +39,7 @@ type MovementRow = {
   journal_entry_id: string | null;
   cashiers: { name: string } | null;
   employees: { name: string } | null;
+  created_by_employee_name: string | null;
 };
 
 type TodayTunaiRow = {
@@ -155,7 +156,7 @@ export default async function KasKecilPage({
     supabase
       .from("shift_cash_movements")
       .select(
-        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees(name)",
+        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees(name), created_by_employee_name",
       )
       .eq("business_id", businessId)
       .eq("direction", "out")
@@ -165,7 +166,7 @@ export default async function KasKecilPage({
       const q = supabase
         .from("shift_cash_movements")
         .select(
-          "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees(name)",
+          "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees(name), created_by_employee_name",
         )
         .eq("business_id", businessId)
         .eq("direction", "out")
@@ -412,6 +413,7 @@ export default async function KasKecilPage({
                 origin: m.origin,
                 cashierName: m.cashiers?.name ?? null,
                 employeeName: m.employees?.name ?? null,
+                createdByEmployeeName: m.created_by_employee_name ?? null,
               }}
             />
           ))
@@ -468,7 +470,11 @@ export default async function KasKecilPage({
                         : formatDateTime(m.created_at)}
                     </span>
                     <span className="text-[11px] text-zinc-400">
-                      {m.origin === "admin" ? "Input Admin" : m.cashiers?.name ?? "Kasir"}
+                      {m.created_by_employee_name
+                        ? `Portal — ${m.created_by_employee_name}`
+                        : m.origin === "admin"
+                          ? "Input Admin"
+                          : (m.cashiers?.name ?? "Kasir")}
                     </span>
                     {m.account_code && (
                       <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">

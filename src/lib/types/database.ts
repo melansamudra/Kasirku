@@ -4835,6 +4835,16 @@ export type Database = {
         };
         Returns: string;
       };
+      submit_petty_cash_expense_public: {
+        Args: {
+          p_slug: string;
+          p_employee_id: string;
+          p_amount: number;
+          p_category: string;
+          p_description: string;
+        };
+        Returns: string;
+      };
       post_petty_cash_kasbon: {
         Args: {
           p_business_id: string;

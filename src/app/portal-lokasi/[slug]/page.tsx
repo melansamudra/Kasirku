@@ -144,6 +144,19 @@ export default async function PortalLokasiPage({
             </Link>
           )}
 
+          {/* Kas Kecil lewat Portal cuma buat Purchasing/Gudang Utama, cuma
+              "Nota Tunai" (pengeluaran) -- Nota Hutang & Kasbon tetap lewat
+              dashboard (arahan user 2026-08-31). */}
+          {info.location.is_default_purchase && (
+            <Link
+              href={`/portal-lokasi/${slug}/kas-kecil`}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-4 py-3.5 hover:border-brand-300 hover:bg-brand-50/30"
+            >
+              <span className="text-xl">💰</span>
+              <span className="text-sm font-medium text-zinc-800">Catat Kas Kecil</span>
+            </Link>
+          )}
+
           {info.stock_opname_slug && (
             <Link
               href={`/stok-opname/${info.stock_opname_slug}?lokasi=${info.location.id}`}
