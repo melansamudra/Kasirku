@@ -7,6 +7,7 @@ import { addEmployee, editEmployee } from "./actions";
 import AddEmployeeForm from "./add-employee-form";
 import EditEmployeeForm from "./edit-employee-form";
 import ToggleActiveButton from "./toggle-active-button";
+import DeleteEmployeeButton from "./delete-employee-button";
 import PersonalLoanButton from "./personal-loan-button";
 import RecurringAllowancesButton from "./recurring-allowances-button";
 
@@ -20,7 +21,7 @@ export default async function EmployeesPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, personal_loan_enabled")
     .eq("id", businessId)
     .single();
 
@@ -34,6 +35,7 @@ export default async function EmployeesPage({
       "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, active, note, cashier_id, contract_end, location_id, cashiers(name)",
     )
     .eq("business_id", businessId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
   const { data: cashiers } = await supabase
@@ -162,15 +164,17 @@ export default async function EmployeesPage({
                       employeeId={e.id}
                       allowances={recurringAllowancesByEmployee.get(e.id) ?? []}
                     />
-                    <PersonalLoanButton
-                      businessId={businessId}
-                      employeeId={e.id}
-                      outstanding={Math.max(
-                        0,
-                        (personalLoanGivenByEmployee.get(e.id) ?? 0) -
-                          (personalLoanSettledByEmployee.get(e.id) ?? 0),
-                      )}
-                    />
+                    {business.personal_loan_enabled && (
+                      <PersonalLoanButton
+                        businessId={businessId}
+                        employeeId={e.id}
+                        outstanding={Math.max(
+                          0,
+                          (personalLoanGivenByEmployee.get(e.id) ?? 0) -
+                            (personalLoanSettledByEmployee.get(e.id) ?? 0),
+                        )}
+                      />
+                    )}
                   </div>
                 </div>
                 {!e.active && (
@@ -196,6 +200,7 @@ export default async function EmployeesPage({
                   action={editEmployee.bind(null, businessId, e.id)}
                 />
                 <ToggleActiveButton businessId={businessId} employeeId={e.id} active={e.active} />
+                <DeleteEmployeeButton businessId={businessId} employeeId={e.id} employeeName={e.name} />
               </div>
             );
           })

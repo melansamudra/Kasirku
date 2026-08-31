@@ -323,6 +323,7 @@ export type Database = {
           receive_stock_slug: string | null;
           procurement_budget_gate_enabled: boolean;
           break_attendance_enabled: boolean;
+          personal_loan_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -360,6 +361,7 @@ export type Database = {
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
           break_attendance_enabled?: boolean;
+          personal_loan_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -397,6 +399,7 @@ export type Database = {
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
           break_attendance_enabled?: boolean;
+          personal_loan_enabled?: boolean;
         };
         Relationships: [];
       };
@@ -733,6 +736,7 @@ export type Database = {
           location_id: string | null;
           pin_hash: string | null;
           has_pin: boolean | null;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -751,6 +755,7 @@ export type Database = {
           daily_attendance_allowance?: number;
           location_id?: string | null;
           pin_hash?: string | null;
+          deleted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -769,6 +774,7 @@ export type Database = {
           daily_attendance_allowance?: number;
           location_id?: string | null;
           pin_hash?: string | null;
+          deleted_at?: string | null;
         };
         Relationships: [
           {

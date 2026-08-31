@@ -181,6 +181,40 @@ export async function setEmployeeActive(businessId: string, employeeId: string, 
   revalidatePath(`/business/${businessId}/employees`);
 }
 
+// Soft-delete -- baris TIDAK dihapus fisik supaya riwayat lama (absensi,
+// payroll, produksi, dll) tetap utuh, cuma disembunyikan dari daftar &
+// semua dropdown pemilihan nama. Set active=false SEKALIAN karena semua
+// query "pilih karyawan" lain di aplikasi ini sudah filter eq("active",
+// true) -- jadi otomatis ikut hilang dari sana tanpa perlu ubah 12+ file
+// lain satu-satu.
+export async function deleteEmployee(businessId: string, employeeId: string) {
+  const supabase = await createClient();
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("name")
+    .eq("id", employeeId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  await supabase
+    .from("employees")
+    .update({ deleted_at: new Date().toISOString(), active: false })
+    .eq("id", employeeId)
+    .eq("business_id", businessId);
+
+  if (employee) {
+    await logActivity(
+      supabase,
+      businessId,
+      "pengaturan",
+      "warning",
+      `Karyawan dihapus: ${employee.name}`,
+    );
+  }
+  revalidatePath(`/business/${businessId}/employees`);
+}
+
 export type SetPinState = { error: string | null };
 
 // PIN Portal Lokasi -- terpisah total dari PIN kasir (cashiers.pin_hash).
