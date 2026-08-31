@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type Employee = { id: string; name: string };
+type Employee = { id: string; name: string; divisi: string | null };
 type CheckinResult = { ok: boolean; message?: string; error?: string; onBreak?: boolean };
 type LocationStatus = "pending" | "ok" | "denied" | "unsupported";
+const NO_DIVISI = "Lainnya";
 
 // Foto langsung dari kamera HP bisa beberapa MB — di jaringan outlet yang
 // lemot ini penyumbang terbesar lambatnya submit absen. Kompres ke JPEG
@@ -49,6 +50,7 @@ export default function CheckinClient({
   breakEnabled?: boolean;
 }) {
   const [employeeId, setEmployeeId] = useState("");
+  const [selectedDivisi, setSelectedDivisi] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
@@ -61,6 +63,20 @@ export default function CheckinClient({
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
     typeof navigator !== "undefined" && "geolocation" in navigator ? "pending" : "unsupported",
   );
+
+  // Kalau divisi diisi konsisten (>=2 nilai unik), staf pilih Divisi dulu
+  // baru Nama-nya difilter -- daftar nama makin banyak (46+), scroll 1
+  // daftar panjang lambat & rawan salah pilih orang. Kalau divisi cuma 1
+  // nilai/kosong semua, langsung tampilkan daftar nama datar seperti biasa.
+  const divisiList = useMemo(() => {
+    const set = new Set(employees.map((e) => e.divisi?.trim() || NO_DIVISI));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [employees]);
+  const useDivisiStep = divisiList.length >= 2;
+  const filteredEmployees = useMemo(() => {
+    if (!useDivisiStep) return employees;
+    return employees.filter((e) => (e.divisi?.trim() || NO_DIVISI) === selectedDivisi);
+  }, [employees, useDivisiStep, selectedDivisi]);
 
   // Diminta pas halaman dibuka (bukan pas klik tombol) supaya waktu klik
   // Absen Masuk/Pulang, lokasinya sudah siap — nggak nunggu GPS di momen
@@ -129,16 +145,16 @@ export default function CheckinClient({
     }
   }
 
-  // Absen istirahat sengaja tanpa foto -- cuma toggle kecil, jadi jauh lebih
-  // ringan dari handleSubmit (yang wajib selfie). Label toggle mengikuti
-  // state lokal `onBreak`, dikoreksi balik ke state server kalau responsnya
-  // beda (mis. dibuka di tab lain / sudah ditoggle sebelumnya).
-  async function handleBreakToggle() {
+  // Absen istirahat sengaja tanpa foto -- toggle kecil, jauh lebih ringan
+  // dari handleSubmit (yang wajib selfie). 2 tombol terpisah (bukan 1
+  // switch) supaya "Mulai Istirahat" SELALU kelihatan sebagai tombol nyata
+  // walau lagi disabled -- staf sempat bingung waktu ini masih berupa 1
+  // toggle, dikira tombol mulai istirahat hilang setelah selesai istirahat.
+  async function handleBreakAction(action: "break-start" | "break-end") {
     if (!employeeId) {
       setBreakResult({ ok: false, error: "Pilih nama dulu." });
       return;
     }
-    const action = onBreak ? "break-end" : "break-start";
     setPending(action);
     setBreakResult(null);
 
@@ -176,24 +192,65 @@ export default function CheckinClient({
         {locationStatus === "unsupported" && "⚠️ Perangkat tidak mendukung deteksi lokasi"}
       </p>
 
-      <div className="mt-4">
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda</label>
-        <select
-          value={employeeId}
-          onChange={(e) => {
-            setEmployeeId(e.target.value);
-            setResult(null);
-          }}
-          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        >
-          <option value="">— Pilih nama —</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {useDivisiStep && (
+        <div className="mt-4">
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Bagian/Divisi</label>
+          {selectedDivisi ? (
+            <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50 px-3.5 py-2.5">
+              <span className="text-sm font-medium text-brand-700">🔒 {selectedDivisi}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDivisi("");
+                  setEmployeeId("");
+                  setResult(null);
+                }}
+                className="text-xs font-medium text-brand-600 hover:underline"
+              >
+                Ganti
+              </button>
+            </div>
+          ) : (
+            <select
+              value={selectedDivisi}
+              onChange={(e) => {
+                setSelectedDivisi(e.target.value);
+                setEmployeeId("");
+                setResult(null);
+              }}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">— Pilih bagian dulu —</option>
+              {divisiList.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {(!useDivisiStep || selectedDivisi) && (
+        <div className="mt-4">
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda</label>
+          <select
+            value={employeeId}
+            onChange={(e) => {
+              setEmployeeId(e.target.value);
+              setResult(null);
+            }}
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">— Pilih nama —</option>
+            {filteredEmployees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="mt-4">
         <label className="mb-1 block text-xs font-medium text-zinc-600">Foto Selfie</label>
@@ -262,25 +319,26 @@ export default function CheckinClient({
       </div>
 
       {breakEnabled && (
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-2.5">
-          <span className="text-xs font-medium text-zinc-600">
+        <div className="mt-3">
+          <p className="mb-1.5 text-center text-[11px] font-medium text-zinc-400">
             {onBreak ? "🟡 Sedang istirahat" : "Istirahat"}
-          </span>
-          <button
-            onClick={handleBreakToggle}
-            disabled={pending !== null || compressing}
-            role="switch"
-            aria-checked={onBreak}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-              onBreak ? "bg-amber-500" : "bg-zinc-300"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                onBreak ? "translate-x-[22px]" : "translate-x-0.5"
-              }`}
-            />
-          </button>
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleBreakAction("break-start")}
+              disabled={pending !== null || compressing || onBreak}
+              className="rounded-xl border border-amber-300 bg-amber-50 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending === "break-start" ? "Mengirim…" : "Mulai Istirahat"}
+            </button>
+            <button
+              onClick={() => handleBreakAction("break-end")}
+              disabled={pending !== null || compressing || !onBreak}
+              className="rounded-xl border border-zinc-300 bg-white py-2 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending === "break-end" ? "Mengirim…" : "Selesai Istirahat"}
+            </button>
+          </div>
         </div>
       )}
       {breakEnabled && breakResult && (

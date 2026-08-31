@@ -4643,6 +4643,7 @@ export type Database = {
           employee_id: string;
           employee_name: string;
           break_attendance_enabled: boolean;
+          divisi: string | null;
         }[];
       };
       get_purchase_request_info: {

@@ -18,7 +18,7 @@ export default async function AbsenPage({
 
   const businessName = rows[0].business_name;
   const breakEnabled = rows[0].break_attendance_enabled ?? false;
-  const employees = rows.map((r) => ({ id: r.employee_id, name: r.employee_name }));
+  const employees = rows.map((r) => ({ id: r.employee_id, name: r.employee_name, divisi: r.divisi }));
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
