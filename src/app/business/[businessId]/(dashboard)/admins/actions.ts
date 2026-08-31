@@ -6,9 +6,34 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity } from "@/lib/activity-log";
 import { ALL_PERMISSION_KEYS } from "@/lib/permissions";
+import { buildLocationPermissionGroups } from "@/lib/location-permissions";
 
-function sanitizePermissions(raw: FormDataEntryValue[]): string[] {
-  return raw.map((v) => String(v)).filter((v) => ALL_PERMISSION_KEYS.has(v));
+// `ALL_PERMISSION_KEYS` cuma daftar TETAP -- checklist juga menampilkan key
+// per-lokasi dinamis (lihat permission-checklist.tsx/location-permissions.ts)
+// yang tidak pernah ada di situ. `extraValidKeys` dihitung ulang di sini dari
+// stock_locations BISNIS INI SENDIRI (bukan dipercaya dari client) supaya
+// key per-lokasi bisnis lain tidak bisa diselundupkan lewat form ini.
+function sanitizePermissions(raw: FormDataEntryValue[], extraValidKeys: Set<string>): string[] {
+  return raw.map((v) => String(v)).filter((v) => ALL_PERMISSION_KEYS.has(v) || extraValidKeys.has(v));
+}
+
+async function loadLocationPermissionKeys(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  businessId: string,
+): Promise<Set<string>> {
+  const { data: locationRows } = await supabase
+    .from("stock_locations")
+    .select("id, name, is_production, is_default_purchase")
+    .eq("business_id", businessId);
+  const groups = buildLocationPermissionGroups(
+    (locationRows ?? []).map((l) => ({
+      id: l.id,
+      name: l.name,
+      isProduction: l.is_production,
+      isDefaultPurchase: l.is_default_purchase,
+    })),
+  );
+  return new Set(groups.flatMap((g) => g.items.map((i) => i.key)));
 }
 
 // Only the owner may ever reach these actions with a service-role client in
@@ -57,7 +82,6 @@ async function _inviteAdminInner(
 ): Promise<InviteAdminState> {
   const name = (formData.get("name") as string)?.trim();
   const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const permissions = sanitizePermissions(formData.getAll("permissions"));
   const roleRaw = formData.get("role") as string;
   const role = roleRaw === "admin" ? "admin" : "kasir";
 
@@ -74,6 +98,9 @@ async function _inviteAdminInner(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Tidak diizinkan." };
   }
+
+  const locationKeys = await loadLocationPermissionKeys(supabase, businessId);
+  const permissions = sanitizePermissions(formData.getAll("permissions"), locationKeys);
 
   const headerList = await headers();
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
@@ -142,7 +169,6 @@ export async function updateAdminPermissions(
   _prevState: UpdatePermissionsState,
   formData: FormData,
 ): Promise<UpdatePermissionsState> {
-  const permissions = sanitizePermissions(formData.getAll("permissions"));
   const roleRaw = formData.get("role") as string;
   const role = roleRaw === "admin" ? "admin" : "kasir";
 
@@ -152,6 +178,9 @@ export async function updateAdminPermissions(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Tidak diizinkan." };
   }
+
+  const locationKeys = await loadLocationPermissionKeys(supabase, businessId);
+  const permissions = sanitizePermissions(formData.getAll("permissions"), locationKeys);
 
   const { error } = await supabase
     .from("business_staff")

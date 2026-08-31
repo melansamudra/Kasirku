@@ -6,10 +6,7 @@ import EditPermissionsForm from "./edit-permissions-form";
 import ToggleActiveButton from "./toggle-active-button";
 import RemoveButton from "./remove-button";
 import { PERMISSION_GROUPS } from "@/lib/permissions";
-
-const LABEL_BY_KEY = new Map(
-  PERMISSION_GROUPS.flatMap((g) => g.items).map((i) => [i.key, i.label]),
-);
+import { buildLocationPermissionGroups } from "@/lib/location-permissions";
 
 export default async function AdminsPage({
   params,
@@ -29,11 +26,33 @@ export default async function AdminsPage({
     notFound();
   }
 
-  const { data: staffRows } = await supabase
-    .from("business_staff")
-    .select("id, name, email, permissions, active, role")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: true });
+  const [{ data: staffRows }, { data: locationRows }] = await Promise.all([
+    supabase
+      .from("business_staff")
+      .select("id, name, email, permissions, active, role")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("stock_locations")
+      .select("id, name, is_production, is_default_purchase")
+      .eq("business_id", businessId),
+  ]);
+
+  // Kosong buat bisnis non-cost-control (tidak pernah punya baris
+  // stock_locations) -- checklist-nya otomatis cuma tampilkan yang statis,
+  // tidak ada dampak buat bisnis lain.
+  const locationGroups = buildLocationPermissionGroups(
+    (locationRows ?? []).map((l) => ({
+      id: l.id,
+      name: l.name,
+      isProduction: l.is_production,
+      isDefaultPurchase: l.is_default_purchase,
+    })),
+  );
+
+  const LABEL_BY_KEY = new Map(
+    [...PERMISSION_GROUPS, ...locationGroups].flatMap((g) => g.items).map((i) => [i.key, i.label]),
+  );
 
   const boundInviteAdmin = inviteAdmin.bind(null, businessId);
 
@@ -78,6 +97,7 @@ export default async function AdminsPage({
                   currentPermissions={s.permissions}
                   currentRole={s.role === "admin" ? "admin" : "kasir"}
                   action={updateAdminPermissions.bind(null, businessId, s.id)}
+                  extraGroups={locationGroups}
                 />
                 <ToggleActiveButton businessId={businessId} staffId={s.id} active={s.active} />
                 <RemoveButton businessId={businessId} staffId={s.id} name={s.name} />
@@ -93,7 +113,7 @@ export default async function AdminsPage({
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Undang Admin</h2>
-        <InviteAdminForm action={boundInviteAdmin} />
+        <InviteAdminForm action={boundInviteAdmin} extraGroups={locationGroups} />
       </div>
     </div>
   );

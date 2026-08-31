@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { UpdatePermissionsState } from "./actions";
 import PermissionChecklist from "./permission-checklist";
+import type { PermissionGroup } from "@/lib/permissions";
 
 const initialState: UpdatePermissionsState = { error: null };
 
@@ -10,10 +11,12 @@ export default function EditPermissionsForm({
   currentPermissions,
   currentRole,
   action,
+  extraGroups,
 }: {
   currentPermissions: string[];
   currentRole: "kasir" | "admin";
   action: (state: UpdatePermissionsState, formData: FormData) => Promise<UpdatePermissionsState>;
+  extraGroups?: PermissionGroup[];
 }) {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<"kasir" | "admin">(currentRole);
@@ -64,7 +67,7 @@ export default function EditPermissionsForm({
           Admin bisa Setujui/Tolak di Kas Kecil; Kasir cuma lihat ringkasan.
         </p>
       </div>
-      <PermissionChecklist defaultChecked={currentPermissions} />
+      <PermissionChecklist defaultChecked={currentPermissions} extraGroups={extraGroups} />
       {state.error && <p className="text-xs text-red-600">{state.error}</p>}
       <div className="flex gap-2">
         <button

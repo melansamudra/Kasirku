@@ -3,6 +3,7 @@
 import { useActionState, useRef, useEffect, useState } from "react";
 import type { InviteAdminState } from "./actions";
 import PermissionChecklist from "./permission-checklist";
+import type { PermissionGroup } from "@/lib/permissions";
 
 const initialState: InviteAdminState = { error: null };
 
@@ -20,8 +21,10 @@ const KASIR_DEFAULT_PERMISSIONS = [
 
 export default function InviteAdminForm({
   action,
+  extraGroups,
 }: {
   action: (state: InviteAdminState, formData: FormData) => Promise<InviteAdminState>;
+  extraGroups?: PermissionGroup[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -109,6 +112,7 @@ export default function InviteAdminForm({
         <PermissionChecklist
           key={role}
           defaultChecked={role === "kasir" ? KASIR_DEFAULT_PERMISSIONS : []}
+          extraGroups={extraGroups}
         />
       </div>
 
