@@ -18,15 +18,22 @@ export type AttendanceForCalc = {
 export type LateTier = { thresholdMinutes: number; amount: number };
 
 export type PayrollSettings = {
-  // izinDeductionMode & izinDeductionWeekday sudah TIDAK dipakai lagi --
-  // sisa dari cara lama sebelum potongan izin berbasis keterangan (lihat
-  // calcPayslip). Dibiarkan ada di tipe/DB/UI cuma buat kompatibilitas,
-  // tidak memengaruhi total gaji.
+  // Menentukan cara menghitung potongan izin TANPA keterangan (izin
+  // berketerangan selalu dibayar penuh, tidak dipengaruhi mode ini):
+  // - "flat": weekday tidak kena potongan gaji sama sekali (cuma nominal
+  //   izinDeductionWeekday, defaultnya 0), weekend/tanggal merah kena
+  //   potongan flat izinDeductionWeekend -- BUKAN proporsi dari gaji.
+  // - "full_day": weekday & weekend sama-sama kehilangan gaji 1 hari penuh
+  //   (proporsional dari rate karyawan), weekend dapat denda tambahan
+  //   izinDeductionWeekend di atas itu.
   izinDeductionMode: "flat" | "full_day";
+  // Dipakai kalau mode "flat" -- potongan izin weekday, nominal Rp tetap
+  // (biasanya 0 = tidak dipotong).
   izinDeductionWeekday: number;
-  // Masih dipakai -- nominal DENDA ekstra (bukan potongan gaji) buat izin
-  // TANPA keterangan yang jatuh di hari weekend toko ini atau tanggal merah
-  // di Kalender Libur Payroll. Lihat izinWeekendPenalty di calcPayslip.
+  // Nominal DENDA/potongan izin weekend -- flat di mode "flat", atau denda
+  // tambahan di atas potongan 1 hari penuh di mode "full_day". Berlaku juga
+  // untuk tanggal merah di Kalender Libur Payroll. Lihat izinWeekendPenalty
+  // di calcPayslip.
   izinDeductionWeekend: number;
   // Dipakai kalau lateTiers kosong (bisnis belum sempat atur tingkatan
   // custom) — potongan flat per hari telat, tidak peduli berapa menitnya.
@@ -77,10 +84,9 @@ export type PayslipCalcResult = {
   offCount: number;
   izinWeekdayCount: number;
   izinWeekendCount: number;
-  // Dasar Gaji Pokok & potongan sekarang: izin dengan keterangan (note
-  // terisi) dibayar penuh, tanpa keterangan kehilangan gaji 1 hari penuh --
-  // lihat catatan panjang di calcPayslip soal kenapa ini menggantikan
-  // izinDeductionMode/Weekday lama.
+  // Izin dengan keterangan (note terisi) selalu dibayar penuh, tanpa
+  // potongan apa pun. Izin TANPA keterangan kena potongan sesuai
+  // settings.izinDeductionMode -- lihat calcPayslip.
   izinNotedCount: number;
   izinUnnotedCount: number;
   // Dari izinUnnotedCount, berapa yang jatuh di hari weekend/tanggal merah
@@ -183,32 +189,38 @@ export function calcPayslip(
     ) + 1;
   const hariKerjaEfektif = Math.max(1, totalDaysInPeriod - counts.off);
 
-  // Gaji Pokok dibayar penuh buat Hadir, Sakit, dan Izin yang ada
-  // keterangan (dianggap izin resmi/beralasan) -- Izin TANPA keterangan
-  // dan Alpa membuat gaji hari itu otomatis hilang (tetap dihitung di sini
-  // dulu, lalu izinDeduction di bawah menagih balik dailyEquivalent-nya,
-  // ditambah izinWeekendPenalty kalau jatuh di weekend/tanggal merah). Ini
-  // menggantikan settings.izinDeductionMode/izinDeductionWeekday yang lama
-  // (izinDeductionWeekend TETAP dipakai, sekarang sebagai nominal denda
-  // weekend, bukan lagi bagian dari mode flat/full_day). Berlaku sama di
-  // semua bisnis, bukan cuma per-toko.
+  // Gaji Pokok dibayar penuh buat Hadir, Sakit, dan SEMUA Izin (baik ada
+  // keterangan maupun tidak) -- izin berketerangan memang selalu dibayar
+  // penuh tanpa potongan apa pun. Izin TANPA keterangan tetap dihitung
+  // dibayar di sini dulu, lalu ditagih balik lewat izinDeduction di bawah
+  // (nominalnya tergantung settings.izinDeductionMode -- lihat di sana),
+  // BUKAN langsung dikecualikan dari basePay -- supaya slip tetap punya
+  // baris "Potongan Izin" yang jelas nominalnya, bukan cuma diam-diam
+  // hilang tanpa penjelasan.
   const dailyEquivalent =
     employee.salaryType === "bulanan" ? employee.monthlyRate / hariKerjaEfektif : employee.dailyRate;
-  // izinUnnotedCount ikut dimasukkan di sini (dibayar dulu), lalu ditagih
-  // balik penuh lewat izinDeduction di bawah -- BUKAN langsung dikecualikan
-  // dari sini -- supaya slip tetap punya baris "Potongan Izin" yang jelas
-  // nominalnya, bukan cuma diam-diam hilang tanpa penjelasan.
   const basePay = dailyEquivalent * (counts.hadir + counts.sakit + izinNotedCount + izinUnnotedCount);
   const mealAllowance = counts.hadir * employee.dailyMealAllowance;
   const attendanceAllowance = counts.hadir * employee.dailyAttendanceAllowance;
 
-  const izinDeduction = izinUnnotedCount * dailyEquivalent;
-  // Denda ekstra (bukan potongan gaji) khusus izin TANPA keterangan yang
-  // jatuh di weekend toko ini (weekendDaysForBusiness) atau tanggal merah
-  // yang ditandai di Kalender Libur Payroll -- nominalnya dari
-  // izinDeductionWeekend di Pengaturan Payroll, di luar gaji hari itu yang
-  // sudah hilang lewat izinDeduction.
-  const izinWeekendPenalty = izinUnnotedWeekendCount * settings.izinDeductionWeekend;
+  // izinUnnotedWeekdayCount: sisa unnoted yang BUKAN weekend/tanggal merah.
+  const izinUnnotedWeekdayCount = izinUnnotedCount - izinUnnotedWeekendCount;
+  let izinDeduction: number;
+  let izinWeekendPenalty: number;
+  if (settings.izinDeductionMode === "full_day") {
+    // Izin tanpa keterangan kehilangan gaji 1 hari penuh (proporsional),
+    // hari apa saja -- weekend/tanggal merah dapat denda tambahan flat di
+    // atas itu.
+    izinDeduction = izinUnnotedCount * dailyEquivalent;
+    izinWeekendPenalty = izinUnnotedWeekendCount * settings.izinDeductionWeekend;
+  } else {
+    // Mode "flat": TIDAK ada potongan proporsional dari gaji sama sekali.
+    // Weekday pakai nominal izinDeductionWeekday (biasanya 0 = gratis),
+    // weekend/tanggal merah pakai nominal izinDeductionWeekend -- keduanya
+    // flat, tidak dihitung dari dailyEquivalent.
+    izinDeduction = izinUnnotedWeekdayCount * settings.izinDeductionWeekday;
+    izinWeekendPenalty = izinUnnotedWeekendCount * settings.izinDeductionWeekend;
+  }
 
   return {
     hadirCount: counts.hadir,
