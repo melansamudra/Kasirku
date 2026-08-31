@@ -208,6 +208,44 @@ export async function updateRecipeYield(
   }
 
   const supabase = await createClient();
+
+  const { data: item } = await supabase
+    .from("semi_finished_items")
+    .select("batch_yield_qty")
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const oldYieldQty = item?.batch_yield_qty !== null && item?.batch_yield_qty !== undefined
+    ? Number(item.batch_yield_qty)
+    : null;
+
+  // Kalau sebelumnya sudah ada batch_yield_qty, user mengubah angka ini
+  // berarti "bahan totalnya tetap sama, cuma sekarang dibagi ke jumlah
+  // porsi yang beda" -- jadi qty per-1-satuan di tiap baris resep ikut
+  // diskalakan proporsional, bukan cuma ganti labelnya (kalau tidak, HPP
+  // per satuan salah tampil tetap sama padahal batch-nya sudah berubah).
+  // Kalau belum pernah diisi (null), tidak ada basis buat skala -- simpan
+  // apa adanya, sama seperti pengisian pertama kali.
+  if (oldYieldQty !== null && oldYieldQty > 0 && oldYieldQty !== yieldQty) {
+    const factor = oldYieldQty / yieldQty;
+    const { data: rows } = await supabase
+      .from("semi_finished_recipes")
+      .select("id, qty")
+      .eq("business_id", businessId)
+      .eq("semi_finished_item_id", itemId);
+
+    const results = await Promise.all(
+      (rows ?? []).map((row) =>
+        supabase
+          .from("semi_finished_recipes")
+          .update({ qty: Number(row.qty) * factor })
+          .eq("id", row.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) return { error: failed.error.message };
+  }
+
   const { error } = await supabase
     .from("semi_finished_items")
     .update({ batch_yield_qty: yieldQty })
@@ -217,6 +255,8 @@ export async function updateRecipeYield(
   if (error) return { error: error.message };
 
   revalidatePath(`/business/${businessId}/semi-finished-items/${itemId}`);
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/finished-products`);
   return { error: null };
 }
 
