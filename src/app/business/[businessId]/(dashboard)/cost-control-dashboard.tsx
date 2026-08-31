@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
+import { payslipTotal, type PayslipAgg } from "@/lib/payroll/payslip-total";
+import { getPeriodRange } from "./reports/period";
 
 // Dashboard KHUSUS business dengan cost_control_enabled (dapur pusat semacam
 // Lauk Nusantara) — tidak jual lewat POS sama sekali, jadi dashboard "Total
@@ -31,6 +33,8 @@ function formatDateTime(iso: string) {
 export default async function CostControlDashboard({ businessId }: { businessId: string }) {
   const supabase = await createClient();
   const base = `/business/${businessId}`;
+  const { fromIso: monthFromIso } = getPeriodRange("month");
+  const monthFromDate = monthFromIso!.slice(0, 10);
 
   const [
     { data: items },
@@ -41,6 +45,10 @@ export default async function CostControlDashboard({ businessId }: { businessId:
     { data: recentRuns },
     { data: stockLocations },
     costMap,
+    { data: monthTransactions },
+    { data: monthExpenses },
+    { data: monthPurchases },
+    { data: monthPayslips },
   ] = await Promise.all([
     supabase
       .from("semi_finished_items")
@@ -80,7 +88,42 @@ export default async function CostControlDashboard({ businessId }: { businessId:
       .eq("business_id", businessId)
       .order("sort_order", { ascending: true }),
     computeAllSemiFinishedItemCosts(supabase, businessId),
+    // Penjualan tetap "Catat Penjualan" manual (bisnis ini tidak jual lewat
+    // POS), tapi tercatat sungguhan di transactions/transaction_items --
+    // sama seperti bisnis lain, cuma sumber datanya manual.
+    supabase
+      .from("transactions")
+      .select("total, gross_profit")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .gte("date", monthFromIso!),
+    supabase.from("expenses").select("amount").eq("business_id", businessId).gte("date", monthFromDate),
+    // stock_only DIKECUALIKAN -- itu populate stok awal, bukan pengeluaran
+    // sungguhan (tidak pernah posting jurnal juga, lihat purchases/actions.ts).
+    supabase
+      .from("purchases")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .eq("stock_only", false)
+      .gte("date", monthFromDate),
+    supabase
+      .from("payslips")
+      .select(
+        "base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount)",
+      )
+      .eq("business_id", businessId)
+      .gte("period_start", monthFromDate),
   ]);
+
+  const salesTotal = (monthTransactions ?? []).reduce((s, t) => s + Number(t.total), 0);
+  const salesGrossProfit = (monthTransactions ?? []).reduce((s, t) => s + Number(t.gross_profit), 0);
+  const salesCount = (monthTransactions ?? []).length;
+
+  const expenseTotal = (monthExpenses ?? []).reduce((s, e) => s + Number(e.amount), 0);
+  const purchaseTotal = (monthPurchases ?? []).reduce((s, p) => s + Number(p.amount), 0);
+  const payrollTotal = (monthPayslips ?? []).reduce((s, p) => s + payslipTotal(p as unknown as PayslipAgg), 0);
+  const totalCostThisMonth = expenseTotal + purchaseTotal + payrollTotal;
 
   const semiItems = items ?? [];
   const stockValue = semiItems.reduce(
@@ -155,6 +198,29 @@ export default async function CostControlDashboard({ businessId }: { businessId:
               ● {pendingPurchaseRequestCount} permintaan barang menunggu
             </Link>
           )}
+        </div>
+      </div>
+
+      {/* Ringkasan Keuangan -- penjualan (manual, Catat Penjualan) & total
+          biaya bulan berjalan (Operasional + Pembelian + Gaji). Angka kasar
+          buat gambaran cepat, BUKAN Laba Rugi resmi -- untuk akrual lihat
+          Akuntansi > Laba Rugi. */}
+      <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <Link href={`${base}/transactions`} className="rounded-xl bg-white shadow-sm p-4 hover:shadow-md transition-shadow">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Penjualan Bulan Ini</p>
+          <p className="text-xl font-bold text-zinc-900">{formatRupiahShort(salesTotal)}</p>
+          <p className="mt-0.5 text-[10.5px] text-zinc-400">
+            {salesCount} transaksi (manual) · Laba kotor {formatRupiahShort(salesGrossProfit)}
+          </p>
+        </Link>
+        <div className="rounded-xl bg-white shadow-sm p-4">
+          <p className="mb-1.5 text-[10.5px] font-semibold uppercase text-zinc-400">Total Biaya Bulan Ini</p>
+          <p className="text-xl font-bold text-zinc-900">{formatRupiahShort(totalCostThisMonth)}</p>
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-zinc-400">
+            <span>Operasional {formatRupiahShort(expenseTotal)}</span>
+            <span>Pembelian {formatRupiahShort(purchaseTotal)}</span>
+            <span>Gaji {formatRupiahShort(payrollTotal)}</span>
+          </div>
         </div>
       </div>
 
