@@ -15,6 +15,8 @@ import {
 } from "./actions";
 import AttendanceRow, { type SelfieInfo } from "./attendance-row";
 import AttendanceDatePicker from "./attendance-date-picker";
+import AttendanceLinkSection from "../jadwal-shift/attendance-link-section";
+import { regenerateAttendanceSlug } from "../jadwal-shift/actions";
 
 const REPORT_TIMEZONE = "Asia/Jakarta";
 
@@ -47,13 +49,15 @@ export default async function AttendancePage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, attendance_qr_slug")
     .eq("id", businessId)
     .single();
 
   if (!business) {
     notFound();
   }
+
+  const boundRegenerateSlug = regenerateAttendanceSlug.bind(null, businessId);
 
   const { data: employees } = await supabase
     .from("employees")
@@ -104,6 +108,19 @@ export default async function AttendancePage({
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Absensi — {business.name}</h1>
+
+        <div className="mt-3 rounded-xl bg-white shadow-sm p-4">
+          <h2 className="text-sm font-semibold text-zinc-900">Link Absen Selfie</h2>
+          <p className="mt-1 mb-3 text-xs text-zinc-500">
+            Karyawan buka link ini di HP masing-masing untuk absen masuk/pulang pakai selfie — tidak
+            perlu akun kasir.
+          </p>
+          <AttendanceLinkSection
+            businessId={businessId}
+            initialSlug={business.attendance_qr_slug ?? ""}
+            regenerateAction={boundRegenerateSlug}
+          />
+        </div>
 
         <AttendanceDatePicker
           businessId={businessId}
