@@ -107,12 +107,20 @@ export default async function PdoPage({
   // halaman Kas & Bank (fetchKasBankLines) supaya definisi "kas keluar yang
   // beneran berlaku" konsisten: void, kas kecil pending/ditolak, dan
   // penjualan (bukan nota/beban) sudah otomatis dikeluarkan di situ.
-  const { displayLines, movementByEntryId } = await fetchKasBankLines(
-    supabase,
-    businessId,
-    `${from}T00:00:00+07:00`,
-    `${nextDayStr(to)}T00:00:00+07:00`,
-  );
+  //
+  // fetchKasBankLines & pdoHistoryRows tidak saling bergantung -- dijalankan
+  // paralel (bukan berurutan) buat motong round-trip, penting di koneksi
+  // lambat (lihat keluhan "Petty Cash lambat dibuka").
+  const [{ displayLines, movementByEntryId }, { data: pdoHistoryRows }] = await Promise.all([
+    fetchKasBankLines(supabase, businessId, `${from}T00:00:00+07:00`, `${nextDayStr(to)}T00:00:00+07:00`),
+    supabase
+      .from("journal_entries")
+      .select("id, date, description, journal_lines(debit, accounts(code))")
+      .eq("business_id", businessId)
+      .ilike("description", "Transfer: PDO %")
+      .order("date", { ascending: false })
+      .limit(30),
+  ]);
 
   const notaList = displayLines
     .filter((l) => Number(l.credit) > 0) // kas KELUAR saja, bukan kas masuk/setoran
@@ -129,15 +137,8 @@ export default async function PdoPage({
   // diajukan selalu lewat addTransfer() dengan deskripsi berpola
   // "Transfer: PDO ..." (lihat pdo-form.tsx), jadi cukup ditelusuri dari
   // Jurnal Transaksi lewat pola itu, bukan bikin tabel baru buat sesuatu
-  // yang sudah tercatat lengkap di jurnal.
-  const { data: pdoHistoryRows } = await supabase
-    .from("journal_entries")
-    .select("id, date, description, journal_lines(debit, accounts(code))")
-    .eq("business_id", businessId)
-    .ilike("description", "Transfer: PDO %")
-    .order("date", { ascending: false })
-    .limit(30);
-
+  // yang sudah tercatat lengkap di jurnal. (Query-nya sudah dijalankan di
+  // atas, paralel dengan fetchKasBankLines.)
   const pdoHistory = (
     (pdoHistoryRows ?? []) as {
       id: string;

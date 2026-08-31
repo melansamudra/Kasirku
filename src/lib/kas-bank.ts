@@ -63,23 +63,19 @@ export async function fetchKasBankLines(
     voidedSaleCount: 0,
   };
 
-  const { data: kasAccount } = await supabase
-    .from("accounts")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("code", "1-001")
-    .single();
+  // kasAccount & reversals tidak saling bergantung -- dijalankan paralel
+  // (bukan berurutan) buat motong round-trip ke Supabase, penting di
+  // koneksi lambat (lihat keluhan "Petty Cash lambat dibuka").
+  const [{ data: kasAccount }, { data: reversals }] = await Promise.all([
+    supabase.from("accounts").select("id").eq("business_id", businessId).eq("code", "1-001").single(),
+    // Jurnal manual yang sudah dibatalkan lewat "↩ Koreksi" plus jurnal
+    // koreksi-nya sendiri secara matematis saling meniadakan (net 0) --
+    // tetap muncul di Jurnal Transaksi sebagai jejak audit, tapi di sini
+    // cuma bikin bingung. Disaring biar cuma pergerakan kas yang masih
+    // berlaku.
+    supabase.from("journal_entries").select("source_id").eq("business_id", businessId).eq("source", "koreksi"),
+  ]);
   if (!kasAccount) return empty;
-
-  // Jurnal manual yang sudah dibatalkan lewat "↩ Koreksi" plus jurnal
-  // koreksi-nya sendiri secara matematis saling meniadakan (net 0) -- tetap
-  // muncul di Jurnal Transaksi sebagai jejak audit, tapi di sini cuma bikin
-  // bingung. Disaring biar cuma pergerakan kas yang masih berlaku.
-  const { data: reversals } = await supabase
-    .from("journal_entries")
-    .select("source_id")
-    .eq("business_id", businessId)
-    .eq("source", "koreksi");
   const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
 
   // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
@@ -112,25 +108,6 @@ export async function fetchKasBankLines(
         .map((l) => l.journal_entries.id),
     ),
   );
-  const { data: shiftMovements } =
-    shiftEntryIds.length > 0
-      ? await supabase
-          .from("shift_cash_movements")
-          .select("journal_entry_id, reclass_journal_entry_id, category, receipt_url, direction, status")
-          .in("journal_entry_id", shiftEntryIds)
-      : { data: [] as KasBankMovementMeta[] };
-  const movementByEntryId = new Map((shiftMovements ?? []).map((m) => [m.journal_entry_id, m as KasBankMovementMeta]));
-
-  // Sisi pembalikan kas kecil yang ditolak punya journal_entry_id SENDIRI --
-  // shift_cash_movements nunjuk ke situ lewat reclass_journal_entry_id, bukan
-  // journal_entry_id. Perlu peta terpisah biar baris pembalikannya ikut
-  // kesaring juga, bukan nongol polos tanpa keterangan.
-  const rejectedReversalEntryIds = new Set(
-    (shiftMovements ?? [])
-      .filter((m) => m.status === "rejected" && m.reclass_journal_entry_id)
-      .map((m) => m.reclass_journal_entry_id as string),
-  );
-
   // Penjualan yang di-void belakangan tetap punya baris "penjualan" asli --
   // void cuma menambah baris pembalikan, tidak menghapus baris aslinya.
   // Baris penjualan dari transaksi yang SAAT INI voided ikut dikeluarkan,
@@ -143,10 +120,33 @@ export async function fetchKasBankLines(
         .map((l) => l.journal_entries.source_id as string),
     ),
   );
-  const { data: saleVoidStatus } =
+
+  // shiftMovements & saleVoidStatus keduanya cuma butuh `lines` (sudah ada),
+  // tidak saling bergantung -- dijalankan paralel, sama seperti kasAccount/
+  // reversals di atas.
+  const [{ data: shiftMovements }, { data: saleVoidStatus }] = await Promise.all([
+    shiftEntryIds.length > 0
+      ? supabase
+          .from("shift_cash_movements")
+          .select("journal_entry_id, reclass_journal_entry_id, category, receipt_url, direction, status")
+          .in("journal_entry_id", shiftEntryIds)
+      : Promise.resolve({ data: [] as KasBankMovementMeta[] }),
     saleSourceIds.length > 0
-      ? await supabase.from("transactions").select("id, voided").in("id", saleSourceIds)
-      : { data: [] as { id: string; voided: boolean }[] };
+      ? supabase.from("transactions").select("id, voided").in("id", saleSourceIds)
+      : Promise.resolve({ data: [] as { id: string; voided: boolean }[] }),
+  ]);
+  const movementByEntryId = new Map((shiftMovements ?? []).map((m) => [m.journal_entry_id, m as KasBankMovementMeta]));
+
+  // Sisi pembalikan kas kecil yang ditolak punya journal_entry_id SENDIRI --
+  // shift_cash_movements nunjuk ke situ lewat reclass_journal_entry_id, bukan
+  // journal_entry_id. Perlu peta terpisah biar baris pembalikannya ikut
+  // kesaring juga, bukan nongol polos tanpa keterangan.
+  const rejectedReversalEntryIds = new Set(
+    (shiftMovements ?? [])
+      .filter((m) => m.status === "rejected" && m.reclass_journal_entry_id)
+      .map((m) => m.reclass_journal_entry_id as string),
+  );
+
   const voidedSaleIds = new Set((saleVoidStatus ?? []).filter((t) => t.voided).map((t) => t.id));
 
   const isVoidRelated = (l: KasBankLine) =>
