@@ -69,7 +69,7 @@ export default async function AttendancePage({
   const { data: attendanceRows } = await supabase
     .from("attendance")
     .select(
-      "id, employee_id, status, late, note, check_in_at, check_in_photo_url, check_in_lat, check_in_lng, check_out_at, check_out_photo_url, check_out_lat, check_out_lng, late_minutes, overtime_hours, verified_by_admin",
+      "id, employee_id, status, late, note, check_in_at, check_in_photo_url, check_in_lat, check_in_lng, check_out_at, check_out_photo_url, check_out_lat, check_out_lng, late_minutes, overtime_hours, verified_by_admin, break_start_at, break_end_at",
     )
     .eq("business_id", businessId)
     .eq("date", date);
@@ -95,6 +95,8 @@ export default async function AttendancePage({
         lateMinutes: r.late_minutes,
         overtimeHours: Number(r.overtime_hours),
         verified: r.verified_by_admin,
+        breakStartAt: r.break_start_at,
+        breakEndAt: r.break_end_at,
       },
     ]),
   );

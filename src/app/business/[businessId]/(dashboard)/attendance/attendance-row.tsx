@@ -52,6 +52,8 @@ export type SelfieInfo = {
   lateMinutes: number;
   overtimeHours: number;
   verified: boolean;
+  breakStartAt: string | null;
+  breakEndAt: string | null;
 };
 
 function mapsUrl(lat: number, lng: number) {
@@ -320,8 +322,16 @@ export default function AttendanceRow({
               {selfie.overtimeHours > 0 && (
                 <span className="text-brand-700">Lembur {selfie.overtimeHours} jam</span>
               )}
+              {(selfie.lateMinutes > 0 || selfie.overtimeHours > 0) && selfie.breakStartAt && " · "}
+              {selfie.breakStartAt && (
+                <span className="text-orange-600">
+                  🟡 Istirahat {formatTime(selfie.breakStartAt)}
+                  {selfie.breakEndAt ? `–${formatTime(selfie.breakEndAt)}` : " (belum selesai)"}
+                </span>
+              )}
               {selfie.lateMinutes === 0 &&
                 selfie.overtimeHours === 0 &&
+                !selfie.breakStartAt &&
                 (selfie.checkInPhotoUrl || selfie.checkOutPhotoUrl ? "Selfie absen" : "Jam manual")}
             </p>
             {(selfie.checkInLat !== null || selfie.checkOutLat !== null) && (

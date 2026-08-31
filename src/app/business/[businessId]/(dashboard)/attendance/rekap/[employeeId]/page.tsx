@@ -360,6 +360,8 @@ export default async function EmployeeAttendanceRekapPage({
                       lateMinutes: 0,
                       overtimeHours: Number(row?.overtime_hours ?? 0),
                       verified: false,
+                      breakStartAt: null,
+                      breakEndAt: null,
                     }
                   : null
               }
