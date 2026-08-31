@@ -17,16 +17,24 @@ const rupiah = (n: number) => `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 export default function ImportTool({
   groups,
   componentPrices,
-  existingNames,
+  itemStatus,
   action,
 }: {
   groups: ImportGroup[];
   componentPrices: Record<string, { name: string; unitCost: number; type: "ingredient" | "semi_finished" }>;
-  existingNames: string[];
+  itemStatus: Record<string, "new" | "empty" | "filled">;
   action: (state: ImportActionState, formData: FormData) => Promise<ImportActionState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const existingSet = useMemo(() => new Set(existingNames), [existingNames]);
+
+  const { pendingGroups, doneGroups } = useMemo(() => {
+    const pendingGroups: ImportGroup[] = [];
+    const doneGroups: ImportGroup[] = [];
+    for (const g of groups) {
+      (itemStatus[g.itemName] === "filled" ? doneGroups : pendingGroups).push(g);
+    }
+    return { pendingGroups, doneGroups };
+  }, [groups, itemStatus]);
 
   const [itemName, setItemName] = useState(groups[0]?.itemName ?? "");
   const [porsi, setPorsi] = useState(String(groups[0]?.batchYield ?? ""));
@@ -73,11 +81,24 @@ export default function ImportTool({
             onChange={(e) => handleSelectItem(e.target.value)}
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           >
-            {groups.map((g) => (
-              <option key={g.itemName} value={g.itemName}>
-                {g.itemName} {existingSet.has(g.itemName) ? "(sudah ada — akan ditimpa)" : "(baru)"}
-              </option>
-            ))}
+            {pendingGroups.length > 0 && (
+              <optgroup label={`Resep Belum Diisi (${pendingGroups.length})`}>
+                {pendingGroups.map((g) => (
+                  <option key={g.itemName} value={g.itemName}>
+                    {g.itemName} {itemStatus[g.itemName] === "empty" ? "(menu ada, resep kosong)" : "(menu baru)"}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {doneGroups.length > 0 && (
+              <optgroup label={`Resep Sudah Ada — Akan Ditimpa (${doneGroups.length})`}>
+                {doneGroups.map((g) => (
+                  <option key={g.itemName} value={g.itemName}>
+                    {g.itemName} (sudah ada resepnya)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
         <div>

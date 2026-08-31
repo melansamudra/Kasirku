@@ -49,7 +49,7 @@ export default async function ImportProdukJadiPage({ params }: { params: Promise
       ? supabase.from("ingredients").select("id, name, unit_cost").in("id", ingredientIds)
       : Promise.resolve({ data: [] }),
     semiFinishedIds.size ? supabase.from("semi_finished_items").select("id, name").in("id", [...semiFinishedIds]) : Promise.resolve({ data: [] }),
-    supabase.from("finished_products").select("name").eq("business_id", businessId).is("deleted_at", null),
+    supabase.from("finished_products").select("id, name").eq("business_id", businessId).is("deleted_at", null),
     computeAllSemiFinishedItemCosts(supabase, businessId),
   ]);
 
@@ -60,7 +60,22 @@ export default async function ImportProdukJadiPage({ params }: { params: Promise
   for (const sf of semiFinishedItems ?? []) {
     priceMap[sf.id] = { name: sf.name, unitCost: semiFinishedCosts.get(sf.id)?.unitCost ?? 0, type: "semi_finished" };
   }
-  const existingNames = new Set((existingItems ?? []).map((i) => i.name));
+
+  // Nama menu bisa saja sudah ada duluan di Produk Jadi (dibuat manual buat
+  // POS/jualan) SEBELUM proses upload resep ini -- jadi "(sudah ada)" tidak
+  // otomatis berarti resepnya sudah diisi lewat alat ini. Yang staf perlu
+  // tahu justru: menu mana yang RESEPNYA sudah pernah disimpan (lewat sini
+  // atau manual) vs yang resepnya masih kosong -- itu yang dipakai buat
+  // pisahkan dropdown di bawah jadi 2 grup.
+  const existingIds = (existingItems ?? []).map((i) => i.id);
+  const { data: recipeRows } = existingIds.length
+    ? await supabase.from("finished_product_recipes").select("finished_product_id").in("finished_product_id", existingIds)
+    : { data: [] };
+  const idsWithRecipe = new Set((recipeRows ?? []).map((r) => r.finished_product_id));
+  const itemStatus: Record<string, "new" | "empty" | "filled"> = {};
+  for (const it of existingItems ?? []) {
+    itemStatus[it.name] = idsWithRecipe.has(it.id) ? "filled" : "empty";
+  }
 
   const boundSave = saveProdukJadiImport.bind(null, businessId);
   const boundParse = parseProdukJadiExcel.bind(null, businessId);
@@ -98,7 +113,7 @@ export default async function ImportProdukJadiPage({ params }: { params: Promise
           <ImportTool
             groups={groups}
             componentPrices={priceMap}
-            existingNames={[...existingNames]}
+            itemStatus={itemStatus}
             action={boundSave}
           />
         )}
