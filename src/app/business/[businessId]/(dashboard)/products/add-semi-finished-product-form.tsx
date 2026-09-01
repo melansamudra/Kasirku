@@ -18,7 +18,7 @@ export default function AddSemiFinishedProductForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [selectedId, setSelectedId] = useState("");
-  const [targetPct, setTargetPct] = useState("30");
+  const [markupPct, setMarkupPct] = useState("30");
   const [price, setPrice] = useState("");
 
   if (options.length === 0) {
@@ -31,9 +31,9 @@ export default function AddSemiFinishedProductForm({
   }
 
   const selected = options.find((o) => o.id === selectedId) ?? null;
-  const pct = Number(targetPct);
+  const pct = Number(markupPct);
   const recommendation =
-    selected && pct > 0 ? selected.unitCost / (pct / 100) : null;
+    selected && pct >= 0 ? selected.unitCost * (1 + pct / 100) : null;
 
   return (
     <form action={formAction} className="space-y-3" key={options.length}>
@@ -63,18 +63,17 @@ export default function AddSemiFinishedProductForm({
 
       {selected && (
         <div>
-          <label htmlFor="targetPct" className="mb-1 block text-xs font-medium text-zinc-600">
-            Target Food Cost %
+          <label htmlFor="markupPct" className="mb-1 block text-xs font-medium text-zinc-600">
+            Markup %
           </label>
           <div className="flex items-center gap-2">
             <input
-              id="targetPct"
+              id="markupPct"
               type="number"
-              min="1"
-              max="99"
+              min="0"
               step="1"
-              value={targetPct}
-              onChange={(e) => setTargetPct(e.target.value)}
+              value={markupPct}
+              onChange={(e) => setMarkupPct(e.target.value)}
               className="w-20 rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
             <span className="text-xs text-zinc-500">%</span>
