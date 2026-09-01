@@ -3172,6 +3172,9 @@ export type Database = {
           created_by_user_id: string | null;
           created_by_name: string | null;
           created_at: string;
+          receive_code: string;
+          received_by_business_id: string | null;
+          received_at: string | null;
         };
         Insert: {
           id?: string;
@@ -3183,6 +3186,9 @@ export type Database = {
           created_by_user_id?: string | null;
           created_by_name?: string | null;
           created_at?: string;
+          receive_code?: string;
+          received_by_business_id?: string | null;
+          received_at?: string | null;
         };
         Update: {
           id?: string;
@@ -3194,6 +3200,9 @@ export type Database = {
           created_by_user_id?: string | null;
           created_by_name?: string | null;
           created_at?: string;
+          receive_code?: string;
+          received_by_business_id?: string | null;
+          received_at?: string | null;
         };
         Relationships: [];
       };
@@ -4655,6 +4664,14 @@ export type Database = {
       get_purchase_request_info: {
         Args: { p_slug: string };
         Returns: Json;
+      };
+      get_manual_delivery_note_by_code: {
+        Args: { p_code: string };
+        Returns: Json;
+      };
+      claim_manual_delivery_note_by_code: {
+        Args: { p_code: string; p_receiving_business_id: string };
+        Returns: string;
       };
       get_stock_opname_info: {
         Args: { p_slug: string };

@@ -34,7 +34,7 @@ export default async function SuratJalanManualPrintPage({
 
   const { data: doc } = await supabase
     .from("manual_delivery_notes")
-    .select("id, dn_number, destination, note, created_by_name, created_at")
+    .select("id, dn_number, destination, note, created_by_name, created_at, receive_code")
     .eq("id", docId)
     .eq("business_id", businessId)
     .eq("location_id", locationId)
@@ -99,6 +99,13 @@ export default async function SuratJalanManualPrintPage({
         </div>
 
         {doc.note && <p className="mt-3 text-xs text-zinc-500">Catatan: {doc.note}</p>}
+
+        <div className="mt-4 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-xs">
+          <p className="text-zinc-400">
+            Kode Terima <span className="print:hidden">(dipakai penerima di menu Pembelian &amp; Hutang, bagian &quot;Terima dari Surat Jalan&quot;)</span>
+          </p>
+          <p className="mt-0.5 font-mono text-sm font-bold tracking-wider text-zinc-900">{doc.receive_code}</p>
+        </div>
 
         <div className="mt-8 grid grid-cols-2 gap-4 text-xs">
           <div>

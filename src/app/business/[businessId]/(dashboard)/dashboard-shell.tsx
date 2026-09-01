@@ -147,12 +147,16 @@ function buildCostControlNavGroups(
     ...stockLocations
       .filter((loc) => loc.isProduction || loc.isDefaultPurchase)
       .map((loc) => ({
-      // Gudang Utama (is_default_purchase) ditampilkan sebagai "Purchasing"
-      // di sidebar -- itu peran tim yang pegang lokasi ini (terima
-      // Permintaan Barang dari semua unit, belanja ke supplier), bukan
-      // ganti nama lokasi fisiknya sendiri (tetap "Gudang Utama" di
-      // data/laporan lain).
-      title: loc.isDefaultPurchase ? "Purchasing" : loc.name,
+      // Gudang Utama (is_default_purchase, BUKAN lokasi produksi) ditampilkan
+      // sebagai "Purchasing" di sidebar -- itu peran tim yang pegang lokasi
+      // ini (terima Permintaan Barang dari semua unit, belanja ke supplier),
+      // bukan ganti nama lokasi fisiknya sendiri (tetap "Gudang Utama" di
+      // data/laporan lain). Kalau lokasi yang sama JUGA ditandai isProduction
+      // (toko satu-lokasi seperti Dapur Produksi berdiri sendiri, yang cuma
+      // butuh is_default_purchase supaya Pembelian tahu ke mana default
+      // nge-kredit stok) -- identitas produksinya yang menang, tetap pakai
+      // nama lokasinya sendiri, bukan dilabeli "Purchasing".
+      title: loc.isDefaultPurchase && !loc.isProduction ? "Purchasing" : loc.name,
       items: [
         {
           key: `lokasi-${loc.id}-bahan-baku`,
@@ -276,6 +280,7 @@ function buildCostControlNavGroups(
       items: [
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+        { key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
         { key: "kas-kecil", href: `${base}/kas-kecil`, label: "Kas Kecil", icon: PiggyBank },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
         { key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: FileText },

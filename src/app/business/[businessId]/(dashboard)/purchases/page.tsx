@@ -9,6 +9,7 @@ import PurchaseFormWithRecommendations from "./purchase-form-with-recommendation
 import type { PurchasePrefill } from "./add-purchase-form";
 import VoidPurchaseButton from "./void-purchase-button";
 import EditCategoryButton from "./edit-category-button";
+import ReceiveDeliveryNoteForm from "./receive-delivery-note-form";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -298,6 +299,13 @@ export default async function PurchasesPage({
             ))}
           </div>
         </div>
+      )}
+
+      {business.cost_control_enabled && (
+        <ReceiveDeliveryNoteForm
+          businessId={businessId}
+          ingredients={(ingredients ?? []).map((i) => ({ id: i.id, name: i.name, unit: i.unit }))}
+        />
       )}
 
       <PurchaseFormWithRecommendations
