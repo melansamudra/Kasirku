@@ -211,13 +211,25 @@ export async function addPurchase(
       // supaya HPP selalu mencerminkan harga blended yang benar.
       const { data: business } = await supabase
         .from("businesses")
-        .select("cost_control_enabled")
+        .select("cost_control_enabled, stock_locations_enabled")
         .eq("id", businessId)
         .single();
 
+      const useLocationStock = !!(business?.cost_control_enabled || business?.stock_locations_enabled);
+      // Adi's (stock_locations_enabled tanpa cost_control_enabled) TETAP
+      // menulis ingredients.stock (flat) juga -- checkout_transaction() di
+      // database SELALU memotong kolom flat itu berdasarkan product_recipes
+      // untuk SEMUA bisnis tanpa syarat, dan Adi's memang checkout lewat POS
+      // dengan resep (beda dari Llauk yang sama sekali tidak checkout lewat
+      // POS). Kalau flat stock berhenti ditulis di sini seperti jalur Llauk,
+      // dia cuma akan berkurang (dari checkout) tanpa pernah nambah (dari
+      // pembelian) -- merusak alert stok menipis & halaman ingredients yang
+      // sudah dipakai luas.
+      const alsoUpdateFlatStock = !business?.cost_control_enabled;
+
       let newUnitCost: number;
 
-      if (business?.cost_control_enabled) {
+      if (useLocationStock) {
         let targetLocationId: string | null = null;
 
         if (fromAllocationId) {
@@ -300,7 +312,10 @@ export async function addPurchase(
 
         const { error: costError } = await supabase
           .from("ingredients")
-          .update({ unit_cost: newUnitCost })
+          .update({
+            unit_cost: newUnitCost,
+            ...(alsoUpdateFlatStock ? { stock: Number(ingredient.stock) + qty } : {}),
+          })
           .eq("id", ingredientId);
         if (costError) return fail(costError.message);
 
@@ -542,13 +557,16 @@ export async function voidPurchase(
 
       const { data: business } = await supabase
         .from("businesses")
-        .select("cost_control_enabled")
+        .select("cost_control_enabled, stock_locations_enabled")
         .eq("id", businessId)
         .single();
 
+      const useLocationStock = !!(business?.cost_control_enabled || business?.stock_locations_enabled);
+      const alsoUpdateFlatStock = !business?.cost_control_enabled;
+
       let unitCostAfter: number;
 
-      if (business?.cost_control_enabled) {
+      if (useLocationStock) {
         // Simetris dengan addPurchase: pembelian bahan baku mengkredit
         // ingredient_location_stock di lokasi yang tercatat di
         // purchases.location_id, jadi pembatalannya juga mengurangi lokasi
@@ -570,9 +588,13 @@ export async function voidPurchase(
         const valueAfter = totalOwnedBefore * unitCostBefore - purchaseAmount;
         unitCostAfter = totalOwnedAfter > 0 ? Math.max(0, Math.round(valueAfter / totalOwnedAfter)) : unitCostBefore;
 
+        const flatStockAfter = alsoUpdateFlatStock ? Math.max(0, Number(ingredient.stock) - purchaseQty) : null;
         const { error: costError } = await supabase
           .from("ingredients")
-          .update({ unit_cost: unitCostAfter })
+          .update({
+            unit_cost: unitCostAfter,
+            ...(flatStockAfter !== null ? { stock: flatStockAfter } : {}),
+          })
           .eq("id", purchase.ingredient_id);
         if (costError) return { error: costError.message };
 

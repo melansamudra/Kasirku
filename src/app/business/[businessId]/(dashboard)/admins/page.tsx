@@ -18,7 +18,7 @@ export default async function AdminsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, cost_control_enabled")
     .eq("id", businessId)
     .single();
 
@@ -38,9 +38,12 @@ export default async function AdminsPage({
       .eq("business_id", businessId),
   ]);
 
-  // Kosong buat bisnis non-cost-control (tidak pernah punya baris
-  // stock_locations) -- checklist-nya otomatis cuma tampilkan yang statis,
-  // tidak ada dampak buat bisnis lain.
+  // Kosong buat bisnis yang tidak punya baris stock_locations sama sekali --
+  // checklist-nya otomatis cuma tampilkan yang statis, tidak ada dampak buat
+  // bisnis lain. Mode "simple" (Adi's Culinary dkk, stock_locations_enabled
+  // tanpa cost_control_enabled) dipakai karena lokasi mereka semua setara
+  // (bukan is_production/is_default_purchase seperti Llauk) -- lihat
+  // location-permissions.ts.
   const locationGroups = buildLocationPermissionGroups(
     (locationRows ?? []).map((l) => ({
       id: l.id,
@@ -48,6 +51,7 @@ export default async function AdminsPage({
       isProduction: l.is_production,
       isDefaultPurchase: l.is_default_purchase,
     })),
+    business.cost_control_enabled ? "full" : "simple",
   );
 
   const LABEL_BY_KEY = new Map(

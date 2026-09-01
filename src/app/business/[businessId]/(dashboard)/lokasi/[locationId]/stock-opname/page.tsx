@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import StockOpnameLinkBox from "./link-box";
+import DirectOpnameForm from "./direct-opname-form";
 import { VerifyEntryButtons, VerifyAllButton } from "./verify-buttons";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("id-ID", {
@@ -28,10 +30,10 @@ export default async function LocationStockOpnamePage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_opname_slug")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, stock_opname_slug")
     .eq("id", businessId)
     .single();
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
 
@@ -43,6 +45,30 @@ export default async function LocationStockOpnamePage({
     .maybeSingle();
   if (!location) {
     notFound();
+  }
+
+  let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
+  if (!business.cost_control_enabled) {
+    const [{ data: ingredientRows }, { data: stockRows }] = await Promise.all([
+      supabase
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("ingredient_location_stock")
+        .select("ingredient_id, stock")
+        .eq("business_id", businessId)
+        .eq("location_id", locationId),
+    ]);
+    const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+    directIngredients = (ingredientRows ?? []).map((i) => ({
+      id: i.id,
+      name: i.name,
+      unit: i.unit,
+      currentStock: stockByIngredient.get(i.id) ?? 0,
+    }));
   }
 
   const [{ data: pendingEntries }, { data: adjustments }] = await Promise.all([
@@ -92,16 +118,20 @@ export default async function LocationStockOpnamePage({
         Laporan stok fisik dari staf menunggu diverifikasi dulu sebelum mengubah stok sistem.
       </p>
 
-      <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
-        <div className="mt-3">
-          <StockOpnameLinkBox
-            businessId={businessId}
-            locationId={locationId}
-            initialSlug={business.stock_opname_slug ?? ""}
-          />
+      {business.cost_control_enabled ? (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
+          <div className="mt-3">
+            <StockOpnameLinkBox
+              businessId={businessId}
+              locationId={locationId}
+              initialSlug={business.stock_opname_slug ?? ""}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <DirectOpnameForm businessId={businessId} locationId={locationId} ingredients={directIngredients} />
+      )}
 
       {pendingByDate.size > 0 && (
         <div className="mt-6">

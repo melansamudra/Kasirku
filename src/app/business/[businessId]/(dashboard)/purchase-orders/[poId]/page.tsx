@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
+import { getCurrentActor, canApprovePo, canApprovePoLevel1 } from "@/lib/current-actor";
 import { findApprovalBlockReason } from "../actions";
 import PrintButton from "./print-button";
 import ApproveForm from "./approve-form";
@@ -43,15 +43,24 @@ export default async function PurchaseOrderDetailPage({
   const { data: po } = await supabase
     .from("purchase_orders")
     .select(
-      "id, po_number, supplier_id, purchase_request_id, status, total_amount, issued_by, issued_by_user_id, approved_by, approved_at, note, created_at",
+      "id, po_number, supplier_id, purchase_request_id, status, total_amount, issued_by, issued_by_user_id, approved_by, approved_at, note, created_at, approval_levels, level1_approved_by, level1_approved_by_user_id, level1_approved_at",
     )
     .eq("id", poId)
     .eq("business_id", businessId)
     .single();
   if (!po) notFound();
 
+  const isTwoLevel = po.approval_levels === 2;
+  const level1Pending = isTwoLevel && po.level1_approved_at === null;
+
   const actor = await getCurrentActor(supabase, businessId);
-  const canApprove = actor ? canApprovePo(actor) : false;
+  const canApprove = actor
+    ? level1Pending
+      ? canApprovePoLevel1(actor)
+      : isTwoLevel
+        ? actor.isOwner && actor.userId !== po.level1_approved_by_user_id
+        : canApprovePo(actor)
+    : false;
   const identityBlockReason =
     actor && canApprove && po.status === "issued"
       ? await findApprovalBlockReason(supabase, poId, po.issued_by_user_id, actor)
@@ -69,8 +78,11 @@ export default async function PurchaseOrderDetailPage({
       : Promise.resolve({ data: null }),
   ]);
 
-  const approvalLabel =
-    Number(po.total_amount) >= APPROVAL_THRESHOLD
+  const approvalLabel = isTwoLevel
+    ? level1Pending
+      ? "Menunggu Level 1 (Manager/Supervisor)"
+      : "Menunggu Level 2 — Final (Owner)"
+    : Number(po.total_amount) >= APPROVAL_THRESHOLD
       ? "Nominal ≥ Rp5.000.000 — Operations Supervisor / Owner"
       : "Nominal < Rp5.000.000 — Finance / Cost Control";
 
@@ -214,6 +226,22 @@ export default async function PurchaseOrderDetailPage({
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">Alasan penolakan: {po.note}</p>
         )}
       </div>
+
+      {isTwoLevel && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-4 print:hidden">
+          <h2 className="text-sm font-semibold text-zinc-900">Progress Approval (2 Level)</h2>
+          <div className="mt-2 space-y-1.5 text-xs">
+            <p className={po.level1_approved_at ? "text-brand-700" : "text-amber-600"}>
+              {po.level1_approved_at ? "✓" : "⏳"} Level 1 (Manager/Supervisor)
+              {po.level1_approved_at ? ` — ${po.level1_approved_by}` : " — menunggu"}
+            </p>
+            <p className={po.status === "approved" ? "text-brand-700" : "text-zinc-400"}>
+              {po.status === "approved" ? "✓" : "⏳"} Level 2 — Final (Owner)
+              {po.status === "approved" ? ` — ${po.approved_by}` : " — menunggu"}
+            </p>
+          </div>
+        </div>
+      )}
 
       {po.status === "issued" && (
         <ApproveForm

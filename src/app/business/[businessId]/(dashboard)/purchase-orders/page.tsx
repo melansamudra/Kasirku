@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -77,11 +78,11 @@ export default async function PurchaseOrdersPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled")
     .eq("id", businessId)
     .single();
 
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
 
@@ -183,7 +184,9 @@ async function PurchaseOrderTab({
   const [{ data: allPos }, { data: suppliers }, { data: purchaseRequests }, { data: locations }] = await Promise.all([
     supabase
       .from("purchase_orders")
-      .select("id, po_number, supplier_id, purchase_request_id, status, total_amount, issued_by, approved_by, created_at")
+      .select(
+        "id, po_number, supplier_id, purchase_request_id, status, total_amount, issued_by, approved_by, created_at, approval_levels, level1_approved_at",
+      )
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -287,9 +290,13 @@ async function PurchaseOrderTab({
                 <div className="flex shrink-0 items-center gap-2">
                   {po.status === "issued" && (
                     <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
-                      {Number(po.total_amount) >= APPROVAL_THRESHOLD
-                        ? "Perlu: Operations Supervisor/Owner"
-                        : "Perlu: Finance/Cost Control"}
+                      {po.approval_levels === 2
+                        ? po.level1_approved_at
+                          ? "Menunggu Level 2 (Owner)"
+                          : "Menunggu Level 1 (Manager)"
+                        : Number(po.total_amount) >= APPROVAL_THRESHOLD
+                          ? "Perlu: Operations Supervisor/Owner"
+                          : "Perlu: Finance/Cost Control"}
                     </span>
                   )}
                   <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${PO_STATUS_STYLE[po.status]}`}>

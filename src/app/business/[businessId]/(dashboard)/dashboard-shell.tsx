@@ -337,6 +337,27 @@ function buildCostControlNavGroups(
   ];
 }
 
+// Grup sidebar per lokasi untuk fitur stok multi-lokasi RINGAN (bahan baku,
+// transfer, kartu stok, stock opname) yang dipakai bisnis FnB standar
+// (mis. Adi's Culinary) lewat `stock_locations_enabled` — SENGAJA fungsi
+// terpisah dari location-loop di buildCostControlNavGroups, yang sarat
+// asumsi khusus Llauk (label "Purchasing", BSJ per-lokasi, Biaya
+// Operasional, Dokumen Manual, Staf/Portal PIN) yang tidak relevan di sini.
+function buildSimpleLocationNavGroups(
+  base: string,
+  stockLocations: { id: string; name: string }[],
+): NavGroup[] {
+  return stockLocations.map((loc) => ({
+    title: loc.name,
+    items: [
+      { key: `lokasi-${loc.id}-bahan-baku`, href: `${base}/lokasi/${loc.id}/bahan-baku`, label: "Bahan Baku", icon: Beaker },
+      { key: `lokasi-${loc.id}-transfer`, href: `${base}/lokasi/${loc.id}/transfer`, label: "Transfer Internal", icon: ArrowLeftRight },
+      { key: `lokasi-${loc.id}-kartu-stok`, href: `${base}/lokasi/${loc.id}/kartu-stok`, label: "Kartu Stok", icon: CreditCard },
+      { key: `lokasi-${loc.id}-stock-opname`, href: `${base}/lokasi/${loc.id}/stock-opname`, label: "Stok Opname", icon: ClipboardList },
+    ],
+  }));
+}
+
 function buildNavGroups(
   businessId: string,
   businessType: BusinessType,
@@ -346,6 +367,7 @@ function buildNavGroups(
   costControlEnabled = false,
   stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
   sellProductsEnabled = false,
+  stockLocationsEnabled = false,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
@@ -387,6 +409,9 @@ function buildNavGroups(
               },
             ]
           : []),
+        ...(isFnb && stockLocationsEnabled
+          ? [{ key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: ChefHat }]
+          : []),
         ...(isFinanceOnly || isStarter
           ? []
           : [
@@ -400,6 +425,7 @@ function buildNavGroups(
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
       ],
     },
+    ...(stockLocationsEnabled ? buildSimpleLocationNavGroups(base, stockLocations) : []),
     ...(isStarter
       ? []
       : [
@@ -424,6 +450,9 @@ function buildNavGroups(
       items: [
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
+        ...(stockLocationsEnabled
+          ? [{ key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: Truck }]
+          : []),
         { key: "kas-kecil", href: `${base}/kas-kecil`, label: "Kas Kecil", icon: PiggyBank },
         ...(isFinanceOnly || isStarter
           ? []
@@ -475,10 +504,18 @@ function buildNavGroups(
     },
   ];
 
-  // Extra safety net: filter out any item not in the starter allowlist.
+  // Extra safety net: filter out any item not in the starter allowlist. Key
+  // per-lokasi (`lokasi-<uuid>-bahan-baku` dst.) dinamis/tidak bisa masuk Set
+  // statis, jadi dicek lewat suffix-match (sama gaya `isNavKeyHidden`
+  // di bawah) supaya fitur stok lite tetap kelihatan di plan Starter.
   if (isStarter) {
+    const isStarterAllowed = (key: string) =>
+      STARTER_ALLOWED_KEYS.has(key) ||
+      key === "semi-finished-items" ||
+      key === "purchase-orders" ||
+      /^lokasi-.+-(bahan-baku|kartu-stok|transfer|stock-opname)$/.test(key);
     return allGroups
-      .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
+      .map((g) => ({ ...g, items: g.items.filter((i) => isStarterAllowed(i.key)) }))
       .filter((g) => g.items.length > 0);
   }
 
@@ -824,6 +861,7 @@ export default function DashboardShell({
   costControlEnabled = false,
   stockLocations = [],
   sellProductsEnabled = false,
+  stockLocationsEnabled = false,
   hiddenNavKeys = [],
   children,
 }: {
@@ -841,6 +879,7 @@ export default function DashboardShell({
   costControlEnabled?: boolean;
   stockLocations?: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[];
   sellProductsEnabled?: boolean;
+  stockLocationsEnabled?: boolean;
   hiddenNavKeys?: string[];
   children: React.ReactNode;
 }) {
@@ -893,6 +932,7 @@ export default function DashboardShell({
       costControlEnabled,
       stockLocations,
       sellProductsEnabled,
+      stockLocationsEnabled,
     ),
     hiddenNavKeys,
   );

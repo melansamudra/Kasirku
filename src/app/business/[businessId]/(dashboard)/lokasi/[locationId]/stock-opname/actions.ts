@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { getCurrentActor } from "@/lib/current-actor";
 
 export type RegenerateSlugState = { error: string | null; slug: string | null };
 
@@ -110,6 +111,59 @@ async function applyOpnameEntry(
   }
 
   return null;
+}
+
+// Submission langsung dari dashboard (login normal, bukan Portal-PIN) untuk
+// bisnis stok-lite (mis. Adi's Culinary) yang tidak pakai Portal Lokasi.
+// Insert ke stock_opname_entries dengan status='pending' -- alur verifikasi
+// (applyOpnameEntry dkk di atas) dipakai apa adanya tanpa perubahan.
+export async function submitLocationStockOpnameDirect(
+  businessId: string,
+  locationId: string,
+  counts: { ingredientId: string; ingredientName: string; unit: string; reportedStock: number }[],
+): Promise<OpnameActionState> {
+  if (counts.length === 0) return { error: "Belum ada bahan yang diisi." };
+
+  const supabase = await createClient();
+  const actor = await getCurrentActor(supabase, businessId);
+  if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+
+  const ingredientIds = counts.map((c) => c.ingredientId);
+  const { data: stockRows } = await supabase
+    .from("ingredient_location_stock")
+    .select("ingredient_id, stock")
+    .eq("business_id", businessId)
+    .eq("location_id", locationId)
+    .in("ingredient_id", ingredientIds);
+  const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+
+  const entryDate = new Date().toISOString().slice(0, 10);
+  const rows = counts.map((c) => ({
+    business_id: businessId,
+    location_id: locationId,
+    component_type: "ingredient" as const,
+    ingredient_id: c.ingredientId,
+    item_name: c.ingredientName,
+    unit: c.unit,
+    reported_stock: c.reportedStock,
+    system_stock_at_report: stockByIngredient.get(c.ingredientId) ?? 0,
+    submitted_by_name: actor.name,
+    entry_date: entryDate,
+  }));
+
+  const { error } = await supabase.from("stock_opname_entries").insert(rows);
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "sukses",
+    "Stok opname diajukan",
+    `${counts.length} bahan · oleh ${actor.name}`,
+  );
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/stock-opname`);
+  return { error: null };
 }
 
 export async function verifyStockOpnameEntry(

@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
-import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
+import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem, adjustSemiFinishedItemStock } from "../actions";
 import ItemForm from "../item-form";
 import RecipeEditor from "../recipe-editor";
 import RecipeYieldForm from "../recipe-yield-form";
+import AdjustStockForm from "@/components/adjust-stock-form";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -49,11 +51,11 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled")
     .eq("id", businessId)
     .single();
 
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
 
@@ -115,6 +117,14 @@ export default async function SemiFinishedItemDetailPage({
           {formatRupiah(cost.unitCost)}/{item.unit}
         </span>
       </p>
+      {!business.cost_control_enabled && (
+        <AdjustStockForm
+          itemName={item.name}
+          currentStock={item.stock}
+          unit={item.unit}
+          action={adjustSemiFinishedItemStock.bind(null, businessId, id)}
+        />
+      )}
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Resep (per 1 {item.unit} hasil)</h2>

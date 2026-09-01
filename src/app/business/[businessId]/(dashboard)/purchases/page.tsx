@@ -10,6 +10,7 @@ import type { PurchasePrefill } from "./add-purchase-form";
 import VoidPurchaseButton from "./void-purchase-button";
 import EditCategoryButton from "./edit-category-button";
 import ReceiveDeliveryNoteForm from "./receive-delivery-note-form";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -78,7 +79,7 @@ export default async function PurchasesPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, cost_control_enabled")
+    .select("id, name, business_type, cost_control_enabled, stock_locations_enabled")
     .eq("id", businessId)
     .single();
 
@@ -146,7 +147,7 @@ export default async function PurchasesPage({
       .eq("business_id", businessId)
       .eq("type", "beban")
       .order("code", { ascending: true }),
-    business.cost_control_enabled
+    hasStockLocationAccess(business)
       ? supabase
           .from("stock_locations")
           .select("id, name")

@@ -16,6 +16,81 @@ export type ActionState = { error: string | null };
 // yang menunjuk balik ke dia.
 type RecipeRowInput = { component: string; qty: number };
 
+export type AdjustStockResult = { error: string | null };
+
+// Adjust stok BSJ manual -- dicontoh dari adjustIngredientStock di
+// ingredients/actions.ts. Sengaja HANYA dipakai bisnis stok-lite (mis. Adi's
+// Culinary, !cost_control_enabled) yang tidak pakai halaman Produksi --
+// lihat page.tsx, kontrolnya cuma dirender untuk bisnis itu supaya tidak ada
+// 2 jalur tulis stok yang tidak sinkron untuk bisnis yang sudah pakai
+// Produksi (Llauk).
+export async function adjustSemiFinishedItemStock(
+  businessId: string,
+  itemId: string,
+  newStock: number,
+  reason: string,
+): Promise<AdjustStockResult> {
+  if (Number.isNaN(newStock) || newStock < 0) {
+    return { error: "Stok fisik harus angka dan tidak boleh negatif." };
+  }
+  reason = reason.trim();
+  if (!reason) {
+    return { error: "Alasan penyesuaian wajib diisi." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: item } = await supabase
+    .from("semi_finished_items")
+    .select("id, name, unit, stock")
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .single();
+
+  if (!item) {
+    return { error: "Bahan setengah jadi tidak ditemukan." };
+  }
+
+  const stockBefore = Number(item.stock);
+  const diff = newStock - stockBefore;
+
+  if (diff === 0) {
+    return { error: "Stok fisik sama dengan stok sistem, tidak ada yang disesuaikan." };
+  }
+
+  const { error: updateError } = await supabase
+    .from("semi_finished_items")
+    .update({ stock: newStock })
+    .eq("id", itemId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await supabase.from("stock_adjustments").insert({
+    business_id: businessId,
+    semi_finished_item_id: itemId,
+    item_name: item.name,
+    unit: item.unit,
+    stock_before: stockBefore,
+    stock_after: newStock,
+    diff,
+    reason,
+  });
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "warning",
+    `Penyesuaian stok BSJ: ${item.name}`,
+    `${stockBefore} → ${newStock} ${item.unit} (${diff > 0 ? "+" : ""}${diff}) · ${reason}`,
+  );
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/semi-finished-items/${itemId}`);
+  return { error: null };
+}
+
 export async function addSemiFinishedItem(
   businessId: string,
   _prevState: ActionState,

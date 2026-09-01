@@ -6,6 +6,7 @@ import { adjustIngredientLocationStock } from "./actions";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
 import ReceiveLinkBox from "./receive-link-box";
 import IngredientSearch from "../../../ingredients/ingredient-search";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 export default async function LocationBahanBakuPage({
   params,
@@ -17,11 +18,11 @@ export default async function LocationBahanBakuPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, receive_stock_slug")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, receive_stock_slug")
     .eq("id", businessId)
     .single();
 
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
 

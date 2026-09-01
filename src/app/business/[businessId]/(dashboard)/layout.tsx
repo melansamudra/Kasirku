@@ -17,7 +17,9 @@ export default async function BusinessDashboardLayout({
   const [{ data: business }, { data: userData }, access] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys")
+      .select(
+        "id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys, stock_locations_enabled",
+      )
       .eq("id", businessId)
       .single(),
     supabase.auth.getUser(),
@@ -52,9 +54,10 @@ export default async function BusinessDashboardLayout({
   }
 
   // Grup sidebar per lokasi stok (Gudang Utama/Kitchen Atas/dst) cuma relevan
-  // buat bisnis cost-control yang memang sudah pakai fitur ini -- query
-  // dilewati sama sekali untuk bisnis lain supaya tidak nambah beban.
-  const { data: stockLocationRows } = business.cost_control_enabled
+  // buat bisnis cost-control ATAU bisnis stock_locations_enabled (fitur stok
+  // lite, mis. Adi's Culinary) -- query dilewati sama sekali untuk bisnis
+  // lain supaya tidak nambah beban.
+  const { data: stockLocationRows } = business.cost_control_enabled || business.stock_locations_enabled
     ? await supabase
         .from("stock_locations")
         .select("id, name, is_production, is_default_purchase")
@@ -82,6 +85,7 @@ export default async function BusinessDashboardLayout({
       permissions={permissions}
       mirroringEnabled={business.mirroring_enabled ?? false}
       costControlEnabled={business.cost_control_enabled ?? false}
+      stockLocationsEnabled={business.stock_locations_enabled ?? false}
       sellProductsEnabled={business.sell_products_enabled ?? false}
       hiddenNavKeys={business.hidden_nav_keys ?? []}
       stockLocations={stockLocations ?? []}

@@ -46,3 +46,10 @@ export async function getCurrentActor(
 export function canApprovePo(actor: CurrentActor): boolean {
   return actor.isOwner || actor.permissions.includes("purchase-orders-approve");
 }
+
+// Approval Level 1 (Manager/Supervisor) untuk PO 2-level (lihat
+// purchase_orders.approval_levels). Level 2 (final) sengaja Owner-only
+// tanpa permission key -- reuse canApprovePo/isOwner di actions.ts.
+export function canApprovePoLevel1(actor: CurrentActor): boolean {
+  return actor.isOwner || actor.permissions.includes("purchase-orders-approve-l1");
+}

@@ -155,6 +155,28 @@ export async function createBusiness(
     return { error: subscriptionError.message };
   }
 
+  // Toko FnB baru otomatis dapat fitur stok multi-lokasi (lite) — Kitchen,
+  // Bar, Gudang Utama — plus PR/PO (default 2-level, lihat kolom
+  // po_approval_levels) dan BSJ ringan. Ini TIDAK sama dengan
+  // cost_control_enabled (yang all-or-nothing & mengganti total nav/dashboard
+  // ke gaya Llauk) — cuma membuka rute stok tambahan lewat
+  // hasStockLocationAccess(). Retail/tiket sengaja dilewati karena konsep
+  // dapur/lokasi produksi tidak relevan untuk mereka.
+  if (businessType === "fnb") {
+    const { error: stockLocationsFlagError } = await supabase
+      .from("businesses")
+      .update({ stock_locations_enabled: true })
+      .eq("id", business.id);
+
+    if (!stockLocationsFlagError) {
+      await supabase.from("stock_locations").insert([
+        { business_id: business.id, name: "Kitchen", sort_order: 1, is_default_purchase: false, is_production: false },
+        { business_id: business.id, name: "Bar", sort_order: 2, is_default_purchase: false, is_production: false },
+        { business_id: business.id, name: "Gudang Utama", sort_order: 3, is_default_purchase: true, is_production: false },
+      ]);
+    }
+  }
+
   const copyFromBusinessId = (formData.get("copyFromBusinessId") as string) || null;
   if (copyFromBusinessId) {
     // RLS pada `businesses` sudah membatasi query ini ke milik user sendiri —

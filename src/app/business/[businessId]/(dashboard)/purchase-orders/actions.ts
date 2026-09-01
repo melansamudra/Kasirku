@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
-import { getCurrentActor, canApprovePo, type CurrentActor } from "@/lib/current-actor";
+import { getCurrentActor, canApprovePo, canApprovePoLevel1, type CurrentActor } from "@/lib/current-actor";
 
 export type ActionState = { error: string | null };
 
@@ -51,18 +51,62 @@ export async function approvePurchaseOrder(businessId: string, poId: string): Pr
 
   const actor = await getCurrentActor(supabase, businessId);
   if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
-  if (!canApprovePo(actor)) {
-    return { error: "Akun Anda tidak punya izin Setujui PO. Minta Owner aktifkan permission ini." };
-  }
 
   const { data: po } = await supabase
     .from("purchase_orders")
-    .select("id, po_number, status, issued_by_user_id")
+    .select("id, po_number, status, issued_by_user_id, approval_levels, level1_approved_at, level1_approved_by_user_id")
     .eq("id", poId)
     .eq("business_id", businessId)
     .single();
   if (!po) return { error: "PO tidak ditemukan." };
   if (po.status !== "issued") return { error: "PO ini sudah diproses sebelumnya." };
+
+  const isTwoLevel = po.approval_levels === 2;
+  const level1Pending = isTwoLevel && po.level1_approved_at === null;
+
+  if (level1Pending) {
+    if (!canApprovePoLevel1(actor)) {
+      return { error: "Akun Anda tidak punya izin Setujui PO Level 1. Minta Owner aktifkan permission ini." };
+    }
+    const blockReason = await findApprovalBlockReason(supabase, poId, po.issued_by_user_id, actor);
+    if (blockReason) return { error: blockReason };
+
+    // .eq("level1_approved_at", null) di klausa UPDATE -- mencegah race 2
+    // approve Level 1 nyaris bersamaan sama-sama lolos pengecekan di atas.
+    const { data: updated, error } = await supabase
+      .from("purchase_orders")
+      .update({
+        level1_approved_by: actor.name,
+        level1_approved_by_user_id: actor.userId,
+        level1_approved_at: new Date().toISOString(),
+      })
+      .eq("id", poId)
+      .eq("business_id", businessId)
+      .eq("status", "issued")
+      .is("level1_approved_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (error) return { error: error.message };
+    if (!updated) return { error: "PO ini baru saja diproses pihak lain — refresh halaman untuk lihat status terbaru." };
+
+    await logActivity(supabase, businessId, "produk", "sukses", `PO disetujui (Level 1): ${po.po_number}`, `Oleh ${actor.name}`);
+    revalidatePath(`/business/${businessId}/purchase-orders`);
+    revalidatePath(`/business/${businessId}/purchase-orders/${poId}`);
+    return { error: null };
+  }
+
+  // Approval final (Level 2 kalau 2-level, atau satu-satunya level kalau 1-level).
+  if (isTwoLevel) {
+    if (!actor.isOwner) {
+      return { error: "PO ini butuh persetujuan Level 2 (Owner)." };
+    }
+    if (po.level1_approved_by_user_id && actor.userId === po.level1_approved_by_user_id) {
+      return { error: "Tidak bisa menyetujui Level 2 untuk PO yang Anda sendiri setujui di Level 1." };
+    }
+  } else if (!canApprovePo(actor)) {
+    return { error: "Akun Anda tidak punya izin Setujui PO. Minta Owner aktifkan permission ini." };
+  }
 
   const blockReason = await findApprovalBlockReason(supabase, poId, po.issued_by_user_id, actor);
   if (blockReason) return { error: blockReason };

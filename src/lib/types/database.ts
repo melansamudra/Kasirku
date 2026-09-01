@@ -326,6 +326,8 @@ export type Database = {
           personal_loan_enabled: boolean;
           sell_products_enabled: boolean;
           hidden_nav_keys: string[];
+          stock_locations_enabled: boolean;
+          po_approval_levels: number;
         };
         Insert: {
           id?: string;
@@ -366,6 +368,8 @@ export type Database = {
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
           hidden_nav_keys?: string[];
+          stock_locations_enabled?: boolean;
+          po_approval_levels?: number;
         };
         Update: {
           id?: string;
@@ -406,6 +410,8 @@ export type Database = {
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
           hidden_nav_keys?: string[];
+          stock_locations_enabled?: boolean;
+          po_approval_levels?: number;
         };
         Relationships: [];
       };
@@ -2870,6 +2876,10 @@ export type Database = {
           approved_at: string | null;
           note: string | null;
           created_at: string;
+          approval_levels: number;
+          level1_approved_by_user_id: string | null;
+          level1_approved_by: string | null;
+          level1_approved_at: string | null;
         };
         Insert: {
           id?: string;
@@ -2886,6 +2896,10 @@ export type Database = {
           approved_at?: string | null;
           note?: string | null;
           created_at?: string;
+          approval_levels?: number;
+          level1_approved_by_user_id?: string | null;
+          level1_approved_by?: string | null;
+          level1_approved_at?: string | null;
         };
         Update: {
           id?: string;
@@ -2902,6 +2916,10 @@ export type Database = {
           approved_at?: string | null;
           note?: string | null;
           created_at?: string;
+          approval_levels?: number;
+          level1_approved_by_user_id?: string | null;
+          level1_approved_by?: string | null;
+          level1_approved_at?: string | null;
         };
         Relationships: [];
       };

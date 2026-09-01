@@ -24,7 +24,32 @@ export type LocationForPermissions = {
   isDefaultPurchase: boolean;
 };
 
-export function buildLocationPermissionGroups(locations: LocationForPermissions[]): PermissionGroup[] {
+// Bisnis stok-lite (mis. Adi's Culinary, stock_locations_enabled tanpa
+// cost_control_enabled) punya lokasi setara -- tidak ada konsep
+// is_production/is_default_purchase yang berarti apa-apa di sana (semua
+// false, lihat migration seed). Kalau tetap lewat logic "full" di bawah,
+// tiap lokasi dapat 0 item (bukan is_production/is_default_purchase) alias
+// checklist-nya kosong. Mode "simple" generate grup rata per lokasi, key-nya
+// HARUS SAMA PERSIS dengan buildSimpleLocationNavGroups di dashboard-shell.tsx.
+function buildSimpleLocationPermissionGroups(locations: LocationForPermissions[]): PermissionGroup[] {
+  return locations.map((loc) => ({
+    title: `Lokasi — ${loc.name}`,
+    items: [
+      { key: `lokasi-${loc.id}-bahan-baku`, label: `Bahan Baku — ${loc.name}` },
+      { key: `lokasi-${loc.id}-transfer`, label: `Transfer Internal — ${loc.name}` },
+      { key: `lokasi-${loc.id}-kartu-stok`, label: `Kartu Stok — ${loc.name}` },
+      { key: `lokasi-${loc.id}-stock-opname`, label: `Stok Opname — ${loc.name}` },
+    ],
+  }));
+}
+
+export function buildLocationPermissionGroups(
+  locations: LocationForPermissions[],
+  mode: "full" | "simple" = "full",
+): PermissionGroup[] {
+  if (mode === "simple") {
+    return buildSimpleLocationPermissionGroups(locations);
+  }
   return locations
     .filter((loc) => loc.isProduction || loc.isDefaultPurchase)
     .map((loc) => {

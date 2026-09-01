@@ -5,6 +5,7 @@ import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost
 import { addSemiFinishedItem } from "./actions";
 import ItemForm from "./item-form";
 import SemiFinishedItemsList, { type SemiFinishedItemRow } from "./item-search-list";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 export default async function SemiFinishedItemsPage({
   params,
@@ -16,11 +17,11 @@ export default async function SemiFinishedItemsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled")
     .eq("id", businessId)
     .single();
 
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
 
@@ -90,7 +91,7 @@ export default async function SemiFinishedItemsPage({
       </div>
 
       <div className="mt-6">
-        <SemiFinishedItemsList businessId={businessId} items={rows} />
+        <SemiFinishedItemsList businessId={businessId} items={rows} showAdjustStock={!business.cost_control_enabled} />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { fetchAllRows } from "@/lib/pagination";
 import { PERIOD_COOKIE_NAME, PERIOD_DESCRIPTIONS, getPeriodRange, parsePeriod } from "../../../reports/period";
 import PeriodTabs from "../../../reports/period-tabs";
 import KartuStokList, { type KartuStokRow } from "./kartu-stok-list";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 export default async function LocationKartuStokPage({
   params,
@@ -23,10 +24,10 @@ export default async function LocationKartuStokPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled")
     .eq("id", businessId)
     .single();
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
 
