@@ -17,6 +17,7 @@ import DeleteProductButton from "./delete-product-button";
 import EditProductForm from "./edit-product-form";
 import FeaturedToggle from "./featured-toggle";
 import ImportProductsForm from "./import-products-form";
+import CostControlProductsPage from "./cost-control-products-page";
 
 export default async function ProductsPage({
   params,
@@ -28,12 +29,21 @@ export default async function ProductsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, cost_control_enabled, sell_products_enabled")
     .eq("id", businessId)
     .single();
 
   if (!business) {
     notFound();
+  }
+
+  // Bisnis cost-control pakai halaman "Kelola Produk" yang jauh lebih
+  // sederhana (produk 1:1 ke Bahan Setengah Jadi) -- lihat cost-control-
+  // products-page.tsx. Kalau cost-control tapi belum diaktifkan jualannya,
+  // halaman ini memang belum boleh diakses sama sekali.
+  if (business.cost_control_enabled) {
+    if (!business.sell_products_enabled) notFound();
+    return <CostControlProductsPage businessId={businessId} businessName={business.name} />;
   }
 
   const { data: products } = await supabase

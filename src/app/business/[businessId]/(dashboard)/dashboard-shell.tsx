@@ -86,6 +86,7 @@ function buildCostControlNavGroups(
   base: string,
   mirroringEnabled: boolean,
   stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
+  sellProductsEnabled = false,
 ): NavGroup[] {
   return [
     {
@@ -116,6 +117,9 @@ function buildCostControlNavGroups(
       items: [
         { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
         { key: "semi-finished-items", href: `${base}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: Beaker },
+        ...(sellProductsEnabled
+          ? [{ key: "products", href: `${base}/products`, label: "Kelola Produk", icon: ShoppingBag }]
+          : []),
         { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
       ],
     },
@@ -332,12 +336,13 @@ function buildNavGroups(
   mirroringEnabled = false,
   costControlEnabled = false,
   stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
+  sellProductsEnabled = false,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
 
   if (costControlEnabled) {
-    const costControlGroups = buildCostControlNavGroups(base, mirroringEnabled, stockLocations);
+    const costControlGroups = buildCostControlNavGroups(base, mirroringEnabled, stockLocations, sellProductsEnabled);
     if (isStarter) {
       return costControlGroups
         .map((g) => ({ ...g, items: g.items.filter((i) => STARTER_ALLOWED_KEYS.has(i.key)) }))
@@ -792,6 +797,7 @@ export default function DashboardShell({
   mirroringEnabled = false,
   costControlEnabled = false,
   stockLocations = [],
+  sellProductsEnabled = false,
   children,
 }: {
   businessId: string;
@@ -807,6 +813,7 @@ export default function DashboardShell({
   mirroringEnabled?: boolean;
   costControlEnabled?: boolean;
   stockLocations?: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[];
+  sellProductsEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -856,6 +863,7 @@ export default function DashboardShell({
     mirroringEnabled,
     costControlEnabled,
     stockLocations,
+    sellProductsEnabled,
   );
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);
   // Active item is resolved against the FULL (unfiltered) list — a page a

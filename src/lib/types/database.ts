@@ -324,6 +324,7 @@ export type Database = {
           procurement_budget_gate_enabled: boolean;
           break_attendance_enabled: boolean;
           personal_loan_enabled: boolean;
+          sell_products_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -362,6 +363,7 @@ export type Database = {
           receive_stock_slug?: string | null;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
+          sell_products_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -400,6 +402,7 @@ export type Database = {
           receive_stock_slug?: string | null;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
+          sell_products_enabled?: boolean;
         };
         Relationships: [];
       };
@@ -1909,6 +1912,7 @@ export type Database = {
           featured: boolean | null;
           show_in_self_order: boolean | null;
           sort_order: number | null;
+          semi_finished_item_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1930,6 +1934,7 @@ export type Database = {
           featured?: boolean | null;
           show_in_self_order?: boolean | null;
           sort_order?: number | null;
+          semi_finished_item_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1951,6 +1956,7 @@ export type Database = {
           featured?: boolean | null;
           show_in_self_order?: boolean | null;
           sort_order?: number | null;
+          semi_finished_item_id?: string | null;
         };
         Relationships: [];
       };
