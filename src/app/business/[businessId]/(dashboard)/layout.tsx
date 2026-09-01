@@ -17,7 +17,7 @@ export default async function BusinessDashboardLayout({
   const [{ data: business }, { data: userData }, access] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled")
+      .select("id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys")
       .eq("id", businessId)
       .single(),
     supabase.auth.getUser(),
@@ -83,6 +83,7 @@ export default async function BusinessDashboardLayout({
       mirroringEnabled={business.mirroring_enabled ?? false}
       costControlEnabled={business.cost_control_enabled ?? false}
       sellProductsEnabled={business.sell_products_enabled ?? false}
+      hiddenNavKeys={business.hidden_nav_keys ?? []}
       stockLocations={stockLocations ?? []}
     >
       {children}
