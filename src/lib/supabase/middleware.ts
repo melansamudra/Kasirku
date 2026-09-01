@@ -13,6 +13,20 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Next.js masih mengirim request prefetch (header "next-router-prefetch")
+  // lewat proxy ini walau halaman tujuannya dinamis dan tidak benar-benar
+  // di-prefetch isinya — kalau getUser() (yang bisa memicu refresh token ke
+  // GoTrue) tetap jalan di sini, prefetch itu bisa balapan dengan refresh
+  // yang dipicu request nyata (klik) dan bikin refresh token-nya "kepakai
+  // duluan" lalu ditolak, yang ujungnya melempar user ke /login walau sesi
+  // sebenarnya masih valid. Sesuai panduan resmi Next.js (optimistic checks
+  // di Proxy) — request prefetch cukup dilewatkan apa adanya, verifikasi
+  // sesi yang sebenarnya tetap terjadi di layout/page (lihat
+  // (dashboard)/layout.tsx) begitu navigasi asli sampai ke server.
+  if (request.headers.get("next-router-prefetch")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
