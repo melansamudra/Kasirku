@@ -164,9 +164,13 @@ function buildCostControlNavGroups(
           label: "Bahan Baku",
           icon: Beaker,
         },
-        // Bahan Setengah Jadi cuma ada di Dapur Produksi (situ yang produksi
-        // BSJ) -- Gudang Utama/Purchasing tidak butuh menu ini sama sekali.
-        ...(loc.isDefaultPurchase
+        // Bahan Setengah Jadi cuma ada di lokasi produksi (situ yang produksi
+        // BSJ) -- Gudang Utama/Purchasing murni (BUKAN sekaligus lokasi
+        // produksi) tidak butuh menu ini. Toko satu-lokasi seperti Dapur
+        // Produksi berdiri sendiri ditandai isProduction DAN isDefaultPurchase
+        // sekaligus (lihat komentar title di atas) -- identitas produksinya
+        // yang menang, menu ini tetap harus muncul untuknya.
+        ...(loc.isDefaultPurchase && !loc.isProduction
           ? []
           : [
               {
@@ -313,7 +317,7 @@ function buildCostControlNavGroups(
         ...stockLocations.map((loc) => ({
           key: `lokasi-${loc.id}-staf`,
           href: `${base}/lokasi/${loc.id}/staf`,
-          label: `Staf ${loc.isDefaultPurchase ? "Purchasing" : loc.name}`,
+          label: `Staf ${loc.isDefaultPurchase && !loc.isProduction ? "Purchasing" : loc.name}`,
           icon: UserCog,
         })),
       ],
@@ -503,6 +507,23 @@ function isItemAllowed(
   // Supplier page boleh diakses kalau punya permission purchases (supplier adalah sub-fitur purchases)
   if (item.key === "suppliers" && permissions.includes("purchases")) return true;
   return permissions.includes(item.key);
+}
+
+// Menu yang sengaja dimatikan per-bisnis (mis. Dapur Produksi tidak butuh
+// Permintaan Barang/PO karena pemesanannya lewat Surat Jalan dari Llauk,
+// lihat businesses.hidden_nav_keys). Entri di hiddenKeys cocok exact ATAU
+// sebagai akhiran (match suffix) -- supaya 1 entri generik (mis. "transfer")
+// otomatis menutup versi per-lokasi yang key-nya `lokasi-${loc.id}-transfer`
+// tanpa perlu tahu UUID lokasinya.
+function isNavKeyHidden(itemKey: string, hiddenKeys: string[]): boolean {
+  return hiddenKeys.some((h) => itemKey === h || itemKey.endsWith(`-${h}`));
+}
+
+function filterGroupsForHiddenKeys(groups: NavGroup[], hiddenKeys: string[]): NavGroup[] {
+  if (hiddenKeys.length === 0) return groups;
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !isNavKeyHidden(i.key, hiddenKeys)) }))
+    .filter((g) => g.items.length > 0);
 }
 
 function filterGroupsForPermissions(
@@ -803,6 +824,7 @@ export default function DashboardShell({
   costControlEnabled = false,
   stockLocations = [],
   sellProductsEnabled = false,
+  hiddenNavKeys = [],
   children,
 }: {
   businessId: string;
@@ -819,6 +841,7 @@ export default function DashboardShell({
   costControlEnabled?: boolean;
   stockLocations?: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[];
   sellProductsEnabled?: boolean;
+  hiddenNavKeys?: string[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -860,15 +883,18 @@ export default function DashboardShell({
     ? ["settings"]
     : permissions.includes("settings") ? ["settings"] : [];
 
-  const allGroups = buildNavGroups(
-    businessId,
-    businessType,
-    isFinanceOnly,
-    isStarter,
-    mirroringEnabled,
-    costControlEnabled,
-    stockLocations,
-    sellProductsEnabled,
+  const allGroups = filterGroupsForHiddenKeys(
+    buildNavGroups(
+      businessId,
+      businessType,
+      isFinanceOnly,
+      isStarter,
+      mirroringEnabled,
+      costControlEnabled,
+      stockLocations,
+      sellProductsEnabled,
+    ),
+    hiddenNavKeys,
   );
   const visibleGroups = filterGroupsForPermissions(allGroups, navIsOwner, navPermissions, navBypassOwnerOnly, isStarter);
   // Active item is resolved against the FULL (unfiltered) list — a page a

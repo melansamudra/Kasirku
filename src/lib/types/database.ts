@@ -325,6 +325,7 @@ export type Database = {
           break_attendance_enabled: boolean;
           personal_loan_enabled: boolean;
           sell_products_enabled: boolean;
+          hidden_nav_keys: string[];
         };
         Insert: {
           id?: string;
@@ -364,6 +365,7 @@ export type Database = {
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
+          hidden_nav_keys?: string[];
         };
         Update: {
           id?: string;
@@ -403,6 +405,7 @@ export type Database = {
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
+          hidden_nav_keys?: string[];
         };
         Relationships: [];
       };
