@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import { addSemiFinishedProduct, editSemiFinishedProductPrice } from "./semi-finished-product-actions";
 import AddSemiFinishedProductForm from "./add-semi-finished-product-form";
 import EditSemiFinishedProductPriceForm from "./edit-semi-finished-product-price-form";
@@ -45,8 +46,12 @@ export default async function CostControlProductsPage({
         .maybeSingle(),
     ]);
 
+  const costs = await computeAllSemiFinishedItemCosts(supabase, businessId);
+
   const linkedItemIds = new Set((products ?? []).map((p) => p.semi_finished_item_id));
-  const availableItems = (semiFinishedItems ?? []).filter((i) => !linkedItemIds.has(i.id));
+  const availableItems = (semiFinishedItems ?? [])
+    .filter((i) => !linkedItemIds.has(i.id))
+    .map((i) => ({ ...i, unitCost: costs.get(i.id)?.unitCost ?? 0 }));
 
   let stockByItemId = new Map<string, number>();
   if (productionLocation) {
@@ -85,12 +90,20 @@ export default async function CostControlProductsPage({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-zinc-900">{p.name}</p>
                 <p className="text-xs text-zinc-500">
-                  Stok {stockByItemId.get(p.semi_finished_item_id!) ?? 0}
+                  Stok {stockByItemId.get(p.semi_finished_item_id!) ?? 0} · HPP Rp
+                  {Math.round(costs.get(p.semi_finished_item_id!)?.unitCost ?? 0).toLocaleString("id-ID")}
                 </p>
               </div>
-              <p className="shrink-0 text-sm font-semibold text-zinc-900">
-                Rp{Number(p.price).toLocaleString("id-ID")}
-              </p>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold text-zinc-900">
+                  Rp{Number(p.price).toLocaleString("id-ID")}
+                </p>
+                {(() => {
+                  const unitCost = costs.get(p.semi_finished_item_id!)?.unitCost ?? 0;
+                  const margin = Number(p.price) > 0 ? ((Number(p.price) - unitCost) / Number(p.price)) * 100 : 0;
+                  return <p className="text-[11px] text-zinc-400">Margin {Math.round(margin)}%</p>;
+                })()}
+              </div>
               <EditSemiFinishedProductPriceForm
                 price={Number(p.price)}
                 action={editSemiFinishedProductPrice.bind(null, businessId, p.id)}
