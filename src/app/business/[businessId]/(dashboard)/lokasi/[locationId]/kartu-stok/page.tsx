@@ -24,7 +24,7 @@ export default async function LocationKartuStokPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
   if (!business || !hasStockLocationAccess(business)) {

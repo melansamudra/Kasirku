@@ -9,6 +9,22 @@ import type { Database } from "@/lib/types/database";
 
 export type ActionState = { error: string | null };
 
+// Saklar darurat per bisnis buat tunda pemotongan stok produksi (mis. Llauk
+// Nusantara yang masih uji coba, belum siap datanya dipotong) tanpa perlu
+// sembunyikan/hapus data produksi yang sudah ada -- default true supaya
+// bisnis lain yang sudah jalan tidak terdampak sama sekali.
+async function isStockDeductionEnabled(
+  supabase: SupabaseClient<Database>,
+  businessId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("businesses")
+    .select("stock_deduction_enabled")
+    .eq("id", businessId)
+    .single();
+  return data?.stock_deduction_enabled ?? true;
+}
+
 // Produksi cuma terjadi & memotong stok di satu lokasi fisik (Dapur
 // Produksi, ditandai stock_locations.is_production) -- lihat plan Fase 2
 // "Satukan Stok per Lokasi". null kalau lokasi itu belum diset (mis. migrasi
@@ -286,6 +302,10 @@ export async function recordProductionRun(
 
   const supabase = await createClient();
 
+  if (!(await isStockDeductionEnabled(supabase, businessId))) {
+    return { error: "Pemotongan stok sedang dinonaktifkan untuk bisnis ini." };
+  }
+
   const locationId = await getProductionLocationId(supabase, businessId);
   if (!locationId) {
     return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
@@ -447,6 +467,10 @@ export async function verifyProductionRun(
   useReported: boolean = false,
 ): Promise<ActionState> {
   const supabase = await createClient();
+
+  if (!(await isStockDeductionEnabled(supabase, businessId))) {
+    return { error: "Pemotongan stok sedang dinonaktifkan untuk bisnis ini." };
+  }
 
   const locationId = await getProductionLocationId(supabase, businessId);
   if (!locationId) {

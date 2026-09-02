@@ -13,10 +13,10 @@ export default async function ImportProdukJadiPage({ params }: { params: Promise
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !(business.cost_control_enabled || business.rich_stock_ops_enabled)) {
     notFound();
   }
 

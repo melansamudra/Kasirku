@@ -51,7 +51,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
 
@@ -127,7 +127,7 @@ export default async function SemiFinishedItemDetailPage({
           {formatRupiah(cost.unitCost)}/{item.unit}
         </span>
       </p>
-      {!business.cost_control_enabled && (
+      {!business.cost_control_enabled && !business.rich_stock_ops_enabled && (
         <>
           <p className="mt-2 text-xs font-medium text-zinc-600">Produksi</p>
           <ProduceForm businessId={businessId} itemId={id} itemUnit={item.unit} locations={locations ?? []} />

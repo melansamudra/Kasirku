@@ -30,12 +30,13 @@ export default async function LocationStockOpnamePage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled, stock_opname_slug")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, stock_opname_slug")
     .eq("id", businessId)
     .single();
   if (!business || !hasStockLocationAccess(business)) {
     notFound();
   }
+  const costControlUiEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
 
   const { data: location } = await supabase
     .from("stock_locations")
@@ -48,7 +49,7 @@ export default async function LocationStockOpnamePage({
   }
 
   let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
-  if (!business.cost_control_enabled) {
+  if (!costControlUiEnabled) {
     const [{ data: ingredientRows }, { data: stockRows }] = await Promise.all([
       supabase
         .from("ingredients")
@@ -118,7 +119,7 @@ export default async function LocationStockOpnamePage({
         Laporan stok fisik dari staf menunggu diverifikasi dulu sebelum mengubah stok sistem.
       </p>
 
-      {business.cost_control_enabled ? (
+      {costControlUiEnabled ? (
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
           <div className="mt-3">

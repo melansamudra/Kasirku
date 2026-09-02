@@ -91,13 +91,17 @@ export async function addSemiFinishedItem(
   // (Llauk dkk) sudah punya jalur sendiri (finished_product_recipes) dan
   // tidak checkout lewat POS sama sekali, jadi kembaran ini cuma akan jadi
   // baris kosong yang mengotori daftar Bahan Baku mereka kalau ikut dibuat.
+  // rich_stock_ops_enabled (Llauk pasca-konversi ke tampilan Kasirku standar)
+  // ikut dikecualikan juga -- masih pakai finished_product_recipes yang sama,
+  // BUKAN jalur mirror-ingredient ala Adi's (persis masalah yang sudah
+  // dibersihkan migration 20260903020000, jangan sampai terulang).
   const { data: businessForMirror } = await supabase
     .from("businesses")
-    .select("cost_control_enabled")
+    .select("cost_control_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
 
-  if (!businessForMirror?.cost_control_enabled) {
+  if (!businessForMirror?.cost_control_enabled && !businessForMirror?.rich_stock_ops_enabled) {
     const { data: mirrorIngredient } = await supabase
       .from("ingredients")
       .insert({
@@ -408,7 +412,11 @@ export async function produceSemiFinishedItem(
   const supabase = await createClient();
 
   const [{ data: business }, { data: item }, { data: location }] = await Promise.all([
-    supabase.from("businesses").select("cost_control_enabled, stock_locations_enabled").eq("id", businessId).single(),
+    supabase
+      .from("businesses")
+      .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
+      .eq("id", businessId)
+      .single(),
     supabase
       .from("semi_finished_items")
       .select("id, name, unit, ingredient_id")
@@ -422,7 +430,7 @@ export async function produceSemiFinishedItem(
   // fitur Produksi sendiri (halaman /produksi, production_runs) yang
   // langsung ke semi_finished_item_location_stock, tidak lewat kembaran
   // ingredient ini sama sekali.
-  if (!business || business.cost_control_enabled || !business.stock_locations_enabled) {
+  if (!business || business.cost_control_enabled || business.rich_stock_ops_enabled || !business.stock_locations_enabled) {
     return { error: "Fitur Produksi ini tidak tersedia untuk bisnis ini." };
   }
   if (!item) return { error: "Bahan setengah jadi tidak ditemukan." };

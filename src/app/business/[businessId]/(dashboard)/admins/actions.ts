@@ -22,7 +22,7 @@ async function loadLocationPermissionKeys(
   businessId: string,
 ): Promise<Set<string>> {
   const [{ data: business }, { data: locationRows }] = await Promise.all([
-    supabase.from("businesses").select("cost_control_enabled").eq("id", businessId).single(),
+    supabase.from("businesses").select("cost_control_enabled, rich_stock_ops_enabled").eq("id", businessId).single(),
     supabase.from("stock_locations").select("id, name, is_production, is_default_purchase").eq("business_id", businessId),
   ]);
   const groups = buildLocationPermissionGroups(
@@ -32,7 +32,7 @@ async function loadLocationPermissionKeys(
       isProduction: l.is_production,
       isDefaultPurchase: l.is_default_purchase,
     })),
-    business?.cost_control_enabled ? "full" : "simple",
+    business?.cost_control_enabled || business?.rich_stock_ops_enabled ? "full" : "simple",
   );
   return new Set(groups.flatMap((g) => g.items.map((i) => i.key)));
 }

@@ -18,7 +18,7 @@ export default async function LocationBahanBakuPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled, receive_stock_slug")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, receive_stock_slug")
     .eq("id", businessId)
     .single();
 

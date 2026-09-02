@@ -328,6 +328,8 @@ export type Database = {
           hidden_nav_keys: string[];
           stock_locations_enabled: boolean;
           po_approval_levels: number;
+          stock_deduction_enabled: boolean;
+          rich_stock_ops_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -370,6 +372,8 @@ export type Database = {
           hidden_nav_keys?: string[];
           stock_locations_enabled?: boolean;
           po_approval_levels?: number;
+          stock_deduction_enabled?: boolean;
+          rich_stock_ops_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -412,6 +416,8 @@ export type Database = {
           hidden_nav_keys?: string[];
           stock_locations_enabled?: boolean;
           po_approval_levels?: number;
+          stock_deduction_enabled?: boolean;
+          rich_stock_ops_enabled?: boolean;
         };
         Relationships: [];
       };

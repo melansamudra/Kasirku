@@ -14,7 +14,7 @@ export default async function NewManualTransactionPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
 
@@ -22,7 +22,9 @@ export default async function NewManualTransactionPage({
     notFound();
   }
 
-  if (business.cost_control_enabled) {
+  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
+
+  if (costControlEnabled) {
     await syncFinishedProductsToCatalog(supabase, businessId);
   }
 
@@ -45,7 +47,7 @@ export default async function NewManualTransactionPage({
         .select("name")
         .eq("business_id", businessId)
         .order("name", { ascending: true }),
-      business.cost_control_enabled
+      costControlEnabled
         ? supabase
             .from("outlets")
             .select("id, name")
@@ -59,7 +61,7 @@ export default async function NewManualTransactionPage({
     <div className="w-full max-w-2xl">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-zinc-900">
-          {business.cost_control_enabled ? "Catat Penjualan" : "Transaksi Manual"} — {business.name}
+          {costControlEnabled ? "Catat Penjualan" : "Transaksi Manual"} — {business.name}
         </h1>
         <Link
           href={`/business/${businessId}/transactions`}
@@ -69,7 +71,7 @@ export default async function NewManualTransactionPage({
         </Link>
       </div>
       <p className="mt-1 text-sm text-zinc-500">
-        {business.cost_control_enabled
+        {costControlEnabled
           ? "Catat penjualan produk jadi dari resto/outlet — dengan tanggal yang bisa diatur bebas."
           : "Catat transaksi tanpa lewat kasir — cocok untuk penjualan yang terlewat dicatat, dengan tanggal yang bisa diatur bebas."}
       </p>
@@ -80,7 +82,7 @@ export default async function NewManualTransactionPage({
           products={products ?? []}
           customers={customers ?? []}
           customPaymentMethods={(customPaymentMethodRows ?? []).map((m) => m.name)}
-          outlets={business.cost_control_enabled ? outlets ?? [] : undefined}
+          outlets={costControlEnabled ? outlets ?? [] : undefined}
         />
       </div>
     </div>

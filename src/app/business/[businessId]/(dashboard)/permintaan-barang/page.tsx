@@ -120,13 +120,15 @@ export default async function PermintaanBarangPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, purchase_request_slug, cost_control_enabled, procurement_budget_gate_enabled")
+    .select("id, name, purchase_request_slug, cost_control_enabled, rich_stock_ops_enabled, procurement_budget_gate_enabled")
     .eq("id", businessId)
     .single();
 
   if (!business) {
     notFound();
   }
+
+  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
 
   const actor = await getCurrentActor(supabase, businessId);
   const canApproveBudget = actor ? canApprovePo(actor) : false;
@@ -404,7 +406,7 @@ export default async function PermintaanBarangPage({
         <div className="mt-4 rounded-xl bg-white shadow-sm p-4">
           <h2 className="text-sm font-semibold text-zinc-900">📅 Ringkasan per Tanggal</h2>
           <p className="mt-0.5 text-[11px] text-zinc-400">
-            {business.cost_control_enabled
+            {costControlEnabled
               ? `Dari ${mergedRows.length} order yang lagi dimuat di bawah (maksimal 50 PR + 50 BSJ terakhir).`
               : `Dari ${rows.length} order yang lagi dimuat di bawah (maksimal 50 terakhir).`}
           </p>
@@ -414,9 +416,9 @@ export default async function PermintaanBarangPage({
                 <tr className="border-b border-zinc-100">
                   <th className="py-1.5 pr-3 text-left font-medium">Tanggal</th>
                   <th className="px-3 py-1.5 text-right font-medium">
-                    {business.cost_control_enabled ? "🛒 Ke Purchasing" : "Jumlah PR"}
+                    {costControlEnabled ? "🛒 Ke Purchasing" : "Jumlah PR"}
                   </th>
-                  {business.cost_control_enabled && (
+                  {costControlEnabled && (
                     <th className="px-3 py-1.5 text-right font-medium">🥡 Ke Dapur Produksi</th>
                   )}
                   <th className="py-1.5 pl-3 text-right font-medium">Estimasi Nilai PR</th>
@@ -429,7 +431,7 @@ export default async function PermintaanBarangPage({
                     <tr key={dateKey}>
                       <td className="py-1.5 pr-3 text-zinc-700">{formatDateLabel(dateKey)}</td>
                       <td className="px-3 py-1.5 text-right text-zinc-600">{s.prCount || "—"}</td>
-                      {business.cost_control_enabled && (
+                      {costControlEnabled && (
                         <td className="px-3 py-1.5 text-right text-zinc-600">{s.transferCount || "—"}</td>
                       )}
                       <td className="py-1.5 pl-3 text-right font-medium text-zinc-900">
@@ -517,7 +519,7 @@ export default async function PermintaanBarangPage({
               businessName={business.name}
               suppliers={suppliers ?? []}
               employees={employees ?? []}
-              costControlEnabled={business.cost_control_enabled ?? false}
+              costControlEnabled={costControlEnabled}
               procurementBudgetGateEnabled={procurementBudgetGateEnabled}
               currentActorName={actor?.name ?? null}
               canApproveBudget={canApproveBudget}

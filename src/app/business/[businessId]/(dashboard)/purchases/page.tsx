@@ -79,7 +79,7 @@ export default async function PurchasesPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, cost_control_enabled, stock_locations_enabled")
+    .select("id, name, business_type, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
 
@@ -302,7 +302,7 @@ export default async function PurchasesPage({
         </div>
       )}
 
-      {business.cost_control_enabled && (
+      {(business.cost_control_enabled || business.rich_stock_ops_enabled) && (
         <ReceiveDeliveryNoteForm
           businessId={businessId}
           ingredients={(ingredients ?? []).map((i) => ({ id: i.id, name: i.name, unit: i.unit }))}

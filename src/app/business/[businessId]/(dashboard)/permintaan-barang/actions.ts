@@ -22,10 +22,14 @@ async function requiresItemBudgetApproval(
 ): Promise<string | null> {
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled, procurement_budget_gate_enabled")
+    .select("cost_control_enabled, rich_stock_ops_enabled, procurement_budget_gate_enabled")
     .eq("id", businessId)
     .single();
-  if (!business?.cost_control_enabled || !business?.procurement_budget_gate_enabled) return null;
+  if (
+    !(business?.cost_control_enabled || business?.rich_stock_ops_enabled) ||
+    !business?.procurement_budget_gate_enabled
+  )
+    return null;
 
   const { data: item } = await supabase
     .from("purchase_request_items")
@@ -454,7 +458,7 @@ export async function forwardAllocationsToSupplier(
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled, stock_locations_enabled, po_approval_levels")
+    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, po_approval_levels")
     .eq("id", businessId)
     .single();
 

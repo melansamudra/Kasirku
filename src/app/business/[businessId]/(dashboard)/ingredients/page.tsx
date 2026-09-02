@@ -33,13 +33,15 @@ export default async function IngredientsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
 
   if (!business) {
     notFound();
   }
+
+  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
 
   const { data: ingredients } = await supabase
     .from("ingredients")
@@ -67,7 +69,7 @@ export default async function IngredientsPage({
   // Riwayat penyesuaian stok cuma relevan buat bisnis non-cost-control --
   // Llauk Nusantara dkk kelola stok fisik per lokasi (lihat menu Gudang
   // Utama/Kitchen Atas/dst di sidebar), bukan di sini.
-  const { data: adjustments } = business.cost_control_enabled
+  const { data: adjustments } = costControlEnabled
     ? { data: [] }
     : await supabase
         .from("stock_adjustments")
@@ -135,7 +137,7 @@ export default async function IngredientsPage({
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
                   </div>
-                  {business.cost_control_enabled ? (
+                  {costControlEnabled ? (
                     <p className="text-xs text-zinc-400">
                       Stok fisik dikelola per lokasi — lihat menu Gudang Utama / Kitchen Llauk / dst
                       di sidebar.
@@ -168,7 +170,7 @@ export default async function IngredientsPage({
                   barcode={i.barcode}
                   action={editIngredient.bind(null, businessId, i.id)}
                 />
-                {!business.cost_control_enabled && (
+                {!costControlEnabled && (
                   <AdjustStockForm
                     itemName={i.name}
                     currentStock={Number(i.stock)}
@@ -193,7 +195,7 @@ export default async function IngredientsPage({
 
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan Baku</h2>
-          <AddIngredientForm action={boundAddIngredient} costControlEnabled={business.cost_control_enabled ?? false} />
+          <AddIngredientForm action={boundAddIngredient} costControlEnabled={costControlEnabled} />
         </div>
 
         {adjustments && adjustments.length > 0 && (

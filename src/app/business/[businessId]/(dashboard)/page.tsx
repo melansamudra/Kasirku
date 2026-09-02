@@ -49,13 +49,19 @@ export default async function BusinessDashboardPage({
   // di bawah ini sempat dijalankan sama sekali.
   const { data: businessFlag } = await supabase
     .from("businesses")
-    .select("cost_control_enabled")
+    .select("cost_control_enabled, rich_stock_ops_enabled, hidden_nav_keys")
     .eq("id", businessId)
     .single();
 
-  if (businessFlag?.cost_control_enabled) {
+  if (businessFlag?.cost_control_enabled || businessFlag?.rich_stock_ops_enabled) {
     return <CostControlDashboard businessId={businessId} />;
   }
+
+  // Kasir bisa disembunyikan sementara (mis. bisnis yang belum siap jualan
+  // lewat POS) lewat hidden_nav_keys — kalau begitu, langkah checklist "Buka
+  // Kasir" di bawah ikut disembunyikan juga supaya tidak menagih sesuatu yang
+  // sengaja belum dinyalakan.
+  const posHidden = (businessFlag?.hidden_nav_keys ?? []).includes("pos");
 
   const today = todayStr();
   const monthStart = `${today.slice(0, 7)}-01`;
@@ -132,14 +138,18 @@ export default async function BusinessDashboardPage({
       href: `/business/${businessId}/cashiers`,
       cta: "Tambah Kasir →",
     },
-    {
-      key: "transaction",
-      done: (txCount30d ?? 0) > 0,
-      label: "Buat transaksi pertama",
-      desc: "Coba kasir — buka shift lalu jual 1 item",
-      href: `/business/${businessId}/pos`,
-      cta: "Buka Kasir →",
-    },
+    ...(posHidden
+      ? []
+      : [
+          {
+            key: "transaction",
+            done: (txCount30d ?? 0) > 0,
+            label: "Buat transaksi pertama",
+            desc: "Coba kasir — buka shift lalu jual 1 item",
+            href: `/business/${businessId}/pos`,
+            cta: "Buka Kasir →",
+          },
+        ]),
   ];
   const setupDone = setupSteps.every((s) => s.done);
   const setupFinished = setupSteps.filter((s) => s.done).length;

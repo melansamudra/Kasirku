@@ -211,11 +211,15 @@ export async function addPurchase(
       // supaya HPP selalu mencerminkan harga blended yang benar.
       const { data: business } = await supabase
         .from("businesses")
-        .select("cost_control_enabled, stock_locations_enabled")
+        .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
         .eq("id", businessId)
         .single();
 
-      const useLocationStock = !!(business?.cost_control_enabled || business?.stock_locations_enabled);
+      const useLocationStock = !!(
+        business?.cost_control_enabled ||
+        business?.stock_locations_enabled ||
+        business?.rich_stock_ops_enabled
+      );
       // Adi's (stock_locations_enabled tanpa cost_control_enabled) TETAP
       // menulis ingredients.stock (flat) juga -- checkout_transaction() di
       // database SELALU memotong kolom flat itu berdasarkan product_recipes
@@ -224,8 +228,10 @@ export async function addPurchase(
       // POS). Kalau flat stock berhenti ditulis di sini seperti jalur Llauk,
       // dia cuma akan berkurang (dari checkout) tanpa pernah nambah (dari
       // pembelian) -- merusak alert stok menipis & halaman ingredients yang
-      // sudah dipakai luas.
-      const alsoUpdateFlatStock = !business?.cost_control_enabled;
+      // sudah dipakai luas. rich_stock_ops_enabled (Llauk pasca-konversi)
+      // ikut dikecualikan juga -- flat stock-nya belum di-backfill dari stok
+      // per-lokasi, jangan mulai ditulis setengah-setengah.
+      const alsoUpdateFlatStock = !(business?.cost_control_enabled || business?.rich_stock_ops_enabled);
 
       let newUnitCost: number;
 
@@ -557,12 +563,16 @@ export async function voidPurchase(
 
       const { data: business } = await supabase
         .from("businesses")
-        .select("cost_control_enabled, stock_locations_enabled")
+        .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
         .eq("id", businessId)
         .single();
 
-      const useLocationStock = !!(business?.cost_control_enabled || business?.stock_locations_enabled);
-      const alsoUpdateFlatStock = !business?.cost_control_enabled;
+      const useLocationStock = !!(
+        business?.cost_control_enabled ||
+        business?.stock_locations_enabled ||
+        business?.rich_stock_ops_enabled
+      );
+      const alsoUpdateFlatStock = !(business?.cost_control_enabled || business?.rich_stock_ops_enabled);
 
       let unitCostAfter: number;
 

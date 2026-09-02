@@ -31,7 +31,7 @@ export default async function ProductsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, sell_products_enabled")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled, sell_products_enabled")
     .eq("id", businessId)
     .single();
 
@@ -42,8 +42,9 @@ export default async function ProductsPage({
   // Bisnis cost-control pakai halaman "Kelola Produk" yang jauh lebih
   // sederhana (produk 1:1 ke Bahan Setengah Jadi) -- lihat cost-control-
   // products-page.tsx. Kalau cost-control tapi belum diaktifkan jualannya,
-  // halaman ini memang belum boleh diakses sama sekali.
-  if (business.cost_control_enabled) {
+  // halaman ini memang belum boleh diakses sama sekali. rich_stock_ops_enabled
+  // (Llauk pasca-konversi) ikut kelakuan cost-control di sini juga.
+  if (business.cost_control_enabled || business.rich_stock_ops_enabled) {
     if (!business.sell_products_enabled) notFound();
     return <CostControlProductsPage businessId={businessId} businessName={business.name} />;
   }

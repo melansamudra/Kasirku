@@ -136,14 +136,14 @@ export async function importTransactions(
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled")
+    .select("cost_control_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
   // Bisnis cost-control tidak punya katalog `products` manual -- katalognya
   // "Produk Jadi (HPP)" (finished_products) yang di-mirror ke `products` di
   // sini biar cocok sama nama produk di CSV, sama seperti form Transaksi
   // Manual (lihat sync-finished-products-catalog.ts).
-  if (business?.cost_control_enabled) {
+  if (business?.cost_control_enabled || business?.rich_stock_ops_enabled) {
     await syncFinishedProductsToCatalog(supabase, businessId);
   }
 

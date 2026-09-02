@@ -38,7 +38,7 @@ export default async function TransactionsPage({
   const [{ data: business }, { data: userData }] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, owner_id, mirroring_enabled, cost_control_enabled, stock_locations_enabled")
+      .select("id, name, owner_id, mirroring_enabled, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
       .eq("id", businessId)
       .single(),
     supabase.auth.getUser(),
@@ -48,6 +48,7 @@ export default async function TransactionsPage({
     notFound();
   }
 
+  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
   const isOwner = business.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 
@@ -113,7 +114,7 @@ export default async function TransactionsPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">
-            {business.cost_control_enabled ? "Penjualan" : "Riwayat Transaksi"} — {business.name}
+            {costControlEnabled ? "Penjualan" : "Riwayat Transaksi"} — {business.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
             {isOwner ? `Transaksi tanggal ${new Date(dayStart).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}.` : "Transaksi hari ini."}
@@ -128,7 +129,7 @@ export default async function TransactionsPage({
               importRekapAction={boundImportRekap}
               previewMokaAction={boundPreviewMoka}
               importMokaAction={boundImportMoka}
-              costControlEnabled={business.cost_control_enabled}
+              costControlEnabled={costControlEnabled}
               stockLocationsEnabled={business.stock_locations_enabled}
             />
           )}

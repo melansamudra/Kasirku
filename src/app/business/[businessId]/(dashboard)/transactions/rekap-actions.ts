@@ -90,13 +90,13 @@ export async function importSalesRecap(
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled, stock_locations_enabled")
+    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
   if (!business || !hasStockLocationAccess(business)) {
     return { error: "Impor rekap penjualan belum tersedia untuk bisnis ini.", result: null };
   }
-  const costControlEnabled = business.cost_control_enabled;
+  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
 
   // Bisnis cost-control (Llauk dkk) katalog jualnya adalah `finished_products`
   // (Produk Jadi HPP), bukan `products` -- perlu di-mirror dulu ke `products`

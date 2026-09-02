@@ -18,7 +18,7 @@ export default async function AdminsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled")
     .eq("id", businessId)
     .single();
 
@@ -51,7 +51,7 @@ export default async function AdminsPage({
       isProduction: l.is_production,
       isDefaultPurchase: l.is_default_purchase,
     })),
-    business.cost_control_enabled ? "full" : "simple",
+    business.cost_control_enabled || business.rich_stock_ops_enabled ? "full" : "simple",
   );
 
   const LABEL_BY_KEY = new Map(

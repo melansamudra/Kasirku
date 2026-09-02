@@ -26,11 +26,11 @@ export default async function ProduksiPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, production_scan_slug")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled, production_scan_slug")
     .eq("id", businessId)
     .single();
 
-  if (!business || !business.cost_control_enabled) {
+  if (!business || !(business.cost_control_enabled || business.rich_stock_ops_enabled)) {
     notFound();
   }
 
