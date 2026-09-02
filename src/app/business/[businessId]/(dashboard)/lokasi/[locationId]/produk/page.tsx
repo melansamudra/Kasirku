@@ -79,7 +79,12 @@ export default async function LocationProdukPage({
         </p>
       ) : (products ?? []).length > 0 ? (
         <div className="mt-6 space-y-2">
-          {(products ?? []).map((p) => (
+          {(products ?? []).map((p) => {
+            const price = Number(p.price);
+            const cost = Number(p.cost);
+            const margin = price - cost;
+            const marginPct = price > 0 ? (margin / price) * 100 : 0;
+            return (
             <div
               key={p.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
@@ -92,8 +97,11 @@ export default async function LocationProdukPage({
                 <p className="text-xs text-zinc-500">{p.category || "Tanpa kategori"}</p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold text-zinc-900">{formatRupiah(Number(p.price))}</p>
-                <p className="text-[11px] text-zinc-400">HPP {formatRupiah(Number(p.cost))}</p>
+                <p className="text-sm font-semibold text-zinc-900">{formatRupiah(price)}</p>
+                <p className="text-[11px] text-zinc-400">HPP {formatRupiah(cost)}</p>
+                <p className={`text-[11px] font-medium ${margin >= 0 ? "text-brand-600" : "text-red-600"}`}>
+                  Margin {formatRupiah(margin)} ({marginPct.toFixed(1)}%)
+                </p>
               </div>
               <Link
                 href={`/business/${businessId}/products/${p.id}/recipe`}
@@ -102,7 +110,8 @@ export default async function LocationProdukPage({
                 Resep / HPP →
               </Link>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="mt-6 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">

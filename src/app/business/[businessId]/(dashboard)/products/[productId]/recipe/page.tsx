@@ -42,13 +42,22 @@ export default async function ProductRecipePage({
 
   const boundAddRecipeItem = addRecipeItem.bind(null, businessId, productId);
 
+  const price = Number(product.price);
+  const cost = Number(product.cost);
+  const margin = price - cost;
+  const marginPct = price > 0 ? (margin / price) * 100 : 0;
+
   return (
     <div className="w-full max-w-2xl">
         <h1 className="text-lg font-bold text-zinc-900">Resep — {product.name}</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Harga jual {formatRupiah(Number(product.price))} · HPP saat ini{" "}
-          <span className="font-semibold text-zinc-700">
-            {formatRupiah(Number(product.cost))}
+          Harga jual {formatRupiah(price)} · HPP saat ini{" "}
+          <span className="font-semibold text-zinc-700">{formatRupiah(cost)}</span>
+        </p>
+        <p className="mt-1 text-sm">
+          Margin{" "}
+          <span className={`font-semibold ${margin >= 0 ? "text-brand-600" : "text-red-600"}`}>
+            {formatRupiah(margin)} ({marginPct.toFixed(1)}%)
           </span>
         </p>
 
