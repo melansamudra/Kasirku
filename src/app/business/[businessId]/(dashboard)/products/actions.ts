@@ -344,6 +344,31 @@ export async function adjustProductStock(
   return { error: null };
 }
 
+// Divisi produk (dapur/bar/front) -- dipakai halaman "Data Produk" per
+// lokasi (Kitchen/Bar) buat filter mana yang jadi tanggung jawab divisi itu.
+// Pola sama persis updateIngredientDepartment di ingredients/actions.ts.
+export async function updateProductDepartment(
+  businessId: string,
+  productId: string,
+  department: string,
+): Promise<{ error: string | null }> {
+  if (department && !["dapur", "bar", "front"].includes(department)) {
+    return { error: "Departemen tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ department: department || null })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/products`);
+  return { error: null };
+}
+
 export async function toggleFeatured(businessId: string, productId: string, featured: boolean) {
   const supabase = await createClient();
   await supabase

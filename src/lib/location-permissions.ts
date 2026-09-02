@@ -1,4 +1,5 @@
 import type { PermissionGroup } from "./permissions";
+import { departmentForLocationName } from "./product-department";
 
 // Kelola Admin (permissions.ts/PERMISSION_GROUPS) itu daftar TETAP, tapi
 // menu per-lokasi cost-control (Dapur Produksi/Purchasing) dibuat otomatis
@@ -40,6 +41,9 @@ function buildSimpleLocationPermissionGroups(locations: LocationForPermissions[]
     title: `Lokasi — ${loc.name}`,
     items: [
       { key: `lokasi-${loc.id}-bahan-baku`, label: `Bahan Baku — ${loc.name}` },
+      ...(departmentForLocationName(loc.name)
+        ? [{ key: `lokasi-${loc.id}-produk`, label: `Data Produk — ${loc.name}` }]
+        : []),
       { key: `lokasi-${loc.id}-kartu-stok`, label: `Kartu Stok — ${loc.name}` },
       { key: `lokasi-${loc.id}-stock-opname`, label: `Stok Opname — ${loc.name}` },
     ],

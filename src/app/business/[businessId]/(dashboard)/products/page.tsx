@@ -8,6 +8,7 @@ import {
   adjustProductStock,
   editProduct,
   importProducts,
+  updateProductDepartment,
 } from "./actions";
 import AddProductForm from "./add-product-form";
 import AddVariantForm from "./add-variant-form";
@@ -18,6 +19,7 @@ import EditProductForm from "./edit-product-form";
 import FeaturedToggle from "./featured-toggle";
 import ImportProductsForm from "./import-products-form";
 import CostControlProductsPage from "./cost-control-products-page";
+import ProductDepartmentSelect from "./department-select";
 
 export default async function ProductsPage({
   params,
@@ -48,7 +50,7 @@ export default async function ProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode, sku, variant_label, image_url, featured")
+    .select("id, name, category, price, cost, stock, min_stock, emoji, barcode, sku, variant_label, image_url, featured, department")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -259,6 +261,7 @@ type ProductRowData = {
   variant_label: string | null;
   image_url: string | null;
   featured: boolean | null;
+  department: string | null;
 };
 
 function ProductRow({
@@ -284,9 +287,14 @@ function ProductRow({
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-zinc-900">
-          {showName ? p.name : p.variant_label || "Varian"}
-        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="truncate text-sm font-medium text-zinc-900">
+            {showName ? p.name : p.variant_label || "Varian"}
+          </p>
+          {showName && (
+            <ProductDepartmentSelect productId={p.id} department={p.department} action={updateProductDepartment.bind(null, businessId)} />
+          )}
+        </div>
         <p className="text-xs text-zinc-500">
           {showName && `${p.category || "Tanpa kategori"} · `}Stok {p.stock}
           {Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock) && (

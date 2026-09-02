@@ -52,6 +52,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
+import { departmentForLocationName } from "@/lib/product-department";
 
 // `key` is a stable identifier independent of href/label — it's what gets
 // stored in business_staff.permissions, so renaming a label or moving a
@@ -351,6 +352,9 @@ function buildSimpleLocationNavGroups(
     title: loc.name,
     items: [
       { key: `lokasi-${loc.id}-bahan-baku`, href: `${base}/lokasi/${loc.id}/bahan-baku`, label: "Bahan Baku", icon: Beaker },
+      ...(departmentForLocationName(loc.name)
+        ? [{ key: `lokasi-${loc.id}-produk`, href: `${base}/lokasi/${loc.id}/produk`, label: "Data Produk", icon: Package }]
+        : []),
       { key: "purchase-requests", href: `${base}/permintaan-barang?lokasi=${loc.id}`, label: "Permintaan Barang", icon: ShoppingCart },
       { key: `lokasi-${loc.id}-kartu-stok`, href: `${base}/lokasi/${loc.id}/kartu-stok`, label: "Kartu Stok", icon: CreditCard },
       { key: `lokasi-${loc.id}-stock-opname`, href: `${base}/lokasi/${loc.id}/stock-opname`, label: "Stok Opname", icon: ClipboardList },

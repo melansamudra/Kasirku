@@ -1922,6 +1922,7 @@ export type Database = {
           show_in_self_order: boolean | null;
           sort_order: number | null;
           semi_finished_item_id: string | null;
+          department: string | null;
         };
         Insert: {
           id?: string;
@@ -1944,6 +1945,7 @@ export type Database = {
           show_in_self_order?: boolean | null;
           sort_order?: number | null;
           semi_finished_item_id?: string | null;
+          department?: string | null;
         };
         Update: {
           id?: string;
@@ -1966,6 +1968,43 @@ export type Database = {
           show_in_self_order?: boolean | null;
           sort_order?: number | null;
           semi_finished_item_id?: string | null;
+          department?: string | null;
+        };
+        Relationships: [];
+      };
+      product_import_staging: {
+        Row: {
+          id: string;
+          business_id: string;
+          item_name: string;
+          ingredient_id: string;
+          qty_per_batch: number;
+          unit: string;
+          batch_yield: number;
+          source_file: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          item_name: string;
+          ingredient_id: string;
+          qty_per_batch: number;
+          unit: string;
+          batch_yield: number;
+          source_file?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          item_name?: string;
+          ingredient_id?: string;
+          qty_per_batch?: number;
+          unit?: string;
+          batch_yield?: number;
+          source_file?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
