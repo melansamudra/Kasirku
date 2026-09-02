@@ -445,12 +445,21 @@ export default async function PermintaanBarangPage({
       )}
 
       <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">
-          {filterLocationId ? `Link Order Barang — ${activeLocationName}` : "Link Order Barang"}
-        </h2>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="text-sm font-semibold text-zinc-900">
+            {filterLocationId ? `Link Order Barang — ${activeLocationName}` : "Link Order Barang"}
+          </h2>
+          <Link
+            href={`/business/${businessId}/permintaan-barang/buat`}
+            className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+          >
+            + Buat Permintaan Barang
+          </Link>
+        </div>
         {!filterLocationId && (
           <p className="mt-1 text-xs text-zinc-500">
-            Bagikan link ini ke staf dapur/bar/front supaya bisa kirim order tanpa login.
+            Bagikan link ini ke staf dapur/bar/front supaya bisa kirim order tanpa login — atau kalau
+            sudah login, langsung pakai tombol &quot;+ Buat Permintaan Barang&quot; di atas.
           </p>
         )}
         <div className="mt-3">
