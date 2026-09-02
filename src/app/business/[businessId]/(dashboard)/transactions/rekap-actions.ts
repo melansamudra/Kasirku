@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseCsv } from "@/lib/csv";
 import { logActivity } from "@/lib/activity-log";
 import { syncFinishedProductsToCatalog } from "@/lib/cost-control/sync-finished-products-catalog";
+import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 // Sama pola dengan parseFileToRows di products/actions.ts -- terima .xlsx
 // (file Excel beneran, tidak kena masalah "list separator" regional Windows
@@ -89,14 +90,23 @@ export async function importSalesRecap(
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled")
+    .select("cost_control_enabled, stock_locations_enabled")
     .eq("id", businessId)
     .single();
-  if (!business?.cost_control_enabled) {
-    return { error: "Impor rekap penjualan cuma tersedia untuk bisnis cost-control.", result: null };
+  if (!business || !hasStockLocationAccess(business)) {
+    return { error: "Impor rekap penjualan belum tersedia untuk bisnis ini.", result: null };
   }
+  const costControlEnabled = business.cost_control_enabled;
 
-  await syncFinishedProductsToCatalog(supabase, businessId);
+  // Bisnis cost-control (Llauk dkk) katalog jualnya adalah `finished_products`
+  // (Produk Jadi HPP), bukan `products` -- perlu di-mirror dulu ke `products`
+  // supaya create_manual_transaction (yang cuma paham `products`) bisa
+  // dipakai. Bisnis stok-lite (mis. Adi's) TIDAK punya lapisan finished_products
+  // sama sekali -- `products` memang sudah jadi katalog jualnya langsung,
+  // jadi tidak perlu sync apa-apa.
+  if (costControlEnabled) {
+    await syncFinishedProductsToCatalog(supabase, businessId);
+  }
 
   const parsed = await parseFileToRows(file);
   if ("error" in parsed) return { error: parsed.error, result: null };
@@ -152,12 +162,11 @@ export async function importSalesRecap(
     });
   }
 
-  // Menu yang belum ada di Produk Jadi (HPP) -- kalau baris itu bawa
-  // Kategori & Harga, buat Produk Jadi baru sekalian (arahan user: "benerin
-  // produk dan kategori sekaligus harganya") alih-alih cuma dilewati kayak
-  // sebelumnya. Tanpa resep (finished_product_recipes) -- HPP-nya nol
-  // sampai resepnya diisi manual nanti, sama seperti nambah Produk Jadi
-  // baru lewat form biasa.
+  // Menu yang belum ada di katalog -- kalau baris itu bawa Kategori &
+  // Harga, buat produk baru sekalian (arahan user: "benerin produk dan
+  // kategori sekaligus harganya") alih-alih cuma dilewati kayak sebelumnya.
+  // Tanpa resep -- HPP-nya nol sampai resepnya diisi manual nanti, sama
+  // seperti nambah produk baru lewat form biasa.
   const missingByName = new Map<string, ParsedRow>();
   for (const r of parsedRows) {
     const key = r.menuName.toLowerCase();
@@ -166,36 +175,54 @@ export async function importSalesRecap(
     }
   }
 
+  const catalogLabel = costControlEnabled ? "Produk Jadi (HPP)" : "Kelola Produk";
   const createdProducts: string[] = [];
-  const toInsert: { business_id: string; name: string; category: string | null; selling_price: number }[] = [];
+  const toCreate: { name: string; category: string; price: number }[] = [];
   for (const r of missingByName.values()) {
     if (!r.kategori || !(r.harga > 0)) {
       skipped.push(
-        `Baris ${r.line}: menu "${r.menuName}" belum ada di Produk Jadi (HPP), dan Kategori/Harga di baris ini kosong -- tidak bisa dibuat otomatis.`,
+        `Baris ${r.line}: menu "${r.menuName}" belum ada di ${catalogLabel}, dan Kategori/Harga di baris ini kosong -- tidak bisa dibuat otomatis.`,
       );
       continue;
     }
-    toInsert.push({ business_id: businessId, name: r.menuName, category: r.kategori, selling_price: r.harga });
+    toCreate.push({ name: r.menuName, category: r.kategori, price: r.harga });
   }
 
-  if (toInsert.length > 0) {
-    const { error: insertErr } = await supabase.from("finished_products").insert(toInsert);
-    if (insertErr) {
-      return { error: `Gagal membuat Produk Jadi baru: ${insertErr.message}`, result: null };
+  if (toCreate.length > 0) {
+    if (costControlEnabled) {
+      const { error: insertErr } = await supabase.from("finished_products").insert(
+        toCreate.map((p) => ({ business_id: businessId, name: p.name, category: p.category, selling_price: p.price })),
+      );
+      if (insertErr) {
+        return { error: `Gagal membuat Produk Jadi baru: ${insertErr.message}`, result: null };
+      }
+      // Sync ulang supaya produk yang baru dibuat ikut ter-mirror ke
+      // `products` sebelum dicocokkan lagi di bawah.
+      await syncFinishedProductsToCatalog(supabase, businessId);
+      const { data: refreshedProducts } = await supabase
+        .from("products")
+        .select("id, name")
+        .eq("business_id", businessId)
+        .is("deleted_at", null);
+      productIdByName.clear();
+      for (const p of refreshedProducts ?? []) {
+        productIdByName.set(p.name.trim().toLowerCase(), p.id);
+      }
+    } else {
+      // Bisnis stok-lite: `products` sendiri sudah jadi katalog jualnya --
+      // insert langsung, tidak ada lapisan finished_products buat di-sync.
+      const { data: created, error: insertErr } = await supabase
+        .from("products")
+        .insert(toCreate.map((p) => ({ business_id: businessId, name: p.name, category: p.category, price: p.price, cost: 0 })))
+        .select("id, name");
+      if (insertErr) {
+        return { error: `Gagal membuat produk baru: ${insertErr.message}`, result: null };
+      }
+      for (const p of created ?? []) {
+        productIdByName.set(p.name.trim().toLowerCase(), p.id);
+      }
     }
-    createdProducts.push(...toInsert.map((p) => p.name));
-    // Sync ulang supaya produk yang baru dibuat ikut ter-mirror ke
-    // `products` sebelum dicocokkan lagi di bawah.
-    await syncFinishedProductsToCatalog(supabase, businessId);
-    const { data: refreshedProducts } = await supabase
-      .from("products")
-      .select("id, name")
-      .eq("business_id", businessId)
-      .is("deleted_at", null);
-    productIdByName.clear();
-    for (const p of refreshedProducts ?? []) {
-      productIdByName.set(p.name.trim().toLowerCase(), p.id);
-    }
+    createdProducts.push(...toCreate.map((p) => p.name));
   }
 
   // Grup per Tanggal -- 1 transaksi per tanggal berbeda (banyak item di
@@ -205,7 +232,7 @@ export async function importSalesRecap(
     const productId = productIdByName.get(r.menuName.toLowerCase());
     if (!productId) {
       if (!skipped.some((s) => s.includes(`"${r.menuName}"`))) {
-        skipped.push(`Baris ${r.line}: menu "${r.menuName}" tidak ditemukan di Produk Jadi (HPP)`);
+        skipped.push(`Baris ${r.line}: menu "${r.menuName}" tidak ditemukan di ${catalogLabel}`);
       }
       continue;
     }
@@ -261,7 +288,7 @@ export async function importSalesRecap(
   );
 
   if (createdProducts.length > 0) {
-    revalidatePath(`/business/${businessId}/finished-products`);
+    revalidatePath(costControlEnabled ? `/business/${businessId}/finished-products` : `/business/${businessId}/products`);
     revalidatePath(`/business/${businessId}/transactions/new`);
   }
   revalidatePath(`/business/${businessId}/transactions`);

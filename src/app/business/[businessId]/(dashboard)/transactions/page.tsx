@@ -38,7 +38,7 @@ export default async function TransactionsPage({
   const [{ data: business }, { data: userData }] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, owner_id, mirroring_enabled, cost_control_enabled")
+      .select("id, name, owner_id, mirroring_enabled, cost_control_enabled, stock_locations_enabled")
       .eq("id", businessId)
       .single(),
     supabase.auth.getUser(),
@@ -129,6 +129,7 @@ export default async function TransactionsPage({
               previewMokaAction={boundPreviewMoka}
               importMokaAction={boundImportMoka}
               costControlEnabled={business.cost_control_enabled}
+              stockLocationsEnabled={business.stock_locations_enabled}
             />
           )}
         </div>

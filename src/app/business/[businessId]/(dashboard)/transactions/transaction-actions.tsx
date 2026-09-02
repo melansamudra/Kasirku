@@ -19,6 +19,7 @@ export function TransactionActions({
   previewMokaAction,
   importMokaAction,
   costControlEnabled = false,
+  stockLocationsEnabled = false,
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
@@ -26,7 +27,9 @@ export function TransactionActions({
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
   importMokaAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
   costControlEnabled?: boolean;
+  stockLocationsEnabled?: boolean;
 }) {
+  const canImportRekap = costControlEnabled || stockLocationsEnabled;
   const [importOpen, setImportOpen] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
@@ -57,9 +60,10 @@ export function TransactionActions({
         </button>
         {/* Rekap periode (mis. laporan bulanan dari POS lain kayak ESB) --
             beda dari "Impor CSV" yang butuh Referensi+Tanggal per baris,
-            ini cuma "Menu, Qty" digabung jadi 1 transaksi. Khusus
-            cost-control karena cocokkan ke Produk Jadi (HPP). */}
-        {costControlEnabled && (
+            ini cuma "Menu, Qty" digabung jadi 1 transaksi. Cocokkan ke
+            Produk Jadi (HPP) untuk bisnis cost-control, atau ke Kelola
+            Produk biasa untuk bisnis stok-lite (stock_locations_enabled). */}
+        {canImportRekap && (
           <button
             type="button"
             onClick={() => setRecapOpen(true)}
@@ -173,10 +177,13 @@ export function TransactionActions({
               <strong>Tanggal, Menu, Kategori, Harga, Qty</strong>. Tanggal per baris boleh
               dikosongkan (jatuh ke Tanggal Default di form) — kalau sumbernya cuma total sebulan
               (mis. rekap ESB) tanpa breakdown harian, kosongkan semua Tanggal. Baris dengan
-              Tanggal sama digabung jadi 1 transaksi. Menu yang <strong>sudah ada</strong> di
-              Produk Jadi (HPP) langsung dipakai (Kategori/Harga di baris itu diabaikan). Menu yang{" "}
-              <strong>belum ada</strong> otomatis dibuat sebagai Produk Jadi baru pakai Kategori &amp;
-              Harga dari baris itu — jadi kedua kolom itu wajib diisi buat menu yang belum ada.
+              Tanggal sama digabung jadi 1 transaksi. Menu yang <strong>sudah ada</strong> di{" "}
+              {costControlEnabled ? "Produk Jadi (HPP)" : "Kelola Produk"} langsung dipakai
+              (Kategori/Harga di baris itu diabaikan) — stok bahan bakunya ikut terpotong otomatis
+              kalau resepnya sudah diisi. Menu yang <strong>belum ada</strong> otomatis dibuat
+              sebagai {costControlEnabled ? "Produk Jadi" : "produk"} baru pakai Kategori &amp; Harga
+              dari baris itu (HPP-nya nol sampai resepnya diisi manual) — jadi kedua kolom itu wajib
+              diisi buat menu yang belum ada.
             </p>
             <a
               href="/template-rekap-penjualan"
