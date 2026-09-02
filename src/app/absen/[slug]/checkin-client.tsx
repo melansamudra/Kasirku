@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type Employee = { id: string; name: string; divisi: string | null };
 type CheckinResult = { ok: boolean; message?: string; error?: string; onBreak?: boolean };
 type LocationStatus = "pending" | "ok" | "denied" | "unsupported";
+type AttendanceStatus = { checkedIn: boolean; checkedOut: boolean; onBreak: boolean };
 const NO_DIVISI = "Lainnya";
 
 // Foto langsung dari kamera HP bisa beberapa MB — di jaringan outlet yang
@@ -56,7 +57,8 @@ export default function CheckinClient({
   const [compressing, setCompressing] = useState(false);
   const [pending, setPending] = useState<"in" | "out" | "break-start" | "break-end" | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
-  const [onBreak, setOnBreak] = useState(false);
+  const [status, setStatus] = useState<AttendanceStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [breakResult, setBreakResult] = useState<CheckinResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -93,6 +95,39 @@ export default function CheckinClient({
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
   }, []);
+
+  // Status (sudah absen masuk/pulang, lagi istirahat atau tidak) SELALU
+  // ditanya ulang ke server tiap kali nama dipilih/halaman dibuka -- bukan
+  // cuma diingat di memori browser. Sebelumnya "lagi istirahat" cuma
+  // state lokal yang di-update setelah aksi berhasil DI SESI ITU, jadi kalau
+  // halaman di-refresh pas lagi istirahat, tombol "Selesai Istirahat" salah
+  // kelihatan nonaktif walau server tahu dia masih istirahat.
+  async function fetchStatus(id: string) {
+    setStatusLoading(true);
+    try {
+      const res = await fetch(`/api/attendance-checkin?slug=${encodeURIComponent(slug)}&employeeId=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (data.ok) {
+        setStatus({ checkedIn: !!data.checkedIn, checkedOut: !!data.checkedOut, onBreak: !!data.onBreak });
+      } else {
+        setStatus(null);
+      }
+    } catch {
+      setStatus(null);
+    } finally {
+      setStatusLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!employeeId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus(null);
+      return;
+    }
+    fetchStatus(employeeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -137,7 +172,10 @@ export default function CheckinClient({
       const res = await fetch("/api/attendance-checkin", { method: "POST", body: formData });
       const data = (await res.json()) as CheckinResult;
       setResult(data);
-      if (data.ok) resetPhoto();
+      if (data.ok) {
+        resetPhoto();
+        fetchStatus(employeeId);
+      }
     } catch {
       setResult({ ok: false, error: "Gagal mengirim — cek koneksi internet lalu coba lagi." });
     } finally {
@@ -167,7 +205,7 @@ export default function CheckinClient({
       const res = await fetch("/api/attendance-checkin", { method: "POST", body: formData });
       const data = (await res.json()) as CheckinResult;
       setBreakResult(data);
-      if (data.ok && typeof data.onBreak === "boolean") setOnBreak(data.onBreak);
+      if (data.ok) fetchStatus(employeeId);
     } catch {
       setBreakResult({ ok: false, error: "Gagal mengirim — cek koneksi internet lalu coba lagi." });
     } finally {
@@ -304,14 +342,14 @@ export default function CheckinClient({
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           onClick={() => handleSubmit("in")}
-          disabled={pending !== null || compressing}
+          disabled={pending !== null || compressing || statusLoading || !!status?.checkedIn}
           className="rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending === "in" ? "Mengirim…" : "Absen Masuk"}
         </button>
         <button
           onClick={() => handleSubmit("out")}
-          disabled={pending !== null || compressing}
+          disabled={pending !== null || compressing || statusLoading || !status?.checkedIn || !!status?.checkedOut}
           className="rounded-xl bg-zinc-800 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending === "out" ? "Mengirim…" : "Absen Pulang"}
@@ -321,19 +359,26 @@ export default function CheckinClient({
       {breakEnabled && (
         <div className="mt-3">
           <p className="mb-1.5 text-center text-[11px] font-medium text-zinc-400">
-            {onBreak ? "🟡 Sedang istirahat" : "Istirahat"}
+            {status?.onBreak ? "🟡 Sedang istirahat" : "Istirahat"}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => handleBreakAction("break-start")}
-              disabled={pending !== null || compressing || onBreak}
+              disabled={
+                pending !== null ||
+                compressing ||
+                statusLoading ||
+                !!status?.onBreak ||
+                !status?.checkedIn ||
+                !!status?.checkedOut
+              }
               className="rounded-xl border border-amber-300 bg-amber-50 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending === "break-start" ? "Mengirim…" : "Mulai Istirahat"}
             </button>
             <button
               onClick={() => handleBreakAction("break-end")}
-              disabled={pending !== null || compressing || !onBreak}
+              disabled={pending !== null || compressing || statusLoading || !status?.onBreak}
               className="rounded-xl border border-zinc-300 bg-white py-2 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending === "break-end" ? "Mengirim…" : "Selesai Istirahat"}

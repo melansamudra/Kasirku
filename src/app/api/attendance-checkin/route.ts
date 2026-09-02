@@ -15,6 +15,16 @@ function todayWib() {
   return new Date().toLocaleDateString("en-CA", { timeZone: REPORT_TIMEZONE });
 }
 
+// Aritmatika murni di atas string YYYY-MM-DD (bukan geser Date "now" yang
+// terikat timezone server) -- dipakai untuk cari record H-1 saat shift lewat
+// tengah malam.
+function addDaysToDateString(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
 function nowWibMinutesOfDay() {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: REPORT_TIMEZONE,
@@ -38,6 +48,100 @@ function nowWibTimeLabel() {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date());
+}
+
+type AttendanceRow = {
+  id: string;
+  date: string;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  shift_template_id: string | null;
+  break_start_at: string | null;
+  break_end_at: string | null;
+};
+
+// Sumber logic TUNGGAL buat "record attendance mana yang lagi relevan buat
+// karyawan ini sekarang" -- dipakai POST (proses absen) DAN GET (cek status
+// buat UI) supaya keduanya tidak pernah punya pemahaman "tanggal" yang beda
+// lagi seperti bug sebelumnya. Shift sore yang jam pulangnya lewat tengah
+// malam bikin absen-masuknya tersimpan di tanggal KEMARIN dari sudut pandang
+// jam dinding saat ini -- makanya selalu cek 2 hari (hari ini + kemarin),
+// bukan cuma hari ini.
+async function loadAttendanceContext(
+  supabase: ReturnType<typeof createServiceClient>,
+  businessId: string,
+  employeeId: string,
+) {
+  const date = todayWib();
+  const previousDate = addDaysToDateString(date, -1);
+
+  const { data: attendanceRows } = await supabase
+    .from("attendance")
+    .select("id, date, check_in_at, check_out_at, shift_template_id, break_start_at, break_end_at")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId)
+    .in("date", [date, previousDate]);
+
+  const rows = (attendanceRows ?? []) as AttendanceRow[];
+  const todayRow = rows.find((r) => r.date === date) ?? null;
+  const previousRow = rows.find((r) => r.date === previousDate) ?? null;
+  const previousOpenRow =
+    previousRow && previousRow.check_in_at && !previousRow.check_out_at ? previousRow : null;
+  const todayIsOpen = !!(todayRow?.check_in_at && !todayRow?.check_out_at);
+  // Shift yang MASIH TERBUKA buat dipasangkan absen-pulang/istirahat --
+  // entah itu baris hari ini, atau baris kemarin yang belum ditutup.
+  const openRow = todayIsOpen ? todayRow : (previousOpenRow ?? todayRow);
+
+  return { date, previousDate, todayRow, previousRow, previousOpenRow, todayIsOpen, openRow };
+}
+
+// Dipakai halaman /absen buat sinkronkan status tombol (Absen Masuk/Pulang,
+// Mulai/Selesai Istirahat) ke server SETIAP kali nama dipilih atau halaman
+// dibuka ulang -- sebelumnya status "lagi istirahat" cuma diingat di memori
+// browser selama sesi itu, jadi kalau halaman di-refresh pas lagi istirahat,
+// tombol "Selesai Istirahat" salah kelihatan nonaktif walau server tahu dia
+// masih istirahat.
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const slug = url.searchParams.get("slug");
+  const employeeId = url.searchParams.get("employeeId");
+
+  if (!slug || !employeeId) {
+    return Response.json({ ok: false, error: "Data tidak lengkap." }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("attendance_qr_slug", slug)
+    .maybeSingle();
+  if (!business) {
+    return Response.json({ ok: false, error: "Link absen tidak valid." }, { status: 404 });
+  }
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("id", employeeId)
+    .eq("business_id", business.id)
+    .eq("active", true)
+    .maybeSingle();
+  if (!employee) {
+    return Response.json({ ok: false, error: "Karyawan tidak ditemukan/tidak aktif." }, { status: 404 });
+  }
+
+  const { openRow } = await loadAttendanceContext(supabase, business.id, employeeId);
+
+  return Response.json({
+    ok: true,
+    checkedIn: !!openRow?.check_in_at,
+    checkInAt: openRow?.check_in_at ?? null,
+    checkedOut: !!openRow?.check_out_at,
+    checkOutAt: openRow?.check_out_at ?? null,
+    onBreak: !!(openRow?.break_start_at && !openRow?.break_end_at),
+  });
 }
 
 export async function POST(request: Request) {
@@ -85,16 +189,12 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: "Fitur absen istirahat belum aktif untuk bisnis ini." }, { status: 403 });
   }
 
-  const date = todayWib();
-
-  // employee/existing-attendance/shift-assignment cuma butuh business.id —
-  // tidak saling bergantung, jadi ditembak bareng lewat Promise.all daripada
-  // 3 round-trip berurutan (ini penyumbang terbesar lambatnya submit absen
-  // di jaringan outlet yang kurang stabil). Upload foto SENGAJA tidak
-  // ditaruh di sini juga — baru dijalankan setelah validasi employee/
-  // sudah-absen lolos, supaya tap dobel/percobaan tidak valid tidak buang
-  // waktu+kuota upload foto yang ujung-ujungnya dibuang.
-  const [{ data: employee }, { data: existing }, { data: assignment }] = await Promise.all([
+  // employee cuma butuh business.id, tidak bergantung ke attendance context
+  // -- ditembak bareng lewat Promise.all. Upload foto SENGAJA tidak ditaruh
+  // di sini juga — baru dijalankan setelah validasi employee/sudah-absen
+  // lolos, supaya tap dobel/percobaan tidak valid tidak buang waktu+kuota
+  // upload foto yang ujung-ujungnya dibuang.
+  const [{ data: employee }, { date, previousDate, todayRow, openRow }] = await Promise.all([
     supabase
       .from("employees")
       .select("id, name")
@@ -102,25 +202,47 @@ export async function POST(request: Request) {
       .eq("business_id", business.id)
       .eq("active", true)
       .maybeSingle(),
-    supabase
-      .from("attendance")
-      .select("id, check_in_at, check_out_at, shift_template_id, break_start_at, break_end_at")
-      .eq("business_id", business.id)
-      .eq("employee_id", employeeId)
-      .eq("date", date)
-      .maybeSingle(),
-    supabase
-      .from("employee_shift_assignments")
-      .select("shift_template_id, shift_templates(start_time, end_time)")
-      .eq("business_id", business.id)
-      .eq("employee_id", employeeId)
-      .eq("date", date)
-      .maybeSingle(),
+    loadAttendanceContext(supabase, business.id, employeeId),
   ]);
 
   if (!employee) {
     return Response.json({ ok: false, error: "Karyawan tidak ditemukan/tidak aktif." }, { status: 404 });
   }
+
+  // "Sudah absen masuk hari ini?" HARUS murni lihat baris hari ini (todayRow)
+  // -- tapi absen pulang/istirahat harus dipasangkan ke shift yang MASIH
+  // TERBUKA (openRow), entah itu baris hari ini atau baris kemarin yang
+  // belum ditutup.
+  const existing = action === "in" ? todayRow : openRow;
+
+  // Jadwal shift buat absen MASUK selalu dicari dari jadwal HARI INI (benar
+  // seperti semula). Buat PULANG/istirahat, shift-nya diambil dari
+  // shift_template_id yang sudah tersimpan di baris `existing` saat absen
+  // masuk tadi (bisa jadi jadwal kemarin) -- bukan query ulang berdasarkan
+  // tanggal hari ini yang salah untuk kasus lewat tengah malam.
+  const assignment =
+    action === "in"
+      ? (
+          await supabase
+            .from("employee_shift_assignments")
+            .select("shift_template_id, shift_templates(start_time, end_time)")
+            .eq("business_id", business.id)
+            .eq("employee_id", employeeId)
+            .eq("date", date)
+            .maybeSingle()
+        ).data
+      : existing?.shift_template_id
+        ? {
+            shift_template_id: existing.shift_template_id,
+            shift_templates: (
+              await supabase
+                .from("shift_templates")
+                .select("start_time, end_time")
+                .eq("id", existing.shift_template_id)
+                .maybeSingle()
+            ).data,
+          }
+        : null;
 
   if (action === "in" && existing?.check_in_at) {
     return Response.json({
@@ -236,7 +358,12 @@ export async function POST(request: Request) {
   }
 
   // action === "out"
-  const nowMinutes = nowWibMinutesOfDay();
+  // Kalau shift-nya dari KEMARIN (lewat tengah malam), jam sekarang (yang
+  // dihitung sebagai menit-sejak-tengah-malam-HARI-INI) harus ditambah 24 jam
+  // dulu supaya perbandingan ke jadwal jam pulang (mis. 23:00) tidak salah
+  // jadi negatif/0 -- tanpa ini, lembur shift malam selalu dianggap 0.
+  const crossedMidnight = existing?.date === previousDate;
+  const nowMinutes = nowWibMinutesOfDay() + (crossedMidnight ? 24 * 60 : 0);
   const overtimeHours = shift
     ? Math.max(0, Math.round(((nowMinutes - timeStrToMinutes(shift.end_time)) / 60) * 100) / 100)
     : 0;
