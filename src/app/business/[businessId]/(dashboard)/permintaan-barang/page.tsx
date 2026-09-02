@@ -450,7 +450,7 @@ export default async function PermintaanBarangPage({
             {filterLocationId ? `Link Order Barang — ${activeLocationName}` : "Link Order Barang"}
           </h2>
           <Link
-            href={`/business/${businessId}/permintaan-barang/buat`}
+            href={`/business/${businessId}/permintaan-barang/buat${filterLocationId ? `?lokasi=${filterLocationId}` : ""}`}
             className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
           >
             + Buat Permintaan Barang

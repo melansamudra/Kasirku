@@ -29,10 +29,13 @@ type PurchaseRequestInfo = {
 // dashboard-nya — link publik yang sudah ada TETAP jalan berdampingan, bukan diganti.
 export default async function BuatPermintaanBarangPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ lokasi?: string }>;
 }) {
   const { businessId } = await params;
+  const { lokasi } = await searchParams;
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -60,6 +63,7 @@ export default async function BuatPermintaanBarangPage({
   }
 
   const info = data as unknown as PurchaseRequestInfo;
+  const lockedLocation = lokasi ? (info.stock_locations ?? []).find((l) => l.id === lokasi) : undefined;
 
   return (
     <div className="w-full max-w-md">
@@ -85,7 +89,7 @@ export default async function BuatPermintaanBarangPage({
             purchaseUnits: i.purchase_units ?? [],
           }))}
           stockLocations={info.stock_locations ?? []}
-          lockedLocation={null}
+          lockedLocation={lockedLocation ? { id: lockedLocation.id, name: lockedLocation.name } : null}
         />
       </div>
     </div>

@@ -32,11 +32,14 @@ export type LocationForPermissions = {
 // checklist-nya kosong. Mode "simple" generate grup rata per lokasi, key-nya
 // HARUS SAMA PERSIS dengan buildSimpleLocationNavGroups di dashboard-shell.tsx.
 function buildSimpleLocationPermissionGroups(locations: LocationForPermissions[]): PermissionGroup[] {
+  // Akses "Permintaan Barang" per lokasi dikontrol lewat key global
+  // "purchase-requests" yang sudah ada di PERMISSION_GROUPS (permissions.ts)
+  // -- bukan key per-lokasi baru -- karena link di sini cuma versi terfilter
+  // dari halaman yang sama, bukan fitur terpisah.
   return locations.map((loc) => ({
     title: `Lokasi — ${loc.name}`,
     items: [
       { key: `lokasi-${loc.id}-bahan-baku`, label: `Bahan Baku — ${loc.name}` },
-      { key: `lokasi-${loc.id}-transfer`, label: `Transfer Internal — ${loc.name}` },
       { key: `lokasi-${loc.id}-kartu-stok`, label: `Kartu Stok — ${loc.name}` },
       { key: `lokasi-${loc.id}-stock-opname`, label: `Stok Opname — ${loc.name}` },
     ],

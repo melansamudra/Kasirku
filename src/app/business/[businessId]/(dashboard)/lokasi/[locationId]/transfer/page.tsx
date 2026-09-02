@@ -4,8 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import RequestLinksBox from "./request-links-box";
 import FulfillForm from "./fulfill-form";
 import OwnRequestLinkBox from "./own-link-box";
-import SimpleTransferForm from "./simple-transfer-form";
-import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("id-ID", {
@@ -28,10 +26,10 @@ export default async function LocationTransferPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled, location_transfer_slug")
+    .select("id, name, cost_control_enabled, location_transfer_slug")
     .eq("id", businessId)
     .single();
-  if (!business || !hasStockLocationAccess(business)) {
+  if (!business || !business.cost_control_enabled) {
     notFound();
   }
 
@@ -43,72 +41,6 @@ export default async function LocationTransferPage({
     .maybeSingle();
   if (!location) {
     notFound();
-  }
-
-  // Bisnis stok-lite (mis. Adi's Culinary): SEMUA lokasi setara (Kitchen,
-  // Bar, Gudang Utama), tidak ada konsep "1 lokasi is_production = pengirim
-  // tunggal" seperti Llauk -- render form transfer peer-to-peer baru,
-  // JANGAN masuk ke logic Llauk di bawah (is_production, Portal-PIN, tabel
-  // location_transfers) sama sekali.
-  if (!business.cost_control_enabled) {
-    const [{ data: otherLocations }, { data: ingredientRows }, { data: recentAdjustments }] = await Promise.all([
-      supabase.from("stock_locations").select("id, name").eq("business_id", businessId).neq("id", locationId).order("sort_order"),
-      supabase.from("ingredients").select("id, name, unit").eq("business_id", businessId).is("deleted_at", null).order("name"),
-      supabase
-        .from("stock_adjustments")
-        .select("id, item_name, unit, diff, reason, created_at")
-        .eq("business_id", businessId)
-        .eq("location_id", locationId)
-        .ilike("reason", "Transfer %")
-        .order("created_at", { ascending: false })
-        .limit(30),
-    ]);
-
-    return (
-      <div className="w-full max-w-2xl">
-        <Link
-          href={`/business/${businessId}/lokasi/${locationId}/bahan-baku`}
-          className="text-xs text-zinc-400 hover:text-brand-600"
-        >
-          ← {location.name}
-        </Link>
-        <h1 className="mt-2 text-lg font-bold text-zinc-900">Transfer Internal — {location.name}</h1>
-        <p className="mt-1 text-sm text-zinc-500">Pindahkan stok bahan baku antar lokasi.</p>
-
-        <SimpleTransferForm
-          businessId={businessId}
-          locationId={locationId}
-          otherLocations={otherLocations ?? []}
-          ingredients={ingredientRows ?? []}
-        />
-
-        <div className="mt-6">
-          <h2 className="mb-2 text-sm font-bold text-zinc-900">Riwayat Transfer</h2>
-          {recentAdjustments && recentAdjustments.length > 0 ? (
-            <div className="space-y-2">
-              {recentAdjustments.map((a) => (
-                <div key={a.id} className="rounded-xl bg-white shadow-sm px-4 py-3 text-xs">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-zinc-800">{a.item_name}</p>
-                    <p className={Number(a.diff) > 0 ? "font-semibold text-brand-600" : "font-semibold text-red-500"}>
-                      {Number(a.diff) > 0 ? "+" : ""}
-                      {a.diff} {a.unit}
-                    </p>
-                  </div>
-                  <p className="text-zinc-500">
-                    {a.reason} · {new Date(a.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-              Belum ada transfer di lokasi ini.
-            </p>
-          )}
-        </div>
-      </div>
-    );
   }
 
   // Lokasi non-produksi (Kitchen Atas/Bar Llauk) -- ini sisi PEMINTA,

@@ -351,7 +351,7 @@ function buildSimpleLocationNavGroups(
     title: loc.name,
     items: [
       { key: `lokasi-${loc.id}-bahan-baku`, href: `${base}/lokasi/${loc.id}/bahan-baku`, label: "Bahan Baku", icon: Beaker },
-      { key: `lokasi-${loc.id}-transfer`, href: `${base}/lokasi/${loc.id}/transfer`, label: "Transfer Internal", icon: ArrowLeftRight },
+      { key: "purchase-requests", href: `${base}/permintaan-barang?lokasi=${loc.id}`, label: "Permintaan Barang", icon: ShoppingCart },
       { key: `lokasi-${loc.id}-kartu-stok`, href: `${base}/lokasi/${loc.id}/kartu-stok`, label: "Kartu Stok", icon: CreditCard },
       { key: `lokasi-${loc.id}-stock-opname`, href: `${base}/lokasi/${loc.id}/stock-opname`, label: "Stok Opname", icon: ClipboardList },
     ],
