@@ -372,18 +372,11 @@ function buildNavGroups(
   stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
   sellProductsEnabled = false,
   stockLocationsEnabled = false,
-  richStockOpsEnabled = false,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
 
-  // richStockOpsEnabled (Llauk pasca-konversi ke tampilan Kasirku standar)
-  // TETAP pakai struktur nav cost-control apa adanya (Produksi, BSJ per
-  // lokasi, Biaya, Dokumen Manual, dst semua utuh) -- yang beda cuma header
-  // (lihat SidebarContent, sudah otomatis ikut costControlEnabled) dan
-  // canAccessPos (sudah otomatis ke-unblock, tapi tetap disembunyikan lewat
-  // hidden_nav_keys=['pos'] sampai diminta buka).
-  if (costControlEnabled || richStockOpsEnabled) {
+  if (costControlEnabled) {
     const costControlGroups = buildCostControlNavGroups(base, mirroringEnabled, stockLocations, sellProductsEnabled);
     if (isStarter) {
       return costControlGroups
@@ -873,7 +866,6 @@ export default function DashboardShell({
   stockLocations = [],
   sellProductsEnabled = false,
   stockLocationsEnabled = false,
-  richStockOpsEnabled = false,
   hiddenNavKeys = [],
   children,
 }: {
@@ -892,7 +884,6 @@ export default function DashboardShell({
   stockLocations?: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[];
   sellProductsEnabled?: boolean;
   stockLocationsEnabled?: boolean;
-  richStockOpsEnabled?: boolean;
   hiddenNavKeys?: string[];
   children: React.ReactNode;
 }) {
@@ -946,7 +937,6 @@ export default function DashboardShell({
       stockLocations,
       sellProductsEnabled,
       stockLocationsEnabled,
-      richStockOpsEnabled,
     ),
     hiddenNavKeys,
   );

@@ -86,7 +86,6 @@ export default async function BusinessDashboardLayout({
       mirroringEnabled={business.mirroring_enabled ?? false}
       costControlEnabled={business.cost_control_enabled ?? false}
       stockLocationsEnabled={business.stock_locations_enabled ?? false}
-      richStockOpsEnabled={business.rich_stock_ops_enabled ?? false}
       sellProductsEnabled={business.sell_products_enabled ?? false}
       hiddenNavKeys={business.hidden_nav_keys ?? []}
       stockLocations={stockLocations ?? []}

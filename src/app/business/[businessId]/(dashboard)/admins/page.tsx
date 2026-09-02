@@ -51,7 +51,7 @@ export default async function AdminsPage({
       isProduction: l.is_production,
       isDefaultPurchase: l.is_default_purchase,
     })),
-    business.cost_control_enabled || business.rich_stock_ops_enabled ? "full" : "simple",
+    business.cost_control_enabled ? "full" : "simple",
   );
 
   const LABEL_BY_KEY = new Map(

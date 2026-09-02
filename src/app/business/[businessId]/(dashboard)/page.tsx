@@ -53,7 +53,7 @@ export default async function BusinessDashboardPage({
     .eq("id", businessId)
     .single();
 
-  if (businessFlag?.cost_control_enabled || businessFlag?.rich_stock_ops_enabled) {
+  if (businessFlag?.cost_control_enabled) {
     return <CostControlDashboard businessId={businessId} />;
   }
 

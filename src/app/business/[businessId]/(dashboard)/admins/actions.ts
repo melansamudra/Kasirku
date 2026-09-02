@@ -32,7 +32,7 @@ async function loadLocationPermissionKeys(
       isProduction: l.is_production,
       isDefaultPurchase: l.is_default_purchase,
     })),
-    business?.cost_control_enabled || business?.rich_stock_ops_enabled ? "full" : "simple",
+    business?.cost_control_enabled ? "full" : "simple",
   );
   return new Set(groups.flatMap((g) => g.items.map((i) => i.key)));
 }
