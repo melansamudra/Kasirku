@@ -48,7 +48,9 @@ export default async function TransactionsPage({
     notFound();
   }
 
-  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
+  // rich_stock_ops_enabled (Llauk pasca-konversi) SENGAJA TIDAK ikut di sini --
+  // katalog produk & label transaksi sekarang mode standar (sama kaya Adi's).
+  const costControlEnabled = business.cost_control_enabled ?? false;
   const isOwner = business.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 

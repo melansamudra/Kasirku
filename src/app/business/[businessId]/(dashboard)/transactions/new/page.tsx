@@ -22,7 +22,11 @@ export default async function NewManualTransactionPage({
     notFound();
   }
 
-  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
+  // rich_stock_ops_enabled (Llauk pasca-konversi) SENGAJA TIDAK ikut di sini --
+  // katalog jualnya sekarang `products` biasa (sama kaya Adi's), bukan lagi
+  // mirror dari `finished_products` -- kalau ikut, sync ini bakal terus
+  // membuat ulang produk yang sudah dihapus user tiap halaman ini dibuka.
+  const costControlEnabled = business.cost_control_enabled ?? false;
 
   if (costControlEnabled) {
     await syncFinishedProductsToCatalog(supabase, businessId);

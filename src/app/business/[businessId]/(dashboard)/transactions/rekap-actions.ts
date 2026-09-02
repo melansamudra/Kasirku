@@ -96,7 +96,11 @@ export async function importSalesRecap(
   if (!business || !hasStockLocationAccess(business)) {
     return { error: "Impor rekap penjualan belum tersedia untuk bisnis ini.", result: null };
   }
-  const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
+  // rich_stock_ops_enabled (Llauk pasca-konversi) SENGAJA TIDAK ikut di sini --
+  // katalognya sekarang `products` biasa (sama kaya Adi's), bukan lagi mirror
+  // dari `finished_products` -- kalau ikut, sync ini bakal terus membuat
+  // ulang produk yang sudah dihapus user tiap kali impor rekap dijalankan.
+  const costControlEnabled = business.cost_control_enabled ?? false;
 
   // Bisnis cost-control (Llauk dkk) katalog jualnya adalah `finished_products`
   // (Produk Jadi HPP), bukan `products` -- perlu di-mirror dulu ke `products`

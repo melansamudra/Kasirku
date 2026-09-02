@@ -142,8 +142,10 @@ export async function importTransactions(
   // Bisnis cost-control tidak punya katalog `products` manual -- katalognya
   // "Produk Jadi (HPP)" (finished_products) yang di-mirror ke `products` di
   // sini biar cocok sama nama produk di CSV, sama seperti form Transaksi
-  // Manual (lihat sync-finished-products-catalog.ts).
-  if (business?.cost_control_enabled || business?.rich_stock_ops_enabled) {
+  // Manual (lihat sync-finished-products-catalog.ts). rich_stock_ops_enabled
+  // (Llauk pasca-konversi) SENGAJA TIDAK ikut -- katalognya sekarang
+  // `products` biasa, sync ini justru bikin data yang sudah dihapus balik lagi.
+  if (business?.cost_control_enabled) {
     await syncFinishedProductsToCatalog(supabase, businessId);
   }
 
