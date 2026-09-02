@@ -43,6 +43,7 @@ type DayData = {
   pengeluaranTunai: number;
   pengeluaranTransfer: number;
   hutangDibayar: number;
+  estimasiGaji: number;
 };
 
 function emptyDay(): DayData {
@@ -58,7 +59,19 @@ function emptyDay(): DayData {
     pengeluaranTunai: 0,
     pengeluaranTransfer: 0,
     hutangDibayar: 0,
+    estimasiGaji: 0,
   };
+}
+
+// Perkiraan gaji per hari kalender -- BUKAN angka final Slip Gaji (yang
+// hitung "hari kerja efektif" per periode gajian & bisa dikurangi potongan
+// izin/telat, ditambah lembur). Di sini sengaja pakai jumlah hari kalender
+// di bulan itu sebagai pembagi gaji bulanan -- lebih sederhana & tidak
+// tergantung periode gajian mana yang dipilih Owner nanti, cukup buat
+// gambaran kasar biaya tenaga kerja harian.
+function daysInMonth(dateStr: string): number {
+  const [y, m] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
 // Kode akun pendapatan non-penjualan yang direct dari "Catat Kas Masuk" di
@@ -90,7 +103,7 @@ export default async function ReportsHarianPage({
     ? new Date(new Date(toIsoExclusive).getTime() - 1).toISOString().slice(0, 10)
     : null;
 
-  const [txRows, { data: ojolAccounts }, kasBank, allPurchases, allPayments] =
+  const [txRows, { data: ojolAccounts }, kasBank, allPurchases, allPayments, { data: employees }, attendanceRows] =
     await Promise.all([
       // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
       // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts)
@@ -140,6 +153,24 @@ export default async function ReportsHarianPage({
           .eq("business_id", businessId)
           .order("date")
           .range(rangeFrom, rangeTo);
+        if (purchasesUpperBound) q = q.lte("date", purchasesUpperBound);
+        return q;
+      }),
+      supabase
+        .from("employees")
+        .select("id, salary_type, daily_rate, monthly_rate, daily_meal_allowance, daily_attendance_allowance")
+        .eq("business_id", businessId),
+      // Estimasi Gaji Harian -- cuma butuh baris status "hadir" (izin/sakit/
+      // alpa/off tidak masuk hitungan di sini, beda dari Slip Gaji beneran
+      // yang tetap bayar penuh buat sakit & izin berketerangan).
+      fetchAllRows<{ employee_id: string; date: string }>((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("attendance")
+          .select("employee_id, date")
+          .eq("business_id", businessId)
+          .eq("status", "hadir")
+          .range(rangeFrom, rangeTo);
+        if (fromIso) q = q.gte("date", fromIso.slice(0, 10));
         if (purchasesUpperBound) q = q.lte("date", purchasesUpperBound);
         return q;
       }),
@@ -240,6 +271,15 @@ export default async function ReportsHarianPage({
       e.pengeluaranTunai += Number(l.credit);
     }
   }
+  const employeeById = new Map((employees ?? []).map((emp) => [emp.id, emp]));
+  for (const r of attendanceRows) {
+    const emp = employeeById.get(r.employee_id);
+    if (!emp) continue;
+    const dailyEquivalent =
+      emp.salary_type === "bulanan" ? Number(emp.monthly_rate) / daysInMonth(r.date) : Number(emp.daily_rate);
+    ensure(r.date).estimasiGaji +=
+      dailyEquivalent + Number(emp.daily_meal_allowance ?? 0) + Number(emp.daily_attendance_allowance ?? 0);
+  }
   // `from`/`to` (searchParams mentah) cuma keisi kalau period === "custom" --
   // untuk Hari Ini/7 Hari/Bulan Ini/Semua dulu selalu undefined, jadi filter
   // ini dulu no-op dan histori pembayaran hutang dari awal waktu ikut
@@ -303,12 +343,13 @@ export default async function ReportsHarianPage({
       totalPengeluaran: acc.totalPengeluaran + d.totalPengeluaran,
       hutangDibayar: acc.hutangDibayar + d.hutangDibayar,
       labaBersih: acc.labaBersih + d.labaBersih,
+      estimasiGaji: acc.estimasiGaji + d.estimasiGaji,
     }),
     {
       count: 0, diskon: 0, service: 0, tax: 0,
       pendapatanPenjualan: 0, pendapatanGofood: 0, pendapatanGrabfood: 0, pendapatanLain: 0, totalPendapatan: 0,
       pengeluaranTunai: 0, pengeluaranTransfer: 0, totalPengeluaran: 0,
-      hutangDibayar: 0, labaBersih: 0,
+      hutangDibayar: 0, labaBersih: 0, estimasiGaji: 0,
     },
   );
   const totalsPersenBeban = totals.totalPendapatan > 0 ? Math.round((totals.totalPengeluaran / totals.totalPendapatan) * 100) : 0;
@@ -328,6 +369,7 @@ export default async function ReportsHarianPage({
   const hasGrabfood = dayList.some((d) => d.pendapatanGrabfood > 0);
   const hasPendapatanLain = dayList.some((d) => d.pendapatanLain > 0);
   const hasHutang = allPurchases.length > 0;
+  const hasEstimasiGaji = dayList.some((d) => d.estimasiGaji > 0);
   const basePath = `/business/${businessId}/reports/harian`;
   const highlightLabel =
     period === "custom" && from && to
@@ -398,6 +440,18 @@ export default async function ReportsHarianPage({
             </div>
           )}
 
+          {hasEstimasiGaji && (
+            <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 print:hidden">
+              <p className="text-[10px] font-semibold uppercase text-zinc-500">Estimasi Gaji ({highlightLabel})</p>
+              <p className="text-xl font-bold text-zinc-700">{fmt(totals.estimasiGaji)}</p>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                Perkiraan kasar dari absensi × rate harian karyawan — bukan angka final{" "}
+                <Link href={`/business/${businessId}/payroll`} className="underline">Slip Gaji</Link>, dan tidak
+                mengurangi Laba Bersih di atas.
+              </p>
+            </div>
+          )}
+
           <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white print:overflow-visible print:rounded-none print:border-0">
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full text-sm print:text-[9px]">
@@ -419,6 +473,7 @@ export default async function ReportsHarianPage({
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">% Beban</th>
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Hutang Dibayar</th>}
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Sisa Hutang</th>}
+                    {hasEstimasiGaji && <th className="px-3 py-3 text-right print:px-1 print:py-1">Estimasi Gaji</th>}
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Laba Bersih</th>
                   </tr>
                 </thead>
@@ -441,6 +496,7 @@ export default async function ReportsHarianPage({
                       <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.persenBeban}%</td>
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.hutangDibayar > 0 ? fmt(d.hutangDibayar) : <span className="text-zinc-300">—</span>}</td>}
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{fmt(d.sisaHutang)}</td>}
+                      {hasEstimasiGaji && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.estimasiGaji > 0 ? fmt(d.estimasiGaji) : <span className="text-zinc-300">—</span>}</td>}
                       <td className={`px-3 py-2.5 text-right text-xs font-bold print:px-1 print:py-0.5 ${d.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(d.labaBersih)}</td>
                     </tr>
                   ))}
@@ -463,6 +519,7 @@ export default async function ReportsHarianPage({
                     <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totalsPersenBeban}%</td>
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.hutangDibayar)}</td>}
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(sisaHutangTerakhir)}</td>}
+                    {hasEstimasiGaji && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(totals.estimasiGaji)}</td>}
                     <td className={`px-3 py-3 text-right text-sm font-bold print:px-1 print:py-1 print:text-[9px] ${totals.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(totals.labaBersih)}</td>
                   </tr>
                 </tfoot>
@@ -476,6 +533,15 @@ export default async function ReportsHarianPage({
             {" "}(sudah dikecualikan void/pending/ditolak/transfer antar rekening). Pendapatan Gofood/Grabfood/Lain-lain
             diinput lewat &quot;Catat Kas Masuk&quot; di Kas &amp; Bank, pilih akun 4-003 — Pendapatan Gofood, 4-004 —
             Pendapatan Grabfood, atau 4-999 — Pendapatan Lain-lain sesuai sumbernya.
+            {hasEstimasiGaji && (
+              <>
+                {" "}Kolom &quot;Estimasi Gaji&quot; = rate harian karyawan yang absen Hadir hari itu (gaji bulanan
+                dibagi jumlah hari kalender bulan tersebut) — perkiraan kasar, BELUM termasuk lembur/potongan
+                izin-telat, dan sengaja TIDAK dihitung ke Total Pengeluaran/Laba Bersih di atas karena gaji
+                sungguhan baru tercatat sebagai pengeluaran saat benar dibayarkan lewat{" "}
+                <Link href={`/business/${businessId}/payroll`} className="text-brand-600 hover:underline">Payroll</Link>.
+              </>
+            )}
           </p>
         </>
       )}
