@@ -119,13 +119,27 @@ export default async function ReportsHarianPage({
       fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive),
       // Sama seperti transactions -- purchases/purchase_payments bisa nembus
       // 1000 baris juga di bisnis yang sudah lama jalan, jadi wajib fetchAllRows.
-      fetchAllRows<{ date: string; amount: number }>((rangeFrom, rangeTo) => {
-        let q = supabase.from("purchases").select("date, amount").eq("business_id", businessId).order("date").range(rangeFrom, rangeTo);
+      // Pembelian yang sudah dibatalkan (voided) dikecualikan -- sama seperti
+      // halaman Pembelian & Hutang -- supaya "Sisa Hutang" di sini tidak ikut
+      // menghitung utang yang sudah tidak berlaku lagi.
+      fetchAllRows<{ id: string; date: string; amount: number }>((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("purchases")
+          .select("id, date, amount")
+          .eq("business_id", businessId)
+          .eq("voided", false)
+          .order("date")
+          .range(rangeFrom, rangeTo);
         if (purchasesUpperBound) q = q.lte("date", purchasesUpperBound);
         return q;
       }),
-      fetchAllRows<{ date: string; amount: number }>((rangeFrom, rangeTo) => {
-        let q = supabase.from("purchase_payments").select("date, amount").eq("business_id", businessId).order("date").range(rangeFrom, rangeTo);
+      fetchAllRows<{ date: string; amount: number; purchase_id: string }>((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("purchase_payments")
+          .select("date, amount, purchase_id")
+          .eq("business_id", businessId)
+          .order("date")
+          .range(rangeFrom, rangeTo);
         if (purchasesUpperBound) q = q.lte("date", purchasesUpperBound);
         return q;
       }),
@@ -232,8 +246,16 @@ export default async function ReportsHarianPage({
   // kebucket ke dayMap walau periode yang dipilih cuma 1 hari. Pakai
   // fromIso/purchasesUpperBound (sudah dihitung benar untuk semua jenis
   // periode) supaya konsisten.
+  // Pembayaran milik pembelian yang sudah dibatalkan (voided) ikut
+  // dikecualikan -- allPurchases sudah cuma berisi pembelian yang masih
+  // berlaku (lihat query di atas), jadi cross-reference lewat purchase_id
+  // supaya "Hutang Dibayar"/"Sisa Hutang" tidak ikut menghitung pelunasan
+  // dari pembelian yang sudah tidak ada lagi.
+  const validPurchaseIds = new Set(allPurchases.map((p) => p.id));
+  const validPayments = allPayments.filter((p) => validPurchaseIds.has(p.purchase_id));
+
   const hutangDibayarLowerBound = fromIso ? fromIso.slice(0, 10) : null;
-  for (const p of allPayments) {
+  for (const p of validPayments) {
     if (hutangDibayarLowerBound && p.date < hutangDibayarLowerBound) continue;
     if (purchasesUpperBound && p.date > purchasesUpperBound) continue;
     ensure(p.date).hutangDibayar += Number(p.amount);
@@ -243,7 +265,7 @@ export default async function ReportsHarianPage({
     const totalPurchases = allPurchases
       .filter((p) => p.date <= dateKey)
       .reduce((s, p) => s + Number(p.amount), 0);
-    const totalPaid = allPayments
+    const totalPaid = validPayments
       .filter((p) => p.date <= dateKey)
       .reduce((s, p) => s + Number(p.amount), 0);
     return totalPurchases - totalPaid;
