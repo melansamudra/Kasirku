@@ -43,8 +43,11 @@ export default async function ProductsPage({
   // sederhana (produk 1:1 ke Bahan Setengah Jadi) -- lihat cost-control-
   // products-page.tsx. Kalau cost-control tapi belum diaktifkan jualannya,
   // halaman ini memang belum boleh diakses sama sekali. rich_stock_ops_enabled
-  // (Llauk pasca-konversi) ikut kelakuan cost-control di sini juga.
-  if (business.cost_control_enabled || business.rich_stock_ops_enabled) {
+  // (Llauk pasca-konversi) SENGAJA TIDAK ikut cabang ini -- sidebar/halaman
+  // Llauk sekarang pakai jalur standar sama seperti Adi's (lihat dashboard-
+  // shell.tsx), jadi "Kelola Produk" juga harus halaman standar, bukan
+  // CostControlProductsPage yang mensyaratkan sell_products_enabled.
+  if (business.cost_control_enabled) {
     if (!business.sell_products_enabled) notFound();
     return <CostControlProductsPage businessId={businessId} businessName={business.name} />;
   }
