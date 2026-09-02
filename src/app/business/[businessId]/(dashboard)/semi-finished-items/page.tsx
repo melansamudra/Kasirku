@@ -28,7 +28,7 @@ export default async function SemiFinishedItemsPage({
   const [{ data: items }, { data: ingredients }] = await Promise.all([
     supabase
       .from("semi_finished_items")
-      .select("id, name, unit, stock, min_stock, category")
+      .select("id, name, unit, min_stock, category, ingredient_id")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
@@ -40,6 +40,15 @@ export default async function SemiFinishedItemsPage({
       .order("name", { ascending: true }),
   ]);
 
+  // Stok "asli" BSJ = stok kembarannya di Bahan Baku (lihat migration
+  // 20260903010000) -- itu yang benar-benar dipotong checkout & ditambah
+  // lewat fitur Produksi, bukan kolom semi_finished_items.stock (lama).
+  const mirrorIngredientIds = (items ?? []).map((i) => i.ingredient_id).filter((id): id is string => !!id);
+  const { data: mirrorStockRows } = mirrorIngredientIds.length
+    ? await supabase.from("ingredients").select("id, stock").in("id", mirrorIngredientIds)
+    : { data: [] as { id: string; stock: number }[] };
+  const mirrorStockById = new Map((mirrorStockRows ?? []).map((r) => [r.id, Number(r.stock)]));
+
   const costs = await computeAllSemiFinishedItemCosts(supabase, businessId);
   const boundAddItem = addSemiFinishedItem.bind(null, businessId);
 
@@ -49,7 +58,7 @@ export default async function SemiFinishedItemsPage({
       id: item.id,
       name: item.name,
       unit: item.unit,
-      stock: item.stock,
+      stock: item.ingredient_id ? (mirrorStockById.get(item.ingredient_id) ?? 0) : 0,
       minStock: item.min_stock,
       category: item.category,
       unitCost: cost?.unitCost ?? 0,
@@ -91,7 +100,7 @@ export default async function SemiFinishedItemsPage({
       </div>
 
       <div className="mt-6">
-        <SemiFinishedItemsList businessId={businessId} items={rows} showAdjustStock={!business.cost_control_enabled} />
+        <SemiFinishedItemsList businessId={businessId} items={rows} />
       </div>
     </div>
   );

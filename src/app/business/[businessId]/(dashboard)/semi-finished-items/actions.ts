@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { wouldCreateCycle } from "@/lib/cost-control/compute-cost";
+import { getCurrentActor } from "@/lib/current-actor";
+import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 
 export type ActionState = { error: string | null };
 
@@ -15,81 +17,6 @@ export type ActionState = { error: string | null };
 // tidak perlu di sini -- item ini baru dibuat, belum mungkin ada resep lain
 // yang menunjuk balik ke dia.
 type RecipeRowInput = { component: string; qty: number };
-
-export type AdjustStockResult = { error: string | null };
-
-// Adjust stok BSJ manual -- dicontoh dari adjustIngredientStock di
-// ingredients/actions.ts. Sengaja HANYA dipakai bisnis stok-lite (mis. Adi's
-// Culinary, !cost_control_enabled) yang tidak pakai halaman Produksi --
-// lihat page.tsx, kontrolnya cuma dirender untuk bisnis itu supaya tidak ada
-// 2 jalur tulis stok yang tidak sinkron untuk bisnis yang sudah pakai
-// Produksi (Llauk).
-export async function adjustSemiFinishedItemStock(
-  businessId: string,
-  itemId: string,
-  newStock: number,
-  reason: string,
-): Promise<AdjustStockResult> {
-  if (Number.isNaN(newStock) || newStock < 0) {
-    return { error: "Stok fisik harus angka dan tidak boleh negatif." };
-  }
-  reason = reason.trim();
-  if (!reason) {
-    return { error: "Alasan penyesuaian wajib diisi." };
-  }
-
-  const supabase = await createClient();
-
-  const { data: item } = await supabase
-    .from("semi_finished_items")
-    .select("id, name, unit, stock")
-    .eq("id", itemId)
-    .eq("business_id", businessId)
-    .single();
-
-  if (!item) {
-    return { error: "Bahan setengah jadi tidak ditemukan." };
-  }
-
-  const stockBefore = Number(item.stock);
-  const diff = newStock - stockBefore;
-
-  if (diff === 0) {
-    return { error: "Stok fisik sama dengan stok sistem, tidak ada yang disesuaikan." };
-  }
-
-  const { error: updateError } = await supabase
-    .from("semi_finished_items")
-    .update({ stock: newStock })
-    .eq("id", itemId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  await supabase.from("stock_adjustments").insert({
-    business_id: businessId,
-    semi_finished_item_id: itemId,
-    item_name: item.name,
-    unit: item.unit,
-    stock_before: stockBefore,
-    stock_after: newStock,
-    diff,
-    reason,
-  });
-
-  await logActivity(
-    supabase,
-    businessId,
-    "produk",
-    "warning",
-    `Penyesuaian stok BSJ: ${item.name}`,
-    `${stockBefore} → ${newStock} ${item.unit} (${diff > 0 ? "+" : ""}${diff}) · ${reason}`,
-  );
-  revalidatePath(`/business/${businessId}/semi-finished-items`);
-  revalidatePath(`/business/${businessId}/semi-finished-items/${itemId}`);
-  return { error: null };
-}
 
 export async function addSemiFinishedItem(
   businessId: string,
@@ -156,6 +83,39 @@ export async function addSemiFinishedItem(
     return { error: error?.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : (error?.message ?? "Gagal menyimpan.") };
   }
 
+  // Kembaran di Bahan Baku -- inilah yang sebenarnya dipakai resep produk &
+  // checkout (lihat migration 20260903010000). Stok kembaran ini cuma
+  // nambah lewat fitur Produksi, bukan diketik manual. HANYA relevan untuk
+  // bisnis stok-lite (mis. Adi's Culinary, !cost_control_enabled) yang
+  // memang checkout lewat POS pakai product_recipes -- bisnis cost-control
+  // (Llauk dkk) sudah punya jalur sendiri (finished_product_recipes) dan
+  // tidak checkout lewat POS sama sekali, jadi kembaran ini cuma akan jadi
+  // baris kosong yang mengotori daftar Bahan Baku mereka kalau ikut dibuat.
+  const { data: businessForMirror } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled")
+    .eq("id", businessId)
+    .single();
+
+  if (!businessForMirror?.cost_control_enabled) {
+    const { data: mirrorIngredient } = await supabase
+      .from("ingredients")
+      .insert({
+        business_id: businessId,
+        name,
+        unit,
+        unit_cost: 0,
+        stock: 0,
+        min_stock: minStock,
+      })
+      .select("id")
+      .single();
+
+    if (mirrorIngredient) {
+      await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredient.id }).eq("id", newItem.id);
+    }
+  }
+
   for (const row of recipeRows) {
     const [componentType, componentId] = row.component.split(":");
     const table = componentType === "ingredient" ? "ingredients" : "semi_finished_items";
@@ -210,6 +170,13 @@ export async function updateSemiFinishedItem(
   }
 
   const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("semi_finished_items")
+    .select("ingredient_id")
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("semi_finished_items")
     .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct, barcode, category })
@@ -218,6 +185,13 @@ export async function updateSemiFinishedItem(
 
   if (error) {
     return { error: error.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : error.message };
+  }
+
+  // Sinkronkan nama/unit ke kembaran di Bahan Baku supaya tidak beda nama
+  // antara halaman BSJ dan halaman Bahan Baku (stok/unit_cost kembaran TIDAK
+  // disentuh di sini -- itu murni domain fitur Produksi).
+  if (existing?.ingredient_id) {
+    await supabase.from("ingredients").update({ name, unit, min_stock: minStock }).eq("id", existing.ingredient_id);
   }
 
   await logActivity(supabase, businessId, "produk", "info", `Bahan setengah jadi diubah: ${name}`);
@@ -408,4 +382,224 @@ export async function removeRecipeComponent(businessId: string, semiFinishedItem
   revalidatePath(`/business/${businessId}/semi-finished-items/${semiFinishedItemId}`);
   revalidatePath(`/business/${businessId}/semi-finished-items`);
   revalidatePath(`/business/${businessId}/finished-products`);
+}
+
+export type ProduceResult = { error: string | null };
+
+// Produksi BSJ: potong bahan mentah di 1 lokasi sesuai resep tersimpan,
+// tambah stok kembaran BSJ (di ingredients) di lokasi yang sama, hitung
+// ulang unit_cost kembaran dari total biaya bahan yang terpakai (weighted
+// average, pola sama persis addPurchase di purchases/actions.ts). Baris
+// resep yang menunjuk BSJ lain (component_type='semi_finished') di-resolve
+// ke KEMBARAN ingredient milik BSJ itu -- jadi BSJ bersarang dikonsumsi dari
+// stok BSJ-nya sendiri yang sudah jadi, bukan diurai ulang jadi bahan mentah
+// aslinya lagi (sama seperti dapur nyata: pakai Kaldu Ayam yang sudah ada,
+// bukan masak ulang dari Ayam+Air tiap kali).
+export async function produceSemiFinishedItem(
+  businessId: string,
+  semiFinishedItemId: string,
+  locationId: string,
+  qtyProduced: number,
+): Promise<ProduceResult> {
+  if (!(qtyProduced > 0)) {
+    return { error: "Jumlah produksi harus lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+
+  const [{ data: business }, { data: item }, { data: location }] = await Promise.all([
+    supabase.from("businesses").select("cost_control_enabled, stock_locations_enabled").eq("id", businessId).single(),
+    supabase
+      .from("semi_finished_items")
+      .select("id, name, unit, ingredient_id")
+      .eq("id", semiFinishedItemId)
+      .eq("business_id", businessId)
+      .maybeSingle(),
+    supabase.from("stock_locations").select("id, name").eq("id", locationId).eq("business_id", businessId).maybeSingle(),
+  ]);
+
+  // Khusus bisnis stok-lite -- bisnis cost-control (Llauk dkk) sudah punya
+  // fitur Produksi sendiri (halaman /produksi, production_runs) yang
+  // langsung ke semi_finished_item_location_stock, tidak lewat kembaran
+  // ingredient ini sama sekali.
+  if (!business || business.cost_control_enabled || !business.stock_locations_enabled) {
+    return { error: "Fitur Produksi ini tidak tersedia untuk bisnis ini." };
+  }
+  if (!item) return { error: "Bahan setengah jadi tidak ditemukan." };
+  if (!item.ingredient_id) {
+    return { error: "BSJ ini belum punya bahan baku terhubung — buka & simpan ulang datanya dulu." };
+  }
+  if (!location) return { error: "Lokasi tidak ditemukan." };
+
+  const { data: recipeRows } = await supabase
+    .from("semi_finished_recipes")
+    .select("ingredient_id, component_semi_finished_id, component_type, qty")
+    .eq("business_id", businessId)
+    .eq("semi_finished_item_id", semiFinishedItemId);
+
+  if (!recipeRows || recipeRows.length === 0) {
+    return { error: "Resep BSJ ini masih kosong — isi dulu di bagian Resep sebelum produksi." };
+  }
+
+  // Resolve tiap baris resep ke ingredientId nyata (BSJ komponen -> kembarannya).
+  const nestedSemiIds = recipeRows
+    .filter((r) => r.component_type === "semi_finished" && r.component_semi_finished_id)
+    .map((r) => r.component_semi_finished_id as string);
+  const { data: nestedItems } = nestedSemiIds.length
+    ? await supabase.from("semi_finished_items").select("id, name, ingredient_id").in("id", nestedSemiIds)
+    : { data: [] as { id: string; name: string; ingredient_id: string | null }[] };
+  const nestedById = new Map((nestedItems ?? []).map((n) => [n.id, n]));
+
+  const neededByIngredient = new Map<string, number>();
+  for (const row of recipeRows) {
+    let resolvedIngredientId: string | null = null;
+    if (row.component_type === "ingredient") {
+      resolvedIngredientId = row.ingredient_id;
+    } else {
+      const nested = nestedById.get(row.component_semi_finished_id ?? "");
+      if (!nested?.ingredient_id) {
+        return {
+          error: `Komponen "${nested?.name ?? "BSJ lain"}" di resep ini belum punya bahan baku terhubung — buka & simpan ulang datanya dulu.`,
+        };
+      }
+      resolvedIngredientId = nested.ingredient_id;
+    }
+    if (!resolvedIngredientId) continue;
+    const qtyNeeded = Number(row.qty) * qtyProduced;
+    neededByIngredient.set(resolvedIngredientId, (neededByIngredient.get(resolvedIngredientId) ?? 0) + qtyNeeded);
+  }
+
+  const consumedIds = [...neededByIngredient.keys()];
+  const [{ data: consumedIngredients }, { data: consumedLocStock }] = await Promise.all([
+    supabase.from("ingredients").select("id, name, unit, unit_cost, stock").in("id", consumedIds),
+    supabase
+      .from("ingredient_location_stock")
+      .select("ingredient_id, stock")
+      .eq("business_id", businessId)
+      .eq("location_id", locationId)
+      .in("ingredient_id", consumedIds),
+  ]);
+  const consumedIngredientById = new Map((consumedIngredients ?? []).map((i) => [i.id, i]));
+  const consumedStockById = new Map((consumedLocStock ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+
+  // Cek kecukupan stok SEMUA bahan dulu sebelum menulis apapun -- semua-atau-tidak.
+  for (const [ingredientId, qtyNeeded] of neededByIngredient) {
+    const ingredient = consumedIngredientById.get(ingredientId);
+    const available = consumedStockById.get(ingredientId) ?? 0;
+    if (available < qtyNeeded) {
+      return {
+        error: `Stok ${ingredient?.name ?? "bahan"} di ${location.name} cuma ${available} ${ingredient?.unit ?? ""}, kurang untuk produksi ini (butuh ${qtyNeeded}).`,
+      };
+    }
+  }
+
+  const actor = await getCurrentActor(supabase, businessId);
+  let batchCost = 0;
+
+  for (const [ingredientId, qtyNeeded] of neededByIngredient) {
+    const ingredient = consumedIngredientById.get(ingredientId)!;
+    const stockBefore = consumedStockById.get(ingredientId) ?? 0;
+    const stockAfter = stockBefore - qtyNeeded;
+    batchCost += Number(ingredient.unit_cost) * qtyNeeded;
+
+    await supabase
+      .from("ingredient_location_stock")
+      .update({ stock: stockAfter, updated_at: new Date().toISOString() })
+      .eq("business_id", businessId)
+      .eq("location_id", locationId)
+      .eq("ingredient_id", ingredientId);
+
+    await supabase
+      .from("ingredients")
+      .update({ stock: Math.max(0, Number(ingredient.stock) - qtyNeeded) })
+      .eq("id", ingredientId);
+
+    await supabase.from("stock_adjustments").insert({
+      business_id: businessId,
+      ingredient_id: ingredientId,
+      location_id: locationId,
+      item_name: ingredient.name,
+      unit: ingredient.unit,
+      stock_before: stockBefore,
+      stock_after: stockAfter,
+      diff: -qtyNeeded,
+      reason: `Produksi ${item.name}`,
+      submitted_by_name: actor?.name ?? null,
+    });
+  }
+
+  // Kembaran BSJ: tambah stok di lokasi + flat, hitung unit_cost weighted-average
+  // dari total yang dimiliki di SEMUA lokasi -- pola sama persis addPurchase.
+  const { data: mirrorLocRows } = await supabase
+    .from("ingredient_location_stock")
+    .select("id, location_id, stock")
+    .eq("business_id", businessId)
+    .eq("ingredient_id", item.ingredient_id);
+  const { data: mirrorIngredient } = await supabase
+    .from("ingredients")
+    .select("id, name, unit, stock, unit_cost")
+    .eq("id", item.ingredient_id)
+    .single();
+
+  if (!mirrorIngredient) return { error: "Bahan baku kembaran BSJ ini tidak ditemukan." };
+
+  const totalOwnedBefore = (mirrorLocRows ?? []).reduce((sum, r) => sum + Number(r.stock), 0);
+  const oldValue = totalOwnedBefore * Number(mirrorIngredient.unit_cost);
+  const newTotalOwned = totalOwnedBefore + qtyProduced;
+  const newUnitCost = newTotalOwned > 0 ? Math.round((oldValue + batchCost) / newTotalOwned) : Number(mirrorIngredient.unit_cost);
+
+  const targetRow = (mirrorLocRows ?? []).find((r) => r.location_id === locationId);
+  const mirrorStockBeforeAtLocation = Number(targetRow?.stock ?? 0);
+  const mirrorStockAfterAtLocation = mirrorStockBeforeAtLocation + qtyProduced;
+
+  if (targetRow) {
+    await supabase
+      .from("ingredient_location_stock")
+      .update({ stock: mirrorStockAfterAtLocation, updated_at: new Date().toISOString() })
+      .eq("id", targetRow.id);
+  } else {
+    await supabase.from("ingredient_location_stock").insert({
+      business_id: businessId,
+      location_id: locationId,
+      ingredient_id: item.ingredient_id,
+      stock: qtyProduced,
+    });
+  }
+
+  await supabase
+    .from("ingredients")
+    .update({ stock: Number(mirrorIngredient.stock) + qtyProduced, unit_cost: newUnitCost })
+    .eq("id", item.ingredient_id);
+
+  await supabase.from("stock_adjustments").insert({
+    business_id: businessId,
+    ingredient_id: item.ingredient_id,
+    location_id: locationId,
+    item_name: mirrorIngredient.name,
+    unit: mirrorIngredient.unit,
+    stock_before: mirrorStockBeforeAtLocation,
+    stock_after: mirrorStockAfterAtLocation,
+    diff: qtyProduced,
+    reason: "Hasil Produksi",
+    submitted_by_name: actor?.name ?? null,
+  });
+
+  await recalculateProductCostsForIngredient(supabase, item.ingredient_id);
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "sukses",
+    `Produksi: ${item.name}`,
+    `${qtyProduced} ${item.unit} di ${location.name}${actor ? ` · oleh ${actor.name}` : ""}`,
+  );
+
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/semi-finished-items/${semiFinishedItemId}`);
+  revalidatePath(`/business/${businessId}/ingredients`);
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/kartu-stok`);
+
+  return { error: null };
 }

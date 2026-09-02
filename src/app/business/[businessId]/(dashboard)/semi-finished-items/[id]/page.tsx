@@ -2,11 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
-import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem, adjustSemiFinishedItemStock } from "../actions";
+import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
 import ItemForm from "../item-form";
 import RecipeEditor from "../recipe-editor";
 import RecipeYieldForm from "../recipe-yield-form";
-import AdjustStockForm from "@/components/adjust-stock-form";
+import ProduceForm from "../produce-form";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatRupiah(value: number) {
@@ -61,7 +61,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, stock, min_stock, fluctuation_pct, barcode, category, batch_yield_qty")
+    .select("id, name, unit, min_stock, fluctuation_pct, barcode, category, batch_yield_qty, ingredient_id")
     .eq("id", id)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -70,6 +70,16 @@ export default async function SemiFinishedItemDetailPage({
   if (!item) {
     notFound();
   }
+
+  // Stok "asli" = stok kembarannya di Bahan Baku (lihat migration
+  // 20260903010000) -- bukan kolom semi_finished_items.stock (lama).
+  const [{ data: mirrorIngredient }, { data: locations }] = await Promise.all([
+    item.ingredient_id
+      ? supabase.from("ingredients").select("stock").eq("id", item.ingredient_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from("stock_locations").select("id, name").eq("business_id", businessId).order("sort_order"),
+  ]);
+  const currentStock = mirrorIngredient ? Number(mirrorIngredient.stock) : 0;
 
   const [{ data: recipeRows }, { data: ingredients }, { data: otherItems }] = await Promise.all([
     supabase
@@ -112,18 +122,16 @@ export default async function SemiFinishedItemDetailPage({
       </Link>
       <h1 className="mt-2 text-lg font-bold text-zinc-900">{item.name}</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Stok saat ini {formatQty(item.stock)} {item.unit} · HPP live{" "}
+        Stok saat ini {formatQty(currentStock)} {item.unit} · HPP live{" "}
         <span className="font-semibold text-zinc-700">
           {formatRupiah(cost.unitCost)}/{item.unit}
         </span>
       </p>
       {!business.cost_control_enabled && (
-        <AdjustStockForm
-          itemName={item.name}
-          currentStock={item.stock}
-          unit={item.unit}
-          action={adjustSemiFinishedItemStock.bind(null, businessId, id)}
-        />
+        <>
+          <p className="mt-2 text-xs font-medium text-zinc-600">Produksi</p>
+          <ProduceForm businessId={businessId} itemId={id} itemUnit={item.unit} locations={locations ?? []} />
+        </>
       )}
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

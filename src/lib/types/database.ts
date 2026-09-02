@@ -2314,6 +2314,7 @@ export type Database = {
           barcode: string | null;
           category: string | null;
           batch_yield_qty: number | null;
+          ingredient_id: string | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2329,6 +2330,7 @@ export type Database = {
           barcode?: string | null;
           category?: string | null;
           batch_yield_qty?: number | null;
+          ingredient_id?: string | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2344,6 +2346,7 @@ export type Database = {
           barcode?: string | null;
           category?: string | null;
           batch_yield_qty?: number | null;
+          ingredient_id?: string | null;
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;

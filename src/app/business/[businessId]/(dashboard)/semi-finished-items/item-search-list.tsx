@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 import DeleteItemButton from "./delete-item-button";
-import AdjustStockForm from "@/components/adjust-stock-form";
-import { adjustSemiFinishedItemStock } from "./actions";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -113,11 +111,9 @@ function ItemDetail({ item }: { item: SemiFinishedItemRow }) {
 export default function SemiFinishedItemsList({
   businessId,
   items,
-  showAdjustStock = false,
 }: {
   businessId: string;
   items: SemiFinishedItemRow[];
-  showAdjustStock?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -219,16 +215,6 @@ export default function SemiFinishedItemsList({
                 {open && (
                   <div className="border-t border-zinc-100 px-4 py-3">
                     <ItemDetail item={item} />
-                    {showAdjustStock && (
-                      <div className="mt-3">
-                        <AdjustStockForm
-                          itemName={item.name}
-                          currentStock={item.stock}
-                          unit={item.unit}
-                          action={adjustSemiFinishedItemStock.bind(null, businessId, item.id)}
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
