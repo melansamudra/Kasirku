@@ -44,6 +44,7 @@ export type KasBankResult = {
   transferLines: KasBankLine[];
   movementByEntryId: Map<string, KasBankMovementMeta>;
   voidedSaleCount: number;
+  voidedPurchaseCount: number;
 };
 
 export async function fetchKasBankLines(
@@ -61,6 +62,7 @@ export async function fetchKasBankLines(
     transferLines: [],
     movementByEntryId: new Map(),
     voidedSaleCount: 0,
+    voidedPurchaseCount: 0,
   };
 
   // kasAccount & reversals tidak saling bergantung -- dijalankan paralel
@@ -120,11 +122,29 @@ export async function fetchKasBankLines(
         .map((l) => l.journal_entries.source_id as string),
     ),
   );
+  // Sama pola dengan penjualan di atas -- pembelian yang di-void belakangan
+  // (voidPurchase, purchases/actions.ts) tetap punya baris "pembelian" asli
+  // + baris pembalikan "void" terpisah, tidak saling menghapus otomatis di
+  // sini. Baris pembelian dari purchase yang SAAT INI voided ikut
+  // dikeluarkan dari Kas Masuk/Keluar (laporan user 2026-09-03 -- sebelum
+  // ini pembelian yang dibatalkan tetap kehitung penuh di kartu Kas Keluar
+  // walau jurnal pembaliknya sudah benar, karena tidak ada deteksi khusus
+  // seperti penjualan). Cuma berlaku untuk pembelian yang jurnalnya dibuat
+  // SETELAH source_id mulai ditautkan (20260903080000) -- pembelian lama
+  // yang di-void sebelum itu source_id-nya null, tidak bisa dideteksi di
+  // sini (lihat 20260903070000 untuk kasus historis yang sudah dibetulkan manual).
+  const purchaseSourceIds = Array.from(
+    new Set(
+      lines
+        .filter((l) => l.journal_entries.source === "pembelian" && l.journal_entries.source_id)
+        .map((l) => l.journal_entries.source_id as string),
+    ),
+  );
 
-  // shiftMovements & saleVoidStatus keduanya cuma butuh `lines` (sudah ada),
-  // tidak saling bergantung -- dijalankan paralel, sama seperti kasAccount/
-  // reversals di atas.
-  const [{ data: shiftMovements }, { data: saleVoidStatus }] = await Promise.all([
+  // shiftMovements, saleVoidStatus & purchaseVoidStatus cuma butuh `lines`
+  // (sudah ada), tidak saling bergantung -- dijalankan paralel, sama seperti
+  // kasAccount/reversals di atas.
+  const [{ data: shiftMovements }, { data: saleVoidStatus }, { data: purchaseVoidStatus }] = await Promise.all([
     shiftEntryIds.length > 0
       ? supabase
           .from("shift_cash_movements")
@@ -133,6 +153,9 @@ export async function fetchKasBankLines(
       : Promise.resolve({ data: [] as KasBankMovementMeta[] }),
     saleSourceIds.length > 0
       ? supabase.from("transactions").select("id, voided").in("id", saleSourceIds)
+      : Promise.resolve({ data: [] as { id: string; voided: boolean }[] }),
+    purchaseSourceIds.length > 0
+      ? supabase.from("purchases").select("id, voided").in("id", purchaseSourceIds)
       : Promise.resolve({ data: [] as { id: string; voided: boolean }[] }),
   ]);
   const movementByEntryId = new Map((shiftMovements ?? []).map((m) => [m.journal_entry_id, m as KasBankMovementMeta]));
@@ -148,12 +171,16 @@ export async function fetchKasBankLines(
   );
 
   const voidedSaleIds = new Set((saleVoidStatus ?? []).filter((t) => t.voided).map((t) => t.id));
+  const voidedPurchaseIds = new Set((purchaseVoidStatus ?? []).filter((p) => p.voided).map((p) => p.id));
 
   const isVoidRelated = (l: KasBankLine) =>
     l.journal_entries.source === "void" ||
     (l.journal_entries.source === "penjualan" &&
       !!l.journal_entries.source_id &&
-      voidedSaleIds.has(l.journal_entries.source_id));
+      voidedSaleIds.has(l.journal_entries.source_id)) ||
+    (l.journal_entries.source === "pembelian" &&
+      !!l.journal_entries.source_id &&
+      voidedPurchaseIds.has(l.journal_entries.source_id));
 
   const isPendingPettyCash = (l: KasBankLine) => {
     const m = movementByEntryId.get(l.journal_entries.id);
@@ -202,5 +229,6 @@ export async function fetchKasBankLines(
     transferLines,
     movementByEntryId,
     voidedSaleCount: voidedSaleIds.size,
+    voidedPurchaseCount: voidedPurchaseIds.size,
   };
 }

@@ -113,6 +113,7 @@ export default async function KasHarianPage({
     transferLines,
     movementByEntryId: shiftMovementByEntryId,
     voidedSaleCount,
+    voidedPurchaseCount,
   } = await fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive);
 
   const isOwner = business?.owner_id === userData.user?.id;
@@ -333,9 +334,9 @@ export default async function KasHarianPage({
       {voidLines.length > 0 && (
         <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="border-b border-amber-100 bg-amber-50/60 px-4 py-3">
-            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidedSaleCount})</h2>
+            <h2 className="text-sm font-bold text-amber-800">Riwayat Void ({voidedSaleCount + voidedPurchaseCount})</h2>
             <p className="mt-0.5 text-[11px] text-amber-600">
-              Transaksi yang dibatalkan (penjualan asli + pembalikannya) — dikeluarkan dari Kas
+              Transaksi/pembelian yang dibatalkan (asli + pembalikannya) — dikeluarkan dari Kas
               Masuk/Keluar di atas supaya sinkron dengan Laporan.
             </p>
           </div>

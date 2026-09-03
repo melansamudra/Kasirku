@@ -18,6 +18,7 @@ export async function postPurchaseJournal(
   amount: number,
   paidAmount: number,
   debitAccountCode: string = "1-200",
+  sourceId?: string | null,
 ): Promise<string | null> {
   const lines: { account_code: string; debit: number; credit: number }[] = [
     { account_code: debitAccountCode, debit: amount, credit: 0 },
@@ -35,6 +36,7 @@ export async function postPurchaseJournal(
     p_description: description,
     p_lines: lines,
     p_source: "pembelian",
+    p_source_id: sourceId ?? null,
   });
   return error?.message ?? null;
 }
@@ -482,6 +484,7 @@ export async function addPurchase(
         amount,
         paidAmount,
         expenseAccountCode ?? "1-200",
+        newPurchase.id,
       );
 
   await logActivity(
@@ -722,6 +725,7 @@ export async function voidPurchase(
       p_description: `Batal pembelian: ${itemName}`,
       p_lines: reversalLines,
       p_source: "void",
+      p_source_id: purchaseId,
     });
     journalError = journalRpcError?.message ?? null;
   }
