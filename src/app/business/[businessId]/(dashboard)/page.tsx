@@ -63,6 +63,32 @@ export default async function BusinessDashboardPage({
   // sengaja belum dinyalakan.
   const posHidden = (businessFlag?.hidden_nav_keys ?? []).includes("pos");
 
+  // Dashboard SELALU bisa diakses staf manapun (lihat isItemAllowed di
+  // dashboard-shell.tsx -- dianggap landing page wajib), tapi itu cuma
+  // soal MUNCUL DI SIDEBAR, bukan berarti angka Pendapatan/Laba/Beban
+  // aman ditampilkan ke semua admin. Staf tanpa permission "reports"
+  // (Laporan) cuma lihat status setup toko, bukan ringkasan keuangan --
+  // SENGAJA cuma diberlakukan untuk Llauk Nusantara dulu (arahan user
+  // 2026-09-03), bisnis lain (mis. Adi's Culinary) TETAP tampilkan
+  // dashboard keuangan penuh ke semua admin seperti sebelumnya.
+  const LLAUK_BUSINESS_ID = "f7c0509b-d708-45d5-9245-592e50f7cbbe";
+  let canSeeFinance = true;
+  if (businessId === LLAUK_BUSINESS_ID) {
+    const { data: userData } = await supabase.auth.getUser();
+    const { data: ownerRow } = await supabase.from("businesses").select("owner_id").eq("id", businessId).single();
+    const isOwner = ownerRow?.owner_id === userData.user?.id;
+    canSeeFinance = isOwner;
+    if (!isOwner) {
+      const { data: staff } = await supabase
+        .from("business_staff")
+        .select("permissions")
+        .eq("business_id", businessId)
+        .eq("user_id", userData.user?.id ?? "")
+        .maybeSingle();
+      canSeeFinance = (staff?.permissions ?? []).includes("reports");
+    }
+  }
+
   const today = todayStr();
   const monthStart = `${today.slice(0, 7)}-01`;
   const daysSoFar = Number(today.slice(8, 10));
@@ -197,7 +223,7 @@ export default async function BusinessDashboardPage({
         <div>
           <h1 className="text-lg font-bold text-zinc-900">Dashboard</h1>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Ringkasan keuangan — {monthLabel(today.slice(0, 7))}
+            {canSeeFinance ? `Ringkasan keuangan — ${monthLabel(today.slice(0, 7))}` : business.name}
           </p>
         </div>
         {openShift && (
@@ -265,6 +291,20 @@ export default async function BusinessDashboardPage({
         </div>
       )}
 
+      {/* Staf tanpa permission "reports" (khusus Llauk Nusantara, lihat
+          canSeeFinance di atas) tidak lihat ringkasan keuangan apapun --
+          cuma checklist setup toko di atas. */}
+      {!canSeeFinance && (
+        <div className="mt-6 rounded-xl bg-white shadow-sm p-5 text-center">
+          <p className="text-sm font-semibold text-zinc-700">Ringkasan keuangan disembunyikan</p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Akun Anda tidak punya akses ke Laporan. Hubungi pemilik toko kalau butuh akses ini.
+          </p>
+        </div>
+      )}
+
+      {canSeeFinance && (
+      <>
       {/* Stat cards */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl bg-white shadow-sm p-4">
@@ -401,6 +441,8 @@ export default async function BusinessDashboardPage({
           </>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

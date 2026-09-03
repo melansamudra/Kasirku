@@ -355,7 +355,7 @@ function buildSimpleLocationNavGroups(
       ...(departmentForLocationName(loc.name)
         ? [{ key: `lokasi-${loc.id}-produk`, href: `${base}/lokasi/${loc.id}/produk`, label: "Data Produk", icon: Package }]
         : []),
-      { key: "purchase-requests", href: `${base}/permintaan-barang?lokasi=${loc.id}`, label: "Permintaan Barang", icon: ShoppingCart },
+      { key: `lokasi-${loc.id}-purchase-requests`, href: `${base}/permintaan-barang?lokasi=${loc.id}`, label: "Permintaan Barang", icon: ShoppingCart },
       { key: `lokasi-${loc.id}-kartu-stok`, href: `${base}/lokasi/${loc.id}/kartu-stok`, label: "Kartu Stok", icon: CreditCard },
       { key: `lokasi-${loc.id}-stock-opname`, href: `${base}/lokasi/${loc.id}/stock-opname`, label: "Stok Opname", icon: ClipboardList },
     ],
