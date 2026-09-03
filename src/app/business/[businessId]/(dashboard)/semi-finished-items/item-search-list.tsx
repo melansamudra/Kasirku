@@ -13,6 +13,30 @@ function formatQty(value: number) {
   return Number(value.toFixed(2)).toLocaleString("id-ID");
 }
 
+// Pembatas visual "baru diupload/diedit vs lama" (keluhan user 2026-09-03:
+// BSJ yang baru diupload HPP-nya kecampur begitu saja dengan upload lama di
+// daftar, tidak ada penanda). Import (import-tool.tsx) UPDATE baris yang
+// sudah ada (bukan bikin baris baru), jadi `updated_at` (trigger otomatis
+// set_updated_at) adalah penanda paling akurat "kapan terakhir disentuh" --
+// baik lewat import maupun edit manual di halaman detail.
+const RECENT_THRESHOLD_MS = 24 * 3600 * 1000;
+
+// `now` dikirim sebagai prop (dihitung sekali di server page.tsx) alih-alih
+// panggil Date.now() langsung di sini -- komponen ini client-side, memanggil
+// Date.now() saat render melanggar aturan purity React (hasil bisa beda
+// tiap re-render tanpa ada perubahan input yang jelas).
+function formatRelativeTime(iso: string, now: number): string {
+  const diffMs = now - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "baru saja";
+  if (minutes < 60) return `${minutes} menit lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} hari lalu`;
+  return new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export type SemiFinishedItemRow = {
   id: string;
   name: string;
@@ -20,6 +44,7 @@ export type SemiFinishedItemRow = {
   stock: number;
   minStock: number;
   category: string | null;
+  updatedAt: string;
   unitCost: number;
   rawCost: number;
   fluctuationPct: number;
@@ -111,13 +136,16 @@ function ItemDetail({ item }: { item: SemiFinishedItemRow }) {
 export default function SemiFinishedItemsList({
   businessId,
   items,
+  now,
 }: {
   businessId: string;
   items: SemiFinishedItemRow[];
+  now: number;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"name" | "recent">("name");
 
   const categories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is string => !!c))].sort(),
@@ -126,12 +154,16 @@ export default function SemiFinishedItemsList({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter((item) => {
+    const result = items.filter((item) => {
       if (category && item.category !== category) return false;
       if (q && !item.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [items, query, category]);
+    if (sortBy === "recent") {
+      return result.slice().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    }
+    return result;
+  }, [items, query, category, sortBy]);
 
   return (
     <div>
@@ -170,6 +202,28 @@ export default function SemiFinishedItemsList({
         )}
       </div>
 
+      <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
+        <span>Urutkan:</span>
+        <button
+          type="button"
+          onClick={() => setSortBy("name")}
+          className={`rounded-full px-2.5 py-1 font-medium transition-colors ${
+            sortBy === "name" ? "bg-brand-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          Nama (A-Z)
+        </button>
+        <button
+          type="button"
+          onClick={() => setSortBy("recent")}
+          className={`rounded-full px-2.5 py-1 font-medium transition-colors ${
+            sortBy === "recent" ? "bg-brand-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          Baru diupdate
+        </button>
+      </div>
+
       <div className="mt-3 space-y-2">
         {filtered.length > 0 ? (
           filtered.map((item) => {
@@ -191,10 +245,16 @@ export default function SemiFinishedItemsList({
                           {item.category}
                         </span>
                       )}
+                      {now - new Date(item.updatedAt).getTime() < RECENT_THRESHOLD_MS && (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                          🆕 Baru
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-500">
                       Stok {formatQty(item.stock)} {item.unit}
                       {low && <span className="ml-1.5 font-medium text-amber-600">· rendah</span>}
+                      <span className="ml-1.5 text-zinc-400">· diupdate {formatRelativeTime(item.updatedAt, now)}</span>
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

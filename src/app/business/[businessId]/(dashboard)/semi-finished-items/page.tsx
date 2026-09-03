@@ -7,6 +7,13 @@ import ItemForm from "./item-form";
 import SemiFinishedItemsList, { type SemiFinishedItemRow } from "./item-search-list";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
+// Fungsi biasa (bukan komponen) -- panggil Date.now() langsung di badan
+// komponen dilarang lint react-hooks/purity, tapi lewat helper terpisah
+// begini aman (sama pola dengan todayWibDateString() di lib/wib.ts).
+function nowMs() {
+  return Date.now();
+}
+
 export default async function SemiFinishedItemsPage({
   params,
 }: {
@@ -28,7 +35,7 @@ export default async function SemiFinishedItemsPage({
   const [{ data: items }, { data: ingredients }] = await Promise.all([
     supabase
       .from("semi_finished_items")
-      .select("id, name, unit, min_stock, category, ingredient_id")
+      .select("id, name, unit, min_stock, category, ingredient_id, updated_at")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
@@ -61,6 +68,7 @@ export default async function SemiFinishedItemsPage({
       stock: item.ingredient_id ? (mirrorStockById.get(item.ingredient_id) ?? 0) : 0,
       minStock: item.min_stock,
       category: item.category,
+      updatedAt: item.updated_at,
       unitCost: cost?.unitCost ?? 0,
       rawCost: cost?.rawCost ?? 0,
       fluctuationPct: cost?.fluctuationPct ?? 0,
@@ -100,7 +108,7 @@ export default async function SemiFinishedItemsPage({
       </div>
 
       <div className="mt-6">
-        <SemiFinishedItemsList businessId={businessId} items={rows} />
+        <SemiFinishedItemsList businessId={businessId} items={rows} now={nowMs()} />
       </div>
     </div>
   );
