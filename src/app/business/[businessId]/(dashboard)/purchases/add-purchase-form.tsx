@@ -48,7 +48,19 @@ export default function AddPurchaseForm({
   locations?: LocationOption[];
   prefill?: PurchasePrefill | null;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, rawFormAction, pending] = useActionState(action, initialState);
+  // Form di-remount tiap kali resetToken naik (lihat prop `key` di bawah) --
+  // biar field lain (jumlah, catatan, dst) bersih buat entri berikutnya,
+  // tapi Tanggal SENGAJA ikut nempel ke tanggal yang barusan dipakai, bukan
+  // balik ke hari ini -- keluhan user 2026-09-03: input banyak pembelian
+  // untuk tanggal yang sama/lampau (mis. rekap belanjaan kemarin) jadi harus
+  // pilih ulang tanggalnya tiap submit kalau baliknya ke default hari ini.
+  const [lastDate, setLastDate] = useState(today);
+  function formAction(formData: FormData) {
+    const d = formData.get("date");
+    if (typeof d === "string" && d) setLastDate(d);
+    rawFormAction(formData);
+  }
 
   return (
     <PurchaseFormFields
@@ -56,7 +68,7 @@ export default function AddPurchaseForm({
       formAction={formAction}
       pending={pending}
       error={state.error}
-      today={today}
+      today={lastDate}
       isFnb={isFnb}
       suppliers={suppliers}
       ingredients={ingredients}
