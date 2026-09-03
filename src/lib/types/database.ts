@@ -1055,7 +1055,7 @@ export type Database = {
           stock: number;
           deleted_at: string | null;
           min_stock: number;
-          department: string | null;
+          departments: string[];
           barcode: string | null;
         };
         Insert: {
@@ -1067,7 +1067,7 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
-          department?: string | null;
+          departments?: string[];
           barcode?: string | null;
         };
         Update: {
@@ -1079,7 +1079,7 @@ export type Database = {
           stock?: number;
           deleted_at?: string | null;
           min_stock?: number;
-          department?: string | null;
+          departments?: string[];
           barcode?: string | null;
         };
         Relationships: [];

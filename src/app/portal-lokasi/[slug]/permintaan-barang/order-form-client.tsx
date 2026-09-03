@@ -8,7 +8,7 @@ type MasterItem = {
   name: string;
   unit: string;
   stock: number;
-  department: string | null;
+  departments: string[];
   barcode: string | null;
   purchaseUnits: { unitName: string; conversion: number }[];
 };
@@ -22,13 +22,17 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   lainnya: "Lainnya",
 };
 
+// Bahan lintas divisi (mis. Air dipakai Dapur & Bar) muncul di SETIAP grup
+// yang relevan, bukan cuma satu -- sama pola dengan request-client.tsx.
 function groupItemsByDepartment(items: MasterItem[]): [string, MasterItem[]][] {
   const groups = new Map<string, MasterItem[]>();
   for (const item of items) {
-    const key = item.department ?? "lainnya";
-    const list = groups.get(key) ?? [];
-    list.push(item);
-    groups.set(key, list);
+    const keys = item.departments.length > 0 ? item.departments : ["lainnya"];
+    for (const key of keys) {
+      const list = groups.get(key) ?? [];
+      list.push(item);
+      groups.set(key, list);
+    }
   }
   const order = ["dapur", "bar", "front", "lainnya"];
   return order.filter((k) => groups.has(k)).map((k) => [k, groups.get(k)!]);
@@ -332,10 +336,16 @@ export default function OrderFormClient({
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-semibold text-zinc-500">
                   Barang #{idx + 1}
-                  {selectedItem?.department && (
-                    <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
-                      {DEPARTMENT_LABELS[selectedItem.department]}
-                    </span>
+                  {selectedItem?.departments.map(
+                    (dep) =>
+                      DEPARTMENT_LABELS[dep] && (
+                        <span
+                          key={dep}
+                          className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500"
+                        >
+                          {DEPARTMENT_LABELS[dep]}
+                        </span>
+                      ),
                   )}
                 </p>
                 {rows.length > 1 && (

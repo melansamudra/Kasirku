@@ -17,7 +17,7 @@ type PurchaseRequestInfo = {
     name: string;
     unit: string;
     stock: number;
-    department: string | null;
+    departments: string[];
     barcode: string | null;
     purchase_units: { unitName: string; conversion: number }[];
   }[];
@@ -74,7 +74,7 @@ export default async function PortalPermintaanBarangPage({
             name: i.name,
             unit: i.unit,
             stock: i.stock,
-            department: i.department,
+            departments: i.departments,
             barcode: i.barcode,
             purchaseUnits: i.purchase_units ?? [],
           }))}

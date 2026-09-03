@@ -45,7 +45,7 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, department, barcode")
+    .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -133,7 +133,7 @@ export default async function IngredientsPage({
                     <p className="text-sm font-medium text-zinc-900">{i.name}</p>
                     <DepartmentSelect
                       ingredientId={i.id}
-                      department={i.department}
+                      departments={i.departments ?? []}
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
                   </div>

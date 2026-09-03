@@ -17,19 +17,21 @@ function generateBarcodeCode(): string {
 
 // Pengelompokan bahan per departemen (dapur/bar/front) — biar admin yang
 // scan/lihat order Permintaan Barang langsung tahu ini buat departemen mana.
+const VALID_DEPARTMENTS = ["dapur", "bar", "front"];
+
 export async function updateIngredientDepartment(
   businessId: string,
   ingredientId: string,
-  department: string,
+  departments: string[],
 ): Promise<{ error: string | null }> {
-  if (department && !["dapur", "bar", "front"].includes(department)) {
+  if (departments.some((d) => !VALID_DEPARTMENTS.includes(d))) {
     return { error: "Departemen tidak valid." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("ingredients")
-    .update({ department: department || null })
+    .update({ departments })
     .eq("id", ingredientId)
     .eq("business_id", businessId);
 

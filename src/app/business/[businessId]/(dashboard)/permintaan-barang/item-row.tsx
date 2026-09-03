@@ -74,7 +74,7 @@ export default function ItemRow({
     itemType: "ingredient" | "product";
     ingredientId: string | null;
     productId: string | null;
-    department: string | null;
+    departments: string[];
     unit: string | null;
     qtyOrdered: number;
     currentStock: number | null;
@@ -280,10 +280,16 @@ export default function ItemRow({
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-zinc-800">
           {item.itemName}
-          {item.department && DEPARTMENT_LABELS[item.department] && (
-            <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
-              {DEPARTMENT_LABELS[item.department]}
-            </span>
+          {item.departments.map(
+            (dep) =>
+              DEPARTMENT_LABELS[dep] && (
+                <span
+                  key={dep}
+                  className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500"
+                >
+                  {DEPARTMENT_LABELS[dep]}
+                </span>
+              ),
           )}
         </p>
         <div className="flex shrink-0 items-center gap-2 text-right text-sm">

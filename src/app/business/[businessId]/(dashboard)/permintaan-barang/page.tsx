@@ -168,7 +168,7 @@ export default async function PermintaanBarangPage({
       .from("purchase_request_item_allocations")
       .select("id, purchase_request_item_id, supplier_id, qty, forwarded_at, received_at, purchase_id")
       .eq("business_id", businessId),
-    supabase.from("ingredients").select("id, department, unit_cost").eq("business_id", businessId),
+    supabase.from("ingredients").select("id, departments, unit_cost").eq("business_id", businessId),
     supabase.from("products").select("id, cost").eq("business_id", businessId),
     supabase.from("stock_locations").select("id, name, is_production, portal_slug").eq("business_id", businessId),
     supabase.from("employees").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
@@ -275,7 +275,7 @@ export default async function PermintaanBarangPage({
     }
   }
 
-  const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.department]));
+  const departmentByIngredient = new Map((ingredients ?? []).map((i) => [i.id, i.departments ?? []]));
   const priceByIngredient = new Map((ingredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
   const priceByProduct = new Map((products ?? []).map((p) => [p.id, Number(p.cost)]));
   const locationNameById = new Map((locations ?? []).map((l) => [l.id, l.name]));
@@ -548,7 +548,7 @@ export default async function PermintaanBarangPage({
                     itemType: it.item_type,
                     ingredientId: it.ingredient_id,
                     productId: it.product_id,
-                    department: it.ingredient_id ? (departmentByIngredient.get(it.ingredient_id) ?? null) : null,
+                    departments: it.ingredient_id ? (departmentByIngredient.get(it.ingredient_id) ?? []) : [],
                     unit: it.unit,
                     qtyOrdered: Number(it.qty_ordered),
                     currentStock: it.current_stock !== null ? Number(it.current_stock) : null,
