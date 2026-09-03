@@ -39,15 +39,17 @@ export async function saveBsjImport(
 
   const { data: existing } = await supabase
     .from("semi_finished_items")
-    .select("id")
+    .select("id, ingredient_id")
     .eq("business_id", businessId)
     .eq("name", itemName)
     .is("deleted_at", null)
     .maybeSingle();
 
   let itemId: string;
+  let needsMirror = false;
   if (existing) {
     itemId = existing.id;
+    needsMirror = !existing.ingredient_id;
     const { error: updErr } = await supabase
       .from("semi_finished_items")
       .update({ fluctuation_pct: lossFactorPct, batch_yield_qty: porsi })
@@ -62,6 +64,30 @@ export async function saveBsjImport(
       .single();
     if (insErr || !created) return { error: insErr?.message ?? "Gagal membuat item.", success: false };
     itemId = created.id;
+    needsMirror = true;
+  }
+
+  // Kembaran di Bahan Baku -- sama alasan & syarat dengan addSemiFinishedItem
+  // (semi-finished-items/actions.ts): wajib supaya item ini bisa dipakai di
+  // resep produk (product_recipes cuma paham ingredient_id) untuk bisnis
+  // non-cost-control. Item lama yang belum punya kembaran (laporan user
+  // 2026-09-03) ikut dibetulkan di sini, bukan cuma item baru.
+  if (needsMirror) {
+    const { data: businessForMirror } = await supabase
+      .from("businesses")
+      .select("cost_control_enabled")
+      .eq("id", businessId)
+      .single();
+    if (!businessForMirror?.cost_control_enabled) {
+      const { data: mirrorIngredient } = await supabase
+        .from("ingredients")
+        .insert({ business_id: businessId, name: itemName, unit: "porsi", unit_cost: 0, stock: 0, min_stock: 0 })
+        .select("id")
+        .single();
+      if (mirrorIngredient) {
+        await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredient.id }).eq("id", itemId);
+      }
+    }
   }
 
   // Re-import bersifat idempotent -- resep lama untuk item ini dihapus dulu

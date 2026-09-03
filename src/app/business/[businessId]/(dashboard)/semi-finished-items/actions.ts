@@ -83,25 +83,32 @@ export async function addSemiFinishedItem(
     return { error: error?.message.includes("semi_finished_items_business_id_barcode_key") ? "Barcode sudah dipakai bahan setengah jadi lain." : (error?.message ?? "Gagal menyimpan.") };
   }
 
-  // Kembaran di Bahan Baku -- inilah yang sebenarnya dipakai resep produk &
-  // checkout (lihat migration 20260903010000). Stok kembaran ini cuma
-  // nambah lewat fitur Produksi, bukan diketik manual. HANYA relevan untuk
-  // bisnis stok-lite (mis. Adi's Culinary, !cost_control_enabled) yang
-  // memang checkout lewat POS pakai product_recipes -- bisnis cost-control
-  // (Llauk dkk) sudah punya jalur sendiri (finished_product_recipes) dan
-  // tidak checkout lewat POS sama sekali, jadi kembaran ini cuma akan jadi
-  // baris kosong yang mengotori daftar Bahan Baku mereka kalau ikut dibuat.
-  // rich_stock_ops_enabled (Llauk pasca-konversi ke tampilan Kasirku standar)
-  // ikut dikecualikan juga -- masih pakai finished_product_recipes yang sama,
-  // BUKAN jalur mirror-ingredient ala Adi's (persis masalah yang sudah
-  // dibersihkan migration 20260903020000, jangan sampai terulang).
+  // Kembaran di Bahan Baku -- inilah yang sebenarnya dipakai resep PRODUK
+  // (product_recipes) & checkout (lihat migration 20260903010000). Stok &
+  // unit_cost kembaran ini di-update lewat fitur Produksi (weighted average,
+  // lihat produceSemiFinishedItem), bukan diketik manual.
+  //
+  // HANYA dikecualikan untuk bisnis cost_control_enabled (mis. Llauk SAAT
+  // MASIH mode Cost Control) -- mereka pakai finished_product_recipes yang
+  // punya semi_finished_item_id LANGSUNG, tidak butuh kembaran sama sekali,
+  // kalau ikut dibuat cuma jadi baris kosong yang mengotori Bahan Baku.
+  //
+  // rich_stock_ops_enabled (Llauk pasca-konversi ke tampilan Kasirku
+  // standar) JUSTRU BUTUH kembaran ini -- setelah konversi, "Kelola Produk"
+  // mereka pakai product_recipes biasa (lihat products/page.tsx), yang CUMA
+  // paham ingredient_id, tidak ada konsep semi_finished_item_id sama sekali.
+  // Versi sebelumnya salah ikut mengecualikan rich_stock_ops_enabled di sini
+  // (asumsinya keliru: dikira masih pakai finished_product_recipes) --
+  // akibatnya 78 BSJ Llauk (semua item "HM...") kehilangan kembarannya dan
+  // tidak bisa dipakai di resep produk / Import Resep Produk sama sekali
+  // (laporan user 2026-09-03, dibetulkan juga lewat backfill data manual).
   const { data: businessForMirror } = await supabase
     .from("businesses")
-    .select("cost_control_enabled, rich_stock_ops_enabled")
+    .select("cost_control_enabled")
     .eq("id", businessId)
     .single();
 
-  if (!businessForMirror?.cost_control_enabled && !businessForMirror?.rich_stock_ops_enabled) {
+  if (!businessForMirror?.cost_control_enabled) {
     const { data: mirrorIngredient } = await supabase
       .from("ingredients")
       .insert({
