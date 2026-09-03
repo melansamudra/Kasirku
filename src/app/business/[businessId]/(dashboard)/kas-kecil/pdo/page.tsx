@@ -3,15 +3,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchKasBankLines } from "@/lib/kas-bank";
-import { submitPdoTransfer, updateAccountBankDetails } from "./actions";
-import PdoForm from "./pdo-form";
-import BankDetailsForm from "./bank-details-form";
-import PettyCashTunaiSection from "./petty-cash-tunai-section";
+import { logPdoRequest } from "./actions";
+import PdoSlipForm from "./pdo-slip-form";
 import PdoHistoryList from "./pdo-history-list";
 import PrintClosureButton from "../print-closure-button";
-
-const REKENING_UTAMA_CODE = "1-001";
-const REKENING_OPERASIONAL_CODE = "1-002";
 
 function firstDayOfMonth(dateStr: string) {
   return `${dateStr.slice(0, 7)}-01`;
@@ -44,6 +39,13 @@ function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
 
+// Amount PDO dititip di activity_log.title dengan pola "PDO Rp250.000" (lihat
+// actions.ts) supaya gampang ditarik balik jadi angka tanpa parsing detail.
+function parseAmountFromTitle(title: string): number {
+  const m = title.match(/Rp([\d.]+)/);
+  return m ? Number(m[1].replace(/\./g, "")) || 0 : 0;
+}
+
 export default async function PdoPage({
   params,
   searchParams,
@@ -59,18 +61,12 @@ export default async function PdoPage({
 
   const supabase = await createClient();
 
-  const [{ data: business }, { data: accounts }, { data: closureHistoryRows }] = await Promise.all([
+  const [{ data: business }, { data: closureHistoryRows }] = await Promise.all([
     supabase.from("businesses").select("id, name").eq("id", businessId).single(),
-    supabase
-      .from("accounts")
-      .select("code, name, bank_name, bank_account_number, bank_account_holder")
-      .eq("business_id", businessId)
-      .in("code", [REKENING_UTAMA_CODE, REKENING_OPERASIONAL_CODE]),
-    // Riwayat Tutup Petty Cash beneran (bukan preview lokal Petty Cash Tunai
-    // di halaman ini) -- disimpan resmi di petty_cash_closures lewat
-    // close_petty_cash() RPC di halaman /kas-kecil. Ditarik ke sini juga
-    // biar kelihatan sekalian di satu halaman Petty Cash ini, bukan cuma di
-    // /kas-kecil.
+    // Riwayat Tutup Petty Cash beneran (bukan dokumen PDO di halaman ini) --
+    // disimpan resmi di petty_cash_closures lewat close_petty_cash() RPC di
+    // halaman /kas-kecil. Ditarik ke sini juga biar kelihatan sekalian di
+    // satu halaman Petty Cash ini, bukan cuma di /kas-kecil.
     supabase
       .from("petty_cash_closures")
       .select("id, date, total_allocated, total_tunai, total_hutang, hutang_count, expected_remaining, actual_remaining, difference")
@@ -84,23 +80,6 @@ export default async function PdoPage({
     notFound();
   }
 
-  const rekeningOperasional = (accounts ?? []).find((a) => a.code === REKENING_OPERASIONAL_CODE);
-
-  if (!rekeningOperasional) {
-    return (
-      <div className="w-full max-w-xl">
-        <h1 className="text-lg font-bold text-zinc-900">Permintaan Dana Operasional (PDO)</h1>
-        <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500">
-          Akun &quot;Rekening Operasional&quot; ({REKENING_OPERASIONAL_CODE}) belum ada. Tambahkan dulu lewat{" "}
-          <Link href={`/business/${businessId}/accounting/daftar-akun`} className="text-brand-600 hover:underline">
-            Daftar Akun
-          </Link>
-          .
-        </div>
-      </div>
-    );
-  }
-
   // Diambil dari Kas & Bank (bukan langsung dari Kas Kecil) karena semua kas
   // keluar akhirnya bermuara di situ -- bukan cuma Kas Kecil, tapi juga
   // "Catat Kas Keluar" manual dkk. Pakai fungsi penyaring yang sama dengan
@@ -108,17 +87,17 @@ export default async function PdoPage({
   // beneran berlaku" konsisten: void, kas kecil pending/ditolak, dan
   // penjualan (bukan nota/beban) sudah otomatis dikeluarkan di situ.
   //
-  // fetchKasBankLines & pdoHistoryRows tidak saling bergantung -- dijalankan
-  // paralel (bukan berurutan) buat motong round-trip, penting di koneksi
-  // lambat (lihat keluhan "Petty Cash lambat dibuka").
-  const [{ displayLines, movementByEntryId }, { data: pdoHistoryRows }] = await Promise.all([
+  // PDO murni dokumen sekarang (lihat actions.ts) -- riwayatnya disimpan di
+  // activity_log, bukan journal_entries, jadi dua query ini tidak saling
+  // bergantung dan dijalankan paralel buat motong round-trip.
+  const [{ displayLines }, { data: pdoHistoryRows }] = await Promise.all([
     fetchKasBankLines(supabase, businessId, `${from}T00:00:00+07:00`, `${nextDayStr(to)}T00:00:00+07:00`),
     supabase
-      .from("journal_entries")
-      .select("id, date, description, journal_lines(debit, accounts(code))")
+      .from("activity_log")
+      .select("id, title, detail, created_at")
       .eq("business_id", businessId)
-      .ilike("description", "Transfer: PDO %")
-      .order("date", { ascending: false })
+      .ilike("title", "PDO %")
+      .order("created_at", { ascending: false })
       .limit(30),
   ]);
 
@@ -128,44 +107,27 @@ export default async function PdoPage({
       id: l.id,
       description: l.journal_entries.description,
       amount: Number(l.credit),
-      category: movementByEntryId.get(l.journal_entries.id)?.category ?? null,
+      paymentMethod: l.journal_entries.payment_method,
       created_at: l.journal_entries.date,
     }))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-  // Riwayat permintaan PDO -- belum ada tabel khusus, tapi setiap PDO yang
-  // diajukan selalu lewat addTransfer() dengan deskripsi berpola
-  // "Transfer: PDO ..." (lihat pdo-form.tsx), jadi cukup ditelusuri dari
-  // Jurnal Transaksi lewat pola itu, bukan bikin tabel baru buat sesuatu
-  // yang sudah tercatat lengkap di jurnal. (Query-nya sudah dijalankan di
-  // atas, paralel dengan fetchKasBankLines.)
-  const pdoHistory = (
-    (pdoHistoryRows ?? []) as {
-      id: string;
-      date: string;
-      description: string;
-      journal_lines: { debit: number; accounts: { code: string } | null }[];
-    }[]
-  ).map((row) => ({
+  const pdoHistory = (pdoHistoryRows ?? []).map((row) => ({
     id: row.id,
-    date: row.date,
-    amount:
-      row.journal_lines.find((l) => l.accounts?.code === REKENING_OPERASIONAL_CODE)?.debit ?? 0,
-    // Buang prefix "Transfer: " -- itu murni penanda teknis dari
-    // addTransfer(), tidak perlu ditampilkan ke admin.
-    detail: row.description.replace(/^Transfer:\s*/, ""),
+    date: row.created_at,
+    amount: parseAmountFromTitle(row.title),
+    detail: row.detail ?? "",
   }));
 
-  const boundAddTransfer = submitPdoTransfer.bind(null, businessId);
-  const boundUpdateBankDetails = updateAccountBankDetails.bind(null, businessId, REKENING_OPERASIONAL_CODE);
+  const boundLogPdoRequest = logPdoRequest.bind(null, businessId);
 
   return (
     <div className="w-full max-w-xl">
       <div className="print:hidden">
         <h1 className="text-lg font-bold text-zinc-900">Petty Cash</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Rekap Petty Cash Tunai (dari omset) dan ajukan top-up Petty Cash Rekening (PDO) dari
-          Rekening Utama — sama-sama dihitung dari nota kas keluar periode ini.
+          Rekap Petty Cash (Tunai &amp; Rekening) dan ajukan dokumen PDO ke Rekening Utama kalau kurang —
+          dihitung dari nota kas keluar periode ini.
         </p>
 
         <form method="get" className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
@@ -194,17 +156,6 @@ export default async function PdoPage({
             Hitung Ulang
           </button>
         </form>
-      </div>
-
-      <h2 className="mt-4 text-sm font-bold text-zinc-900 print:hidden">💵 Petty Cash Tunai</h2>
-      <div className="mt-2">
-        <PettyCashTunaiSection
-          today={today}
-          fromLabel={formatDateLabel(from)}
-          toLabel={formatDateLabel(to)}
-          notaList={notaList}
-          businessName={business.name}
-        />
       </div>
 
       {closureHistory.length > 0 && (
@@ -274,33 +225,19 @@ export default async function PdoPage({
         </div>
       )}
 
-      <h2 className="mt-6 text-sm font-bold text-zinc-900 print:hidden">📄 Petty Cash Rekening (PDO)</h2>
+      <h2 className="mt-6 text-sm font-bold text-zinc-900 print:hidden">📄 Permintaan Dana Operasional (PDO)</h2>
+      <p className="mt-0.5 text-xs text-zinc-500 print:hidden">
+        Dokumen permintaan saja — tidak memposting transfer jurnal. Dana beneran pindah &amp; dicatat oleh
+        pemegang Rekening Utama sendiri setelah slip ini disetujui.
+      </p>
 
-      <div className="mt-2 rounded-2xl border border-zinc-200 bg-white p-4 print:hidden">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
-          Info Rekening Tujuan ({rekeningOperasional.name})
-        </h3>
-        <BankDetailsForm
-          action={boundUpdateBankDetails}
-          bankName={rekeningOperasional.bank_name ?? ""}
-          accountNumber={rekeningOperasional.bank_account_number ?? ""}
-          accountHolder={rekeningOperasional.bank_account_holder ?? ""}
-        />
-      </div>
-
-      <PdoForm
-        action={boundAddTransfer}
+      <PdoSlipForm
+        action={boundLogPdoRequest}
         today={today}
         fromLabel={formatDateLabel(from)}
         toLabel={formatDateLabel(to)}
         notaList={notaList}
         businessName={business.name}
-        rekeningUtamaCode={REKENING_UTAMA_CODE}
-        rekeningOperasionalCode={REKENING_OPERASIONAL_CODE}
-        rekeningOperasionalName={rekeningOperasional.name}
-        bankName={rekeningOperasional.bank_name}
-        bankAccountNumber={rekeningOperasional.bank_account_number}
-        bankAccountHolder={rekeningOperasional.bank_account_holder}
       />
 
       <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
@@ -309,20 +246,14 @@ export default async function PdoPage({
           Kas & Bank
         </Link>{" "}
         (semua kas keluar yang beneran berlaku — Kas Kecil, Catat Kas Keluar manual, dll — void &amp;
-        yang masih menunggu/ditolak sudah dikecualikan). Transfer yang tercatat bisa dicek di{" "}
-        <Link href={`/business/${businessId}/accounting/jurnal`} className="text-brand-600 hover:underline">
-          Jurnal Transaksi
-        </Link>
-        .
+        yang masih menunggu/ditolak sudah dikecualikan).
       </p>
 
       {pdoHistory.length > 0 && (
         <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white print:hidden">
           <div className="border-b border-zinc-100 px-4 py-3">
             <h2 className="text-sm font-bold text-zinc-900">Riwayat Permintaan</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              PDO yang sudah pernah diajukan & tercatat sebagai transfer.
-            </p>
+            <p className="mt-0.5 text-[11px] text-zinc-400">PDO yang sudah pernah diajukan sebagai dokumen.</p>
           </div>
           <PdoHistoryList businessName={business.name} history={pdoHistory} />
         </div>

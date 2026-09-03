@@ -7,18 +7,27 @@ type HistoryItem = {
   detail: string;
 };
 
-type ParsedRincian = { date: string; description: string; amount: number };
+type ParsedRincianExpense = { date: string; description: string; amount: number; belumDibayar: boolean };
+type ParsedRincianOmset = { date: string; amount: number };
 
 type ParsedDetail = {
-  summaryLine: string;
-  modalAwal: number | null;
-  totalPengeluaran: number | null;
+  periode: string;
+  saldoAwalTunai: number | null;
+  saldoAwalRekening: number | null;
+  omsetMasuk: number | null;
+  pengeluaranTunai: number | null;
+  pengeluaranTf: number | null;
+  sisaSaldoTunai: number | null;
+  sisaSaldoRekening: number | null;
   catatan: string;
-  rincian: ParsedRincian[];
+  rincianOmset: ParsedRincianOmset[];
+  rincianTunai: ParsedRincianExpense[];
+  rincianTf: ParsedRincianExpense[];
 };
 
 function formatRupiah(value: number) {
-  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+  const sign = value < 0 ? "-" : "";
+  return `${sign}Rp${Math.round(Math.abs(value)).toLocaleString("id-ID")}`;
 }
 
 function formatDateTime(iso: string) {
@@ -31,38 +40,67 @@ function formatDateTime(iso: string) {
 }
 
 function parseRupiah(text: string): number {
-  return Number(text.replace(/[^\d]/g, "")) || 0;
+  const sign = text.trim().startsWith("-") ? -1 : 1;
+  return sign * (Number(text.replace(/[^\d]/g, "")) || 0);
 }
 
-// Riwayat PDO belum punya tabel tersendiri -- rincian per-item ditempel di
-// journal_entries.description saat submit (lihat pdo-form.tsx), jadi buat
-// nampilin ulang di cetak, teks itu di-parse balik di sini. Entri lama
-// (sebelum format "Rincian:" ini ada) otomatis fallback ke tampilan
-// ringkasan teks polos -- rincian-nya memang tidak pernah tersimpan.
+function fieldValue(lines: string[], label: string): number | null {
+  const line = lines.find((l) => l.startsWith(`${label}:`));
+  if (!line) return null;
+  const m = line.match(/Rp[\d.]+/);
+  return m ? parseRupiah(m[0]) : null;
+}
+
+function sectionRows(lines: string[], header: string): string[] {
+  const start = lines.findIndex((l) => l.trim() === header);
+  if (start === -1) return [];
+  const rows: string[] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^Rincian /.test(lines[i]) || lines[i].startsWith("Catatan:")) break;
+    rows.push(lines[i]);
+  }
+  return rows;
+}
+
+// Riwayat PDO disimpan di activity_log.detail dengan format multi-baris yang
+// dibangun di pdo-slip-form.tsx (dua-duanya HARUS tetap sinkron kalau salah
+// satu diubah). Entri lama (sebelum format Tunai/Rekening ini ada) otomatis
+// jatuh ke fallback teks polos di bawah -- field-nya cuma null.
 function parseDetail(detail: string): ParsedDetail {
-  const lines = detail.split("\n").filter((l) => l.trim().length > 0);
-  const summaryLine = lines[0] ?? detail;
+  const lines = detail.split("\n");
+  const nonEmpty = lines.filter((l) => l.trim().length > 0);
 
-  const totalMatch = summaryLine.match(/Total Pengeluaran (Rp[\d.]+)/);
-  const modalMatch = summaryLine.match(/Saldo Awal Rekening (Rp[\d.]+)/);
-  const catatanMatch = summaryLine.match(/Saldo Awal Rekening Rp[\d.]+ — (.+)$/);
+  const catatanLine = nonEmpty.find((l) => l.startsWith("Catatan:"));
 
-  const rincianStart = lines.findIndex((l) => l.trim() === "Rincian:");
-  const rincian: ParsedRincian[] =
-    rincianStart === -1
-      ? []
-      : lines.slice(rincianStart + 1).flatMap((line) => {
-          const m = line.match(/^(.+?) — (.+): (Rp[\d.]+)$/);
-          if (!m) return [];
-          return [{ date: m[1], description: m[2], amount: parseRupiah(m[3]) }];
-        });
+  const rincianOmset: ParsedRincianOmset[] = sectionRows(nonEmpty, "Rincian Omset:").flatMap((line) => {
+    const m = line.match(/^(.+?):\s*(Rp[\d.]+)$/);
+    if (!m) return [];
+    return [{ date: m[1], amount: parseRupiah(m[2]) }];
+  });
+
+  function parseExpenseRows(header: string): ParsedRincianExpense[] {
+    return sectionRows(nonEmpty, header).flatMap((line) => {
+      const belumDibayar = /\[Belum Dibayar\]$/.test(line);
+      const clean = line.replace(/\s*\[Belum Dibayar\]$/, "");
+      const m = clean.match(/^(.+?) — (.+): (Rp[\d.]+)$/);
+      if (!m) return [];
+      return [{ date: m[1], description: m[2], amount: parseRupiah(m[3]), belumDibayar }];
+    });
+  }
 
   return {
-    summaryLine,
-    totalPengeluaran: totalMatch ? parseRupiah(totalMatch[1]) : null,
-    modalAwal: modalMatch ? parseRupiah(modalMatch[1]) : null,
-    catatan: catatanMatch ? catatanMatch[1] : "",
-    rincian,
+    periode: nonEmpty[0] ?? detail,
+    saldoAwalTunai: fieldValue(nonEmpty, "Saldo Awal Tunai"),
+    saldoAwalRekening: fieldValue(nonEmpty, "Saldo Awal Rekening"),
+    omsetMasuk: fieldValue(nonEmpty, "Omset Tunai Masuk"),
+    pengeluaranTunai: fieldValue(nonEmpty, "Pengeluaran Tunai"),
+    pengeluaranTf: fieldValue(nonEmpty, "Pengeluaran TF"),
+    sisaSaldoTunai: fieldValue(nonEmpty, "Sisa Saldo Tunai"),
+    sisaSaldoRekening: fieldValue(nonEmpty, "Sisa Saldo Rekening"),
+    catatan: catatanLine ? catatanLine.replace(/^Catatan:\s*/, "") : "",
+    rincianOmset,
+    rincianTunai: parseExpenseRows("Rincian Pengeluaran Tunai:"),
+    rincianTf: parseExpenseRows("Rincian Pengeluaran TF:"),
   };
 }
 
@@ -73,36 +111,59 @@ function escapeHtml(text: string) {
     .replace(/>/g, "&gt;");
 }
 
+function rowHtml(label: string, value: number | null, strong = false) {
+  if (value === null) return "";
+  return `<div class="row${strong ? " strong" : ""}"><span>${escapeHtml(label)}</span><span>${formatRupiah(value)}</span></div>`;
+}
+
+function expenseListHtml(title: string, rows: ParsedRincianExpense[]) {
+  if (rows.length === 0) return "";
+  return `
+    <p class="rincian-title">${escapeHtml(title)}</p>
+    <div class="rincian">
+      ${rows
+        .map(
+          (r) => `
+        <div class="rincian-row">
+          <span class="rincian-desc">${escapeHtml(r.date)} — ${escapeHtml(r.description)}${r.belumDibayar ? ' <span class="tag">Belum Dibayar</span>' : ""}</span>
+          <span class="rincian-amount">${formatRupiah(r.amount)}</span>
+        </div>`,
+        )
+        .join("")}
+    </div>`;
+}
+
 // Jendela baru khusus buat cetak, bukan window.print() di halaman ini --
-// halaman PDO sudah punya beberapa elemen "print:block" lain (rekap Tunai,
-// slip PDO yang lagi disubmit), jadi kalau ikut window.print() di sini bisa
-// kecampur ke-print bareng.
+// halaman PDO sudah punya elemen "print:block" lain (slip PDO yang lagi
+// disubmit), jadi kalau ikut window.print() di sini bisa kecampur ke-print
+// bareng.
 function printSlip(businessName: string, item: HistoryItem) {
   const parsed = parseDetail(item.detail);
-  const sisaSaldo =
-    parsed.modalAwal !== null && parsed.totalPengeluaran !== null
-      ? parsed.modalAwal - parsed.totalPengeluaran
-      : null;
 
-  const win = window.open("", "_blank", "width=420,height=680");
+  const win = window.open("", "_blank", "width=420,height=760");
   if (!win) return;
 
-  const rincianHtml =
-    parsed.rincian.length > 0
+  const omsetHtml =
+    parsed.rincianOmset.length > 0
       ? `
-        <p class="rincian-title">Rincian Pengeluaran</p>
-        <div class="rincian">
-          ${parsed.rincian
-            .map(
-              (r) => `
-            <div class="rincian-row">
-              <span class="rincian-desc">${escapeHtml(r.date)} — ${escapeHtml(r.description)}</span>
-              <span class="rincian-amount">${formatRupiah(r.amount)}</span>
-            </div>`,
-            )
-            .join("")}
-        </div>`
-      : `<p class="detail">${escapeHtml(item.detail)}</p>`;
+    <p class="rincian-title">Rincian Omset Tunai</p>
+    <div class="rincian">
+      ${parsed.rincianOmset
+        .map(
+          (r) => `
+        <div class="rincian-row">
+          <span class="rincian-desc">${escapeHtml(r.date)}</span>
+          <span class="rincian-amount">${formatRupiah(r.amount)}</span>
+        </div>`,
+        )
+        .join("")}
+    </div>`
+      : "";
+
+  const fallbackHtml =
+    parsed.saldoAwalTunai === null && parsed.saldoAwalRekening === null
+      ? `<p class="detail">${escapeHtml(item.detail)}</p>`
+      : "";
 
   win.document.write(`<!DOCTYPE html>
 <html>
@@ -121,6 +182,7 @@ function printSlip(businessName: string, item: HistoryItem) {
   .rincian-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #71717a; margin: 16px 0 4px; border-top: 1px dashed #d4d4d8; padding-top: 12px; }
   .rincian-row { display: flex; justify-content: space-between; font-size: 12px; color: #52525b; padding: 2px 0; gap: 12px; }
   .rincian-amount { flex-shrink: 0; font-weight: 600; }
+  .tag { display: inline-block; font-size: 9.5px; font-weight: 600; color: #b45309; background: #fffbeb; border-radius: 999px; padding: 1px 6px; margin-left: 4px; }
   .detail { font-size: 12px; color: #52525b; white-space: pre-wrap; border-top: 1px dashed #d4d4d8; padding-top: 12px; margin-top: 12px; line-height: 1.6; }
   .sign { display: flex; justify-content: space-around; margin-top: 48px; font-size: 11px; text-align: center; color: #71717a; }
   .sign div { border-top: 1px solid #d4d4d8; padding-top: 6px; width: 120px; }
@@ -131,14 +193,21 @@ function printSlip(businessName: string, item: HistoryItem) {
   <h1>Slip Permintaan Dana Operasional</h1>
   <p class="period">${formatDateTime(item.date)}</p>
 
-  ${parsed.modalAwal !== null ? `<div class="row"><span>Saldo Awal Rekening</span><span>${formatRupiah(parsed.modalAwal)}</span></div>` : ""}
-  ${parsed.totalPengeluaran !== null ? `<div class="row"><span>Total Pengeluaran</span><span>${formatRupiah(parsed.totalPengeluaran)}</span></div>` : ""}
-  ${sisaSaldo !== null ? `<div class="row strong"><span>Sisa Saldo</span><span>${formatRupiah(sisaSaldo)}</span></div>` : ""}
+  ${rowHtml("Saldo Awal Tunai", parsed.saldoAwalTunai)}
+  ${rowHtml("Saldo Awal Rekening", parsed.saldoAwalRekening)}
+  ${rowHtml("Omset Tunai Masuk", parsed.omsetMasuk)}
+  ${rowHtml("Pengeluaran Tunai", parsed.pengeluaranTunai)}
+  ${rowHtml("Pengeluaran TF", parsed.pengeluaranTf)}
+  ${rowHtml("Sisa Saldo Tunai", parsed.sisaSaldoTunai, true)}
+  ${rowHtml("Sisa Saldo Rekening", parsed.sisaSaldoRekening, true)}
   ${parsed.catatan ? `<p class="catatan">Catatan: ${escapeHtml(parsed.catatan)}</p>` : ""}
 
-  <p class="amount">Minta Dana (Transfer)<br />${formatRupiah(item.amount)}</p>
+  <p class="amount">Permintaan Dana<br />${formatRupiah(item.amount)}</p>
 
-  ${rincianHtml}
+  ${fallbackHtml}
+  ${omsetHtml}
+  ${expenseListHtml("Rincian Pengeluaran Tunai", parsed.rincianTunai)}
+  ${expenseListHtml("Rincian Pengeluaran TF", parsed.rincianTf)}
 
   <div class="sign">
     <div>Diajukan oleh (Admin)</div>
@@ -161,7 +230,7 @@ export default function PdoHistoryList({
   return (
     <div className="divide-y divide-zinc-100">
       {history.map((h) => {
-        const summaryLine = h.detail.split("\n")[0] ?? h.detail;
+        const parsed = parseDetail(h.detail);
         return (
           <div key={h.id} className="flex items-center justify-between gap-2 px-4 py-3">
             <div className="min-w-0">
@@ -169,7 +238,7 @@ export default function PdoHistoryList({
                 <span className="text-xs text-zinc-400">{formatDateTime(h.date)}</span>
                 <span className="text-sm font-bold text-brand-700">{formatRupiah(h.amount)}</span>
               </div>
-              <p className="mt-0.5 truncate text-xs text-zinc-600">{summaryLine}</p>
+              <p className="mt-0.5 truncate text-xs text-zinc-600">{parsed.periode}</p>
             </div>
             <button
               type="button"
