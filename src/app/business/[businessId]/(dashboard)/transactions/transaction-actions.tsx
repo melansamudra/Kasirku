@@ -9,7 +9,7 @@ import ImportMokaForm from "./import-moka-form";
 import ImportEsbForm from "./import-esb-form";
 import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from "./actions";
 import type { ImportSalesRecapState } from "./rekap-actions";
-import type { ImportEsbState } from "./esb-actions";
+import type { EsbPreviewState, ImportEsbState } from "./esb-actions";
 
 // Export/import/manual-add are backoffice bulk-data tools, not something a
 // cashier needs from the Android app — only the transaction list itself
@@ -18,6 +18,7 @@ export function TransactionActions({
   businessId,
   importAction,
   importRekapAction,
+  previewEsbAction,
   importEsbAction,
   previewMokaAction,
   importMokaAction,
@@ -28,6 +29,7 @@ export function TransactionActions({
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
   importRekapAction: (state: ImportSalesRecapState, formData: FormData) => Promise<ImportSalesRecapState>;
+  previewEsbAction: (state: EsbPreviewState, formData: FormData) => Promise<EsbPreviewState>;
   importEsbAction: (state: ImportEsbState, formData: FormData) => Promise<ImportEsbState>;
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
   importMokaAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
@@ -245,7 +247,7 @@ export function TransactionActions({
               Upload file yang sama 2x aman — transaksi yang sudah pernah masuk otomatis dilewati.
             </p>
             <div className="mt-4">
-              <ImportEsbForm action={importEsbAction} />
+              <ImportEsbForm previewAction={previewEsbAction} importAction={importEsbAction} onClose={() => setEsbOpen(false)} />
             </div>
           </div>
         </div>

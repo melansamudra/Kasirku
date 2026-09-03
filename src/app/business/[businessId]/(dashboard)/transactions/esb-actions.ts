@@ -107,53 +107,9 @@ type ParsedLine = {
   tax: number;
 };
 
-export type ImportEsbState = {
-  error: string | null;
-  result: {
-    invoiceNumbers: string[];
-    transactionCount: number;
-    itemCount: number;
-    createdProducts: string[];
-    skippedCount: number;
-    warnings: string[];
-  } | null;
-};
-
-// Beda dari importSalesRecap (rekap-actions.ts): file ini adalah laporan
-// DETAIL, satu baris per menu per transaksi, sudah punya nomor transaksi
-// (Sales Number), jam transaksi presisi, dan tax/service yang SUDAH
-// dihitung ESB per baris -- semuanya dipakai langsung (bukan dihitung
-// ulang dari businesses.tax_rate/service_rate seperti importer lain).
-// Baris dengan Sales Number sama digabung jadi SATU transaksi.
-export async function importEsbSalesDetail(
-  businessId: string,
-  _prevState: ImportEsbState,
-  formData: FormData,
-): Promise<ImportEsbState> {
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) {
-    return { error: "Pilih file dulu.", result: null };
-  }
+async function parseEsbFile(file: File): Promise<{ lines: ParsedLine[]; warnings: string[] } | { error: string }> {
   if (!file.name.toLowerCase().endsWith(".xlsx") && !file.name.toLowerCase().endsWith(".xls")) {
-    return { error: "File harus format Excel (.xlsx) hasil export ESB.", result: null };
-  }
-
-  const noteInput = (formData.get("note") as string)?.trim();
-
-  const supabase = await createClient();
-
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
-    .eq("id", businessId)
-    .single();
-  if (!business || !hasStockLocationAccess(business)) {
-    return { error: "Impor rekap ESB belum tersedia untuk bisnis ini.", result: null };
-  }
-  const costControlEnabled = business.cost_control_enabled ?? false;
-
-  if (costControlEnabled) {
-    await syncFinishedProductsToCatalog(supabase, businessId);
+    return { error: "File harus format Excel (.xlsx) hasil export ESB." };
   }
 
   const buffer = await file.arrayBuffer();
@@ -161,17 +117,16 @@ export async function importEsbSalesDetail(
   try {
     await workbook.xlsx.load(buffer);
   } catch {
-    return { error: "File Excel tidak bisa dibaca. Pastikan ini file .xlsx asli dari ESB.", result: null };
+    return { error: "File Excel tidak bisa dibaca. Pastikan ini file .xlsx asli dari ESB." };
   }
   const sheet = workbook.worksheets[0];
-  if (!sheet) return { error: "File Excel tidak memiliki sheet.", result: null };
+  if (!sheet) return { error: "File Excel tidak memiliki sheet." };
 
   const cols = findHeaderAndColumns(sheet);
   if (!cols) {
     return {
       error:
         "Format kolom tidak dikenali. File harus punya kolom: Sales Number, Sales Date In, Payment Method, Menu Category, Menu Category Detail, Menu, Qty, Price, Subtotal, Discount, Service Charge, Tax (persis seperti export \"Sales Recapitulation Detail Report\" dari ESB).",
-      result: null,
     };
   }
 
@@ -213,17 +168,216 @@ export async function importEsbSalesDetail(
     });
   });
 
+  return { lines, warnings };
+}
+
+// Bentuk transaksi yang sudah dikelompokkan per Sales Number, item-nya masih
+// pakai NAMA menu (belum di-resolve ke product_id) -- dipakai buat lewat
+// hidden field antara langkah Preview dan Konfirmasi (server action baru
+// tidak berbagi memori antar request, jadi hasil parse harus di-serialize).
+type DraftTx = {
+  external_ref: string;
+  date: string; // ISO
+  payment_method: string;
+  catatan: string;
+  items: { menu: string; qty: number; price: number }[];
+  subtotal: number;
+  item_disc: number;
+  service: number;
+  tax: number;
+};
+type DraftPayload = {
+  transactions: DraftTx[];
+  toCreate: { name: string; category: string; price: number }[];
+  warnings: string[];
+};
+
+export type EsbPreviewState = {
+  error: string | null;
+  preview: {
+    transactionCount: number;
+    itemCount: number;
+    totalRupiah: number;
+    dateFrom: string;
+    dateTo: string;
+    newProductNames: string[];
+    matchedProductCount: number;
+    warnings: string[];
+    dataJson: string;
+  } | null;
+};
+
+// Langkah 1: baca file & susun rencana impor TANPA nulis apapun ke database
+// (produk baru belum dibuat, transaksi belum diinsert) -- supaya user bisa
+// cek dulu nama menu yang bakal jadi produk baru (jaga-jaga typo/salah
+// cocok) sebelum benar-benar commit.
+export async function previewEsbImport(
+  businessId: string,
+  _prevState: EsbPreviewState,
+  formData: FormData,
+): Promise<EsbPreviewState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "Pilih file dulu.", preview: null };
+  }
+
+  const supabase = await createClient();
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
+    .eq("id", businessId)
+    .single();
+  if (!business || !hasStockLocationAccess(business)) {
+    return { error: "Impor rekap ESB belum tersedia untuk bisnis ini.", preview: null };
+  }
+
+  const parsed = await parseEsbFile(file);
+  if ("error" in parsed) return { error: parsed.error, preview: null };
+  const { lines, warnings } = parsed;
+
   if (lines.length === 0) {
     return {
       error: warnings.length > 0 ? `Tidak ada baris yang bisa diimpor. ${warnings[0]}` : "File kosong atau tidak ada baris dengan Qty > 0.",
-      result: null,
+      preview: null,
     };
   }
 
-  // Cocokkan nama menu ke katalog produk (case-insensitive). Menu yang
-  // belum ada dibuat otomatis pakai Menu Category Detail (kategori paling
-  // spesifik di ESB) & Price dari baris pertama menu itu muncul -- sama
-  // seperti pola importSalesRecap, HPP-nya nol sampai resepnya diisi manual.
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, name")
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
+  const knownNames = new Set((products ?? []).map((p) => p.name.trim().toLowerCase()));
+
+  const toCreateByName = new Map<string, { name: string; category: string; price: number }>();
+  const matchedNames = new Set<string>();
+  for (const l of lines) {
+    const key = l.menu.toLowerCase();
+    if (knownNames.has(key)) {
+      matchedNames.add(key);
+    } else if (!toCreateByName.has(key)) {
+      toCreateByName.set(key, { name: l.menu, category: l.menuCategoryDetail || l.menuCategory || "Lainnya", price: l.price });
+    }
+  }
+
+  const groups = new Map<string, DraftTx & { paymentMethodCounts: Map<string, number> }>();
+  for (const l of lines) {
+    let g = groups.get(l.salesNumber);
+    if (!g) {
+      g = {
+        external_ref: l.salesNumber,
+        date: l.date.toISOString(),
+        payment_method: "",
+        catatan: `Impor ESB — ${l.billNumber || l.salesNumber}`,
+        items: [],
+        subtotal: 0,
+        item_disc: 0,
+        service: 0,
+        tax: 0,
+        paymentMethodCounts: new Map(),
+      };
+      groups.set(l.salesNumber, g);
+    }
+    if (l.date.toISOString() < g.date) g.date = l.date.toISOString();
+    g.paymentMethodCounts.set(l.paymentMethod, (g.paymentMethodCounts.get(l.paymentMethod) ?? 0) + 1);
+    g.subtotal += l.subtotal;
+    g.item_disc += l.discount;
+    g.service += l.service;
+    g.tax += l.tax;
+    g.items.push({ menu: l.menu, qty: l.qty, price: l.price });
+  }
+
+  const transactions: DraftTx[] = [...groups.values()].map((g) => {
+    let bestMethod = "Lainnya";
+    let bestCount = 0;
+    for (const [method, count] of g.paymentMethodCounts) {
+      if (count > bestCount) {
+        bestMethod = method;
+        bestCount = count;
+      }
+    }
+    return {
+      external_ref: g.external_ref,
+      date: g.date,
+      payment_method: bestMethod,
+      catatan: g.catatan,
+      items: g.items,
+      subtotal: g.subtotal,
+      item_disc: g.item_disc,
+      service: g.service,
+      tax: g.tax,
+    };
+  });
+
+  const dates = transactions.map((t) => t.date).sort();
+  const totalRupiah = transactions.reduce((sum, t) => sum + Math.max(t.subtotal - t.item_disc + t.service + t.tax, 0), 0);
+  const itemCount = transactions.reduce((sum, t) => sum + t.items.length, 0);
+
+  const payload: DraftPayload = { transactions, toCreate: [...toCreateByName.values()], warnings };
+
+  return {
+    error: null,
+    preview: {
+      transactionCount: transactions.length,
+      itemCount,
+      totalRupiah,
+      dateFrom: dates[0] ?? "",
+      dateTo: dates[dates.length - 1] ?? "",
+      newProductNames: payload.toCreate.map((p) => p.name),
+      matchedProductCount: matchedNames.size,
+      warnings,
+      dataJson: JSON.stringify(payload),
+    },
+  };
+}
+
+export type ImportEsbState = {
+  error: string | null;
+  result: {
+    transactionCount: number;
+    itemCount: number;
+    createdProducts: string[];
+    skippedCount: number;
+    warnings: string[];
+  } | null;
+};
+
+// Langkah 2: user sudah lihat ringkasan & klik konfirmasi -- baru di sini
+// produk baru dibuat & transaksi benar-benar diinsert lewat RPC
+// import_esb_sales_bulk. Terima dataJson dari hasil previewEsbImport (item
+// masih berupa nama menu, di-resolve ke product_id di sini).
+export async function confirmEsbImport(
+  businessId: string,
+  _prevState: ImportEsbState,
+  formData: FormData,
+): Promise<ImportEsbState> {
+  const dataJson = formData.get("dataJson") as string | null;
+  if (!dataJson) return { error: "Data tidak valid, coba upload ulang.", result: null };
+
+  let draft: DraftPayload;
+  try {
+    draft = JSON.parse(dataJson) as DraftPayload;
+  } catch {
+    return { error: "Data tidak valid, coba upload ulang.", result: null };
+  }
+
+  const supabase = await createClient();
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
+    .eq("id", businessId)
+    .single();
+  if (!business || !hasStockLocationAccess(business)) {
+    return { error: "Impor rekap ESB belum tersedia untuk bisnis ini.", result: null };
+  }
+  const costControlEnabled = business.cost_control_enabled ?? false;
+
+  if (costControlEnabled) {
+    await syncFinishedProductsToCatalog(supabase, businessId);
+  }
+
   const { data: products } = await supabase
     .from("products")
     .select("id, name")
@@ -231,20 +385,8 @@ export async function importEsbSalesDetail(
     .is("deleted_at", null);
   const productIdByName = new Map((products ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
 
-  const missingByName = new Map<string, { name: string; category: string; price: number }>();
-  for (const l of lines) {
-    const key = l.menu.toLowerCase();
-    if (!productIdByName.has(key) && !missingByName.has(key)) {
-      missingByName.set(key, {
-        name: l.menu,
-        category: l.menuCategoryDetail || l.menuCategory || "Lainnya",
-        price: l.price,
-      });
-    }
-  }
-
   const createdProducts: string[] = [];
-  const toCreate = [...missingByName.values()];
+  const toCreate = draft.toCreate.filter((p) => !productIdByName.has(p.name.trim().toLowerCase()));
   const catalogLabel = costControlEnabled ? "Produk Jadi (HPP)" : "Kelola Produk";
 
   if (toCreate.length > 0) {
@@ -276,54 +418,7 @@ export async function importEsbSalesDetail(
     createdProducts.push(...toCreate.map((p) => p.name));
   }
 
-  // Grup per Sales Number -- 1 baris ESB = 1 item, banyak baris dengan
-  // Sales Number sama = 1 transaksi (bill) utuh.
-  type TxDraft = {
-    external_ref: string;
-    date: Date;
-    paymentMethodCounts: Map<string, number>;
-    catatan: string;
-    items: { product_id: string; qty: number; price: number }[];
-    subtotal: number;
-    item_disc: number;
-    service: number;
-    tax: number;
-    unmatched: string[];
-  };
-  const groups = new Map<string, TxDraft>();
-
-  for (const l of lines) {
-    let g = groups.get(l.salesNumber);
-    if (!g) {
-      g = {
-        external_ref: l.salesNumber,
-        date: l.date,
-        paymentMethodCounts: new Map(),
-        catatan: noteInput || `Impor ESB — ${l.billNumber || l.salesNumber}`,
-        items: [],
-        subtotal: 0,
-        item_disc: 0,
-        service: 0,
-        tax: 0,
-        unmatched: [],
-      };
-      groups.set(l.salesNumber, g);
-    }
-    if (l.date < g.date) g.date = l.date;
-    g.paymentMethodCounts.set(l.paymentMethod, (g.paymentMethodCounts.get(l.paymentMethod) ?? 0) + 1);
-    g.subtotal += l.subtotal;
-    g.item_disc += l.discount;
-    g.service += l.service;
-    g.tax += l.tax;
-
-    const productId = productIdByName.get(l.menu.toLowerCase());
-    if (!productId) {
-      if (!g.unmatched.includes(l.menu)) g.unmatched.push(l.menu);
-      continue;
-    }
-    g.items.push({ product_id: productId, qty: l.qty, price: l.price });
-  }
-
+  const unmatchedMenus = new Set<string>();
   type EsbTxPayload = {
     external_ref: string;
     date: string;
@@ -335,36 +430,33 @@ export async function importEsbSalesDetail(
     service: number;
     tax: number;
   };
-  const unmatchedMenus = new Set<string>();
   const payload: EsbTxPayload[] = [];
-  for (const g of groups.values()) {
-    if (g.unmatched.length > 0) {
-      for (const m of g.unmatched) unmatchedMenus.add(m);
-    }
-    if (g.items.length === 0) continue; // seluruh menu di transaksi ini tidak cocok, lewati transaksinya
 
-    let bestMethod = "Lainnya";
-    let bestCount = 0;
-    for (const [method, count] of g.paymentMethodCounts) {
-      if (count > bestCount) {
-        bestMethod = method;
-        bestCount = count;
+  for (const t of draft.transactions) {
+    const items: { product_id: string; qty: number; price: number }[] = [];
+    for (const it of t.items) {
+      const productId = productIdByName.get(it.menu.toLowerCase());
+      if (!productId) {
+        unmatchedMenus.add(it.menu);
+        continue;
       }
+      items.push({ product_id: productId, qty: it.qty, price: it.price });
     }
-
+    if (items.length === 0) continue; // seluruh menu di transaksi ini tidak cocok, lewati transaksinya
     payload.push({
-      external_ref: g.external_ref,
-      date: g.date.toISOString(),
-      payment_method: bestMethod,
-      catatan: g.catatan,
-      items: g.items,
-      subtotal: g.subtotal,
-      item_disc: g.item_disc,
-      service: g.service,
-      tax: g.tax,
+      external_ref: t.external_ref,
+      date: t.date,
+      payment_method: t.payment_method,
+      catatan: t.catatan,
+      items,
+      subtotal: t.subtotal,
+      item_disc: t.item_disc,
+      service: t.service,
+      tax: t.tax,
     });
   }
 
+  const warnings = [...draft.warnings];
   if (unmatchedMenus.size > 0) {
     warnings.push(`${unmatchedMenus.size} menu tidak ditemukan di ${catalogLabel} walau sudah dicoba dibuat otomatis: ${[...unmatchedMenus].join(", ")}`);
   }
@@ -412,7 +504,6 @@ export async function importEsbSalesDetail(
   return {
     error: null,
     result: {
-      invoiceNumbers: [],
       transactionCount: created,
       itemCount,
       createdProducts,
