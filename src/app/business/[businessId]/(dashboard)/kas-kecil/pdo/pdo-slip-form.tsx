@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import type { PdoLogState } from "./actions";
 
@@ -15,6 +16,19 @@ type Nota = {
 
 type OmsetRow = { id: string; date: string; amount: string };
 type ManualExpenseRow = { id: string; date: string; description: string; amount: string; belumDibayar: boolean };
+
+// Snapshot terstruktur dokumen PDO -- disimpan ke activity_log.data
+// (migration 20260903100000) supaya slip yang sudah tersimpan bisa dibuka
+// lagi & diedit persis seperti pas diisi, bukan di-parse ulang dari teks
+// tampilan yang rawan ambigu (mis. tanggal tanpa tahun).
+export type PdoSnapshot = {
+  saldoAwalTunai: string;
+  saldoAwalRekening: string;
+  catatan: string;
+  omsetRows: { date: string; amount: string }[];
+  manualTunaiRows: { date: string; description: string; amount: string }[];
+  manualTransferRows: { date: string; description: string; amount: string; belumDibayar: boolean }[];
+};
 
 type RincianOmset = { id: string; date: string; amount: number };
 type RincianExpense = { id: string; date: string; description: string; amount: number; belumDibayar: boolean };
@@ -324,6 +338,9 @@ export default function PdoSlipForm({
   toLabel,
   notaList,
   businessName,
+  editMode = false,
+  initialSnapshot,
+  cancelHref,
 }: {
   action: (state: PdoLogState, formData: FormData) => Promise<PdoLogState>;
   today: string;
@@ -331,23 +348,40 @@ export default function PdoSlipForm({
   toLabel: string;
   notaList: Nota[];
   businessName: string;
+  editMode?: boolean;
+  initialSnapshot?: PdoSnapshot;
+  cancelHref?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
-  const [saldoAwalTunai, setSaldoAwalTunai] = useState("");
-  const [saldoAwalRekening, setSaldoAwalRekening] = useState("");
-  const [omsetRows, setOmsetRows] = useState<OmsetRow[]>(() => [newOmsetRow(today)]);
-  const [catatan, setCatatan] = useState("");
+  const [saldoAwalTunai, setSaldoAwalTunai] = useState(initialSnapshot?.saldoAwalTunai ?? "");
+  const [saldoAwalRekening, setSaldoAwalRekening] = useState(initialSnapshot?.saldoAwalRekening ?? "");
+  const [omsetRows, setOmsetRows] = useState<OmsetRow[]>(
+    () => initialSnapshot?.omsetRows.map((r) => ({ id: crypto.randomUUID(), ...r })) ?? [newOmsetRow(today)],
+  );
+  const [catatan, setCatatan] = useState(initialSnapshot?.catatan ?? "");
   const [previewMode, setPreviewMode] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
   const notaTunaiList = useMemo(() => notaList.filter((n) => n.paymentMethod !== "transfer"), [notaList]);
   const notaTransferList = useMemo(() => notaList.filter((n) => n.paymentMethod === "transfer"), [notaList]);
 
-  const [selectedTunaiIds, setSelectedTunaiIds] = useState<Set<string>>(() => new Set(notaTunaiList.map((n) => n.id)));
-  const [selectedTransferIds, setSelectedTransferIds] = useState<Set<string>>(() => new Set(notaTransferList.map((n) => n.id)));
-  const [manualTunaiRows, setManualTunaiRows] = useState<ManualExpenseRow[]>([]);
-  const [manualTransferRows, setManualTransferRows] = useState<ManualExpenseRow[]>([]);
+  // Mode edit: nota yang dulu dipilih sudah "dibekukan" jadi baris manual di
+  // initialSnapshot (lihat buildSnapshot), jadi checklist nota mulai KOSONG
+  // -- kalau tetap auto-select semua nota periode ini, angkanya bisa
+  // dobel-hitung sama baris manual yang sudah ada.
+  const [selectedTunaiIds, setSelectedTunaiIds] = useState<Set<string>>(() =>
+    editMode ? new Set() : new Set(notaTunaiList.map((n) => n.id)),
+  );
+  const [selectedTransferIds, setSelectedTransferIds] = useState<Set<string>>(() =>
+    editMode ? new Set() : new Set(notaTransferList.map((n) => n.id)),
+  );
+  const [manualTunaiRows, setManualTunaiRows] = useState<ManualExpenseRow[]>(
+    () => initialSnapshot?.manualTunaiRows.map((r) => ({ id: crypto.randomUUID(), belumDibayar: false, ...r })) ?? [],
+  );
+  const [manualTransferRows, setManualTransferRows] = useState<ManualExpenseRow[]>(
+    () => initialSnapshot?.manualTransferRows.map((r) => ({ id: crypto.randomUUID(), ...r })) ?? [],
+  );
 
   const submitted = attempted && !pending && !state.error;
 
@@ -456,6 +490,24 @@ export default function PdoSlipForm({
           .join("\n")}`
       : "");
 
+  // Snapshot terstruktur (dikirim sebagai JSON di field tersembunyi "snapshot")
+  // -- dibangun dari rincian yang SUDAH DIRESOLVE (nota terpilih + baris
+  // manual jadi satu daftar rata), supaya saat dibuka lagi untuk diedit,
+  // semuanya tampil sebagai baris manual yang bisa diubah/dihapus/ditambah
+  // bebas, tidak tergantung nota itu masih ada/di periode yang sama atau
+  // tidak lagi saat form edit dibuka.
+  const snapshot: PdoSnapshot = {
+    saldoAwalTunai,
+    saldoAwalRekening,
+    catatan,
+    omsetRows: rincianOmset.map((r) => ({ date: r.date.slice(0, 10), amount: String(r.amount) })),
+    manualTunaiRows: rincianTunai.map((r) => ({ date: r.date.slice(0, 10), description: r.description, amount: String(r.amount) })),
+    manualTransferRows: [
+      ...rincianTransfer.map((r) => ({ date: r.date.slice(0, 10), description: r.description, amount: String(r.amount), belumDibayar: false })),
+      ...rincianBelumDibayar.map((r) => ({ date: r.date.slice(0, 10), description: r.description, amount: String(r.amount), belumDibayar: true })),
+    ],
+  };
+
   function resetAll() {
     setAttempted(false);
     setPreviewMode(false);
@@ -473,7 +525,9 @@ export default function PdoSlipForm({
     return (
       <div className="mt-2">
         <div className="rounded-2xl border border-brand-200 bg-brand-50 p-4 text-center text-sm font-medium text-brand-700 print:hidden">
-          ✓ PDO tersimpan sebagai dokumen — Permintaan Dana {formatRupiah(permintaanDana)}
+          {editMode
+            ? `✓ Perubahan tersimpan — Permintaan Dana ${formatRupiah(permintaanDana)}`
+            : `✓ PDO tersimpan sebagai dokumen — Permintaan Dana ${formatRupiah(permintaanDana)}`}
         </div>
         <div className="mt-4">
           <SlipSummary {...summaryProps} />
@@ -486,13 +540,22 @@ export default function PdoSlipForm({
           >
             🖨️ Cetak PDF
           </button>
-          <button
-            type="button"
-            onClick={resetAll}
-            className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
-          >
-            + Ajukan Baru
-          </button>
+          {editMode && cancelHref ? (
+            <Link
+              href={cancelHref}
+              className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-center text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+            >
+              ← Kembali ke Riwayat
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={resetAll}
+              className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+            >
+              + Ajukan Baru
+            </button>
+          )}
         </div>
       </div>
     );
@@ -502,6 +565,15 @@ export default function PdoSlipForm({
     <form action={formAction} onSubmit={() => setAttempted(true)} className="mt-2 space-y-3">
       <input type="hidden" name="amount" value={permintaanDana} />
       <input type="hidden" name="description" value={description} />
+      <input type="hidden" name="snapshot" value={JSON.stringify(snapshot)} />
+
+      {editMode && cancelHref && (
+        <div className="flex justify-end print:hidden">
+          <Link href={cancelHref} className="text-xs font-medium text-zinc-400 hover:text-red-500">
+            ✕ Batal edit
+          </Link>
+        </div>
+      )}
 
       {previewMode ? (
         <>
@@ -524,7 +596,7 @@ export default function PdoSlipForm({
               disabled={pending}
               className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {pending ? "Menyimpan…" : "Simpan Dokumen PDO"}
+              {pending ? "Menyimpan…" : editMode ? "Simpan Perubahan" : "Simpan Dokumen PDO"}
             </button>
           </div>
         </>

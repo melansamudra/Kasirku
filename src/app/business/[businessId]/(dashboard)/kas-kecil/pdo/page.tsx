@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchKasBankLines } from "@/lib/kas-bank";
-import { logPdoRequest } from "./actions";
-import PdoSlipForm from "./pdo-slip-form";
+import { logPdoRequest, updatePdoRequest } from "./actions";
+import PdoSlipForm, { type PdoSnapshot } from "./pdo-slip-form";
 import PdoHistoryList from "./pdo-history-list";
 import PrintClosureButton from "../print-closure-button";
 
@@ -51,10 +51,10 @@ export default async function PdoPage({
   searchParams,
 }: {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; edit?: string }>;
 }) {
   const { businessId } = await params;
-  const { from: fromParam, to: toParam } = await searchParams;
+  const { from: fromParam, to: toParam, edit: editId } = await searchParams;
   const today = todayWibDateString();
   const from = /^\d{4}-\d{2}-\d{2}$/.test(fromParam ?? "") ? (fromParam as string) : firstDayOfMonth(today);
   const to = /^\d{4}-\d{2}-\d{2}$/.test(toParam ?? "") ? (toParam as string) : today;
@@ -90,15 +90,20 @@ export default async function PdoPage({
   // PDO murni dokumen sekarang (lihat actions.ts) -- riwayatnya disimpan di
   // activity_log, bukan journal_entries, jadi dua query ini tidak saling
   // bergantung dan dijalankan paralel buat motong round-trip.
-  const [{ displayLines }, { data: pdoHistoryRows }] = await Promise.all([
+  const [{ displayLines }, { data: pdoHistoryRows }, { data: editingRow }] = await Promise.all([
     fetchKasBankLines(supabase, businessId, `${from}T00:00:00+07:00`, `${nextDayStr(to)}T00:00:00+07:00`),
     supabase
       .from("activity_log")
-      .select("id, title, detail, created_at")
+      .select("id, title, detail, data, created_at")
       .eq("business_id", businessId)
       .ilike("title", "PDO %")
       .order("created_at", { ascending: false })
       .limit(30),
+    // Dokumen yang mau diedit (kalau ?edit=<id> dipasang) -- query terpisah
+    // biar tidak perlu nunggu 30 riwayat kebaca semua cuma buat ambil 1 baris.
+    editId
+      ? supabase.from("activity_log").select("id, title, detail, data").eq("id", editId).eq("business_id", businessId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const notaList = displayLines
@@ -117,9 +122,22 @@ export default async function PdoPage({
     date: row.created_at,
     amount: parseAmountFromTitle(row.title),
     detail: row.detail ?? "",
+    hasSnapshot: row.data !== null,
   }));
 
-  const boundLogPdoRequest = logPdoRequest.bind(null, businessId);
+  // Edit hanya untuk dokumen yang punya snapshot terstruktur (data jsonb,
+  // migration 20260903100000) -- dokumen lama sebelum migration ini cuma
+  // punya teks tampilan, tidak cukup buat diisi ulang ke form dengan aman,
+  // jadi kalau ?edit=<id> mengarah ke dokumen begitu, diperlakukan sama
+  // seperti tidak sedang mengedit (fallback ke form kosong seperti biasa).
+  const editingSnapshot = editingRow?.data ? (editingRow.data as unknown as PdoSnapshot) : null;
+  const isEditing = Boolean(editingRow && editingSnapshot);
+
+  const boundAction = isEditing
+    ? updatePdoRequest.bind(null, businessId, editingRow!.id)
+    : logPdoRequest.bind(null, businessId);
+  const periodQuery = fromParam || toParam ? `?from=${from}&to=${to}` : "";
+  const cancelHref = `/business/${businessId}/kas-kecil/pdo${periodQuery}`;
 
   return (
     <div className="w-full max-w-xl">
@@ -225,19 +243,31 @@ export default async function PdoPage({
         </div>
       )}
 
-      <h2 className="mt-6 text-sm font-bold text-zinc-900 print:hidden">📄 Permintaan Dana Operasional (PDO)</h2>
+      <h2 className="mt-6 text-sm font-bold text-zinc-900 print:hidden">
+        {isEditing ? "✏️ Edit Dokumen PDO" : "📄 Permintaan Dana Operasional (PDO)"}
+      </h2>
       <p className="mt-0.5 text-xs text-zinc-500 print:hidden">
-        Dokumen permintaan saja — tidak memposting transfer jurnal. Dana beneran pindah &amp; dicatat oleh
-        pemegang Rekening Utama sendiri setelah slip ini disetujui.
+        {isEditing
+          ? "Ubah datanya lalu simpan — dokumen lama otomatis tertimpa, tanggal & jam pengajuan tidak berubah."
+          : "Dokumen permintaan saja — tidak memposting transfer jurnal. Dana beneran pindah & dicatat oleh pemegang Rekening Utama sendiri setelah slip ini disetujui."}
       </p>
+      {editId && !isEditing && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 print:hidden">
+          Dokumen ini dibuat sebelum fitur edit ada, jadi tidak bisa diedit — cuma bisa dicetak dari Riwayat
+          Permintaan di bawah.
+        </p>
+      )}
 
       <PdoSlipForm
-        action={boundLogPdoRequest}
+        action={boundAction}
         today={today}
         fromLabel={formatDateLabel(from)}
         toLabel={formatDateLabel(to)}
         notaList={notaList}
         businessName={business.name}
+        editMode={isEditing}
+        initialSnapshot={editingSnapshot ?? undefined}
+        cancelHref={cancelHref}
       />
 
       <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
@@ -255,7 +285,7 @@ export default async function PdoPage({
             <h2 className="text-sm font-bold text-zinc-900">Riwayat Permintaan</h2>
             <p className="mt-0.5 text-[11px] text-zinc-400">PDO yang sudah pernah diajukan sebagai dokumen.</p>
           </div>
-          <PdoHistoryList businessName={business.name} history={pdoHistory} />
+          <PdoHistoryList businessId={businessId} businessName={business.name} history={pdoHistory} />
         </div>
       )}
     </div>

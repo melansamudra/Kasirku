@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
+
 type HistoryItem = {
   id: string;
   date: string;
   amount: number;
   detail: string;
+  hasSnapshot: boolean;
 };
 
 type ParsedRincianExpense = { date: string; description: string; amount: number; belumDibayar: boolean };
@@ -229,9 +232,11 @@ function printSlip(businessName: string, item: HistoryItem) {
 }
 
 export default function PdoHistoryList({
+  businessId,
   businessName,
   history,
 }: {
+  businessId: string;
   businessName: string;
   history: HistoryItem[];
 }) {
@@ -248,13 +253,23 @@ export default function PdoHistoryList({
               </div>
               <p className="mt-0.5 truncate text-xs text-zinc-600">{parsed.periode}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => printSlip(businessName, h)}
-              className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
-            >
-              🖨️ Cetak
-            </button>
+            <div className="flex shrink-0 gap-1.5">
+              {h.hasSnapshot && (
+                <Link
+                  href={`/business/${businessId}/kas-kecil/pdo?edit=${h.id}`}
+                  className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+                >
+                  ✏️ Edit
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => printSlip(businessName, h)}
+                className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+              >
+                🖨️ Cetak
+              </button>
+            </div>
           </div>
         );
       })}

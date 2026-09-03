@@ -108,6 +108,7 @@ export type Database = {
           status: string;
           title: string;
           detail: string | null;
+          data: Json | null;
           created_at: string;
         };
         Insert: {
@@ -117,6 +118,7 @@ export type Database = {
           status: string;
           title: string;
           detail?: string | null;
+          data?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -126,6 +128,7 @@ export type Database = {
           status?: string;
           title?: string;
           detail?: string | null;
+          data?: Json | null;
           created_at?: string;
         };
         Relationships: [];
