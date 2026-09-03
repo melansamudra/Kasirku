@@ -6,8 +6,10 @@ import { Capacitor } from "@capacitor/core";
 import ImportTransactionsForm from "./import-transactions-form";
 import ImportSalesRecapForm from "./import-sales-recap-form";
 import ImportMokaForm from "./import-moka-form";
+import ImportEsbForm from "./import-esb-form";
 import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from "./actions";
 import type { ImportSalesRecapState } from "./rekap-actions";
+import type { ImportEsbState } from "./esb-actions";
 
 // Export/import/manual-add are backoffice bulk-data tools, not something a
 // cashier needs from the Android app — only the transaction list itself
@@ -16,22 +18,27 @@ export function TransactionActions({
   businessId,
   importAction,
   importRekapAction,
+  importEsbAction,
   previewMokaAction,
   importMokaAction,
   costControlEnabled = false,
   stockLocationsEnabled = false,
+  richStockOpsEnabled = false,
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
   importRekapAction: (state: ImportSalesRecapState, formData: FormData) => Promise<ImportSalesRecapState>;
+  importEsbAction: (state: ImportEsbState, formData: FormData) => Promise<ImportEsbState>;
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
   importMokaAction: (state: MokaImportState, formData: FormData) => Promise<MokaImportState>;
   costControlEnabled?: boolean;
   stockLocationsEnabled?: boolean;
+  richStockOpsEnabled?: boolean;
 }) {
-  const canImportRekap = costControlEnabled || stockLocationsEnabled;
+  const canImportRekap = costControlEnabled || stockLocationsEnabled || richStockOpsEnabled;
   const [importOpen, setImportOpen] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [esbOpen, setEsbOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
 
   if (Capacitor.isNativePlatform()) return null;
@@ -70,6 +77,20 @@ export function TransactionActions({
             className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
           >
             📥 Impor Rekap Penjualan
+          </button>
+        )}
+        {/* Laporan DETAIL dari POS pihak ketiga (mis. ESB "Sales
+            Recapitulation Detail Report") -- satu baris per menu per
+            transaksi, sudah punya nomor transaksi + jam + tax/service
+            per baris. Beda dari "Impor Rekap Penjualan" yang cuma
+            Menu+Qty digabung per tanggal. */}
+        {canImportRekap && (
+          <button
+            type="button"
+            onClick={() => setEsbOpen(true)}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            📥 Impor Detail ESB
           </button>
         )}
         {/* Moka POS itu produk POS pihak ketiga spesifik -- tidak relevan
@@ -194,6 +215,37 @@ export function TransactionActions({
             </a>
             <div className="mt-4">
               <ImportSalesRecapForm action={importRekapAction} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {esbOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEsbOpen(false)} />
+          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-900">Impor Detail ESB</h2>
+              <button
+                onClick={() => setEsbOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500">
+              Upload file Excel &quot;Sales Recapitulation Detail Report&quot; asli dari ESB (jangan
+              diubah kolomnya). Baris dengan <strong>Sales Number</strong> yang sama digabung jadi 1
+              transaksi. Harga, Service Charge &amp; Tax dicatat persis seperti di file (bukan
+              dihitung ulang), jam transaksi ikut kolom Sales Date In (jadi bisa terlihat per jam
+              di daftar transaksi), dan stok bahan baku ikut terpotong otomatis lewat menu yang
+              resepnya sudah diisi. Menu yang <strong>sudah ada</strong> di{" "}
+              {costControlEnabled ? "Produk Jadi (HPP)" : "Kelola Produk"} langsung dipakai; yang{" "}
+              <strong>belum ada</strong> otomatis dibuat baru pakai Kategori &amp; Harga dari file.
+              Upload file yang sama 2x aman — transaksi yang sudah pernah masuk otomatis dilewati.
+            </p>
+            <div className="mt-4">
+              <ImportEsbForm action={importEsbAction} />
             </div>
           </div>
         </div>

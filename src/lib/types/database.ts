@@ -4547,6 +4547,7 @@ export type Database = {
           order_type: string | null;
           catatan: string | null;
           receipt_code: string | null;
+          external_ref: string | null;
         };
         Insert: {
           id?: string;
@@ -4578,6 +4579,7 @@ export type Database = {
           order_type?: string | null;
           catatan?: string | null;
           receipt_code?: string | null;
+          external_ref?: string | null;
         };
         Update: {
           id?: string;
@@ -4609,6 +4611,7 @@ export type Database = {
           order_type?: string | null;
           catatan?: string | null;
           receipt_code?: string | null;
+          external_ref?: string | null;
         };
         Relationships: [
           {
@@ -5057,6 +5060,17 @@ export type Database = {
         Returns: {
           created: number;
           skipped: number;
+        }[];
+      };
+      import_esb_sales_bulk: {
+        Args: {
+          p_business_id: string;
+          p_transactions: Json;
+        };
+        Returns: {
+          created: number;
+          skipped: number;
+          skipped_refs: string[];
         }[];
       };
       post_journal_entry: {

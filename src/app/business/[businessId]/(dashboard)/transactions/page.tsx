@@ -5,6 +5,7 @@ import { todayWibDateString } from "@/lib/wib";
 import { fetchAllRows } from "@/lib/pagination";
 import { importTransactions, previewMokaImport, importFromMoka } from "./actions";
 import { importSalesRecap } from "./rekap-actions";
+import { importEsbSalesDetail } from "./esb-actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
 import MirrorHint from "./mirror-hint";
@@ -48,8 +49,13 @@ export default async function TransactionsPage({
     notFound();
   }
 
-  // rich_stock_ops_enabled (Llauk pasca-konversi) SENGAJA TIDAK ikut di sini --
-  // katalog produk & label transaksi sekarang mode standar (sama kaya Adi's).
+  // rich_stock_ops_enabled (Llauk pasca-konversi) SENGAJA TIDAK ikut di
+  // costControlEnabled -- katalog produk & label transaksi sekarang mode
+  // standar (sama kaya Adi's). Tapi flag itu TETAP dipakai terpisah lewat
+  // richStockOpsEnabled di bawah, cuma buat gate tombol Impor Rekap
+  // Penjualan/Detail ESB (business itu tetap butuh akses fitur stok per
+  // lokasi yang sama seperti waktu masih cost_control_enabled -- lihat
+  // pola sama di has-stock-access.ts).
   const costControlEnabled = business.cost_control_enabled ?? false;
   const isOwner = business.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
@@ -108,6 +114,7 @@ export default async function TransactionsPage({
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
   const boundImportRekap = importSalesRecap.bind(null, businessId);
+  const boundImportEsb = importEsbSalesDetail.bind(null, businessId);
   const boundPreviewMoka = previewMokaImport.bind(null, businessId);
   const boundImportMoka = importFromMoka.bind(null, businessId);
 
@@ -129,10 +136,12 @@ export default async function TransactionsPage({
               businessId={businessId}
               importAction={boundImportTransactions}
               importRekapAction={boundImportRekap}
+              importEsbAction={boundImportEsb}
               previewMokaAction={boundPreviewMoka}
               importMokaAction={boundImportMoka}
               costControlEnabled={costControlEnabled}
               stockLocationsEnabled={business.stock_locations_enabled}
+              richStockOpsEnabled={business.rich_stock_ops_enabled ?? false}
             />
           )}
         </div>
