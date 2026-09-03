@@ -52,14 +52,39 @@ function cellNumber(cell: ExcelJS.Cell): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+// Sel tanggal Excel TIDAK menyimpan info zona waktu -- cuma serial angka
+// "hari sejak 1899-12-30". ExcelJS mengonversinya jadi Date lewat
+// new Date((serial - 25569) * 86400000), yang artinya field UTC Date hasil
+// konversi itu PERSIS SAMA dengan angka mentah di file (mis. kalau di
+// Excel tampil "2026-09-02 17:49:59", field UTC-nya juga 17:49:59) --
+// bukan jam UTC yang sebenarnya. ESB sendiri mengekspor jam WIB apa adanya
+// (tanpa dikonversi ke UTC), jadi angka itu SEBENARNYA jam WIB. Kalau
+// dipakai langsung sebagai timestamptz (label UTC), transaksi setelah jam
+// 17:00 WIB bakal "nyebrang" ke tanggal berikutnya pas dikonversi balik ke
+// WIB buat ditampilkan (17:00 UTC + 7 jam = jam 00:00 WIB hari berikutnya).
+// Dikoreksi di sini: baca field UTC apa adanya sebagai jam WIB, lalu hitung
+// instant UTC yang benar (WIB = UTC+7, jadi dikurangi 7 jam).
 function cellDate(cell: ExcelJS.Cell): Date | null {
   const v = cell.value;
-  if (v instanceof Date) return v;
-  if (typeof v === "string" && v.trim()) {
+  let raw: Date | null = null;
+  if (v instanceof Date) raw = v;
+  else if (typeof v === "string" && v.trim()) {
     const d = new Date(v);
-    if (!Number.isNaN(d.getTime())) return d;
+    if (!Number.isNaN(d.getTime())) raw = d;
   }
-  return null;
+  if (!raw) return null;
+
+  const wibAsUtcMs = Date.UTC(
+    raw.getUTCFullYear(),
+    raw.getUTCMonth(),
+    raw.getUTCDate(),
+    raw.getUTCHours(),
+    raw.getUTCMinutes(),
+    raw.getUTCSeconds(),
+  );
+  return new Date(wibAsUtcMs - WIB_OFFSET_MS);
 }
 
 function findHeaderAndColumns(sheet: ExcelJS.Worksheet): ColMap | null {
