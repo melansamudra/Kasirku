@@ -40,13 +40,17 @@ export async function saveProductRecipeImport(
     return { error: "Data resep untuk menu ini tidak ditemukan di data import.", success: false };
   }
 
-  const { data: product } = await supabase
+  // Cocokkan case-insensitive & spasi longgar -- nama menu di file Excel
+  // (sering ALL CAPS) jarang persis sama kapitalisasinya dengan nama di
+  // Kelola Produk meski maknanya sama persis, jadi .eq("name", ...) yang
+  // case-sensitive salah nganggep produknya "belum ada" padahal sudah ada.
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const { data: candidateProducts } = await supabase
     .from("products")
-    .select("id")
+    .select("id, name")
     .eq("business_id", businessId)
-    .eq("name", itemName)
-    .is("deleted_at", null)
-    .maybeSingle();
+    .is("deleted_at", null);
+  const product = (candidateProducts ?? []).find((p) => norm(p.name) === norm(itemName));
 
   if (!product) {
     return {

@@ -37,13 +37,18 @@ export async function saveBsjImport(
     return { error: "Data resep untuk menu ini tidak ditemukan di data import.", success: false };
   }
 
-  const { data: existing } = await supabase
+  // Cocokkan case-insensitive & spasi longgar -- .eq("name", ...) yang
+  // case-sensitive bikin BSJ yang namanya beda kapitalisasi doang (mis.
+  // Excel ALL CAPS vs nama BSJ Title Case) dianggap "belum ada" dan MALAH
+  // BIKIN DUPLIKAT baru (+ kembaran ingredient baru) alih-alih nyambung ke
+  // BSJ yang sudah ada.
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const { data: candidateItems } = await supabase
     .from("semi_finished_items")
-    .select("id, ingredient_id")
+    .select("id, name, ingredient_id")
     .eq("business_id", businessId)
-    .eq("name", itemName)
-    .is("deleted_at", null)
-    .maybeSingle();
+    .is("deleted_at", null);
+  const existing = (candidateItems ?? []).find((i) => norm(i.name) === norm(itemName));
 
   let itemId: string;
   let needsMirror = false;

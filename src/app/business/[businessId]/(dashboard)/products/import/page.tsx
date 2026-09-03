@@ -52,11 +52,22 @@ export default async function ImportProductRecipePage({ params }: { params: Prom
   // WAJIB punya harga jual, jadi tidak auto-dibuat di sini) -- 3 status:
   // "missing" (belum ada produknya sama sekali), "empty" (produk ada, resep
   // masih kosong), "filled" (resep sudah ada, akan ditimpa kalau disimpan lagi).
+  //
+  // Cocokkan case-insensitive & spasi longgar (bukan .in("name", ...) yang
+  // exact/case-sensitive) -- nama menu di Excel sering ALL CAPS sementara di
+  // Kelola Produk pakai Title Case, meski sama persis maknanya. Exact match
+  // bikin produk yang sudah ada dianggap "belum ada" (harus samain semua
+  // produk, bukan cuma yang ada di itemNames, biar bisa dicocokkan case-insensitive).
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
   const itemNames = groups.map((g) => g.itemName);
-  const { data: existingProducts } = itemNames.length
-    ? await supabase.from("products").select("id, name").eq("business_id", businessId).in("name", itemNames).is("deleted_at", null)
-    : { data: [] };
-  const productIdByName = new Map((existingProducts ?? []).map((p) => [p.name, p.id]));
+  const { data: allProducts } = await supabase.from("products").select("id, name").eq("business_id", businessId).is("deleted_at", null);
+  const productByNormName = new Map((allProducts ?? []).map((p) => [norm(p.name), p]));
+  const productIdByName = new Map(
+    itemNames.flatMap((name) => {
+      const match = productByNormName.get(norm(name));
+      return match ? [[name, match.id] as const] : [];
+    }),
+  );
   const existingIds = [...productIdByName.values()];
   const { data: recipeRows } = existingIds.length
     ? await supabase.from("product_recipes").select("product_id").in("product_id", existingIds)
