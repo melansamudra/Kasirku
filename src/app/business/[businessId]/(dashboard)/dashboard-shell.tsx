@@ -635,6 +635,46 @@ function NavPendingHint() {
   );
 }
 
+// 1 baris link nav — dipakai baik di grup ber-header (owner) maupun daftar
+// rata tanpa header (staff, lihat prop `flat` di SidebarContent).
+function NavItemLink({
+  item,
+  activeHref,
+  costControlEnabled,
+  onNavigate,
+}: {
+  item: NavItem;
+  activeHref: string | null;
+  costControlEnabled: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  const isActive = activeHref === item.href;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
+        isActive
+          ? costControlEnabled
+            ? "bg-amber-50 text-amber-800"
+            : "bg-brand-50 text-brand-700"
+          : "text-zinc-600 hover:bg-zinc-50"
+      }`}
+    >
+      <Icon
+        className={`h-[18px] w-[18px] shrink-0 ${
+          isActive ? (costControlEnabled ? "text-amber-700" : "text-brand-600") : "text-zinc-400"
+        }`}
+        strokeWidth={isActive ? 2.25 : 1.75}
+        aria-hidden="true"
+      />
+      {item.label}
+      <NavPendingHint />
+    </Link>
+  );
+}
+
 function SidebarContent({
   businessId,
   businessName,
@@ -646,6 +686,7 @@ function SidebarContent({
   costControlEnabled = false,
   onNavigate,
   showLogout = true,
+  flat = false,
 }: {
   businessId: string;
   businessName: string;
@@ -657,6 +698,13 @@ function SidebarContent({
   costControlEnabled?: boolean;
   onNavigate?: () => void;
   showLogout?: boolean;
+  // Staf (non-owner) lihat daftar halaman RATA, tanpa judul kategori
+  // pembungkus (Operasional Harian/Data Master/dst) -- header kategori itu
+  // sendiri tidak pernah jadi item yang bisa dicentang di form Kelola Admin,
+  // jadi kalau tetap ditampilkan, kelihatan seperti "menu yang tidak
+  // dicentang tapi kok muncul" walau isinya sudah benar terfilter (laporan
+  // user 2026-09-03). Owner tetap lihat versi berkelompok seperti biasa.
+  flat?: boolean;
 }) {
   const activeGroupTitle = activeGroupTitleOf(groups, activeHref);
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupTitle);
@@ -706,60 +754,49 @@ function SidebarContent({
       )}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {groups.map((group) => {
-          const isOpen = openGroup === group.title;
-          return (
-            <div key={group.title}>
-              <button
-                type="button"
-                onClick={() => setOpenGroup((g) => (g === group.title ? null : group.title))}
-                className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
-              >
-                <span>{group.title}</span>
-                <ChevronRight
-                  className={`h-3.5 w-3.5 transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
-                  aria-hidden="true"
+        {flat
+          ? groups
+              .flatMap((g) => g.items)
+              .map((item) => (
+                <NavItemLink
+                  key={item.href}
+                  item={item}
+                  activeHref={activeHref}
+                  costControlEnabled={costControlEnabled}
+                  onNavigate={onNavigate}
                 />
-              </button>
-              {isOpen && (
-                <div className="mt-0.5 space-y-0.5 pb-1">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeHref === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onNavigate}
-                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                          isActive
-                            ? costControlEnabled
-                              ? "bg-amber-50 text-amber-800"
-                              : "bg-brand-50 text-brand-700"
-                            : "text-zinc-600 hover:bg-zinc-50"
-                        }`}
-                      >
-                        <Icon
-                          className={`h-[18px] w-[18px] shrink-0 ${
-                            isActive
-                              ? costControlEnabled
-                                ? "text-amber-700"
-                                : "text-brand-600"
-                              : "text-zinc-400"
-                          }`}
-                          strokeWidth={isActive ? 2.25 : 1.75}
-                          aria-hidden="true"
+              ))
+          : groups.map((group) => {
+              const isOpen = openGroup === group.title;
+              return (
+                <div key={group.title}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenGroup((g) => (g === group.title ? null : group.title))}
+                    className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
+                  >
+                    <span>{group.title}</span>
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="mt-0.5 space-y-0.5 pb-1">
+                      {group.items.map((item) => (
+                        <NavItemLink
+                          key={item.href}
+                          item={item}
+                          activeHref={activeHref}
+                          costControlEnabled={costControlEnabled}
+                          onNavigate={onNavigate}
                         />
-                        {item.label}
-                        <NavPendingHint />
-                      </Link>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
       </nav>
 
       <div className="border-t border-zinc-100 px-3 py-3">
@@ -965,6 +1002,7 @@ export default function DashboardShell({
             canAccessPos={!costControlEnabled && !isNavKeyHidden("pos", hiddenNavKeys) && (isOwner || permissions.includes("pos"))}
             costControlEnabled={costControlEnabled}
             showLogout={false}
+            flat={!isOwner}
           />
         </div>
       </aside>
@@ -987,6 +1025,7 @@ export default function DashboardShell({
               canAccessPos={!costControlEnabled && !isNavKeyHidden("pos", hiddenNavKeys) && (isOwner || permissions.includes("pos"))}
               costControlEnabled={costControlEnabled}
               onNavigate={() => setMobileNavOpen(false)}
+              flat={!isOwner}
             />
           </div>
         </div>
