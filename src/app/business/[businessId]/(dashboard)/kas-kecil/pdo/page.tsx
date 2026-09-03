@@ -259,6 +259,12 @@ export default async function PdoPage({
       )}
 
       <PdoSlipForm
+        // key beda antara mode buat-baru dan tiap dokumen yang diedit --
+        // tanpa ini, navigasi klien (klik "Edit" dari daftar riwayat) tidak
+        // benar-benar me-remount komponennya, jadi useState(initialSnapshot)
+        // di dalam PdoSlipForm tidak pernah kepakai (form tetap keisi state
+        // KOSONG dari sebelumnya) walau prop initialSnapshot-nya sudah benar.
+        key={isEditing ? editingRow!.id : "create"}
         action={boundAction}
         today={today}
         fromLabel={formatDateLabel(from)}
