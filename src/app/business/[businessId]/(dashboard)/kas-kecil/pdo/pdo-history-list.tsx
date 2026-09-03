@@ -23,6 +23,7 @@ type ParsedDetail = {
   rincianOmset: ParsedRincianOmset[];
   rincianTunai: ParsedRincianExpense[];
   rincianTf: ParsedRincianExpense[];
+  rincianBelumDibayar: ParsedRincianExpense[];
 };
 
 function formatRupiah(value: number) {
@@ -78,13 +79,17 @@ function parseDetail(detail: string): ParsedDetail {
     return [{ date: m[1], amount: parseRupiah(m[2]) }];
   });
 
-  function parseExpenseRows(header: string): ParsedRincianExpense[] {
+  function parseExpenseRows(header: string, belumDibayar = false): ParsedRincianExpense[] {
     return sectionRows(nonEmpty, header).flatMap((line) => {
-      const belumDibayar = /\[Belum Dibayar\]$/.test(line);
+      // Format lama menaruh tag "[Belum Dibayar]" nempel di akhir baris
+      // pengeluaran TF biasa -- entri baru sudah pisah section sendiri
+      // (lihat "Rincian Belum Dibayar" di bawah), tapi baris lama ini masih
+      // perlu dipahami buat riwayat yang sudah kepalang tersimpan.
+      const legacyBelumDibayar = /\[Belum Dibayar\]$/.test(line);
       const clean = line.replace(/\s*\[Belum Dibayar\]$/, "");
       const m = clean.match(/^(.+?) — (.+): (Rp[\d.]+)$/);
       if (!m) return [];
-      return [{ date: m[1], description: m[2], amount: parseRupiah(m[3]), belumDibayar }];
+      return [{ date: m[1], description: m[2], amount: parseRupiah(m[3]), belumDibayar: belumDibayar || legacyBelumDibayar }];
     });
   }
 
@@ -101,6 +106,7 @@ function parseDetail(detail: string): ParsedDetail {
     rincianOmset,
     rincianTunai: parseExpenseRows("Rincian Pengeluaran Tunai:"),
     rincianTf: parseExpenseRows("Rincian Pengeluaran TF:"),
+    rincianBelumDibayar: parseExpenseRows("Rincian Belum Dibayar (tidak mengurangi saldo):", true),
   };
 }
 
@@ -116,16 +122,16 @@ function rowHtml(label: string, value: number | null, strong = false) {
   return `<div class="row${strong ? " strong" : ""}"><span>${escapeHtml(label)}</span><span>${formatRupiah(value)}</span></div>`;
 }
 
-function expenseListHtml(title: string, rows: ParsedRincianExpense[]) {
+function expenseListHtml(title: string, rows: ParsedRincianExpense[], amber = false) {
   if (rows.length === 0) return "";
   return `
-    <p class="rincian-title">${escapeHtml(title)}</p>
+    <p class="rincian-title${amber ? " amber" : ""}">${escapeHtml(title)}</p>
     <div class="rincian">
       ${rows
         .map(
           (r) => `
-        <div class="rincian-row">
-          <span class="rincian-desc">${escapeHtml(r.date)} — ${escapeHtml(r.description)}${r.belumDibayar ? ' <span class="tag">Belum Dibayar</span>' : ""}</span>
+        <div class="rincian-row${amber ? " amber" : ""}">
+          <span class="rincian-desc">${escapeHtml(r.date)} — ${escapeHtml(r.description)}</span>
           <span class="rincian-amount">${formatRupiah(r.amount)}</span>
         </div>`,
         )
@@ -180,9 +186,10 @@ function printSlip(businessName: string, item: HistoryItem) {
   .amount { font-size: 20px; font-weight: 700; text-align: center; margin: 16px 0; color: #1d4ed8; border-top: 1px dashed #d4d4d8; padding-top: 16px; }
   .catatan { font-size: 11px; color: #71717a; margin: 4px 0 0; }
   .rincian-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #71717a; margin: 16px 0 4px; border-top: 1px dashed #d4d4d8; padding-top: 12px; }
+  .rincian-title.amber { color: #b45309; border-top-color: #fde68a; }
   .rincian-row { display: flex; justify-content: space-between; font-size: 12px; color: #52525b; padding: 2px 0; gap: 12px; }
+  .rincian-row.amber { color: #b45309; }
   .rincian-amount { flex-shrink: 0; font-weight: 600; }
-  .tag { display: inline-block; font-size: 9.5px; font-weight: 600; color: #b45309; background: #fffbeb; border-radius: 999px; padding: 1px 6px; margin-left: 4px; }
   .detail { font-size: 12px; color: #52525b; white-space: pre-wrap; border-top: 1px dashed #d4d4d8; padding-top: 12px; margin-top: 12px; line-height: 1.6; }
   .sign { display: flex; justify-content: space-around; margin-top: 48px; font-size: 11px; text-align: center; color: #71717a; }
   .sign div { border-top: 1px solid #d4d4d8; padding-top: 6px; width: 120px; }
@@ -208,6 +215,7 @@ function printSlip(businessName: string, item: HistoryItem) {
   ${omsetHtml}
   ${expenseListHtml("Rincian Pengeluaran Tunai", parsed.rincianTunai)}
   ${expenseListHtml("Rincian Pengeluaran TF", parsed.rincianTf)}
+  ${expenseListHtml("Belum Dibayar (tidak mengurangi saldo)", parsed.rincianBelumDibayar, true)}
 
   <div class="sign">
     <div>Diajukan oleh (Admin)</div>

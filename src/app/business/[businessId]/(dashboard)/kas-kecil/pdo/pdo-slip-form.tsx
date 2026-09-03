@@ -167,6 +167,8 @@ function SlipSummary({
   rincianTunai,
   totalPengeluaranTransfer,
   rincianTransfer,
+  totalBelumDibayar,
+  rincianBelumDibayar,
   sisaSaldoTunai,
   sisaSaldoRekening,
   permintaanDana,
@@ -183,6 +185,8 @@ function SlipSummary({
   rincianTunai: RincianExpense[];
   totalPengeluaranTransfer: number;
   rincianTransfer: RincianExpense[];
+  totalBelumDibayar: number;
+  rincianBelumDibayar: RincianExpense[];
   sisaSaldoTunai: number;
   sisaSaldoRekening: number;
   permintaanDana: number;
@@ -253,11 +257,6 @@ function SlipSummary({
               <div key={r.id} className="flex justify-between gap-2 text-xs text-zinc-500">
                 <span className="min-w-0 truncate">
                   {i + 1}. {r.description}
-                  {r.belumDibayar && (
-                    <span className="ml-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
-                      Belum Dibayar
-                    </span>
-                  )}
                 </span>
                 <span className="shrink-0">{formatRupiah(r.amount)}</span>
               </div>
@@ -265,6 +264,25 @@ function SlipSummary({
           </div>
         )}
       </div>
+
+      {rincianBelumDibayar.length > 0 && (
+        <div className="mt-3 border-t border-dashed border-amber-200 pt-3">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-amber-600">Belum Dibayar (tidak mengurangi saldo)</span>
+            <span className="font-medium text-amber-600">{formatRupiah(totalBelumDibayar)}</span>
+          </div>
+          <div className="mt-1 space-y-0.5 pl-3">
+            {rincianBelumDibayar.map((r, i) => (
+              <div key={r.id} className="flex justify-between gap-2 text-xs text-amber-600">
+                <span className="min-w-0 truncate">
+                  {i + 1}. {r.description}
+                </span>
+                <span className="shrink-0">{formatRupiah(r.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {catatan.trim() && <p className="mt-3 text-xs text-zinc-500">Catatan: {catatan.trim()}</p>}
 
@@ -364,20 +382,28 @@ export default function PdoSlipForm({
     () => buildRincian(notaTunaiList, selectedTunaiIds, manualTunaiRows),
     [notaTunaiList, selectedTunaiIds, manualTunaiRows],
   );
-  const rincianTransfer = useMemo(
+  const rincianTransferAll = useMemo(
     () => buildRincian(notaTransferList, selectedTransferIds, manualTransferRows),
     [notaTransferList, selectedTransferIds, manualTransferRows],
   );
+  // Baris "Belum Dibayar" dipisah dari rincian utama -- belum beneran
+  // ditransfer, jadi TIDAK ikut mengurangi Sisa Saldo Rekening / Permintaan
+  // Dana (arahan user 2026-09-03), cuma ditampilkan di bawah sebagai
+  // catatan hutang yang masih nunggu.
+  const rincianTransfer = useMemo(() => rincianTransferAll.filter((r) => !r.belumDibayar), [rincianTransferAll]);
+  const rincianBelumDibayar = useMemo(() => rincianTransferAll.filter((r) => r.belumDibayar), [rincianTransferAll]);
 
   const totalPengeluaranTunai = rincianTunai.reduce((s, r) => s + r.amount, 0);
   const totalPengeluaranTransfer = rincianTransfer.reduce((s, r) => s + r.amount, 0);
+  const totalBelumDibayar = rincianBelumDibayar.reduce((s, r) => s + r.amount, 0);
 
   const saldoAwalTunaiNum = Number(saldoAwalTunai) || 0;
   const saldoAwalRekeningNum = Number(saldoAwalRekening) || 0;
   const sisaSaldoTunai = saldoAwalTunaiNum + totalOmset - totalPengeluaranTunai;
   const sisaSaldoRekening = saldoAwalRekeningNum - totalPengeluaranTransfer;
-  // Permintaan Dana SELALU ikut Total Pengeluaran by TF -- biar Rekening
-  // balik ke saldo awal (arahan user 2026-09-03), tidak bisa ditimpa manual.
+  // Permintaan Dana SELALU ikut Total Pengeluaran by TF (yang sudah lunas
+  // saja) -- biar Rekening balik ke saldo awal (arahan user 2026-09-03),
+  // tidak bisa ditimpa manual.
   const permintaanDana = totalPengeluaranTransfer;
 
   const summaryProps = {
@@ -392,6 +418,8 @@ export default function PdoSlipForm({
     rincianTunai,
     totalPengeluaranTransfer,
     rincianTransfer,
+    totalBelumDibayar,
+    rincianBelumDibayar,
     sisaSaldoTunai,
     sisaSaldoRekening,
     permintaanDana,
@@ -419,7 +447,12 @@ export default function PdoSlipForm({
       : "") +
     (rincianTransfer.length > 0
       ? `\n\nRincian Pengeluaran TF:\n${rincianTransfer
-          .map((r) => `${formatDateShort(r.date)} — ${r.description}: ${formatRupiah(r.amount)}${r.belumDibayar ? " [Belum Dibayar]" : ""}`)
+          .map((r) => `${formatDateShort(r.date)} — ${r.description}: ${formatRupiah(r.amount)}`)
+          .join("\n")}`
+      : "") +
+    (rincianBelumDibayar.length > 0
+      ? `\n\nRincian Belum Dibayar (tidak mengurangi saldo):\n${rincianBelumDibayar
+          .map((r) => `${formatDateShort(r.date)} — ${r.description}: ${formatRupiah(r.amount)}`)
           .join("\n")}`
       : "");
 
@@ -641,9 +674,15 @@ export default function PdoSlipForm({
               />
             </div>
             <div className="mt-2 flex items-center justify-between border-t border-zinc-100 pt-2">
-              <span className="text-xs font-medium text-zinc-500">Total Pengeluaran TF</span>
+              <span className="text-xs font-medium text-zinc-500">Total Pengeluaran TF (lunas)</span>
               <span className="text-sm font-bold text-red-600">{formatRupiah(totalPengeluaranTransfer)}</span>
             </div>
+            {totalBelumDibayar > 0 && (
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-xs font-medium text-amber-600">Belum Dibayar (tidak mengurangi saldo)</span>
+                <span className="text-sm font-bold text-amber-600">{formatRupiah(totalBelumDibayar)}</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 border-t border-zinc-100 pt-3">
