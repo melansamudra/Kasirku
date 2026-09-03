@@ -135,10 +135,10 @@ export default async function ReportsHarianPage({
       // Pembelian yang sudah dibatalkan (voided) dikecualikan -- sama seperti
       // halaman Pembelian & Hutang -- supaya "Sisa Hutang" di sini tidak ikut
       // menghitung utang yang sudah tidak berlaku lagi.
-      fetchAllRows<{ id: string; date: string; amount: number }>((rangeFrom, rangeTo) => {
+      fetchAllRows<{ id: string; date: string; amount: number; paid_amount: number }>((rangeFrom, rangeTo) => {
         let q = supabase
           .from("purchases")
-          .select("id, date, amount")
+          .select("id, date, amount, paid_amount")
           .eq("business_id", businessId)
           .eq("voided", false)
           .order("date")
@@ -301,14 +301,33 @@ export default async function ReportsHarianPage({
     ensure(p.date).hutangDibayar += Number(p.amount);
   }
 
+  // Total cicilan (purchase_payments) SEUMUR HIDUP per pembelian -- dipakai
+  // di bawah buat memisahkan "dibayar langsung saat pembelian dicatat" dari
+  // "paid_amount" kumulatif (lihat komentar di sisaHutangAsOf).
+  const lifetimePaymentsByPurchase = new Map<string, number>();
+  for (const p of validPayments) {
+    lifetimePaymentsByPurchase.set(p.purchase_id, (lifetimePaymentsByPurchase.get(p.purchase_id) ?? 0) + Number(p.amount));
+  }
+
   function sisaHutangAsOf(dateKey: string) {
-    const totalPurchases = allPurchases
+    const relevantPurchases = allPurchases.filter((p) => p.date <= dateKey);
+    const totalPurchases = relevantPurchases.reduce((s, p) => s + Number(p.amount), 0);
+    // purchases.paid_amount itu KUMULATIF (ikut naik tiap ada cicilan lewat
+    // purchase_payments/addPurchasePayment) -- porsi yang dibayar LANGSUNG
+    // saat pembelian dicatat (mis. pembelian tunai, tidak pernah masuk
+    // purchase_payments sama sekali) baru ketahuan dengan mengurangi
+    // paid_amount saat ini dengan total cicilan yang sudah pernah tercatat
+    // di purchase_payments untuk pembelian itu -- kalau tidak, porsi tunai
+    // ini kelewat dan ikut nambah "Sisa Hutang" padahal sudah lunas sejak
+    // awal (bug dilaporkan user 2026-09-03: pembelian tunai kebaca hutang).
+    const totalInitialPaid = relevantPurchases.reduce((s, p) => {
+      const viaLaterPayments = lifetimePaymentsByPurchase.get(p.id) ?? 0;
+      return s + Math.max(0, Number(p.paid_amount) - viaLaterPayments);
+    }, 0);
+    const totalPaidLater = validPayments
       .filter((p) => p.date <= dateKey)
       .reduce((s, p) => s + Number(p.amount), 0);
-    const totalPaid = validPayments
-      .filter((p) => p.date <= dateKey)
-      .reduce((s, p) => s + Number(p.amount), 0);
-    return totalPurchases - totalPaid;
+    return totalPurchases - totalInitialPaid - totalPaidLater;
   }
 
   const dayList = Array.from(dayMap.entries())
