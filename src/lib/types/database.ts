@@ -1034,6 +1034,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      ingredient_opname_section_items: {
+        Row: {
+          business_id: string;
+          ingredient_id: string;
+          section_id: string;
+        };
+        Insert: {
+          business_id: string;
+          ingredient_id: string;
+          section_id: string;
+        };
+        Update: {
+          business_id?: string;
+          ingredient_id?: string;
+          section_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_opname_section_items_ingredient_id_fkey";
+            columns: ["ingredient_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ingredient_opname_section_items_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredient_opname_sections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ingredient_purchase_units: {
         Row: {
           id: string;
@@ -1081,7 +1114,6 @@ export type Database = {
           min_stock: number;
           departments: string[];
           barcode: string | null;
-          opname_section_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1094,7 +1126,6 @@ export type Database = {
           min_stock?: number;
           departments?: string[];
           barcode?: string | null;
-          opname_section_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1107,17 +1138,8 @@ export type Database = {
           min_stock?: number;
           departments?: string[];
           barcode?: string | null;
-          opname_section_id?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "ingredients_opname_section_id_fkey";
-            columns: ["opname_section_id"];
-            isOneToOne: false;
-            referencedRelation: "ingredient_opname_sections";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
       inventory_snapshots: {
         Row: {

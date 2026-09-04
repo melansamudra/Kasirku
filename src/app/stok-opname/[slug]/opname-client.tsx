@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { submitStockOpname } from "./actions";
 
-type ItemOption = { id: string; name: string; unit: string; currentStock: number; sectionId?: string | null };
+type ItemOption = { id: string; name: string; unit: string; currentStock: number; sectionIds?: string[] };
 type Employee = { id: string; name: string };
 type Section = { id: string; name: string };
 
@@ -101,7 +101,7 @@ export default function OpnameClient({
   function filterItems(items: ItemOption[], applySectionFilter: boolean) {
     let result = items;
     if (applySectionFilter && sectionId) {
-      result = result.filter((i) => i.sectionId === sectionId);
+      result = result.filter((i) => (i.sectionIds ?? []).includes(sectionId));
     }
     const q = query.trim().toLowerCase();
     if (q) {

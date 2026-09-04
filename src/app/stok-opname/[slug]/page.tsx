@@ -9,7 +9,7 @@ type StockOpnameInfo = {
   employees: { id: string; name: string }[];
   stock_locations: { id: string; name: string; is_default_purchase: boolean; is_production: boolean }[];
   sections: { id: string; name: string }[];
-  ingredients: { id: string; name: string; unit: string; section_id: string | null }[];
+  ingredients: { id: string; name: string; unit: string; section_ids: string[] }[];
   semi_finished_items: { id: string; name: string; unit: string }[];
 };
 
@@ -74,7 +74,7 @@ export default async function StockOpnamePage({
           id: i.id,
           name: i.name,
           unit: i.unit,
-          sectionId: i.section_id,
+          sectionIds: i.section_ids,
           currentStock: ingredientStockById.get(i.id) ?? 0,
         }))}
         semiFinishedItems={

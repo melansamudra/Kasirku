@@ -9,7 +9,7 @@ import {
   editIngredient,
   importIngredients,
   updateIngredientDepartment,
-  updateIngredientOpnameSection,
+  updateIngredientOpnameSections,
 } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
@@ -20,7 +20,7 @@ import GenerateBarcodesButton from "./generate-barcodes-button";
 import ImportIngredientsForm from "./import-ingredients-form";
 import IngredientSearch from "./ingredient-search";
 import OpnameSectionManager from "./opname-section-manager";
-import OpnameSectionSelect from "./opname-section-select";
+import OpnameSectionMultiSelect from "./opname-section-multiselect";
 import PurchaseUnitsManager from "./purchase-units-manager";
 
 function formatRupiah(value: number) {
@@ -49,7 +49,7 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode, opname_section_id")
+    .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -59,6 +59,18 @@ export default async function IngredientsPage({
     .select("id, name")
     .eq("business_id", businessId)
     .order("name", { ascending: true });
+
+  const { data: opnameSectionItems } = await supabase
+    .from("ingredient_opname_section_items")
+    .select("ingredient_id, section_id")
+    .eq("business_id", businessId);
+
+  const sectionIdsByIngredient = new Map<string, string[]>();
+  for (const row of opnameSectionItems ?? []) {
+    const list = sectionIdsByIngredient.get(row.ingredient_id) ?? [];
+    list.push(row.section_id);
+    sectionIdsByIngredient.set(row.ingredient_id, list);
+  }
 
   const { data: purchaseUnits } = await supabase
     .from("ingredient_purchase_units")
@@ -155,11 +167,11 @@ export default async function IngredientsPage({
                       departments={i.departments ?? []}
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
-                    <OpnameSectionSelect
+                    <OpnameSectionMultiSelect
                       ingredientId={i.id}
-                      sectionId={i.opname_section_id}
+                      sectionIds={sectionIdsByIngredient.get(i.id) ?? []}
                       sections={opnameSections ?? []}
-                      action={updateIngredientOpnameSection.bind(null, businessId)}
+                      action={updateIngredientOpnameSections.bind(null, businessId)}
                     />
                   </div>
                   {costControlEnabled ? (

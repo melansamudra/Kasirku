@@ -82,19 +82,33 @@ export async function deleteOpnameSection(businessId: string, sectionId: string)
   revalidatePath(`/business/${businessId}/ingredients`);
 }
 
-export async function updateIngredientOpnameSection(
+// Bahan baku bisa masuk lebih dari 1 bagian sekaligus (mis. Air/Es Batu
+// dipakai di 2-3 bagian) -- sync penuh (hapus semua, insert ulang) supaya
+// action-nya tetap simpel, jumlah section per bahan biasanya kecil.
+export async function updateIngredientOpnameSections(
   businessId: string,
   ingredientId: string,
-  sectionId: string,
+  sectionIds: string[],
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("ingredients")
-    .update({ opname_section_id: sectionId || null })
-    .eq("id", ingredientId)
-    .eq("business_id", businessId);
 
-  if (error) return { error: error.message };
+  const { error: delError } = await supabase
+    .from("ingredient_opname_section_items")
+    .delete()
+    .eq("ingredient_id", ingredientId)
+    .eq("business_id", businessId);
+  if (delError) return { error: delError.message };
+
+  if (sectionIds.length > 0) {
+    const { error: insError } = await supabase.from("ingredient_opname_section_items").insert(
+      sectionIds.map((sectionId) => ({
+        business_id: businessId,
+        ingredient_id: ingredientId,
+        section_id: sectionId,
+      })),
+    );
+    if (insError) return { error: insError.message };
+  }
 
   revalidatePath(`/business/${businessId}/ingredients`);
   return { error: null };
