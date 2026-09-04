@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 export type SubmitStockOpnameResult =
-  | { success: true; adjustedCount: number }
+  | { success: true; entriesCount: number }
   | { success: false; error: string };
 
 type CountInput = { id: string; stock: number };
@@ -14,6 +14,7 @@ export async function submitStockOpname(
   locationId: string,
   ingredientCounts: CountInput[],
   semiFinishedCounts: CountInput[],
+  entryDate?: string,
 ): Promise<SubmitStockOpnameResult> {
   if (!employeeId) {
     return { success: false, error: "Pilih nama dulu." };
@@ -32,12 +33,13 @@ export async function submitStockOpname(
     p_location_id: locationId,
     p_ingredient_counts: ingredientCounts,
     p_semi_finished_counts: semiFinishedCounts,
+    p_entry_date: entryDate || null,
   });
 
   if (error) {
     return { success: false, error: "Gagal mengirim. Coba lagi." };
   }
 
-  const adjustedCount = (data as { adjusted_count?: number } | null)?.adjusted_count ?? 0;
-  return { success: true, adjustedCount };
+  const entriesCount = (data as { entries_count?: number } | null)?.entries_count ?? 0;
+  return { success: true, entriesCount };
 }

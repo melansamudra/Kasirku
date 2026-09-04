@@ -44,8 +44,16 @@ function ItemRow({
   );
 }
 
-function todayLabel() {
-  return new Date().toLocaleDateString("id-ID", {
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDateLabel(iso: string) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("id-ID", {
     weekday: "long",
     day: "2-digit",
     month: "long",
@@ -69,6 +77,7 @@ export default function OpnameClient({
   semiFinishedItems: ItemOption[];
 }) {
   const [employeeId, setEmployeeId] = useState("");
+  const [entryDate, setEntryDate] = useState(todayISO());
   const [query, setQuery] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
@@ -133,7 +142,7 @@ export default function OpnameClient({
     const { ingredientCounts, semiFinishedCounts } = buildCounts();
 
     setPending(true);
-    const res = await submitStockOpname(slug, employeeId, location.id, ingredientCounts, semiFinishedCounts);
+    const res = await submitStockOpname(slug, employeeId, location.id, ingredientCounts, semiFinishedCounts, entryDate);
     setPending(false);
 
     if (!res.success) {
@@ -143,10 +152,7 @@ export default function OpnameClient({
 
     setResult({
       ok: true,
-      message:
-        res.adjustedCount > 0
-          ? `Tersimpan! ${res.adjustedCount} bahan disesuaikan.`
-          : "Terkirim — tidak ada stok yang beda dari sistem, jadi tidak ada yang disesuaikan.",
+      message: `Terkirim! ${res.entriesCount} bahan menunggu diverifikasi admin.`,
     });
     setValues({});
     setStep("input");
@@ -173,7 +179,7 @@ export default function OpnameClient({
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
         <p className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{businessName}</p>
         <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Tinjau Sebelum Kirim</h1>
-        <p className="mt-1 text-center text-xs font-medium text-brand-700">{location.name} · {todayLabel()}</p>
+        <p className="mt-1 text-center text-xs font-medium text-brand-700">{location.name} · {formatDateLabel(entryDate)}</p>
         <p className="mt-2 text-center text-[11px] text-zinc-400">
           Cek lagi angka di bawah. Belum tersimpan ke sistem — masih bisa kembali dan ubah.
         </p>
@@ -238,7 +244,7 @@ export default function OpnameClient({
     <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
       <p className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{businessName}</p>
       <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Stok Opname — {location.name}</h1>
-      <p className="mt-1 text-center text-xs font-medium text-brand-700">{todayLabel()}</p>
+      <p className="mt-1 text-center text-xs font-medium text-brand-700">{formatDateLabel(entryDate)}</p>
       <p className="mt-1 text-center text-[11px] text-zinc-400">
         Isi stok fisik yang kamu hitung sekarang. Bahan yang tidak diisi tidak akan diubah.
       </p>
@@ -258,6 +264,20 @@ export default function OpnameClient({
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Tanggal Opname</label>
+          <input
+            type="date"
+            value={entryDate}
+            max={todayISO()}
+            onChange={(e) => setEntryDate(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Default hari ini — ganti kalau opname ini baru sempat dicatat telat dari kejadian aslinya.
+          </p>
         </div>
 
         <div>
