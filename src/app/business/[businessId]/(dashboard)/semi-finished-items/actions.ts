@@ -9,6 +9,38 @@ import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-
 
 export type ActionState = { error: string | null };
 
+// "Bagian" — reuse pool ingredient_opname_sections (sama daftar dgn Bahan
+// Baku, lihat ingredients/actions.ts) supaya BSJ juga bisa dipangkas per
+// Bagian Lokasi Ini/Stok Opname. Sync penuh (hapus semua, insert ulang).
+export async function updateSemiFinishedItemOpnameSections(
+  businessId: string,
+  itemId: string,
+  sectionIds: string[],
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error: delError } = await supabase
+    .from("semi_finished_item_opname_section_items")
+    .delete()
+    .eq("semi_finished_item_id", itemId)
+    .eq("business_id", businessId);
+  if (delError) return { error: delError.message };
+
+  if (sectionIds.length > 0) {
+    const { error: insError } = await supabase.from("semi_finished_item_opname_section_items").insert(
+      sectionIds.map((sectionId) => ({
+        business_id: businessId,
+        semi_finished_item_id: itemId,
+        section_id: sectionId,
+      })),
+    );
+    if (insError) return { error: insError.message };
+  }
+
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null };
+}
+
 // `recipeRows` (opsional, dikirim RecipeRowsBuilder sebagai JSON di hidden
 // input) -- biar staf bisa langsung isi komponen+jumlah resep saat BIKIN
 // item baru, tidak perlu buka halaman detail & edit lagi setelah tersimpan.

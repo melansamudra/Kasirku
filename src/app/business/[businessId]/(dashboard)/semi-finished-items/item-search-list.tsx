@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 import DeleteItemButton from "./delete-item-button";
+import OpnameSectionMultiSelect from "../ingredients/opname-section-multiselect";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -49,6 +50,7 @@ export type SemiFinishedItemRow = {
   rawCost: number;
   fluctuationPct: number;
   breakdown: CostBreakdownLine[];
+  sectionIds: string[];
 };
 
 function BreakdownRow({ line, depth }: { line: CostBreakdownLine; depth: number }) {
@@ -137,10 +139,14 @@ export default function SemiFinishedItemsList({
   businessId,
   items,
   now,
+  sections,
+  updateSectionsAction,
 }: {
   businessId: string;
   items: SemiFinishedItemRow[];
   now: number;
+  sections: { id: string; name: string }[];
+  updateSectionsAction: (itemId: string, sectionIds: string[]) => Promise<{ error: string | null }>;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -250,6 +256,12 @@ export default function SemiFinishedItemsList({
                           🆕 Baru
                         </span>
                       )}
+                      <OpnameSectionMultiSelect
+                        entityId={item.id}
+                        sectionIds={item.sectionIds}
+                        sections={sections}
+                        action={updateSectionsAction}
+                      />
                     </div>
                     <p className="text-xs text-zinc-500">
                       Stok {formatQty(item.stock)} {item.unit}

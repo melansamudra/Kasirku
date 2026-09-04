@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
-import { addSemiFinishedItem } from "./actions";
+import { addSemiFinishedItem, updateSemiFinishedItemOpnameSections } from "./actions";
 import ItemForm from "./item-form";
 import SemiFinishedItemsList, { type SemiFinishedItemRow } from "./item-search-list";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
@@ -32,7 +32,7 @@ export default async function SemiFinishedItemsPage({
     notFound();
   }
 
-  const [{ data: items }, { data: ingredients }] = await Promise.all([
+  const [{ data: items }, { data: ingredients }, { data: opnameSections }, { data: itemSectionRows }] = await Promise.all([
     supabase
       .from("semi_finished_items")
       .select("id, name, unit, min_stock, category, ingredient_id, updated_at")
@@ -45,7 +45,16 @@ export default async function SemiFinishedItemsPage({
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
+    supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId).order("name", { ascending: true }),
+    supabase.from("semi_finished_item_opname_section_items").select("semi_finished_item_id, section_id").eq("business_id", businessId),
   ]);
+
+  const sectionIdsByItem = new Map<string, string[]>();
+  for (const row of itemSectionRows ?? []) {
+    const list = sectionIdsByItem.get(row.semi_finished_item_id) ?? [];
+    list.push(row.section_id);
+    sectionIdsByItem.set(row.semi_finished_item_id, list);
+  }
 
   // Stok "asli" BSJ = stok kembarannya di Bahan Baku (lihat migration
   // 20260903010000) -- itu yang benar-benar dipotong checkout & ditambah
@@ -73,6 +82,7 @@ export default async function SemiFinishedItemsPage({
       rawCost: cost?.rawCost ?? 0,
       fluctuationPct: cost?.fluctuationPct ?? 0,
       breakdown: cost?.breakdown ?? [],
+      sectionIds: sectionIdsByItem.get(item.id) ?? [],
     };
   });
 
@@ -108,7 +118,13 @@ export default async function SemiFinishedItemsPage({
       </div>
 
       <div className="mt-6">
-        <SemiFinishedItemsList businessId={businessId} items={rows} now={nowMs()} />
+        <SemiFinishedItemsList
+          businessId={businessId}
+          items={rows}
+          now={nowMs()}
+          sections={opnameSections ?? []}
+          updateSectionsAction={updateSemiFinishedItemOpnameSections.bind(null, businessId)}
+        />
       </div>
     </div>
   );

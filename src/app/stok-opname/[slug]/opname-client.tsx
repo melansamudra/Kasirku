@@ -169,7 +169,7 @@ export default function OpnameClient({
   }
 
   const visibleIngredients = filterItems(ingredients, true);
-  const visibleSemiFinished = filterItems(semiFinishedItems, false);
+  const visibleSemiFinished = filterItems(semiFinishedItems, true);
 
   const reviewRows = useMemo(() => {
     const rows: { key: string; name: string; unit: string; currentStock: number; reported: number }[] = [];

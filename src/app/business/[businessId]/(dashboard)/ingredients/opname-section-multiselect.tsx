@@ -3,16 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Generic -- dipakai buat Bahan Baku (entityId = ingredientId) MAUPUN Bahan
+// Setengah Jadi (entityId = semiFinishedItemId), keduanya reuse pool
+// ingredient_opname_sections yang sama.
 export default function OpnameSectionMultiSelect({
-  ingredientId,
+  entityId,
   sectionIds,
   sections,
   action,
 }: {
-  ingredientId: string;
+  entityId: string;
   sectionIds: string[];
   sections: { id: string; name: string }[];
-  action: (ingredientId: string, sectionIds: string[]) => Promise<{ error: string | null }>;
+  action: (entityId: string, sectionIds: string[]) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [value, setValue] = useState<string[]>(sectionIds);
@@ -23,7 +26,7 @@ export default function OpnameSectionMultiSelect({
     const next = value.includes(sectionId) ? value.filter((id) => id !== sectionId) : [...value, sectionId];
     setValue(next);
     setPending(true);
-    action(ingredientId, next)
+    action(entityId, next)
       .then(() => {
         setPending(false);
         router.refresh();

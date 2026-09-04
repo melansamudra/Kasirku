@@ -4190,6 +4190,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      semi_finished_item_opname_section_items: {
+        Row: {
+          business_id: string;
+          semi_finished_item_id: string;
+          section_id: string;
+        };
+        Insert: {
+          business_id: string;
+          semi_finished_item_id: string;
+          section_id: string;
+        };
+        Update: {
+          business_id?: string;
+          semi_finished_item_id?: string;
+          section_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "semi_finished_item_opname_section_items_semi_finished_item_i_fkey";
+            columns: ["semi_finished_item_id"];
+            isOneToOne: false;
+            referencedRelation: "semi_finished_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "semi_finished_item_opname_section_items_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredient_opname_sections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       subscriptions: {
         Row: {
           id: string;

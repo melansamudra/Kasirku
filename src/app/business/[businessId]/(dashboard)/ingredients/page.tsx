@@ -168,7 +168,7 @@ export default async function IngredientsPage({
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
                     <OpnameSectionMultiSelect
-                      ingredientId={i.id}
+                      entityId={i.id}
                       sectionIds={sectionIdsByIngredient.get(i.id) ?? []}
                       sections={opnameSections ?? []}
                       action={updateIngredientOpnameSections.bind(null, businessId)}

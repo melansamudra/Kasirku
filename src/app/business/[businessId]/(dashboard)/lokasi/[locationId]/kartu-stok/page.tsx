@@ -48,6 +48,7 @@ export default async function LocationKartuStokPage({
     { data: opnameEntries },
     { data: locationSectionRows },
     { data: ingredientSectionRows },
+    { data: semiFinishedSectionRows },
   ] = await Promise.all([
     fetchAllRows<{
       ingredient_id: string | null;
@@ -87,17 +88,24 @@ export default async function LocationKartuStokPage({
       .order("created_at", { ascending: false }),
     supabase.from("stock_location_opname_sections").select("section_id").eq("business_id", businessId).eq("location_id", locationId),
     supabase.from("ingredient_opname_section_items").select("ingredient_id, section_id").eq("business_id", businessId),
+    supabase.from("semi_finished_item_opname_section_items").select("semi_finished_item_id, section_id").eq("business_id", businessId),
   ]);
 
   // Lokasi diikat ke Bagian tertentu (sama pola dengan halaman Bahan Baku) --
-  // kartu stok bahan (bukan BSJ, Bagian cuma berlaku buat bahan baku) ikut
-  // dipangkas supaya konsisten dengan daftar yang tampil di Bahan Baku.
+  // baris bahan baku MAUPUN BSJ ikut dipangkas supaya konsisten dengan
+  // daftar yang tampil di Bahan Baku / Bahan Setengah Jadi.
   const locationSectionIds = (locationSectionRows ?? []).map((r) => r.section_id);
   const sectionIdsByIngredient = new Map<string, string[]>();
   for (const row of ingredientSectionRows ?? []) {
     const list = sectionIdsByIngredient.get(row.ingredient_id) ?? [];
     list.push(row.section_id);
     sectionIdsByIngredient.set(row.ingredient_id, list);
+  }
+  const sectionIdsBySemiFinished = new Map<string, string[]>();
+  for (const row of semiFinishedSectionRows ?? []) {
+    const list = sectionIdsBySemiFinished.get(row.semi_finished_item_id) ?? [];
+    list.push(row.section_id);
+    sectionIdsBySemiFinished.set(row.semi_finished_item_id, list);
   }
 
   const rows = new Map<string, KartuStokRow>();
@@ -158,11 +166,13 @@ export default async function LocationKartuStokPage({
 
   const filteredRows =
     locationSectionIds.length > 0
-      ? [...rows.values()].filter(
-          (r) =>
-            r.componentType !== "ingredient" ||
-            (sectionIdsByIngredient.get(r.id) ?? []).some((id) => locationSectionIds.includes(id)),
-        )
+      ? [...rows.values()].filter((r) => {
+          const itemSectionIds =
+            r.componentType === "ingredient"
+              ? (sectionIdsByIngredient.get(r.id) ?? [])
+              : (sectionIdsBySemiFinished.get(r.id) ?? []);
+          return itemSectionIds.some((id) => locationSectionIds.includes(id));
+        })
       : [...rows.values()];
   const list = filteredRows.sort((a, b) => a.name.localeCompare(b.name));
 

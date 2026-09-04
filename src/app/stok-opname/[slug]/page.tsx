@@ -10,7 +10,7 @@ type StockOpnameInfo = {
   stock_locations: { id: string; name: string; is_default_purchase: boolean; is_production: boolean }[];
   sections: { id: string; name: string }[];
   ingredients: { id: string; name: string; unit: string; section_ids: string[] }[];
-  semi_finished_items: { id: string; name: string; unit: string }[];
+  semi_finished_items: { id: string; name: string; unit: string; section_ids: string[] }[];
 };
 
 export default async function StockOpnamePage({
@@ -80,7 +80,13 @@ export default async function StockOpnamePage({
         semiFinishedItems={
           location.is_default_purchase
             ? []
-            : info.semi_finished_items.map((s) => ({ ...s, currentStock: semiFinishedStockById.get(s.id) ?? 0 }))
+            : info.semi_finished_items.map((s) => ({
+                id: s.id,
+                name: s.name,
+                unit: s.unit,
+                sectionIds: s.section_ids,
+                currentStock: semiFinishedStockById.get(s.id) ?? 0,
+              }))
         }
       />
     </div>
