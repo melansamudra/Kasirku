@@ -73,6 +73,8 @@ export default function OpnameClient({
   const [values, setValues] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [step, setStep] = useState<"input" | "review">("input");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const filledCount = useMemo(
     () => Object.values(values).filter((v) => v.trim() !== "").length,
@@ -89,34 +91,46 @@ export default function OpnameClient({
     return items.filter((i) => i.name.toLowerCase().includes(q));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setResult(null);
-
-    if (!employeeId) {
-      setResult({ ok: false, message: "Pilih nama dulu." });
-      return;
-    }
-
+  function buildCounts() {
     const ingredientCounts = ingredients
       .filter((i) => values[`ing:${i.id}`]?.trim())
       .map((i) => ({ id: i.id, stock: Number(values[`ing:${i.id}`]) }));
     const semiFinishedCounts = semiFinishedItems
       .filter((s) => values[`semi:${s.id}`]?.trim())
       .map((s) => ({ id: s.id, stock: Number(values[`semi:${s.id}`]) }));
+    return { ingredientCounts, semiFinishedCounts };
+  }
+
+  function handleReview(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!employeeId) {
+      setFormError("Pilih nama dulu.");
+      return;
+    }
+
+    const { ingredientCounts, semiFinishedCounts } = buildCounts();
 
     if (ingredientCounts.some((c) => Number.isNaN(c.stock) || c.stock < 0)) {
-      setResult({ ok: false, message: "Stok fisik harus angka dan tidak boleh negatif." });
+      setFormError("Stok fisik harus angka dan tidak boleh negatif.");
       return;
     }
     if (semiFinishedCounts.some((c) => Number.isNaN(c.stock) || c.stock < 0)) {
-      setResult({ ok: false, message: "Stok fisik harus angka dan tidak boleh negatif." });
+      setFormError("Stok fisik harus angka dan tidak boleh negatif.");
       return;
     }
     if (ingredientCounts.length === 0 && semiFinishedCounts.length === 0) {
-      setResult({ ok: false, message: "Isi minimal 1 bahan dulu." });
+      setFormError("Isi minimal 1 bahan dulu.");
       return;
     }
+
+    setStep("review");
+  }
+
+  async function handleConfirmSend() {
+    setResult(null);
+    const { ingredientCounts, semiFinishedCounts } = buildCounts();
 
     setPending(true);
     const res = await submitStockOpname(slug, employeeId, location.id, ingredientCounts, semiFinishedCounts);
@@ -135,10 +149,90 @@ export default function OpnameClient({
           : "Terkirim — tidak ada stok yang beda dari sistem, jadi tidak ada yang disesuaikan.",
     });
     setValues({});
+    setStep("input");
   }
 
   const visibleIngredients = filterItems(ingredients);
   const visibleSemiFinished = filterItems(semiFinishedItems);
+
+  const reviewRows = useMemo(() => {
+    const rows: { key: string; name: string; unit: string; currentStock: number; reported: number }[] = [];
+    for (const i of ingredients) {
+      const raw = values[`ing:${i.id}`];
+      if (raw?.trim()) rows.push({ key: `ing:${i.id}`, name: i.name, unit: i.unit, currentStock: i.currentStock, reported: Number(raw) });
+    }
+    for (const s of semiFinishedItems) {
+      const raw = values[`semi:${s.id}`];
+      if (raw?.trim()) rows.push({ key: `semi:${s.id}`, name: s.name, unit: s.unit, currentStock: s.currentStock, reported: Number(raw) });
+    }
+    return rows;
+  }, [values, ingredients, semiFinishedItems]);
+
+  if (step === "review") {
+    return (
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{businessName}</p>
+        <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Tinjau Sebelum Kirim</h1>
+        <p className="mt-1 text-center text-xs font-medium text-brand-700">{location.name} · {todayLabel()}</p>
+        <p className="mt-2 text-center text-[11px] text-zinc-400">
+          Cek lagi angka di bawah. Belum tersimpan ke sistem — masih bisa kembali dan ubah.
+        </p>
+
+        <div className="mt-4 max-h-96 overflow-y-auto rounded-xl border border-zinc-200">
+          {reviewRows.map((r) => {
+            const diff = r.reported - r.currentStock;
+            return (
+              <div key={r.key} className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 last:border-0">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-zinc-800">{r.name}</p>
+                  <p className="text-[11px] text-zinc-400">
+                    Sistem: {r.currentStock.toLocaleString("id-ID")} {r.unit} → Diisi: {r.reported.toLocaleString("id-ID")} {r.unit}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 text-xs font-semibold ${
+                    diff === 0 ? "text-zinc-400" : diff > 0 ? "text-brand-600" : "text-red-500"
+                  }`}
+                >
+                  {diff > 0 ? "+" : ""}
+                  {diff.toLocaleString("id-ID")}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {result && (
+          <p
+            className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+              result.ok ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
+            }`}
+          >
+            {result.message}
+          </p>
+        )}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setStep("input")}
+            disabled={pending}
+            className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            ← Kembali, Edit Lagi
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmSend}
+            disabled={pending}
+            className="flex-1 rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {pending ? "Mengirim…" : `Kirim (${reviewRows.length} bahan)`}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
@@ -149,7 +243,7 @@ export default function OpnameClient({
         Isi stok fisik yang kamu hitung sekarang. Bahan yang tidak diisi tidak akan diubah.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+      <form onSubmit={handleReview} className="mt-4 space-y-4">
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Anda</label>
           <select
@@ -211,22 +305,15 @@ export default function OpnameClient({
           </div>
         )}
 
-        {result && (
-          <p
-            className={`rounded-lg px-3 py-2 text-xs ${
-              result.ok ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
-            }`}
-          >
-            {result.message}
-          </p>
+        {formError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{formError}</p>
         )}
 
         <button
           type="submit"
-          disabled={pending}
-          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
-          {pending ? "Mengirim…" : `Kirim Stok Opname${filledCount > 0 ? ` (${filledCount} bahan)` : ""}`}
+          {`Tinjau Dulu${filledCount > 0 ? ` (${filledCount} bahan)` : ""}`}
         </button>
       </form>
     </div>
