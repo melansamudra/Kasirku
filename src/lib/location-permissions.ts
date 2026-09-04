@@ -50,6 +50,7 @@ function buildSimpleLocationPermissionGroups(locations: LocationForPermissions[]
       { key: `lokasi-${loc.id}-purchase-requests`, label: `Permintaan Barang — ${loc.name}` },
       { key: `lokasi-${loc.id}-kartu-stok`, label: `Kartu Stok — ${loc.name}` },
       { key: `lokasi-${loc.id}-stock-opname`, label: `Stok Opname — ${loc.name}` },
+      { key: `lokasi-${loc.id}-semi-finished-items`, label: `Bahan Setengah Jadi — ${loc.name}` },
     ],
   }));
 }

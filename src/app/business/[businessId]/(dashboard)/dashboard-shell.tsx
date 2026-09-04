@@ -358,6 +358,7 @@ function buildSimpleLocationNavGroups(
       { key: `lokasi-${loc.id}-purchase-requests`, href: `${base}/permintaan-barang?lokasi=${loc.id}`, label: "Permintaan Barang", icon: ShoppingCart },
       { key: `lokasi-${loc.id}-kartu-stok`, href: `${base}/lokasi/${loc.id}/kartu-stok`, label: "Kartu Stok", icon: CreditCard },
       { key: `lokasi-${loc.id}-stock-opname`, href: `${base}/lokasi/${loc.id}/stock-opname`, label: "Stok Opname", icon: ClipboardList },
+      { key: `lokasi-${loc.id}-semi-finished-items`, href: `${base}/lokasi/${loc.id}/semi-finished-items`, label: "Bahan Setengah Jadi", icon: ChefHat },
       // "Produksi" (halaman /produksi, tabel production_runs) SENGAJA masih
       // 1 lokasi per bisnis (tidak punya location_id sendiri) -- item nav
       // ini cuma nongol di lokasi yang ditandai is_production=true. Kalau

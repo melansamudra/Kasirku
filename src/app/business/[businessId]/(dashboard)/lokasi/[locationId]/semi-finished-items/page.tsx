@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import { adjustSemiFinishedLocationStock } from "./actions";
+import { updateLocationOpnameSections } from "../bahan-baku/actions";
+import LocationSectionSelect from "../bahan-baku/location-section-select";
 
 export default async function LocationSemiFinishedItemsPage({
   params,
@@ -33,7 +35,14 @@ export default async function LocationSemiFinishedItemsPage({
     notFound();
   }
 
-  const [{ data: items }, { data: stockRows }, { data: adjustments }] = await Promise.all([
+  const [
+    { data: items },
+    { data: stockRows },
+    { data: adjustments },
+    { data: opnameSections },
+    { data: locationSectionRows },
+    { data: itemSectionRows },
+  ] = await Promise.all([
     supabase
       .from("semi_finished_items")
       .select("id, name, unit")
@@ -53,9 +62,26 @@ export default async function LocationSemiFinishedItemsPage({
       .not("semi_finished_item_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId).order("name", { ascending: true }),
+    supabase.from("stock_location_opname_sections").select("section_id").eq("business_id", businessId).eq("location_id", locationId),
+    supabase.from("semi_finished_item_opname_section_items").select("semi_finished_item_id, section_id").eq("business_id", businessId),
   ]);
 
   const stockByItem = new Map((stockRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
+
+  // Lokasi diikat ke Bagian tertentu (sama pola dengan halaman Bahan Baku) --
+  // kosong = tidak dibatasi, tampilkan semua BSJ seperti sebelumnya.
+  const locationSectionIds = (locationSectionRows ?? []).map((r) => r.section_id);
+  const sectionIdsByItem = new Map<string, string[]>();
+  for (const row of itemSectionRows ?? []) {
+    const list = sectionIdsByItem.get(row.semi_finished_item_id) ?? [];
+    list.push(row.section_id);
+    sectionIdsByItem.set(row.semi_finished_item_id, list);
+  }
+  const visibleItems =
+    locationSectionIds.length > 0
+      ? (items ?? []).filter((i) => (sectionIdsByItem.get(i.id) ?? []).some((id) => locationSectionIds.includes(id)))
+      : (items ?? []);
 
   return (
     <div className="w-full max-w-2xl">
@@ -74,9 +100,17 @@ export default async function LocationSemiFinishedItemsPage({
         dilacak sendiri-sendiri per lokasi.
       </p>
 
+      <LocationSectionSelect
+        locationId={locationId}
+        locationName={location.name}
+        sectionIds={locationSectionIds}
+        sections={opnameSections ?? []}
+        action={updateLocationOpnameSections.bind(null, businessId)}
+      />
+
       <div className="mt-6 space-y-2">
-        {items && items.length > 0 ? (
-          items.map((i) => {
+        {visibleItems.length > 0 ? (
+          visibleItems.map((i) => {
             const stock = stockByItem.get(i.id) ?? 0;
             return (
               <div
@@ -98,6 +132,11 @@ export default async function LocationSemiFinishedItemsPage({
               </div>
             );
           })
+        ) : locationSectionIds.length > 0 ? (
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+            Belum ada BSJ yang ditandai masuk Bagian lokasi ini — tandai dulu di halaman Bahan
+            Setengah Jadi, atau kosongkan &quot;Bagian Lokasi Ini&quot; untuk tampilkan semua.
+          </p>
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             Belum ada bahan setengah jadi — tambahkan dulu di halaman Bahan Setengah Jadi.
