@@ -44,6 +44,7 @@ export default function RequestClient({
   const [ingredientRows, setIngredientRows] = useState<IngredientRow[]>([]);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [step, setStep] = useState<"input" | "review">("input");
 
   const ingredientMap = new Map(ingredients.map((i) => [i.id, i]));
   const selectedItem = items.find((i) => i.id === itemId);
@@ -72,7 +73,23 @@ export default function RequestClient({
     setIngredientRows([]);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function buildReportedIngredients(): ReportedIngredientInput[] | null {
+    const reportedIngredients: ReportedIngredientInput[] = [];
+    for (const row of ingredientRows) {
+      const rowQty = Number(row.qty);
+      if (!row.qty || Number.isNaN(rowQty) || rowQty <= 0) continue; // baris kosong dilewati
+      if (row.ingredientId && row.ingredientId !== NEW_INGREDIENT_VALUE) {
+        reportedIngredients.push({ ingredientId: row.ingredientId, qty: rowQty });
+      } else if (row.newName.trim() && row.newUnit.trim()) {
+        reportedIngredients.push({ newName: row.newName.trim(), newUnit: row.newUnit.trim(), qty: rowQty });
+      } else {
+        return null;
+      }
+    }
+    return reportedIngredients;
+  }
+
+  function handleReview(e: React.FormEvent) {
     e.preventDefault();
     setResult(null);
 
@@ -88,20 +105,17 @@ export default function RequestClient({
       setResult({ ok: false, message: "Isi jumlah yang diproduksi (harus lebih dari 0)." });
       return;
     }
-
-    const reportedIngredients: ReportedIngredientInput[] = [];
-    for (const row of ingredientRows) {
-      const rowQty = Number(row.qty);
-      if (!row.qty || Number.isNaN(rowQty) || rowQty <= 0) continue; // baris kosong dilewati
-      if (row.ingredientId && row.ingredientId !== NEW_INGREDIENT_VALUE) {
-        reportedIngredients.push({ ingredientId: row.ingredientId, qty: rowQty });
-      } else if (row.newName.trim() && row.newUnit.trim()) {
-        reportedIngredients.push({ newName: row.newName.trim(), newUnit: row.newUnit.trim(), qty: rowQty });
-      } else {
-        setResult({ ok: false, message: "Lengkapi nama & satuan tiap baris bahan yang dipakai." });
-        return;
-      }
+    if (buildReportedIngredients() === null) {
+      setResult({ ok: false, message: "Lengkapi nama & satuan tiap baris bahan yang dipakai." });
+      return;
     }
+
+    setStep("review");
+  }
+
+  async function handleConfirmSend() {
+    setResult(null);
+    const reportedIngredients = buildReportedIngredients() ?? [];
 
     setPending(true);
     const res = await submitProductionScan(
@@ -123,10 +137,108 @@ export default function RequestClient({
       ok: true,
       message:
         mode === "new"
-          ? "Tersimpan! Supervisor akan tentukan bahan ini digabung ke item lama atau dibuat baru."
-          : "Tersimpan sebagai draft! Menunggu diverifikasi supervisor.",
+          ? "Tersimpan! Nanti ditentukan bahan ini digabung ke item lama atau dibuat baru."
+          : "Tersimpan sebagai draft! Menunggu diverifikasi.",
     });
     resetForm();
+    setStep("input");
+  }
+
+  if (step === "review") {
+    const itemLabel = mode === "existing" ? (selectedItem?.name ?? "—") : `${newName} (bahan baru)`;
+    const itemUnit = mode === "existing" ? (selectedItem?.unit ?? "") : newUnit;
+    const employeeName = employees.find((e) => e.id === employeeId)?.name;
+    const reportedRows = ingredientRows
+      .filter((row) => row.qty && Number(row.qty) > 0)
+      .map((row) => {
+        const isNew = row.ingredientId === NEW_INGREDIENT_VALUE;
+        const chosen = ingredientMap.get(row.ingredientId);
+        const name = isNew ? row.newName : (chosen?.name ?? "—");
+        const unit = isNew ? row.newUnit : (chosen?.unit ?? "");
+        return { key: row.key, name, unit, qty: row.qty };
+      });
+
+    return (
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm">
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">{businessName}</p>
+        <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Tinjau Sebelum Kirim</h1>
+        <p className="mt-2 text-center text-[11px] text-zinc-400">
+          Cek lagi data di bawah. Belum tersimpan — masih bisa kembali dan ubah.
+        </p>
+
+        <div className="mt-4 space-y-2 rounded-xl border border-zinc-200 p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500">Bahan Diproduksi</span>
+            <span className="font-medium text-zinc-900">{itemLabel}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500">Jumlah</span>
+            <span className="font-medium text-zinc-900">
+              {qtyNum.toLocaleString("id-ID")} {itemUnit}
+            </span>
+          </div>
+          {employeeName && (
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Nama</span>
+              <span className="font-medium text-zinc-900">{employeeName}</span>
+            </div>
+          )}
+          {note.trim() && (
+            <div className="flex items-center justify-between gap-3">
+              <span className="shrink-0 text-zinc-500">Catatan</span>
+              <span className="text-right font-medium text-zinc-900">{note}</span>
+            </div>
+          )}
+        </div>
+
+        {reportedRows.length > 0 && (
+          <div className="mt-3 rounded-xl bg-zinc-50 p-3">
+            <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-400">
+              Bahan yang Benar-Benar Dipakai
+            </p>
+            <div className="space-y-1">
+              {reportedRows.map((r) => (
+                <div key={r.key} className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-600">{r.name}</span>
+                  <span className="text-zinc-700">
+                    {r.qty} {r.unit}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <p
+            className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+              result.ok ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
+            }`}
+          >
+            {result.message}
+          </p>
+        )}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setStep("input")}
+            disabled={pending}
+            className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            ← Kembali, Edit Lagi
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmSend}
+            disabled={pending}
+            className="flex-1 rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {pending ? "Mengirim…" : "Kirim ke Sistem"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -135,10 +247,10 @@ export default function RequestClient({
       <h1 className="mt-1 text-center text-lg font-bold text-zinc-900">Catat Produksi</h1>
       <p className="mt-1 text-center text-[11px] text-zinc-400">
         Pilih bahan setengah jadi yang baru selesai dibuat, isi jumlahnya. Tidak langsung mengubah
-        stok — supervisor akan verifikasi dulu.
+        stok — masuk dulu ke sistem, menunggu diverifikasi.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+      <form onSubmit={handleReview} className="mt-4 space-y-4">
         <div className="flex rounded-xl border border-zinc-200 p-1 text-xs font-medium">
           <button
             type="button"
@@ -179,8 +291,8 @@ export default function RequestClient({
         ) : (
           <div className="space-y-3 rounded-xl border border-dashed border-zinc-300 p-3">
             <p className="text-[11px] text-zinc-500">
-              Belum ada di daftar? Ketik nama bahannya — supervisor yang akan putuskan nanti digabung
-              ke item lama atau dibuat item baru.
+              Belum ada di daftar? Ketik nama bahannya — nanti ditentukan digabung ke item lama
+              atau dibuat item baru.
             </p>
             <div>
               <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Bahan</label>
@@ -251,8 +363,8 @@ export default function RequestClient({
         <div className="rounded-xl border border-zinc-200 p-3">
           <p className="mb-2 text-xs font-medium text-zinc-600">Bahan yang Benar-Benar Dipakai (opsional)</p>
           <p className="mb-2 text-[11px] text-zinc-400">
-            Kalau bahan yang dipakai batch ini beda dari resep standar, catat di sini — supervisor
-            akan bandingkan sebelum verifikasi.
+            Kalau bahan yang dipakai batch ini beda dari resep standar, catat di sini — akan
+            dibandingkan sebelum diverifikasi.
           </p>
           <div className="space-y-2">
             {ingredientRows.map((row) => {
@@ -362,10 +474,9 @@ export default function RequestClient({
 
         <button
           type="submit"
-          disabled={pending}
-          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
-          {pending ? "Mengirim…" : "Kirim ke Supervisor"}
+          Tinjau Dulu
         </button>
       </form>
     </div>
