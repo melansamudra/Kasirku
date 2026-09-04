@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AdjustStockForm from "@/components/adjust-stock-form";
-import { adjustIngredientLocationStock } from "./actions";
+import { adjustIngredientLocationStock, updateLocationOpnameSections } from "./actions";
+import LocationSectionSelect from "./location-section-select";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
 import ReceiveLinkBox from "./receive-link-box";
 import IngredientSearch from "../../../ingredients/ingredient-search";
@@ -37,7 +38,14 @@ export default async function LocationBahanBakuPage({
     notFound();
   }
 
-  const [{ data: ingredients }, { data: stockRows }, { data: adjustments }] = await Promise.all([
+  const [
+    { data: ingredients },
+    { data: stockRows },
+    { data: adjustments },
+    { data: opnameSections },
+    { data: locationSectionRows },
+    { data: ingredientSectionRows },
+  ] = await Promise.all([
     supabase
       .from("ingredients")
       .select("id, name, unit")
@@ -57,9 +65,28 @@ export default async function LocationBahanBakuPage({
       .not("ingredient_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId).order("name", { ascending: true }),
+    supabase.from("stock_location_opname_sections").select("section_id").eq("business_id", businessId).eq("location_id", locationId),
+    supabase.from("ingredient_opname_section_items").select("ingredient_id, section_id").eq("business_id", businessId),
   ]);
 
   const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+
+  // Lokasi diikat ke Bagian tertentu (Kitchen Llauk = "Adonan, Topping" mis.)
+  // -- kosong = tidak dibatasi, tampilkan semua bahan seperti sebelumnya.
+  const locationSectionIds = (locationSectionRows ?? []).map((r) => r.section_id);
+  const sectionIdsByIngredient = new Map<string, string[]>();
+  for (const row of ingredientSectionRows ?? []) {
+    const list = sectionIdsByIngredient.get(row.ingredient_id) ?? [];
+    list.push(row.section_id);
+    sectionIdsByIngredient.set(row.ingredient_id, list);
+  }
+  const visibleIngredients =
+    locationSectionIds.length > 0
+      ? (ingredients ?? []).filter((i) =>
+          (sectionIdsByIngredient.get(i.id) ?? []).some((id) => locationSectionIds.includes(id)),
+        )
+      : (ingredients ?? []);
 
   // "Ambil dari Gudang": Purchasing menandai di Permintaan Barang, lokasi
   // peminta (di sini) yang konfirmasi terima -- baru stok benar-benar pindah
@@ -186,6 +213,14 @@ export default async function LocationBahanBakuPage({
         <ReceiveLinkBox businessId={businessId} locationId={locationId} initialSlug={business.receive_stock_slug} />
       )}
 
+      <LocationSectionSelect
+        locationId={locationId}
+        locationName={location.name}
+        sectionIds={locationSectionIds}
+        sections={opnameSections ?? []}
+        action={updateLocationOpnameSections.bind(null, businessId)}
+      />
+
       {pendingPos.length > 0 && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <h2 className="text-sm font-semibold text-amber-800">🚚 PO Menunggu Diterima dari Supplier</h2>
@@ -235,9 +270,9 @@ export default async function LocationBahanBakuPage({
       )}
 
       <div className="mt-6">
-        {ingredients && ingredients.length > 0 ? (
-          <IngredientSearch names={ingredients.map((i) => i.name)}>
-            {ingredients.map((i) => {
+        {visibleIngredients.length > 0 ? (
+          <IngredientSearch names={visibleIngredients.map((i) => i.name)}>
+            {visibleIngredients.map((i) => {
               const stock = stockByIngredient.get(i.id) ?? 0;
               return (
                 <div
@@ -260,6 +295,11 @@ export default async function LocationBahanBakuPage({
               );
             })}
           </IngredientSearch>
+        ) : locationSectionIds.length > 0 ? (
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+            Belum ada bahan baku yang ditandai masuk Bagian lokasi ini — tandai dulu di halaman
+            Bahan Baku, atau kosongkan &quot;Bagian Lokasi Ini&quot; untuk tampilkan semua.
+          </p>
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             Belum ada bahan baku — tambahkan dulu di halaman Bahan Baku.

@@ -98,6 +98,38 @@ export async function adjustIngredientLocationStock(
   return { error: null };
 }
 
+// Lokasi diikat ke Bagian tertentu (sync penuh: hapus semua, insert ulang)
+// supaya halaman Bahan Baku lokasi ini otomatis cuma tampilkan bahan yang
+// termasuk bagian itu -- lihat comment migrasi stock_location_opname_sections.
+export async function updateLocationOpnameSections(
+  businessId: string,
+  locationId: string,
+  sectionIds: string[],
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error: delError } = await supabase
+    .from("stock_location_opname_sections")
+    .delete()
+    .eq("location_id", locationId)
+    .eq("business_id", businessId);
+  if (delError) return { error: delError.message };
+
+  if (sectionIds.length > 0) {
+    const { error: insError } = await supabase.from("stock_location_opname_sections").insert(
+      sectionIds.map((sectionId) => ({
+        business_id: businessId,
+        location_id: locationId,
+        section_id: sectionId,
+      })),
+    );
+    if (insError) return { error: insError.message };
+  }
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}
+
 export type RegenerateReceiveSlugState = { error: string | null; slug: string | null };
 
 // Slug per BISNIS (bukan per lokasi, pola sama stock_opname_slug) -- lokasi

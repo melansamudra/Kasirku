@@ -4103,6 +4103,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      stock_location_opname_sections: {
+        Row: {
+          business_id: string;
+          location_id: string;
+          section_id: string;
+        };
+        Insert: {
+          business_id: string;
+          location_id: string;
+          section_id: string;
+        };
+        Update: {
+          business_id?: string;
+          location_id?: string;
+          section_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_location_opname_sections_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "stock_locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_location_opname_sections_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredient_opname_sections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ingredient_location_stock: {
         Row: {
           id: string;
