@@ -10,9 +10,13 @@ import type { Database } from "@/lib/types/database";
 export type ActionState = { error: string | null };
 
 // Saklar darurat per bisnis buat tunda pemotongan stok produksi (mis. Llauk
-// Nusantara yang masih uji coba, belum siap datanya dipotong) tanpa perlu
-// sembunyikan/hapus data produksi yang sudah ada -- default true supaya
-// bisnis lain yang sudah jalan tidak terdampak sama sekali.
+// Nusantara/PASTRI yang masih uji coba, belum siap datanya dipotong) --
+// produksi TETAP bisa dicatat/diverifikasi & biayanya tetap terhitung dari
+// resep, cuma stok bahan baku/BSJ komponennya tidak ikut dikurangi (dan tidak
+// ada baris production_run_consumptions yang dicatat, supaya voidProductionRun
+// tidak keliru "mengembalikan" stok yang sebenarnya tidak pernah dipotong).
+// Stok HASIL produksi (item yang dibuat) tetap ditambah seperti biasa --
+// default true supaya bisnis lain yang sudah jalan tidak terdampak sama sekali.
 async function isStockDeductionEnabled(
   supabase: SupabaseClient<Database>,
   businessId: string,
@@ -57,72 +61,75 @@ async function applyProductionStockMutation(
   runId: string,
   semiFinishedItemId: string,
   qtyProduced: number,
+  deductStock: boolean,
 ): Promise<{ error: string } | { totalCost: number; unitCost: number }> {
   const cost = await computeSemiFinishedItemCost(supabase, businessId, semiFinishedItemId);
   if (cost.breakdown.length === 0) {
     return { error: "Bahan ini belum punya resep — atur dulu resepnya di halaman Bahan Setengah Jadi." };
   }
 
-  const ingredientIds = cost.breakdown.filter((l) => l.componentType === "ingredient").map((l) => l.id);
-  const semiIds = cost.breakdown.filter((l) => l.componentType === "semi_finished").map((l) => l.id);
-
-  const ingredientStocks =
-    ingredientIds.length > 0
-      ? (
-          await supabase
-            .from("ingredient_location_stock")
-            .select("id, ingredient_id, stock")
-            .eq("location_id", locationId)
-            .in("ingredient_id", ingredientIds)
-        ).data ?? []
-      : [];
-  const semiStocks =
-    semiIds.length > 0
-      ? (
-          await supabase
-            .from("semi_finished_item_location_stock")
-            .select("id, semi_finished_item_id, stock")
-            .eq("location_id", locationId)
-            .in("semi_finished_item_id", semiIds)
-        ).data ?? []
-      : [];
-
-  const rowMap = new Map<string, { id: string; stock: number }>();
-  for (const row of ingredientStocks) rowMap.set(row.ingredient_id, { id: row.id, stock: Number(row.stock) });
-  for (const row of semiStocks) rowMap.set(row.semi_finished_item_id, { id: row.id, stock: Number(row.stock) });
-
-  const shortages: string[] = [];
-  for (const line of cost.breakdown) {
-    const need = line.qty * qtyProduced;
-    const available = rowMap.get(line.id)?.stock ?? 0;
-    if (available < need - 1e-9) {
-      shortages.push(`${line.name} (butuh ${need.toFixed(2)} ${line.unit}, tersedia ${available.toFixed(2)})`);
-    }
-  }
-  if (shortages.length > 0) {
-    return { error: `Stok tidak cukup di Dapur Produksi: ${shortages.join(", ")}.` };
-  }
-
   const totalCost = cost.unitCost * qtyProduced;
 
-  for (const line of cost.breakdown) {
-    const need = line.qty * qtyProduced;
-    await supabase.from("production_run_consumptions").insert({
-      business_id: businessId,
-      production_run_id: runId,
-      component_type: line.componentType,
-      ingredient_id: line.componentType === "ingredient" ? line.id : null,
-      semi_finished_item_id: line.componentType === "semi_finished" ? line.id : null,
-      component_name: line.name,
-      qty_consumed: need,
-      unit: line.unit,
-      unit_cost_at_time: line.unitCost,
-      subtotal_cost: line.subtotal * qtyProduced,
-    });
+  if (deductStock) {
+    const ingredientIds = cost.breakdown.filter((l) => l.componentType === "ingredient").map((l) => l.id);
+    const semiIds = cost.breakdown.filter((l) => l.componentType === "semi_finished").map((l) => l.id);
 
-    const table = line.componentType === "ingredient" ? "ingredient_location_stock" : "semi_finished_item_location_stock";
-    const row = rowMap.get(line.id)!;
-    await supabase.from(table).update({ stock: row.stock - need }).eq("id", row.id);
+    const ingredientStocks =
+      ingredientIds.length > 0
+        ? (
+            await supabase
+              .from("ingredient_location_stock")
+              .select("id, ingredient_id, stock")
+              .eq("location_id", locationId)
+              .in("ingredient_id", ingredientIds)
+          ).data ?? []
+        : [];
+    const semiStocks =
+      semiIds.length > 0
+        ? (
+            await supabase
+              .from("semi_finished_item_location_stock")
+              .select("id, semi_finished_item_id, stock")
+              .eq("location_id", locationId)
+              .in("semi_finished_item_id", semiIds)
+          ).data ?? []
+        : [];
+
+    const rowMap = new Map<string, { id: string; stock: number }>();
+    for (const row of ingredientStocks) rowMap.set(row.ingredient_id, { id: row.id, stock: Number(row.stock) });
+    for (const row of semiStocks) rowMap.set(row.semi_finished_item_id, { id: row.id, stock: Number(row.stock) });
+
+    const shortages: string[] = [];
+    for (const line of cost.breakdown) {
+      const need = line.qty * qtyProduced;
+      const available = rowMap.get(line.id)?.stock ?? 0;
+      if (available < need - 1e-9) {
+        shortages.push(`${line.name} (butuh ${need.toFixed(2)} ${line.unit}, tersedia ${available.toFixed(2)})`);
+      }
+    }
+    if (shortages.length > 0) {
+      return { error: `Stok tidak cukup di Dapur Produksi: ${shortages.join(", ")}.` };
+    }
+
+    for (const line of cost.breakdown) {
+      const need = line.qty * qtyProduced;
+      await supabase.from("production_run_consumptions").insert({
+        business_id: businessId,
+        production_run_id: runId,
+        component_type: line.componentType,
+        ingredient_id: line.componentType === "ingredient" ? line.id : null,
+        semi_finished_item_id: line.componentType === "semi_finished" ? line.id : null,
+        component_name: line.name,
+        qty_consumed: need,
+        unit: line.unit,
+        unit_cost_at_time: line.unitCost,
+        subtotal_cost: line.subtotal * qtyProduced,
+      });
+
+      const table = line.componentType === "ingredient" ? "ingredient_location_stock" : "semi_finished_item_location_stock";
+      const row = rowMap.get(line.id)!;
+      await supabase.from(table).update({ stock: row.stock - need }).eq("id", row.id);
+    }
   }
 
   await upsertSemiFinishedLocationStock(supabase, businessId, locationId, semiFinishedItemId, qtyProduced);
@@ -208,6 +215,7 @@ async function applyReportedStockMutation(
   runId: string,
   semiFinishedItemId: string,
   qtyProduced: number,
+  deductStock: boolean,
 ): Promise<{ error: string } | { totalCost: number; unitCost: number }> {
   const { data: reportedLines } = await supabase
     .from("production_run_reported_consumptions")
@@ -224,11 +232,13 @@ async function applyReportedStockMutation(
   const ingredientIds = reportedLines.map((l) => l.ingredient_id as string);
   const [{ data: ingRows }, { data: locStockRows }] = await Promise.all([
     supabase.from("ingredients").select("id, name, unit_cost").in("id", ingredientIds),
-    supabase
-      .from("ingredient_location_stock")
-      .select("id, ingredient_id, stock")
-      .eq("location_id", locationId)
-      .in("ingredient_id", ingredientIds),
+    deductStock
+      ? supabase
+          .from("ingredient_location_stock")
+          .select("id, ingredient_id, stock")
+          .eq("location_id", locationId)
+          .in("ingredient_id", ingredientIds)
+      : Promise.resolve({ data: [] as { id: string; ingredient_id: string; stock: number }[] }),
   ]);
   const ingById = new Map((ingRows ?? []).map((r) => [r.id, r]));
   const locStockById = new Map((locStockRows ?? []).map((r) => [r.ingredient_id, { id: r.id, stock: Number(r.stock) }]));
@@ -240,9 +250,11 @@ async function applyReportedStockMutation(
       shortages.push(`${line.reported_name} (bahan sudah dihapus)`);
       continue;
     }
-    const available = locStockById.get(line.ingredient_id as string)?.stock ?? 0;
-    if (available < Number(line.qty) - 1e-9) {
-      shortages.push(`${ing.name} (butuh ${line.qty} ${line.reported_unit}, tersedia ${available})`);
+    if (deductStock) {
+      const available = locStockById.get(line.ingredient_id as string)?.stock ?? 0;
+      if (available < Number(line.qty) - 1e-9) {
+        shortages.push(`${ing.name} (butuh ${line.qty} ${line.reported_unit}, tersedia ${available})`);
+      }
     }
   }
   if (shortages.length > 0) {
@@ -255,24 +267,26 @@ async function applyReportedStockMutation(
     const subtotal = Number(ing.unit_cost) * Number(line.qty);
     totalCost += subtotal;
 
-    await supabase.from("production_run_consumptions").insert({
-      business_id: businessId,
-      production_run_id: runId,
-      component_type: "ingredient",
-      ingredient_id: ing.id,
-      semi_finished_item_id: null,
-      component_name: ing.name,
-      qty_consumed: line.qty,
-      unit: line.reported_unit,
-      unit_cost_at_time: ing.unit_cost,
-      subtotal_cost: subtotal,
-    });
+    if (deductStock) {
+      await supabase.from("production_run_consumptions").insert({
+        business_id: businessId,
+        production_run_id: runId,
+        component_type: "ingredient",
+        ingredient_id: ing.id,
+        semi_finished_item_id: null,
+        component_name: ing.name,
+        qty_consumed: line.qty,
+        unit: line.reported_unit,
+        unit_cost_at_time: ing.unit_cost,
+        subtotal_cost: subtotal,
+      });
 
-    const locRow = locStockById.get(line.ingredient_id as string)!;
-    await supabase
-      .from("ingredient_location_stock")
-      .update({ stock: locRow.stock - Number(line.qty) })
-      .eq("id", locRow.id);
+      const locRow = locStockById.get(line.ingredient_id as string)!;
+      await supabase
+        .from("ingredient_location_stock")
+        .update({ stock: locRow.stock - Number(line.qty) })
+        .eq("id", locRow.id);
+    }
   }
 
   await upsertSemiFinishedLocationStock(supabase, businessId, locationId, semiFinishedItemId, qtyProduced);
@@ -301,10 +315,7 @@ export async function recordProductionRun(
   }
 
   const supabase = await createClient();
-
-  if (!(await isStockDeductionEnabled(supabase, businessId))) {
-    return { error: "Pemotongan stok sedang dinonaktifkan untuk bisnis ini." };
-  }
+  const deductStock = await isStockDeductionEnabled(supabase, businessId);
 
   const locationId = await getProductionLocationId(supabase, businessId);
   if (!locationId) {
@@ -367,6 +378,7 @@ export async function recordProductionRun(
     run.id,
     semiFinishedItemId,
     qtyProduced,
+    deductStock,
   );
   if ("error" in mutation) {
     await supabase.from("production_runs").delete().eq("id", run.id);
@@ -467,10 +479,7 @@ export async function verifyProductionRun(
   useReported: boolean = false,
 ): Promise<ActionState> {
   const supabase = await createClient();
-
-  if (!(await isStockDeductionEnabled(supabase, businessId))) {
-    return { error: "Pemotongan stok sedang dinonaktifkan untuk bisnis ini." };
-  }
+  const deductStock = await isStockDeductionEnabled(supabase, businessId);
 
   const locationId = await getProductionLocationId(supabase, businessId);
   if (!locationId) {
@@ -512,6 +521,7 @@ export async function verifyProductionRun(
         run.id,
         run.semi_finished_item_id,
         Number(run.qty_produced),
+        deductStock,
       )
     : await applyProductionStockMutation(
         supabase,
@@ -520,6 +530,7 @@ export async function verifyProductionRun(
         run.id,
         run.semi_finished_item_id,
         Number(run.qty_produced),
+        deductStock,
       );
   if ("error" in mutation) {
     return { error: mutation.error };

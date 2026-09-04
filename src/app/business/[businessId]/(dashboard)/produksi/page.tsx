@@ -26,7 +26,7 @@ export default async function ProduksiPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, rich_stock_ops_enabled, production_scan_slug")
+    .select("id, name, cost_control_enabled, rich_stock_ops_enabled, production_scan_slug, stock_deduction_enabled")
     .eq("id", businessId)
     .single();
 
@@ -125,6 +125,14 @@ export default async function ProduksiPage({
         Catat setiap batch yang dibuat tim produksi. Bahan baku/setengah jadi yang terpakai otomatis
         berkurang sesuai resep, dan stok hasil produksi otomatis bertambah.
       </p>
+
+      {business.stock_deduction_enabled === false && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          <span className="font-semibold">Mode uji coba:</span> produksi tetap bisa dicatat/diverifikasi dan
+          biayanya tetap terhitung, tapi stok bahan baku/setengah jadi belum ikut dipotong (stok hasil
+          produksi tetap bertambah). Hubungi admin kalau sudah siap dinyalakan lagi.
+        </div>
+      )}
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
         <h2 className="mb-2 text-sm font-semibold text-zinc-900">Catat Produksi Tanpa Kertas</h2>
