@@ -83,6 +83,17 @@ export default async function LocationSemiFinishedItemsPage({
       ? (items ?? []).filter((i) => (sectionIdsByItem.get(i.id) ?? []).some((id) => locationSectionIds.includes(id)))
       : (items ?? []);
 
+  const itemCountBySection = new Map<string, number>();
+  for (const ids of sectionIdsByItem.values()) {
+    for (const id of ids) {
+      itemCountBySection.set(id, (itemCountBySection.get(id) ?? 0) + 1);
+    }
+  }
+  const opnameSectionsWithCount = (opnameSections ?? []).map((s) => ({
+    ...s,
+    count: itemCountBySection.get(s.id) ?? 0,
+  }));
+
   return (
     <div className="w-full max-w-2xl">
       <p className="text-xs text-zinc-400">
@@ -104,7 +115,7 @@ export default async function LocationSemiFinishedItemsPage({
         locationId={locationId}
         locationName={location.name}
         sectionIds={locationSectionIds}
-        sections={opnameSections ?? []}
+        sections={opnameSectionsWithCount}
         action={updateLocationOpnameSections.bind(null, businessId)}
       />
 

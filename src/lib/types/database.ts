@@ -4887,6 +4887,9 @@ export type Database = {
           p_ingredient_counts: Json;
           p_semi_finished_counts: Json;
           p_entry_date?: string | null;
+          p_new_ingredients?: Json;
+          p_new_semi_finished?: Json;
+          p_section_id?: string | null;
         };
         Returns: Json;
       };

@@ -6,6 +6,13 @@ import { submitStockOpname } from "./actions";
 type ItemOption = { id: string; name: string; unit: string; currentStock: number; sectionIds?: string[] };
 type Employee = { id: string; name: string };
 type Section = { id: string; name: string };
+type NewItemDraft = {
+  tempId: string;
+  name: string;
+  type: "ingredient" | "semi_finished";
+  unit: string;
+  stock: string;
+};
 
 // Sengaja di LUAR OpnameClient (module scope), bukan didefinisikan lagi di
 // tiap render -- kalau di dalam, React anggap ini komponen BARU tiap parent
@@ -89,13 +96,49 @@ export default function OpnameClient({
   const [step, setStep] = useState<"input" | "review">("input");
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [newItems, setNewItems] = useState<NewItemDraft[]>([]);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemType, setNewItemType] = useState<"ingredient" | "semi_finished">("ingredient");
+  const [newItemUnit, setNewItemUnit] = useState("");
+  const [newItemStock, setNewItemStock] = useState("");
+
   const filledCount = useMemo(
-    () => Object.values(values).filter((v) => v.trim() !== "").length,
-    [values],
+    () => Object.values(values).filter((v) => v.trim() !== "").length + newItems.length,
+    [values, newItems],
   );
 
   function handleValueChange(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function addNewItemDraft() {
+    setFormError(null);
+    const name = newItemName.trim();
+    const unit = newItemUnit.trim();
+    if (!name) {
+      setFormError("Nama bahan baru wajib diisi.");
+      return;
+    }
+    if (!unit) {
+      setFormError("Satuan bahan baru wajib diisi.");
+      return;
+    }
+    const stockNum = Number(newItemStock);
+    if (!newItemStock || Number.isNaN(stockNum) || stockNum < 0) {
+      setFormError("Stok fisik bahan baru harus angka 0 atau lebih.");
+      return;
+    }
+    setNewItems((prev) => [
+      ...prev,
+      { tempId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name, type: newItemType, unit, stock: newItemStock },
+    ]);
+    setNewItemName("");
+    setNewItemUnit("");
+    setNewItemStock("");
+  }
+
+  function removeNewItemDraft(tempId: string) {
+    setNewItems((prev) => prev.filter((n) => n.tempId !== tempId));
   }
 
   function filterItems(items: ItemOption[], applySectionFilter: boolean) {
@@ -139,7 +182,7 @@ export default function OpnameClient({
       setFormError("Stok fisik harus angka dan tidak boleh negatif.");
       return;
     }
-    if (ingredientCounts.length === 0 && semiFinishedCounts.length === 0) {
+    if (ingredientCounts.length === 0 && semiFinishedCounts.length === 0 && newItems.length === 0) {
       setFormError("Isi minimal 1 bahan dulu.");
       return;
     }
@@ -150,9 +193,25 @@ export default function OpnameClient({
   async function handleConfirmSend() {
     setResult(null);
     const { ingredientCounts, semiFinishedCounts } = buildCounts();
+    const newIngredients = newItems
+      .filter((n) => n.type === "ingredient")
+      .map((n) => ({ name: n.name, unit: n.unit, stock: Number(n.stock) }));
+    const newSemiFinished = newItems
+      .filter((n) => n.type === "semi_finished")
+      .map((n) => ({ name: n.name, unit: n.unit, stock: Number(n.stock) }));
 
     setPending(true);
-    const res = await submitStockOpname(slug, employeeId, location.id, ingredientCounts, semiFinishedCounts, entryDate);
+    const res = await submitStockOpname(
+      slug,
+      employeeId,
+      location.id,
+      ingredientCounts,
+      semiFinishedCounts,
+      entryDate,
+      newIngredients,
+      newSemiFinished,
+      sectionId,
+    );
     setPending(false);
 
     if (!res.success) {
@@ -165,24 +224,39 @@ export default function OpnameClient({
       message: `Terkirim! ${res.entriesCount} bahan menunggu diverifikasi admin.`,
     });
     setValues({});
+    setNewItems([]);
     setStep("input");
   }
 
   const visibleIngredients = filterItems(ingredients, true);
   const visibleSemiFinished = filterItems(semiFinishedItems, true);
 
+  const sectionsWithCount = useMemo(
+    () =>
+      sections.map((s) => ({
+        ...s,
+        count:
+          ingredients.filter((i) => (i.sectionIds ?? []).includes(s.id)).length +
+          semiFinishedItems.filter((i) => (i.sectionIds ?? []).includes(s.id)).length,
+      })),
+    [sections, ingredients, semiFinishedItems],
+  );
+
   const reviewRows = useMemo(() => {
-    const rows: { key: string; name: string; unit: string; currentStock: number; reported: number }[] = [];
+    const rows: { key: string; name: string; unit: string; currentStock: number; reported: number; isNew: boolean }[] = [];
     for (const i of ingredients) {
       const raw = values[`ing:${i.id}`];
-      if (raw?.trim()) rows.push({ key: `ing:${i.id}`, name: i.name, unit: i.unit, currentStock: i.currentStock, reported: Number(raw) });
+      if (raw?.trim()) rows.push({ key: `ing:${i.id}`, name: i.name, unit: i.unit, currentStock: i.currentStock, reported: Number(raw), isNew: false });
     }
     for (const s of semiFinishedItems) {
       const raw = values[`semi:${s.id}`];
-      if (raw?.trim()) rows.push({ key: `semi:${s.id}`, name: s.name, unit: s.unit, currentStock: s.currentStock, reported: Number(raw) });
+      if (raw?.trim()) rows.push({ key: `semi:${s.id}`, name: s.name, unit: s.unit, currentStock: s.currentStock, reported: Number(raw), isNew: false });
+    }
+    for (const n of newItems) {
+      rows.push({ key: n.tempId, name: n.name, unit: n.unit, currentStock: 0, reported: Number(n.stock), isNew: true });
     }
     return rows;
-  }, [values, ingredients, semiFinishedItems]);
+  }, [values, ingredients, semiFinishedItems, newItems]);
 
   if (step === "review") {
     return (
@@ -200,9 +274,18 @@ export default function OpnameClient({
             return (
               <div key={r.key} className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 last:border-0">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-zinc-800">{r.name}</p>
+                  <p className="truncate text-sm text-zinc-800">
+                    {r.name}
+                    {r.isNew && (
+                      <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">
+                        Baru
+                      </span>
+                    )}
+                  </p>
                   <p className="text-[11px] text-zinc-400">
-                    Sistem: {r.currentStock.toLocaleString("id-ID")} {r.unit} → Diisi: {r.reported.toLocaleString("id-ID")} {r.unit}
+                    {r.isNew
+                      ? `Bahan baru — Diisi: ${r.reported.toLocaleString("id-ID")} ${r.unit}`
+                      : `Sistem: ${r.currentStock.toLocaleString("id-ID")} ${r.unit} → Diisi: ${r.reported.toLocaleString("id-ID")} ${r.unit}`}
                   </p>
                 </div>
                 <span
@@ -285,9 +368,9 @@ export default function OpnameClient({
               className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             >
               <option value="">— Semua Bagian —</option>
-              {sections.map((s) => (
+              {sectionsWithCount.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {s.name} ({s.count} bahan)
                 </option>
               ))}
             </select>
@@ -321,6 +404,73 @@ export default function OpnameClient({
             placeholder="Ketik nama bahan…"
             className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
+        </div>
+
+        <div className="rounded-xl border border-dashed border-zinc-300 p-3">
+          <p className="text-xs font-semibold text-zinc-700">+ Tambah Bahan Baru</p>
+          <p className="mt-0.5 text-[11px] text-zinc-400">
+            Bahan/BSJ belum ada di daftar di atas? Tambahkan di sini — harga/HPP-nya diisi admin
+            belakangan.
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder="Nama bahan"
+              className="col-span-2 rounded-lg border border-zinc-200 px-2.5 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+            <select
+              value={newItemType}
+              onChange={(e) => setNewItemType(e.target.value as "ingredient" | "semi_finished")}
+              className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            >
+              <option value="ingredient">Bahan Baku</option>
+              <option value="semi_finished">Bahan Setengah Jadi</option>
+            </select>
+            <input
+              type="text"
+              value={newItemUnit}
+              onChange={(e) => setNewItemUnit(e.target.value)}
+              placeholder="Satuan (gr/pcs/dst)"
+              className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+            <input
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              value={newItemStock}
+              onChange={(e) => setNewItemStock(e.target.value)}
+              placeholder="Stok fisik"
+              className="col-span-2 rounded-lg border border-zinc-200 px-2.5 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={addNewItemDraft}
+            className="mt-2 w-full rounded-lg bg-zinc-100 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+          >
+            + Tambah ke Daftar
+          </button>
+
+          {newItems.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {newItems.map((n) => (
+                <div key={n.tempId} className="flex items-center justify-between rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs text-brand-800">
+                  <span>
+                    {n.name} — {n.stock} {n.unit}
+                    <span className="ml-1 text-brand-600">
+                      ({n.type === "ingredient" ? "Bahan Baku" : "BSJ"})
+                    </span>
+                  </span>
+                  <button type="button" onClick={() => removeNewItemDraft(n.tempId)} className="text-brand-600 hover:text-red-600">
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {visibleIngredients.length > 0 && (

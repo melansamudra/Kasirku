@@ -7,6 +7,7 @@ export type SubmitStockOpnameResult =
   | { success: false; error: string };
 
 type CountInput = { id: string; stock: number };
+type NewItemInput = { name: string; unit: string; stock: number };
 
 export async function submitStockOpname(
   slug: string,
@@ -15,6 +16,9 @@ export async function submitStockOpname(
   ingredientCounts: CountInput[],
   semiFinishedCounts: CountInput[],
   entryDate?: string,
+  newIngredients: NewItemInput[] = [],
+  newSemiFinished: NewItemInput[] = [],
+  sectionId?: string,
 ): Promise<SubmitStockOpnameResult> {
   if (!employeeId) {
     return { success: false, error: "Pilih nama dulu." };
@@ -22,7 +26,12 @@ export async function submitStockOpname(
   if (!locationId) {
     return { success: false, error: "Lokasi tidak diketahui." };
   }
-  if (ingredientCounts.length === 0 && semiFinishedCounts.length === 0) {
+  if (
+    ingredientCounts.length === 0 &&
+    semiFinishedCounts.length === 0 &&
+    newIngredients.length === 0 &&
+    newSemiFinished.length === 0
+  ) {
     return { success: false, error: "Belum ada bahan yang diisi stok fisiknya." };
   }
 
@@ -34,6 +43,9 @@ export async function submitStockOpname(
     p_ingredient_counts: ingredientCounts,
     p_semi_finished_counts: semiFinishedCounts,
     p_entry_date: entryDate || null,
+    p_new_ingredients: newIngredients,
+    p_new_semi_finished: newSemiFinished,
+    p_section_id: sectionId || null,
   });
 
   if (error) {

@@ -13,7 +13,7 @@ export default function LocationSectionSelect({
   locationId: string;
   locationName: string;
   sectionIds: string[];
-  sections: { id: string; name: string }[];
+  sections: { id: string; name: string; count?: number }[];
   action: (locationId: string, sectionIds: string[]) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
@@ -55,6 +55,7 @@ export default function LocationSectionSelect({
               className="h-3.5 w-3.5"
             />
             {s.name}
+            {s.count !== undefined && <span className="text-zinc-400"> ({s.count} bahan)</span>}
           </label>
         ))}
       </div>

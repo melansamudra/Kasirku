@@ -88,6 +88,17 @@ export default async function LocationBahanBakuPage({
         )
       : (ingredients ?? []);
 
+  const ingredientCountBySection = new Map<string, number>();
+  for (const ids of sectionIdsByIngredient.values()) {
+    for (const id of ids) {
+      ingredientCountBySection.set(id, (ingredientCountBySection.get(id) ?? 0) + 1);
+    }
+  }
+  const opnameSectionsWithCount = (opnameSections ?? []).map((s) => ({
+    ...s,
+    count: ingredientCountBySection.get(s.id) ?? 0,
+  }));
+
   // "Ambil dari Gudang": Purchasing menandai di Permintaan Barang, lokasi
   // peminta (di sini) yang konfirmasi terima -- baru stok benar-benar pindah
   // saat itu, bukan saat ditandai ("masih harus diinput dulu distock masuk
@@ -217,7 +228,7 @@ export default async function LocationBahanBakuPage({
         locationId={locationId}
         locationName={location.name}
         sectionIds={locationSectionIds}
-        sections={opnameSections ?? []}
+        sections={opnameSectionsWithCount}
         action={updateLocationOpnameSections.bind(null, businessId)}
       />
 
