@@ -3,11 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import {
   addIngredient,
   addIngredientPurchaseUnit,
+  addOpnameSection,
   adjustIngredientStock,
   deleteIngredientPurchaseUnit,
   editIngredient,
   importIngredients,
   updateIngredientDepartment,
+  updateIngredientOpnameSection,
 } from "./actions";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
@@ -17,6 +19,8 @@ import EditIngredientForm from "./edit-ingredient-form";
 import GenerateBarcodesButton from "./generate-barcodes-button";
 import ImportIngredientsForm from "./import-ingredients-form";
 import IngredientSearch from "./ingredient-search";
+import OpnameSectionManager from "./opname-section-manager";
+import OpnameSectionSelect from "./opname-section-select";
 import PurchaseUnitsManager from "./purchase-units-manager";
 
 function formatRupiah(value: number) {
@@ -45,9 +49,15 @@ export default async function IngredientsPage({
 
   const { data: ingredients } = await supabase
     .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode")
+    .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode, opname_section_id")
     .eq("business_id", businessId)
     .is("deleted_at", null)
+    .order("name", { ascending: true });
+
+  const { data: opnameSections } = await supabase
+    .from("ingredient_opname_sections")
+    .select("id, name")
+    .eq("business_id", businessId)
     .order("name", { ascending: true });
 
   const { data: purchaseUnits } = await supabase
@@ -81,6 +91,7 @@ export default async function IngredientsPage({
 
   const boundAddIngredient = addIngredient.bind(null, businessId);
   const boundImportIngredients = importIngredients.bind(null, businessId);
+  const boundAddOpnameSection = addOpnameSection.bind(null, businessId);
 
   return (
     <div className="w-full max-w-2xl">
@@ -121,6 +132,14 @@ export default async function IngredientsPage({
         </div>
 
         <div className="mt-6">
+          <OpnameSectionManager
+            businessId={businessId}
+            sections={opnameSections ?? []}
+            action={boundAddOpnameSection}
+          />
+        </div>
+
+        <div className="mt-6">
           {ingredients && ingredients.length > 0 ? (
             <IngredientSearch names={ingredients.map((i) => i.name)}>
               {ingredients.map((i) => (
@@ -135,6 +154,12 @@ export default async function IngredientsPage({
                       ingredientId={i.id}
                       departments={i.departments ?? []}
                       action={updateIngredientDepartment.bind(null, businessId)}
+                    />
+                    <OpnameSectionSelect
+                      ingredientId={i.id}
+                      sectionId={i.opname_section_id}
+                      sections={opnameSections ?? []}
+                      action={updateIngredientOpnameSection.bind(null, businessId)}
                     />
                   </div>
                   {costControlEnabled ? (

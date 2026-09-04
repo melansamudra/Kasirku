@@ -41,6 +41,65 @@ export async function updateIngredientDepartment(
   return { error: null };
 }
 
+// "Bagian" bahan baku — kategori bebas per bisnis (beda dari `departments`
+// di atas, yang tetap 3 nilai buat routing Permintaan Barang) supaya Stok
+// Opname bisa dipecah & dikerjakan beberapa orang sekaligus.
+export type OpnameSectionActionState = { error: string | null };
+
+export async function addOpnameSection(
+  businessId: string,
+  _prevState: OpnameSectionActionState,
+  formData: FormData,
+): Promise<OpnameSectionActionState> {
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) {
+    return { error: "Nama bagian wajib diisi." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ingredient_opname_sections")
+    .insert({ business_id: businessId, name });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Bagian ini sudah ada." };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
+export async function deleteOpnameSection(businessId: string, sectionId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("ingredient_opname_sections")
+    .delete()
+    .eq("id", sectionId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/ingredients`);
+}
+
+export async function updateIngredientOpnameSection(
+  businessId: string,
+  ingredientId: string,
+  sectionId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ingredients")
+    .update({ opname_section_id: sectionId || null })
+    .eq("id", ingredientId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
 // Isi barcode buat semua bahan yang belum punya — dipakai tombol "Generate &
 // Cetak Barcode" di halaman Bahan Baku, supaya bahan lama (dibuat sebelum
 // kolom barcode ada) ikut kebagian kode tanpa perlu diedit satu-satu.

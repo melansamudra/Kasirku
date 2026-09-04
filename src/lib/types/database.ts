@@ -1013,6 +1013,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      ingredient_opname_sections: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       ingredient_purchase_units: {
         Row: {
           id: string;
@@ -1060,6 +1081,7 @@ export type Database = {
           min_stock: number;
           departments: string[];
           barcode: string | null;
+          opname_section_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1072,6 +1094,7 @@ export type Database = {
           min_stock?: number;
           departments?: string[];
           barcode?: string | null;
+          opname_section_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1084,8 +1107,17 @@ export type Database = {
           min_stock?: number;
           departments?: string[];
           barcode?: string | null;
+          opname_section_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "ingredients_opname_section_id_fkey";
+            columns: ["opname_section_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredient_opname_sections";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       inventory_snapshots: {
         Row: {
@@ -4763,6 +4795,7 @@ export type Database = {
           p_location_id: string;
           p_ingredient_counts: Json;
           p_semi_finished_counts: Json;
+          p_entry_date?: string | null;
         };
         Returns: Json;
       };

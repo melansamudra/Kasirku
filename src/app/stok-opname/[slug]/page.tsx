@@ -8,7 +8,8 @@ type StockOpnameInfo = {
   cost_control_enabled: boolean;
   employees: { id: string; name: string }[];
   stock_locations: { id: string; name: string; is_default_purchase: boolean; is_production: boolean }[];
-  ingredients: { id: string; name: string; unit: string }[];
+  sections: { id: string; name: string }[];
+  ingredients: { id: string; name: string; unit: string; section_id: string | null }[];
   semi_finished_items: { id: string; name: string; unit: string }[];
 };
 
@@ -68,7 +69,14 @@ export default async function StockOpnamePage({
         businessName={info.business_name}
         location={{ id: location.id, name: location.name }}
         employees={info.employees}
-        ingredients={info.ingredients.map((i) => ({ ...i, currentStock: ingredientStockById.get(i.id) ?? 0 }))}
+        sections={info.sections}
+        ingredients={info.ingredients.map((i) => ({
+          id: i.id,
+          name: i.name,
+          unit: i.unit,
+          sectionId: i.section_id,
+          currentStock: ingredientStockById.get(i.id) ?? 0,
+        }))}
         semiFinishedItems={
           location.is_default_purchase
             ? []
