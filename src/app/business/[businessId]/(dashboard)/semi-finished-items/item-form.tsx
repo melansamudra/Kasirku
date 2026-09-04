@@ -21,6 +21,7 @@ export default function ItemForm({
     fluctuationPct?: number;
     barcode?: string | null;
     category?: string | null;
+    manualUnitCost?: number | null;
   };
   submitLabel: string;
   resetOnSuccess?: boolean;
@@ -38,6 +39,7 @@ export default function ItemForm({
   // Controlled cuma supaya RecipeRowsBuilder bisa tampilkan label "Resep
   // ini menghasilkan X <satuan>" yang ikut satuan yang lagi diketik.
   const [unit, setUnit] = useState(defaultValues?.unit ?? "");
+  const [isManualCost, setIsManualCost] = useState(defaultValues?.manualUnitCost != null);
 
   useEffect(() => {
     if (!pending && !state.error && resetOnSuccess) {
@@ -45,6 +47,7 @@ export default function ItemForm({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRecipeBuilderResetToken((n) => n + 1);
       setUnit("");
+      setIsManualCost(false);
     }
   }, [pending, state.error, resetOnSuccess]);
 
@@ -145,16 +148,51 @@ export default function ItemForm({
         </p>
       </div>
 
-      {recipeBuilder && (
-        <div className="border-t border-zinc-100 pt-3">
-          <RecipeRowsBuilder
-            key={recipeBuilderResetToken}
-            ingredients={recipeBuilder.ingredients}
-            semiFinishedOptions={recipeBuilder.semiFinishedOptions}
-            resultUnit={unit}
+      <div className="border-t border-zinc-100 pt-3">
+        <label className="flex items-center gap-2 text-xs font-medium text-zinc-600">
+          <input
+            type="checkbox"
+            name="isManualCost"
+            checked={isManualCost}
+            onChange={(e) => setIsManualCost(e.target.checked)}
+            className="h-3.5 w-3.5"
           />
-        </div>
-      )}
+          HPP diisi manual (bukan dihitung dari resep)
+        </label>
+        {isManualCost ? (
+          <div className="mt-2">
+            <label htmlFor="manualUnitCost" className="mb-1 block text-xs font-medium text-zinc-600">
+              HPP per {unit || "satuan"} (Rp)
+            </label>
+            <input
+              id="manualUnitCost"
+              name="manualUnitCost"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="mis. 12500"
+              defaultValue={defaultValues?.manualUnitCost ?? ""}
+              required
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Dipakai langsung sebagai HPP final — resep &amp; Fluctuation % di atas diabaikan
+              selama ini dicentang.
+            </p>
+          </div>
+        ) : (
+          recipeBuilder && (
+            <div className="mt-3">
+              <RecipeRowsBuilder
+                key={recipeBuilderResetToken}
+                ingredients={recipeBuilder.ingredients}
+                semiFinishedOptions={recipeBuilder.semiFinishedOptions}
+                resultUnit={unit}
+              />
+            </div>
+          )
+        )}
+      </div>
 
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{state.error}</p>}
 

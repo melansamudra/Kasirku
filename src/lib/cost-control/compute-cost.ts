@@ -36,7 +36,13 @@ export type CostResult = {
 };
 
 export type IngredientRow = { id: string; name: string; unit: string; unit_cost: number };
-export type SemiFinishedRow = { id: string; name: string; unit: string; fluctuation_pct: number };
+export type SemiFinishedRow = {
+  id: string;
+  name: string;
+  unit: string;
+  fluctuation_pct: number;
+  manual_unit_cost: number | null;
+};
 export type SemiFinishedRecipeRow = {
   semi_finished_item_id: string;
   component_type: "ingredient" | "semi_finished";
@@ -87,7 +93,7 @@ export async function loadCostGraph(supabase: SupabaseServerClient, businessId: 
     fetchAllRows<SemiFinishedRow>((from, to) =>
       supabase
         .from("semi_finished_items")
-        .select("id, name, unit, fluctuation_pct")
+        .select("id, name, unit, fluctuation_pct, manual_unit_cost")
         .eq("business_id", businessId)
         .is("deleted_at", null)
         .range(from, to),
@@ -129,6 +135,16 @@ function resolveSemiFinished(
 ): CostResult {
   const cached = memo.get(itemId);
   if (cached) return cached;
+
+  // HPP manual -- kalau diisi, dipakai LANGSUNG sebagai HPP final, resep &
+  // fluctuation di-skip total (tidak masuk `visiting` karena tidak pernah
+  // rekursi ke komponen apa pun).
+  const manualCost = graph.itemMap.get(itemId)?.manual_unit_cost;
+  if (manualCost !== null && manualCost !== undefined) {
+    const result: CostResult = { unitCost: Number(manualCost), rawCost: Number(manualCost), fluctuationPct: 0, breakdown: [] };
+    memo.set(itemId, result);
+    return result;
+  }
 
   if (visiting.has(itemId)) {
     const name = graph.itemMap.get(itemId)?.name ?? itemId;

@@ -63,6 +63,9 @@ export async function addSemiFinishedItem(
   const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
   const barcode = (formData.get("barcode") as string)?.trim() || null;
   const category = (formData.get("category") as string)?.trim() || null;
+  const isManualCost = formData.get("isManualCost") === "on";
+  const manualUnitCostRaw = formData.get("manualUnitCost") as string;
+  let manualUnitCost: number | null = null;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -73,8 +76,14 @@ export async function addSemiFinishedItem(
   if (!(fluctuationPct >= 0) || fluctuationPct >= 100) {
     return { error: "Fluctuation % harus antara 0-99." };
   }
+  if (isManualCost) {
+    manualUnitCost = Number(manualUnitCostRaw);
+    if (!manualUnitCostRaw || Number.isNaN(manualUnitCost) || manualUnitCost < 0) {
+      return { error: "HPP manual harus angka 0 atau lebih." };
+    }
+  }
 
-  const recipeRowsRaw = formData.get("recipeRows") as string | null;
+  const recipeRowsRaw = isManualCost ? null : (formData.get("recipeRows") as string | null);
   let recipeRows: RecipeRowInput[] = [];
   if (recipeRowsRaw) {
     try {
@@ -106,6 +115,7 @@ export async function addSemiFinishedItem(
       fluctuation_pct: fluctuationPct,
       barcode,
       category,
+      manual_unit_cost: manualUnitCost,
       batch_yield_qty: recipeRows.length > 0 && recipeYieldQty && recipeYieldQty > 0 ? recipeYieldQty : null,
     })
     .select("id")
@@ -201,6 +211,9 @@ export async function updateSemiFinishedItem(
   const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
   const barcode = (formData.get("barcode") as string)?.trim() || null;
   const category = (formData.get("category") as string)?.trim() || null;
+  const isManualCost = formData.get("isManualCost") === "on";
+  const manualUnitCostRaw = formData.get("manualUnitCost") as string;
+  let manualUnitCost: number | null = null;
 
   if (!name || !unit) {
     return { error: "Nama dan satuan wajib diisi." };
@@ -210,6 +223,12 @@ export async function updateSemiFinishedItem(
   }
   if (!(fluctuationPct >= 0) || fluctuationPct >= 100) {
     return { error: "Fluctuation % harus antara 0-99." };
+  }
+  if (isManualCost) {
+    manualUnitCost = Number(manualUnitCostRaw);
+    if (!manualUnitCostRaw || Number.isNaN(manualUnitCost) || manualUnitCost < 0) {
+      return { error: "HPP manual harus angka 0 atau lebih." };
+    }
   }
 
   const supabase = await createClient();
@@ -222,7 +241,15 @@ export async function updateSemiFinishedItem(
 
   const { error } = await supabase
     .from("semi_finished_items")
-    .update({ name, unit, min_stock: minStock, fluctuation_pct: fluctuationPct, barcode, category })
+    .update({
+      name,
+      unit,
+      min_stock: minStock,
+      fluctuation_pct: fluctuationPct,
+      barcode,
+      category,
+      manual_unit_cost: manualUnitCost,
+    })
     .eq("id", itemId)
     .eq("business_id", businessId);
 

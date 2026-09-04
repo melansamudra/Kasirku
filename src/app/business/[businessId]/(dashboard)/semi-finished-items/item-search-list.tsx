@@ -84,7 +84,9 @@ function ItemDetail({ item }: { item: SemiFinishedItemRow }) {
   if (item.breakdown.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-zinc-200 px-3 py-4 text-center text-xs text-zinc-400">
-        Belum ada komponen resep — HPP masih Rp0.
+        {item.unitCost > 0
+          ? `HPP diisi manual: ${formatRupiah(item.unitCost)}/${item.unit} — tidak dihitung dari resep.`
+          : "Belum ada komponen resep — HPP masih Rp0."}
       </p>
     );
   }

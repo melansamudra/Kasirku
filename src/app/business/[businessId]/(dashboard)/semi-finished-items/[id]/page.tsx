@@ -61,7 +61,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const { data: item } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, min_stock, fluctuation_pct, barcode, category, batch_yield_qty, ingredient_id")
+    .select("id, name, unit, min_stock, fluctuation_pct, barcode, category, batch_yield_qty, ingredient_id, manual_unit_cost")
     .eq("id", id)
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -194,7 +194,9 @@ export default async function SemiFinishedItemDetailPage({
           </div>
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-            Belum ada komponen resep — HPP masih Rp0.
+            {cost.unitCost > 0
+              ? `HPP diisi manual: ${formatRupiah(cost.unitCost)}/${item.unit} — tidak dihitung dari resep.`
+              : "Belum ada komponen resep — HPP masih Rp0."}
           </p>
         )}
 
@@ -252,6 +254,7 @@ export default async function SemiFinishedItemDetailPage({
             fluctuationPct: item.fluctuation_pct,
             barcode: item.barcode,
             category: item.category,
+            manualUnitCost: item.manual_unit_cost !== null ? Number(item.manual_unit_cost) : null,
           }}
           submitLabel="Simpan Perubahan"
           resetOnSuccess={false}

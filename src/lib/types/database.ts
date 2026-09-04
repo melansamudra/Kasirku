@@ -2420,6 +2420,7 @@ export type Database = {
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
+          manual_unit_cost: number | null;
         };
         Insert: {
           id?: string;
@@ -2436,6 +2437,7 @@ export type Database = {
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          manual_unit_cost?: number | null;
         };
         Update: {
           id?: string;
@@ -2452,6 +2454,7 @@ export type Database = {
           deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          manual_unit_cost?: number | null;
         };
         Relationships: [];
       };
