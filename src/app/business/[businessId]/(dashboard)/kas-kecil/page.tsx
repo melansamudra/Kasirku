@@ -22,6 +22,7 @@ type DebtNoteRow = {
   status: "pending" | "verified";
   origin: "kasir" | "admin";
   created_at: string;
+  date: string;
   suppliers: { name: string } | null;
   cashiers: { name: string } | null;
 };
@@ -222,7 +223,7 @@ export default async function KasKecilPage({
     supabase
       .from("supplier_debt_notes")
       .select(
-        "id, supplier_id, supplier_name_manual, category, amount, note, receipt_url, status, origin, created_at, suppliers(name), cashiers(name)",
+        "id, supplier_id, supplier_name_manual, category, amount, note, receipt_url, status, origin, created_at, date, suppliers(name), cashiers(name)",
       )
       .eq("business_id", businessId)
       .eq("status", "pending")
@@ -230,7 +231,7 @@ export default async function KasKecilPage({
     supabase
       .from("supplier_debt_notes")
       .select(
-        "id, supplier_id, supplier_name_manual, category, amount, note, receipt_url, status, origin, created_at, suppliers(name), cashiers(name)",
+        "id, supplier_id, supplier_name_manual, category, amount, note, receipt_url, status, origin, created_at, date, suppliers(name), cashiers(name)",
       )
       .eq("business_id", businessId)
       .eq("status", "verified")
@@ -518,6 +519,7 @@ export default async function KasKecilPage({
                   note: n.note,
                   receiptUrl: n.receipt_url,
                   createdAt: n.created_at,
+                  date: n.date,
                   origin: n.origin,
                   cashierName: n.cashiers?.name ?? null,
                   supplierId: n.supplier_id,
@@ -544,7 +546,14 @@ export default async function KasKecilPage({
                       {n.suppliers?.name ?? n.supplier_name_manual}
                     </p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] text-zinc-400">{formatDateTime(n.created_at)}</span>
+                      <span className="text-[11px] text-zinc-400">
+                        {new Date(n.date).toLocaleDateString("id-ID", {
+                          timeZone: "Asia/Jakarta",
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
                       <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
                         {n.category}
                       </span>

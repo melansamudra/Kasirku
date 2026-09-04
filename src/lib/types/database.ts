@@ -2317,6 +2317,7 @@ export type Database = {
           verified_by: string | null;
           verified_at: string | null;
           created_at: string;
+          date: string;
         };
         Insert: {
           id?: string;
@@ -2335,6 +2336,7 @@ export type Database = {
           verified_by?: string | null;
           verified_at?: string | null;
           created_at?: string;
+          date?: string;
         };
         Update: {
           id?: string;
@@ -2353,6 +2355,7 @@ export type Database = {
           verified_by?: string | null;
           verified_at?: string | null;
           created_at?: string;
+          date?: string;
         };
         Relationships: [];
       };

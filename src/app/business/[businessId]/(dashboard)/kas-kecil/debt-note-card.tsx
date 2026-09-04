@@ -8,13 +8,12 @@ function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("id-ID", {
+function formatDate(isoDate: string) {
+  return new Date(isoDate).toLocaleDateString("id-ID", {
     timeZone: "Asia/Jakarta",
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+    year: "numeric",
   });
 }
 
@@ -31,6 +30,7 @@ export default function DebtNoteCard({
     note: string | null;
     receiptUrl: string | null;
     createdAt: string;
+    date: string;
     origin: "kasir" | "admin";
     cashierName: string | null;
     supplierId: string | null;
@@ -85,7 +85,7 @@ export default function DebtNoteCard({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-zinc-900">{note.supplierName ?? "Supplier belum diketahui"}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-400">
-            <span>{formatDateTime(note.createdAt)}</span>
+            <span className="font-medium text-zinc-600">{formatDate(note.date)}</span>
             <span>·</span>
             <span>{note.origin === "admin" ? "Input Admin" : note.cashierName ?? "Kasir"}</span>
             <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600">

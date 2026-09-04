@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { getPeriodRange } from "../reports/period";
-import { wibDateString } from "@/lib/wib";
+import { todayWibDateString } from "@/lib/wib";
 import { postPurchaseJournal } from "../purchases/actions";
 
 export type ActionState = { error: string | null };
@@ -159,7 +159,12 @@ export async function addSupplierDebtNoteAdmin(
   amount: number,
   note: string | null,
   receiptUrl: string | null,
+  date: string,
 ): Promise<ActionState> {
+  if (date > todayWibDateString()) {
+    return { error: "Tanggal nota tidak boleh di masa depan." };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -175,6 +180,7 @@ export async function addSupplierDebtNoteAdmin(
     receipt_url: receiptUrl,
     origin: "admin",
     created_by_user_id: user?.id ?? null,
+    date,
   });
 
   if (error) return { error: error.message };
@@ -211,7 +217,7 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
 
   const { data: noteRow, error: fetchError } = await supabase
     .from("supplier_debt_notes")
-    .select("id, supplier_id, supplier_name_manual, category, amount, note, created_at, suppliers(name)")
+    .select("id, supplier_id, supplier_name_manual, category, amount, note, date, suppliers(name)")
     .eq("id", noteId)
     .eq("business_id", businessId)
     .eq("status", "pending")
@@ -227,7 +233,7 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
     category: "Bahan Baku" | "Bukan Bahan Baku";
     amount: number;
     note: string | null;
-    created_at: string;
+    date: string;
     suppliers: { name: string } | null;
   };
 
@@ -236,10 +242,11 @@ export async function verifyDebtNoteAsPurchase(businessId: string, noteId: strin
   const purchaseNote = noteParts.length > 0 ? noteParts.join(" — ") : null;
   const amount = Number(note.amount);
   const itemName = purchaseNote || "Pembelian";
-  // Tanggal pembelian ikut tanggal nota aslinya diinput kasir, bukan tanggal
-  // admin sempat verifikasi (bisa beda hari) -- biar Riwayat Pembelian &
-  // umur utang mencerminkan kapan transaksinya benar-benar terjadi.
-  const date = wibDateString(note.created_at);
+  // Tanggal pembelian ikut tanggal nota aslinya (dipilih kasir/admin saat
+  // input, boleh mundur), bukan tanggal admin sempat verifikasi (bisa beda
+  // hari/bulan) -- biar Riwayat Pembelian, umur utang, & Laporan Laba Rugi
+  // mencerminkan kapan transaksinya benar-benar terjadi.
+  const date = note.date;
   // Kategori akun ikut nota aslinya biar laporan pembelian bahan baku tetap
   // akurat — cuma "Bahan Baku" tanpa ingredient_id/qty (kolom itu boleh
   // null, lihat purchases_category_check), jadi stok tetap tidak tersentuh.

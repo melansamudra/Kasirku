@@ -30,6 +30,7 @@ export default function AddExpenseQuickForm({
   const [supplierManual, setSupplierManual] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [kasbonDate, setKasbonDate] = useState(today);
+  const [hutangDate, setHutangDate] = useState(today);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -44,6 +45,7 @@ export default function AddExpenseQuickForm({
     setSupplierManual("");
     setEmployeeId("");
     setKasbonDate(today);
+    setHutangDate(today);
     setReceiptFile(null);
     setReceiptPreview(null);
   }
@@ -122,6 +124,7 @@ export default function AddExpenseQuickForm({
               amountNum,
               description.trim() || null,
               receiptUrl,
+              hutangDate,
             )
           : await addPettyCashKasbon(businessId, employeeId, amountNum, description.trim(), kasbonDate);
     setPending(false);
@@ -232,6 +235,23 @@ export default function AddExpenseQuickForm({
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
           )}
+        </div>
+      )}
+
+      {mode === "hutang" && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Tanggal Nota</label>
+          <input
+            type="date"
+            value={hutangDate}
+            max={today}
+            onChange={(e) => setHutangDate(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Tanggal di nota fisiknya, bukan tanggal diinput — kalau notanya dari bulan lalu, ganti
+            ke tanggal itu supaya bebannya tidak nyangkut ke bulan ini.
+          </p>
         </div>
       )}
 
