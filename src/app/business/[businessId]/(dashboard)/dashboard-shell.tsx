@@ -24,6 +24,7 @@ import {
   Landmark,
   Lock,
   Package,
+  Boxes,
   Beaker,
   Factory,
   Tag,
@@ -122,6 +123,7 @@ function buildCostControlNavGroups(
           ? [{ key: "products", href: `${base}/products`, label: "Kelola Produk", icon: ShoppingBag }]
           : []),
         { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
+        { key: "laporan-persediaan", href: `${base}/laporan-persediaan`, label: "Laporan Persediaan", icon: Boxes },
       ],
     },
     // Grup "Operasional" (Outlet + Permintaan Resto) disembunyikan sementara

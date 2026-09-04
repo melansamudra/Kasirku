@@ -126,15 +126,31 @@ export default async function CostControlDashboard({ businessId }: { businessId:
   const totalCostThisMonth = expenseTotal + purchaseTotal + payrollTotal;
 
   const semiItems = items ?? [];
-  const stockValue = semiItems.reduce(
-    (sum, item) => sum + Number(item.stock) * (costMap.get(item.id)?.unitCost ?? 0),
-    0,
-  );
 
   // Nilai bahan baku per lokasi fisik (Gudang Utama/Kitchen Atas/dst) --
   // stok per lokasi (ingredient_location_stock) dikali unit_cost bahan baku
   // itu sendiri (harga bahan baku business-wide, bukan per lokasi).
   let locationValues: { id: string; name: string; value: number }[] = [];
+  // Stok BSJ ASLI (yang benar-benar ditambah/dikurangi fitur Produksi) ada di
+  // semi_finished_item_location_stock -- kolom semi_finished_items.stock lama
+  // sudah berhenti dipakai sejak Produksi pindah ke stok per lokasi (lihat
+  // produksi/actions.ts), jadi selalu 0 di sini kalau dipakai langsung.
+  const { data: semiLocStockRows } = await supabase
+    .from("semi_finished_item_location_stock")
+    .select("semi_finished_item_id, stock")
+    .eq("business_id", businessId);
+  const semiStockById = new Map<string, number>();
+  for (const row of semiLocStockRows ?? []) {
+    semiStockById.set(
+      row.semi_finished_item_id,
+      (semiStockById.get(row.semi_finished_item_id) ?? 0) + Number(row.stock),
+    );
+  }
+  const stockValue = semiItems.reduce(
+    (sum, item) => sum + (semiStockById.get(item.id) ?? 0) * (costMap.get(item.id)?.unitCost ?? 0),
+    0,
+  );
+
   if ((stockLocations ?? []).length > 0) {
     const [{ data: locStockRows }, { data: allIngredients }] = await Promise.all([
       supabase
@@ -162,8 +178,9 @@ export default async function CostControlDashboard({ businessId }: { businessId:
   }
   const totalLocationValue = locationValues.reduce((s, l) => s + l.value, 0);
   const lowStockItems = semiItems
-    .filter((item) => Number(item.min_stock) > 0 && Number(item.stock) <= Number(item.min_stock))
-    .sort((a, b) => (Number(b.min_stock) - Number(b.stock)) - (Number(a.min_stock) - Number(a.stock)))
+    .map((item) => ({ ...item, stock: semiStockById.get(item.id) ?? 0 }))
+    .filter((item) => Number(item.min_stock) > 0 && item.stock <= Number(item.min_stock))
+    .sort((a, b) => (Number(b.min_stock) - b.stock) - (Number(a.min_stock) - a.stock))
     .slice(0, 5);
 
   const today = new Date().toLocaleDateString("id-ID", {
