@@ -290,8 +290,9 @@ export default function AddExpenseQuickForm({
               )}
             </div>
             <input
+              key={mode}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/*"
               capture="environment"
               onChange={handleReceiptChange}
               disabled={uploading}
