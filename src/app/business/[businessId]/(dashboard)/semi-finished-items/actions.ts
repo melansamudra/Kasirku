@@ -6,6 +6,8 @@ import { logActivity } from "@/lib/activity-log";
 import { wouldCreateCycle } from "@/lib/cost-control/compute-cost";
 import { getCurrentActor } from "@/lib/current-actor";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
+import { parseCsv } from "@/lib/csv";
+import ExcelJS from "exceljs";
 
 export type ActionState = { error: string | null };
 
@@ -676,4 +678,186 @@ export async function produceSemiFinishedItem(
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/kartu-stok`);
 
   return { error: null };
+}
+
+export type ImportManualState = {
+  error: string | null;
+  result: { created: number; updated: number; skipped: number; errors: string[] } | null;
+};
+
+const IMPORT_MANUAL_COLUMNS = ["name", "price", "section", "unit"] as const;
+
+async function parseManualFileToRows(file: File): Promise<string[][] | { error: string }> {
+  const isXlsx = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+
+  if (isXlsx) {
+    const buffer = await file.arrayBuffer();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) return { error: "File Excel tidak memiliki sheet." };
+
+    const rows: string[][] = [];
+    sheet.eachRow((row) => {
+      rows.push(
+        (row.values as (ExcelJS.CellValue | null)[])
+          .slice(1)
+          .map((v) => (v == null ? "" : String(v instanceof Object && "text" in v ? (v as { text: string }).text : v))),
+      );
+    });
+    return rows;
+  }
+
+  const text = await file.text();
+  return parseCsv(text);
+}
+
+// Import cepat: Nama + Harga (langsung jadi manual_unit_cost, resep di-skip
+// total) + Bagian (bisa lebih dari 1, pisah pakai koma/titik-koma -- Bagian
+// yang belum ada otomatis dibuatkan, supaya tidak perlu bikin dulu manual di
+// halaman Bahan Baku sebelum import). Satuan opsional, default "pcs".
+// Match/update by name -- sama pola dengan importIngredients.
+export async function importSemiFinishedManual(
+  businessId: string,
+  _prevState: ImportManualState,
+  formData: FormData,
+): Promise<ImportManualState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "Pilih file dulu.", result: null };
+  }
+
+  const parsed = await parseManualFileToRows(file);
+  if ("error" in parsed) return { error: parsed.error, result: null };
+
+  const rows = parsed.filter((r) => r.some((c) => c.trim() !== ""));
+  if (rows.length < 2) {
+    return { error: "File kosong atau cuma berisi header.", result: null };
+  }
+
+  const dataRows = rows.slice(1);
+  const supabase = await createClient();
+
+  const [{ data: business }, { data: existingItems }, { data: existingSections }] = await Promise.all([
+    supabase.from("businesses").select("cost_control_enabled").eq("id", businessId).single(),
+    supabase
+      .from("semi_finished_items")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .is("deleted_at", null),
+    supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId),
+  ]);
+
+  const itemByName = new Map((existingItems ?? []).map((i) => [i.name.trim().toLowerCase(), i]));
+  const sectionByName = new Map((existingSections ?? []).map((s) => [s.name.trim().toLowerCase(), s.id]));
+
+  async function resolveSectionIds(namesRaw: string): Promise<string[]> {
+    const names = namesRaw
+      .split(/[,;]/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    const ids: string[] = [];
+    for (const name of names) {
+      const key = name.toLowerCase();
+      let id = sectionByName.get(key);
+      if (!id) {
+        const { data: created, error } = await supabase
+          .from("ingredient_opname_sections")
+          .insert({ business_id: businessId, name })
+          .select("id")
+          .single();
+        if (error || !created) continue;
+        id = created.id;
+        sectionByName.set(key, id);
+      }
+      ids.push(id);
+    }
+    return ids;
+  }
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    const line = i + 2;
+    const get = (col: (typeof IMPORT_MANUAL_COLUMNS)[number]) =>
+      row[IMPORT_MANUAL_COLUMNS.indexOf(col)]?.trim() || "";
+
+    const name = get("name");
+    if (!name) {
+      skipped++;
+      errors.push(`Baris ${line}: nama kosong`);
+      continue;
+    }
+    const priceRaw = get("price");
+    const price = Number(priceRaw);
+    if (!priceRaw || Number.isNaN(price) || price < 0) {
+      skipped++;
+      errors.push(`Baris ${line}: harga tidak valid`);
+      continue;
+    }
+    const unit = get("unit") || "pcs";
+    const sectionIds = await resolveSectionIds(get("section"));
+
+    const match = itemByName.get(name.toLowerCase());
+    let itemId: string;
+
+    if (match) {
+      const { error } = await supabase
+        .from("semi_finished_items")
+        .update({ unit, manual_unit_cost: price })
+        .eq("id", match.id)
+        .eq("business_id", businessId);
+      if (error) {
+        skipped++;
+        errors.push(`Baris ${line}: ${error.message}`);
+        continue;
+      }
+      itemId = match.id;
+      updated++;
+    } else {
+      const { data: inserted, error } = await supabase
+        .from("semi_finished_items")
+        .insert({ business_id: businessId, name, unit, manual_unit_cost: price })
+        .select("id")
+        .single();
+      if (error || !inserted) {
+        skipped++;
+        errors.push(`Baris ${line}: ${error?.message ?? "gagal menambahkan"}`);
+        continue;
+      }
+      itemId = inserted.id;
+
+      // Kembaran di Bahan Baku -- sama pola dengan addSemiFinishedItem.
+      if (!business?.cost_control_enabled) {
+        const { data: mirrorIngredient } = await supabase
+          .from("ingredients")
+          .insert({ business_id: businessId, name, unit, unit_cost: price, stock: 0, min_stock: 0 })
+          .select("id")
+          .single();
+        if (mirrorIngredient) {
+          await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredient.id }).eq("id", itemId);
+        }
+      }
+      created++;
+    }
+
+    await supabase.from("semi_finished_item_opname_section_items").delete().eq("semi_finished_item_id", itemId).eq("business_id", businessId);
+    if (sectionIds.length > 0) {
+      await supabase.from("semi_finished_item_opname_section_items").insert(
+        sectionIds.map((sectionId) => ({ business_id: businessId, semi_finished_item_id: itemId, section_id: sectionId })),
+      );
+    }
+  }
+
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/ingredients`);
+
+  return {
+    error: null,
+    result: { created, updated, skipped, errors },
+  };
 }

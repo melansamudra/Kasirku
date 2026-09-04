@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
-import { addSemiFinishedItem, updateSemiFinishedItemOpnameSections } from "./actions";
+import { addSemiFinishedItem, importSemiFinishedManual, updateSemiFinishedItemOpnameSections } from "./actions";
+import ImportManualForm from "./import-manual-form";
 import ItemForm from "./item-form";
 import SemiFinishedItemsList, { type SemiFinishedItemRow } from "./item-search-list";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
@@ -67,6 +68,7 @@ export default async function SemiFinishedItemsPage({
 
   const costs = await computeAllSemiFinishedItemCosts(supabase, businessId);
   const boundAddItem = addSemiFinishedItem.bind(null, businessId);
+  const boundImportManual = importSemiFinishedManual.bind(null, businessId);
 
   const rows: SemiFinishedItemRow[] = (items ?? []).map((item) => {
     const cost = costs.get(item.id);
@@ -103,6 +105,21 @@ export default async function SemiFinishedItemsPage({
         >
           Import dari Data Excel
         </Link>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">Impor Cepat (Nama + Harga + Bagian)</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Buat banyak BSJ sekaligus dengan HPP manual (bukan resep) sambil langsung ditandai
+          Bagian-nya — cocok untuk BSJ yang dibeli/diterima dari luar (mis. dari Dapur Produksi)
+          dengan harga sudah termasuk markup. Bagian yang belum ada otomatis dibuatkan.{" "}
+          <a href="/template-bsj-manual" download className="font-medium text-brand-600 hover:underline">
+            Download template Excel
+          </a>
+        </p>
+        <div className="mt-4">
+          <ImportManualForm action={boundImportManual} />
+        </div>
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
