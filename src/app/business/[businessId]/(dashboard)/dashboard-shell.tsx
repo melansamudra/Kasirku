@@ -346,7 +346,7 @@ function buildCostControlNavGroups(
 // Operasional, Dokumen Manual, Staf/Portal PIN) yang tidak relevan di sini.
 function buildSimpleLocationNavGroups(
   base: string,
-  stockLocations: { id: string; name: string }[],
+  stockLocations: { id: string; name: string; isProduction: boolean }[],
 ): NavGroup[] {
   return stockLocations.map((loc) => ({
     title: loc.name,
@@ -358,6 +358,14 @@ function buildSimpleLocationNavGroups(
       { key: `lokasi-${loc.id}-purchase-requests`, href: `${base}/permintaan-barang?lokasi=${loc.id}`, label: "Permintaan Barang", icon: ShoppingCart },
       { key: `lokasi-${loc.id}-kartu-stok`, href: `${base}/lokasi/${loc.id}/kartu-stok`, label: "Kartu Stok", icon: CreditCard },
       { key: `lokasi-${loc.id}-stock-opname`, href: `${base}/lokasi/${loc.id}/stock-opname`, label: "Stok Opname", icon: ClipboardList },
+      // "Produksi" (halaman /produksi, tabel production_runs) SENGAJA masih
+      // 1 lokasi per bisnis (tidak punya location_id sendiri) -- item nav
+      // ini cuma nongol di lokasi yang ditandai is_production=true. Kalau
+      // nanti butuh >1 lokasi produksi sekaligus, production_runs WAJIB
+      // ditambah location_id dulu (lihat catatan di has-stock-access.ts).
+      ...(loc.isProduction
+        ? [{ key: "production-runs", href: `${base}/produksi`, label: "Produksi", icon: Factory }]
+        : []),
     ],
   }));
 }
