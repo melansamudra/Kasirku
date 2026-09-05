@@ -20,6 +20,88 @@ function formatQty(value: number) {
   return Number(value.toFixed(4)).toLocaleString("id-ID");
 }
 
+const normQuery = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+// Dulu ini <select> polos berisi SEMUA bahan baku (bisa 1000+ di bisnis yang
+// sudah lama jalan) -- di HP, scroll ratusan opsi buat cari 1 nama nyaris
+// mustahil, jadi staf keburu nyerah lalu pilih "+ Ketik nama baru..." dan
+// ngetik bebas (sering asal satuan "PCS"), padahal bahannya SUDAH ADA --
+// ini yang bikin bahan baku Llauk numpuk banyak duplikat. Combobox
+// pencarian ini gantinya, supaya ketik 2-3 huruf langsung ketemu.
+function IngredientCombobox({
+  ingredients,
+  value,
+  onChange,
+}: {
+  ingredients: MasterIngredient[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const selected = ingredients.find((i) => i.id === value);
+  const isNew = value === NEW_INGREDIENT_VALUE;
+
+  const q = normQuery(query);
+  const filtered = q ? ingredients.filter((i) => normQuery(i.name).includes(q)) : ingredients;
+  const shown = filtered.slice(0, 30);
+
+  function pick(id: string) {
+    onChange(id);
+    setQuery("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={open ? query : selected ? selected.name : ""}
+        onFocus={() => {
+          setOpen(true);
+          setQuery("");
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          if (value) onChange("");
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={isNew ? "+ Bahan baru (ketik di bawah)" : "Cari bahan baku…"}
+        className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+      />
+      {open && (
+        <div className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+          {shown.map((i) => (
+            <button
+              key={i.id}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick(i.id)}
+              className="block w-full px-2.5 py-1.5 text-left text-xs hover:bg-zinc-50"
+            >
+              {i.name} <span className="text-zinc-400">({i.unit})</span>
+            </button>
+          ))}
+          {filtered.length === 0 && <p className="px-2.5 py-1.5 text-xs text-zinc-400">Tidak ketemu.</p>}
+          {filtered.length > shown.length && (
+            <p className="px-2.5 py-1 text-[10px] text-zinc-400">
+              +{filtered.length - shown.length} lainnya — perhalus kata kuncinya
+            </p>
+          )}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => pick(NEW_INGREDIENT_VALUE)}
+            className="block w-full border-t border-zinc-100 px-2.5 py-1.5 text-left text-xs font-medium text-brand-600 hover:bg-brand-50"
+          >
+            + Ketik nama baru…
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RequestClient({
   slug,
   businessName,
@@ -373,19 +455,11 @@ export default function RequestClient({
               return (
                 <div key={row.key} className="flex items-start gap-2">
                   <div className="flex-1 space-y-1.5">
-                    <select
+                    <IngredientCombobox
+                      ingredients={ingredients}
                       value={row.ingredientId}
-                      onChange={(e) => updateIngredientRow(row.key, { ingredientId: e.target.value })}
-                      className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                    >
-                      <option value="">— Pilih bahan baku —</option>
-                      {ingredients.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name}
-                        </option>
-                      ))}
-                      <option value={NEW_INGREDIENT_VALUE}>+ Ketik nama baru…</option>
-                    </select>
+                      onChange={(id) => updateIngredientRow(row.key, { ingredientId: id })}
+                    />
                     {isNew && (
                       <div className="grid grid-cols-2 gap-1.5">
                         <input
