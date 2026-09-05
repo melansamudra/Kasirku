@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { parseCsv } from "@/lib/csv";
+import { fetchAllRows } from "@/lib/pagination";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 import ExcelJS from "exceljs";
+
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 // Kode internal buat bahan yang tidak punya barcode pabrik asli (mis. ikan,
 // sayur, bumbu curah) — supaya tetap bisa discan & dipakai di alur Permintaan
@@ -516,13 +519,16 @@ export async function importIngredients(
   const dataRows = rows.slice(1);
   const supabase = await createClient();
 
-  const { data: existing } = await supabase
-    .from("ingredients")
-    .select("id, name, unit_cost")
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
+  const existing = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit_cost")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .range(from, to),
+  );
 
-  const byName = new Map((existing ?? []).map((i) => [i.name.trim().toLowerCase(), i]));
+  const byName = new Map(existing.map((i) => [norm(i.name), i]));
 
   let created = 0;
   let updated = 0;
@@ -556,7 +562,7 @@ export async function importIngredients(
     const stock = Number(get("stock")) || 0;
     const minStock = Number(get("minStock")) || 0;
 
-    const match = byName.get(name.toLowerCase());
+    const match = byName.get(norm(name));
 
     if (match) {
       const { error } = await supabase

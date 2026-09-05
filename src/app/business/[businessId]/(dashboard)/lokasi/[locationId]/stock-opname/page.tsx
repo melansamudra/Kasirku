@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import StockOpnameLinkBox from "./link-box";
 import DirectOpnameForm from "./direct-opname-form";
 import { VerifyEntryButtons, VerifyAllButton } from "./verify-buttons";
@@ -50,13 +51,16 @@ export default async function LocationStockOpnamePage({
 
   let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
   if (!costControlUiEnabled) {
-    const [{ data: ingredientRows }, { data: stockRows }] = await Promise.all([
-      supabase
-        .from("ingredients")
-        .select("id, name, unit")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
+    const [ingredientRows, { data: stockRows }] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from("ingredients")
+          .select("id, name, unit")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .order("name", { ascending: true })
+          .range(from, to),
+      ),
       supabase
         .from("ingredient_location_stock")
         .select("ingredient_id, stock")
@@ -64,7 +68,7 @@ export default async function LocationStockOpnamePage({
         .eq("location_id", locationId),
     ]);
     const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
-    directIngredients = (ingredientRows ?? []).map((i) => ({
+    directIngredients = ingredientRows.map((i) => ({
       id: i.id,
       name: i.name,
       unit: i.unit,

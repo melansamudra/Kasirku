@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeFinishedProductCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 import { addRecipeComponent, removeRecipeComponent, updateFinishedProduct } from "../actions";
 import ProductForm from "../product-form";
@@ -68,18 +69,21 @@ export default async function FinishedProductDetailPage({
     notFound();
   }
 
-  const [{ data: recipeRows }, { data: ingredients }, { data: semiFinishedItems }] = await Promise.all([
+  const [{ data: recipeRows }, ingredients, { data: semiFinishedItems }] = await Promise.all([
     supabase
       .from("finished_product_recipes")
       .select("id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
       .eq("business_id", businessId)
       .eq("finished_product_id", id),
-    supabase
-      .from("ingredients")
-      .select("id, name, unit")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from("semi_finished_items")
       .select("id, name, unit")
@@ -88,7 +92,7 @@ export default async function FinishedProductDetailPage({
       .order("name", { ascending: true }),
   ]);
 
-  const ingredientMap = new Map((ingredients ?? []).map((i) => [i.id, i]));
+  const ingredientMap = new Map(ingredients.map((i) => [i.id, i]));
   const itemMap = new Map((semiFinishedItems ?? []).map((i) => [i.id, i]));
 
   const cost = await computeFinishedProductCost(supabase, businessId, id);

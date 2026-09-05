@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { addRecipeItem } from "./actions";
 import AddRecipeForm from "./add-recipe-form";
 import RemoveRecipeButton from "./remove-recipe-button";
@@ -38,12 +39,15 @@ export default async function ProductRecipePage({
     .eq("product_id", productId)
     .order("id", { ascending: true });
 
-  const { data: ingredients } = await supabase
-    .from("ingredients")
-    .select("id, name, unit")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  const ingredients = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .range(from, to),
+  );
 
   const boundAddRecipeItem = addRecipeItem.bind(null, businessId, productId);
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 
 type Period = "30" | "90" | "all";
 
@@ -59,12 +60,15 @@ export default async function PriceTrendPage({
     notFound();
   }
 
-  const { data: ingredients } = await supabase
-    .from("ingredients")
-    .select("id, name, unit, unit_cost")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  const ingredients = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit, unit_cost")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .range(from, to),
+  );
 
   let historyQuery = supabase
     .from("ingredient_price_history")

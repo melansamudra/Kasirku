@@ -92,7 +92,7 @@ export default async function PurchasesPage({
 
   const [
     { data: suppliers },
-    { data: ingredients },
+    ingredients,
     { data: purchaseUnits },
     { data: products },
     purchases,
@@ -106,13 +106,16 @@ export default async function PurchasesPage({
       .is("deleted_at", null)
       .order("name", { ascending: true }),
     isFnb
-      ? supabase
-          .from("ingredients")
-          .select("id, name, unit, stock, min_stock, unit_cost")
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .order("name", { ascending: true })
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows((from, to) =>
+          supabase
+            .from("ingredients")
+            .select("id, name, unit, stock, min_stock, unit_cost")
+            .eq("business_id", businessId)
+            .is("deleted_at", null)
+            .order("name", { ascending: true })
+            .range(from, to),
+        )
+      : Promise.resolve([]),
     isFnb
       ? supabase
           .from("ingredient_purchase_units")

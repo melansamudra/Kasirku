@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import {
   addIngredient,
   addIngredientPurchaseUnit,
@@ -47,12 +48,15 @@ export default async function IngredientsPage({
 
   const costControlEnabled = Boolean(business.cost_control_enabled || business.rich_stock_ops_enabled);
 
-  const { data: ingredients } = await supabase
-    .from("ingredients")
-    .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  const ingredients = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit, unit_cost, stock, min_stock, departments, barcode")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .range(from, to),
+  );
 
   const { data: opnameSections } = await supabase
     .from("ingredient_opname_sections")

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import BarcodeSheet from "./barcode-sheet";
 
 export default async function PrintBarcodesPage({
@@ -20,15 +21,18 @@ export default async function PrintBarcodesPage({
     notFound();
   }
 
-  const { data: ingredients } = await supabase
-    .from("ingredients")
-    .select("id, name, unit, barcode")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .not("barcode", "is", null)
-    .order("name", { ascending: true });
+  const ingredients = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit, barcode")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .not("barcode", "is", null)
+      .order("name", { ascending: true })
+      .range(from, to),
+  );
 
-  const items = (ingredients ?? [])
+  const items = ingredients
     .filter((i): i is typeof i & { barcode: string } => !!i.barcode)
     .map((i) => ({ id: i.id, name: i.name, unit: i.unit, barcode: i.barcode }));
 

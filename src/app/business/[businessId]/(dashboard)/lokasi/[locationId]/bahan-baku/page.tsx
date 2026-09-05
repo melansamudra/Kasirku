@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import { adjustIngredientLocationStock, updateLocationOpnameSections } from "./actions";
 import LocationSectionSelect from "./location-section-select";
@@ -39,19 +40,22 @@ export default async function LocationBahanBakuPage({
   }
 
   const [
-    { data: ingredients },
+    ingredients,
     { data: stockRows },
     { data: adjustments },
     { data: opnameSections },
     { data: locationSectionRows },
     { data: ingredientSectionRows },
   ] = await Promise.all([
-    supabase
-      .from("ingredients")
-      .select("id, name, unit")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from("ingredient_location_stock")
       .select("ingredient_id, stock")

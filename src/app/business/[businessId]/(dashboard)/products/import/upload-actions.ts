@@ -3,6 +3,7 @@
 import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { logActivity } from "@/lib/activity-log";
 
 // Adaptasi dari finished-products/import/upload-actions.ts (Llauk) --
@@ -136,12 +137,10 @@ export async function parseProductRecipeExcel(
   }
 
   const supabase = await createClient();
-  const { data: ingredients } = await supabase
-    .from("ingredients")
-    .select("id, name")
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
-  const pool: MatchCandidate[] = (ingredients ?? []).map((i) => ({ id: i.id, name: i.name }));
+  const ingredients = await fetchAllRows((from, to) =>
+    supabase.from("ingredients").select("id, name").eq("business_id", businessId).is("deleted_at", null).range(from, to),
+  );
+  const pool: MatchCandidate[] = ingredients.map((i) => ({ id: i.id, name: i.name }));
 
   const seenBahan = new Map<string, { bahan: string; satuan: string; harga: number }>();
   for (const row of parsed) {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import { addSemiFinishedItem, importSemiFinishedManual, updateSemiFinishedItemOpnameSections } from "./actions";
 import ImportManualForm from "./import-manual-form";
@@ -33,19 +34,22 @@ export default async function SemiFinishedItemsPage({
     notFound();
   }
 
-  const [{ data: items }, { data: ingredients }, { data: opnameSections }, { data: itemSectionRows }] = await Promise.all([
+  const [{ data: items }, ingredients, { data: opnameSections }, { data: itemSectionRows }] = await Promise.all([
     supabase
       .from("semi_finished_items")
       .select("id, name, unit, min_stock, category, ingredient_id, updated_at")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
-    supabase
-      .from("ingredients")
-      .select("id, name, unit")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+        .range(from, to),
+    ),
     supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId).order("name", { ascending: true }),
     supabase.from("semi_finished_item_opname_section_items").select("semi_finished_item_id, section_id").eq("business_id", businessId),
   ]);

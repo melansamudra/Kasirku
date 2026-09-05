@@ -3,6 +3,7 @@
 import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { logActivity } from "@/lib/activity-log";
 
 // Format tetap (lihat /template-resep-produk-jadi): kolom A-F = Nama Menu,
@@ -137,12 +138,14 @@ export async function parseProdukJadiExcel(
   }
 
   const supabase = await createClient();
-  const [{ data: ingredients }, { data: semiFinished }] = await Promise.all([
-    supabase.from("ingredients").select("id, name").eq("business_id", businessId).is("deleted_at", null),
+  const [ingredients, { data: semiFinished }] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase.from("ingredients").select("id, name").eq("business_id", businessId).is("deleted_at", null).range(from, to),
+    ),
     supabase.from("semi_finished_items").select("id, name").eq("business_id", businessId).is("deleted_at", null),
   ]);
   const pool: MatchCandidate[] = [
-    ...(ingredients ?? []).map((i) => ({ id: i.id, name: i.name, type: "ingredient" as const })),
+    ...ingredients.map((i) => ({ id: i.id, name: i.name, type: "ingredient" as const })),
     ...(semiFinished ?? []).map((s) => ({ id: s.id, name: s.name, type: "semi_finished" as const })),
   ];
 

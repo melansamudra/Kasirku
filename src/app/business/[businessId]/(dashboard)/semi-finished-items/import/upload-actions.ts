@@ -3,6 +3,7 @@
 import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { logActivity } from "@/lib/activity-log";
 
 // Format tetap (lihat /template-resep-bsj): kolom A-F = Nama Menu, Porsi,
@@ -136,12 +137,9 @@ export async function parseDataglobalExcel(
   }
 
   const supabase = await createClient();
-  const { data: existingIngredients } = await supabase
-    .from("ingredients")
-    .select("id, name")
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
-  const ingredientList = existingIngredients ?? [];
+  const ingredientList = await fetchAllRows((from, to) =>
+    supabase.from("ingredients").select("id, name").eq("business_id", businessId).is("deleted_at", null).range(from, to),
+  );
 
   const seenBahan = new Map<string, { bahan: string; satuan: string; harga: number }>();
   for (const row of parsed) {

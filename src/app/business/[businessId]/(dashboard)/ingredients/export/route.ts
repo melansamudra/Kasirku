@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { assertBusinessAccess } from "@/lib/route-auth";
 
 const HEADERS = [
@@ -20,12 +21,15 @@ export async function GET(
 
   const supabase = await createClient();
 
-  const { data: ingredients } = await supabase
-    .from("ingredients")
-    .select("name, unit, unit_cost, stock, min_stock")
-    .eq("business_id", businessId)
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  const ingredients = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("name, unit, unit_cost, stock, min_stock")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .range(from, to),
+  );
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Bahan Baku");
@@ -38,7 +42,7 @@ export async function GET(
   headerRow.alignment = { vertical: "middle", horizontal: "center" };
   headerRow.height = 20;
 
-  for (const i of ingredients ?? []) {
+  for (const i of ingredients) {
     sheet.addRow({
       name: i.name,
       unit: i.unit,

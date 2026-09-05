@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Wallet, TrendingDown, PiggyBank } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { recalculateFromSales } from "./actions";
 import BudgetLineRow from "./budget-line-row";
@@ -43,13 +44,15 @@ export default async function RabPembelianPage({
     notFound();
   }
 
-  const [{ data: lines }, { data: ingredients }, { data: requests }] = await Promise.all([
+  const [{ data: lines }, ingredients, { data: requests }] = await Promise.all([
     supabase
       .from("procurement_budget_lines")
       .select("id, ingredient_id, reference_period, suggested_qty, order_qty")
       .eq("business_id", businessId)
       .eq("period", period),
-    supabase.from("ingredients").select("id, name, unit, unit_cost").eq("business_id", businessId),
+    fetchAllRows((from, to) =>
+      supabase.from("ingredients").select("id, name, unit, unit_cost").eq("business_id", businessId).range(from, to),
+    ),
     supabase
       .from("purchase_requests")
       .select("id, pr_number, employee_name, created_at")

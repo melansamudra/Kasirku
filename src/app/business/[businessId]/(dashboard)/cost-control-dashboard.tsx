@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import { payslipTotal, type PayslipAgg } from "@/lib/payroll/payslip-total";
 import { getPeriodRange } from "./reports/period";
@@ -152,20 +153,26 @@ export default async function CostControlDashboard({ businessId }: { businessId:
   );
 
   if ((stockLocations ?? []).length > 0) {
-    const [{ data: locStockRows }, { data: allIngredients }] = await Promise.all([
-      supabase
-        .from("ingredient_location_stock")
-        .select("location_id, ingredient_id, stock")
-        .eq("business_id", businessId),
-      supabase
-        .from("ingredients")
-        .select("id, unit_cost")
-        .eq("business_id", businessId)
-        .is("deleted_at", null),
+    const [locStockRows, allIngredients] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from("ingredient_location_stock")
+          .select("location_id, ingredient_id, stock")
+          .eq("business_id", businessId)
+          .range(from, to),
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from("ingredients")
+          .select("id, unit_cost")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .range(from, to),
+      ),
     ]);
-    const unitCostById = new Map((allIngredients ?? []).map((i) => [i.id, Number(i.unit_cost)]));
+    const unitCostById = new Map(allIngredients.map((i) => [i.id, Number(i.unit_cost)]));
     const valueByLocation = new Map<string, number>();
-    for (const row of locStockRows ?? []) {
+    for (const row of locStockRows) {
       const unitCost = unitCostById.get(row.ingredient_id) ?? 0;
       const value = Number(row.stock) * unitCost;
       valueByLocation.set(row.location_id, (valueByLocation.get(row.location_id) ?? 0) + value);

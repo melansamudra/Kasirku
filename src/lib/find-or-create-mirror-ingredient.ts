@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
+import { fetchAllRows } from "@/lib/pagination";
 
 const normIngredientName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -19,12 +20,15 @@ export async function findOrCreateMirrorIngredient(
   unit: string,
   unitCost: number,
 ): Promise<string | null> {
-  const { data: existing } = await supabase
-    .from("ingredients")
-    .select("id, name")
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
-  const match = (existing ?? []).find((i) => normIngredientName(i.name) === normIngredientName(name));
+  const existing = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .range(from, to),
+  );
+  const match = existing.find((i) => normIngredientName(i.name) === normIngredientName(name));
   if (match) return match.id;
 
   const { data: created } = await supabase

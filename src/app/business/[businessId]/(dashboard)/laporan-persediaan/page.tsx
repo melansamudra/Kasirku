@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 import { todayWibDateString } from "@/lib/wib";
@@ -28,15 +29,24 @@ export default async function LaporanPersediaanPage({
     notFound();
   }
 
-  const [{ data: ingredients }, { data: ingredientStockRows }, { data: semiItems }, { data: semiStockRows }, costMap] =
+  const [ingredients, ingredientStockRows, { data: semiItems }, { data: semiStockRows }, costMap] =
     await Promise.all([
-      supabase
-        .from("ingredients")
-        .select("id, name, unit, unit_cost")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase.from("ingredient_location_stock").select("ingredient_id, stock").eq("business_id", businessId),
+      fetchAllRows((from, to) =>
+        supabase
+          .from("ingredients")
+          .select("id, name, unit, unit_cost")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .order("name", { ascending: true })
+          .range(from, to),
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from("ingredient_location_stock")
+          .select("ingredient_id, stock")
+          .eq("business_id", businessId)
+          .range(from, to),
+      ),
       supabase
         .from("semi_finished_items")
         .select("id, name, unit")
@@ -55,7 +65,7 @@ export default async function LaporanPersediaanPage({
   // stok di SEMUA lokasi milik bisnis ini (satu divisi bisa punya beberapa
   // lokasi, mis. Gudang Utama + Dapur Produksi).
   const ingredientStockById = new Map<string, number>();
-  for (const row of ingredientStockRows ?? []) {
+  for (const row of ingredientStockRows) {
     ingredientStockById.set(row.ingredient_id, (ingredientStockById.get(row.ingredient_id) ?? 0) + Number(row.stock));
   }
   const semiStockById = new Map<string, number>();
@@ -66,7 +76,7 @@ export default async function LaporanPersediaanPage({
     );
   }
 
-  const bahanBakuRows: PersediaanRow[] = (ingredients ?? []).map((i) => {
+  const bahanBakuRows: PersediaanRow[] = ingredients.map((i) => {
     const stock = ingredientStockById.get(i.id) ?? 0;
     const unitCost = Number(i.unit_cost);
     return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, total: stock * unitCost };

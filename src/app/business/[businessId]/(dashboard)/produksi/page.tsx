@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import {
   createIngredientForReportedConsumption,
@@ -34,7 +35,7 @@ export default async function ProduksiPage({
     notFound();
   }
 
-  const [{ data: items }, { data: employees }, { data: runs }, { data: ingredientsAll }, costMap] =
+  const [{ data: items }, { data: employees }, { data: runs }, ingredientsAll, costMap] =
     await Promise.all([
       supabase
         .from("semi_finished_items")
@@ -55,12 +56,15 @@ export default async function ProduksiPage({
         )
         .eq("business_id", businessId)
         .order("produced_at", { ascending: false }),
-      supabase
-        .from("ingredients")
-        .select("id, name, unit, stock")
-        .eq("business_id", businessId)
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
+      fetchAllRows((from, to) =>
+        supabase
+          .from("ingredients")
+          .select("id, name, unit, stock")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .order("name", { ascending: true })
+          .range(from, to),
+      ),
       computeAllSemiFinishedItemCosts(supabase, businessId),
     ]);
 

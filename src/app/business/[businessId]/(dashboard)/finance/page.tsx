@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { todayWibDateString } from "@/lib/wib";
 import { fetchAllRows } from "@/lib/pagination";
+import { todayWibDateString } from "@/lib/wib";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -189,11 +189,14 @@ export default async function FinancePage({
     .maybeSingle();
 
   // ── Kontrol HPP teori vs aktual (persediaan) ──
-  const { data: ingredientsForCost } = await supabase
-    .from("ingredients")
-    .select("id, name, unit, stock, unit_cost")
-    .eq("business_id", businessId)
-    .is("deleted_at", null);
+  const ingredientsForCost = await fetchAllRows((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit, stock, unit_cost")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .range(from, to),
+  );
   const { data: productsForCost } = await supabase
     .from("products")
     .select("id, name, stock, cost")

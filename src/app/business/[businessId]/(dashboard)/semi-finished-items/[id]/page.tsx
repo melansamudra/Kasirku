@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
 import ItemForm from "../item-form";
@@ -81,18 +82,21 @@ export default async function SemiFinishedItemDetailPage({
   ]);
   const currentStock = mirrorIngredient ? Number(mirrorIngredient.stock) : 0;
 
-  const [{ data: recipeRows }, { data: ingredients }, { data: otherItems }] = await Promise.all([
+  const [{ data: recipeRows }, ingredients, { data: otherItems }] = await Promise.all([
     supabase
       .from("semi_finished_recipes")
       .select("id, component_type, ingredient_id, component_semi_finished_id, qty, unit")
       .eq("business_id", businessId)
       .eq("semi_finished_item_id", id),
-    supabase
-      .from("ingredients")
-      .select("id, name, unit")
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .order("name", { ascending: true }),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from("semi_finished_items")
       .select("id, name, unit")
@@ -102,7 +106,7 @@ export default async function SemiFinishedItemDetailPage({
       .order("name", { ascending: true }),
   ]);
 
-  const ingredientMap = new Map((ingredients ?? []).map((i) => [i.id, i]));
+  const ingredientMap = new Map(ingredients.map((i) => [i.id, i]));
   const itemMap = new Map((otherItems ?? []).map((i) => [i.id, i]));
 
   const cost = await computeSemiFinishedItemCost(supabase, businessId, id);
