@@ -5,7 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 const DEPARTMENT_OPTIONS: { value: string; label: string }[] = [
   { value: "dapur", label: "🍳 Dapur" },
   { value: "bar", label: "🍹 Bar" },
-  { value: "front", label: "🛎️ Front" },
+  { value: "front", label: "🏭 Gudang Utama" },
 ];
 
 export default function IngredientSearch({
