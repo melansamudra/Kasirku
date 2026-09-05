@@ -19,6 +19,7 @@ export default function OpnameSectionManager({
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pending && !state.error) {
@@ -30,6 +31,7 @@ export default function OpnameSectionManager({
     setDeletingId(sectionId);
     await deleteOpnameSection(businessId, sectionId);
     setDeletingId(null);
+    setConfirmingId(null);
   }
 
   return (
@@ -45,23 +47,47 @@ export default function OpnameSectionManager({
         {sections.length === 0 && (
           <p className="text-xs text-zinc-400">Belum ada bagian — tambahkan dulu di bawah.</p>
         )}
-        {sections.map((s) => (
-          <span
-            key={s.id}
-            className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700"
-          >
-            {s.name}
-            <button
-              type="button"
-              onClick={() => handleDelete(s.id)}
-              disabled={deletingId === s.id}
-              className="text-zinc-400 hover:text-red-500 disabled:opacity-50"
-              aria-label={`Hapus bagian ${s.name}`}
+        {sections.map((s) =>
+          confirmingId === s.id ? (
+            <span
+              key={s.id}
+              className="flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700"
             >
-              ✕
-            </button>
-          </span>
-        ))}
+              Hapus &quot;{s.name}&quot;? Semua bahan yang ditandai bagian ini akan lepas tag.
+              <button
+                type="button"
+                onClick={() => handleDelete(s.id)}
+                disabled={deletingId === s.id}
+                className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+              >
+                {deletingId === s.id ? "Menghapus…" : "Ya, Hapus"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingId(null)}
+                disabled={deletingId === s.id}
+                className="font-medium text-zinc-500 hover:underline disabled:opacity-50"
+              >
+                Batal
+              </button>
+            </span>
+          ) : (
+            <span
+              key={s.id}
+              className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700"
+            >
+              {s.name}
+              <button
+                type="button"
+                onClick={() => setConfirmingId(s.id)}
+                className="text-zinc-400 hover:text-red-500"
+                aria-label={`Hapus bagian ${s.name}`}
+              >
+                ✕
+              </button>
+            </span>
+          ),
+        )}
       </div>
 
       <form ref={formRef} action={formAction} className="mt-3 flex gap-2">

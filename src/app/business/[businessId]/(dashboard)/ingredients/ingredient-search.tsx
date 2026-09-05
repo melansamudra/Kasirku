@@ -2,14 +2,32 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 
-export default function IngredientSearch({ names, children }: { names: string[]; children: ReactNode[] }) {
+const DEPARTMENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "dapur", label: "🍳 Dapur" },
+  { value: "bar", label: "🍹 Bar" },
+  { value: "front", label: "🛎️ Front" },
+];
+
+export default function IngredientSearch({
+  names,
+  departments,
+  children,
+}: {
+  names: string[];
+  departments?: string[][];
+  children: ReactNode[];
+}) {
   const [query, setQuery] = useState("");
+  const [department, setDepartment] = useState<string | null>(null);
 
   const visibleChildren = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return children;
-    return children.filter((_, idx) => names[idx]?.toLowerCase().includes(q));
-  }, [children, names, query]);
+    return children.filter((_, idx) => {
+      const matchesQuery = !q || (names[idx]?.toLowerCase().includes(q) ?? false);
+      const matchesDepartment = !department || (departments?.[idx] ?? []).includes(department);
+      return matchesQuery && matchesDepartment;
+    });
+  }, [children, names, departments, query, department]);
 
   return (
     <div>
@@ -31,6 +49,36 @@ export default function IngredientSearch({ names, children }: { names: string[];
           </button>
         )}
       </div>
+
+      {departments && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setDepartment(null)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              department === null
+                ? "border-brand-600 bg-brand-50 text-brand-700"
+                : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
+            }`}
+          >
+            Semua Divisi
+          </button>
+          {DEPARTMENT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setDepartment((d) => (d === opt.value ? null : opt.value))}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                department === opt.value
+                  ? "border-brand-600 bg-brand-50 text-brand-700"
+                  : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 space-y-2">
         {visibleChildren.length > 0 ? (

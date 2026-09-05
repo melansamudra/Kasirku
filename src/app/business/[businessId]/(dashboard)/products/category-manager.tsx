@@ -19,6 +19,7 @@ export default function CategoryManager({
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pending && !state.error) {
@@ -30,6 +31,7 @@ export default function CategoryManager({
     setDeletingId(categoryId);
     await deleteProductCategory(businessId, categoryId);
     setDeletingId(null);
+    setConfirmingId(null);
   }
 
   return (
@@ -44,23 +46,47 @@ export default function CategoryManager({
         {categories.length === 0 && (
           <p className="text-xs text-zinc-400">Belum ada kategori — tambahkan dulu di bawah.</p>
         )}
-        {categories.map((c) => (
-          <span
-            key={c.id}
-            className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700"
-          >
-            {c.name}
-            <button
-              type="button"
-              onClick={() => handleDelete(c.id)}
-              disabled={deletingId === c.id}
-              className="text-zinc-400 hover:text-red-500 disabled:opacity-50"
-              aria-label={`Hapus kategori ${c.name}`}
+        {categories.map((c) =>
+          confirmingId === c.id ? (
+            <span
+              key={c.id}
+              className="flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700"
             >
-              ✕
-            </button>
-          </span>
-        ))}
+              Hapus &quot;{c.name}&quot;? Produk dengan kategori ini akan lepas kategori.
+              <button
+                type="button"
+                onClick={() => handleDelete(c.id)}
+                disabled={deletingId === c.id}
+                className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+              >
+                {deletingId === c.id ? "Menghapus…" : "Ya, Hapus"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingId(null)}
+                disabled={deletingId === c.id}
+                className="font-medium text-zinc-500 hover:underline disabled:opacity-50"
+              >
+                Batal
+              </button>
+            </span>
+          ) : (
+            <span
+              key={c.id}
+              className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700"
+            >
+              {c.name}
+              <button
+                type="button"
+                onClick={() => setConfirmingId(c.id)}
+                className="text-zinc-400 hover:text-red-500"
+                aria-label={`Hapus kategori ${c.name}`}
+              >
+                ✕
+              </button>
+            </span>
+          ),
+        )}
       </div>
 
       <form ref={formRef} action={formAction} className="mt-3 flex gap-2">

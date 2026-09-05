@@ -157,7 +157,10 @@ export default async function IngredientsPage({
 
         <div className="mt-6">
           {ingredients && ingredients.length > 0 ? (
-            <IngredientSearch names={ingredients.map((i) => i.name)}>
+            <IngredientSearch
+              names={ingredients.map((i) => i.name)}
+              departments={ingredients.map((i) => i.departments ?? [])}
+            >
               {ingredients.map((i) => (
               <div
                 key={i.id}
