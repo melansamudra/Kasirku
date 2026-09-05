@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { submitStockOpname } from "./actions";
 
-type ItemOption = { id: string; name: string; unit: string; currentStock: number };
+type ItemOption = { id: string; name: string; unit: string; currentStock: number; sectionIds?: string[] };
 type Employee = { id: string; name: string };
+type Section = { id: string; name: string };
 type NewItemDraft = {
   tempId: string;
   name: string;
@@ -73,7 +74,7 @@ export default function OpnameClient({
   businessName,
   location,
   employees,
-  lockedSectionId,
+  sections,
   ingredients,
   semiFinishedItems,
 }: {
@@ -81,12 +82,13 @@ export default function OpnameClient({
   businessName: string;
   location: { id: string; name: string };
   employees: Employee[];
-  lockedSectionId: string | null;
+  sections: Section[];
   ingredients: ItemOption[];
   semiFinishedItems: ItemOption[];
 }) {
   const [employeeId, setEmployeeId] = useState("");
   const [entryDate, setEntryDate] = useState(todayISO());
+  const [sectionId, setSectionId] = useState("");
   const [query, setQuery] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
@@ -139,10 +141,16 @@ export default function OpnameClient({
     setNewItems((prev) => prev.filter((n) => n.tempId !== tempId));
   }
 
-  function filterItems(items: ItemOption[]) {
+  function filterItems(items: ItemOption[], applySectionFilter: boolean) {
+    let result = items;
+    if (applySectionFilter && sectionId) {
+      result = result.filter((i) => (i.sectionIds ?? []).includes(sectionId));
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((i) => i.name.toLowerCase().includes(q));
+    if (q) {
+      result = result.filter((i) => i.name.toLowerCase().includes(q));
+    }
+    return result;
   }
 
   function buildCounts() {
@@ -202,7 +210,7 @@ export default function OpnameClient({
       entryDate,
       newIngredients,
       newSemiFinished,
-      lockedSectionId ?? undefined,
+      sectionId,
     );
     setPending(false);
 
@@ -220,8 +228,19 @@ export default function OpnameClient({
     setStep("input");
   }
 
-  const visibleIngredients = filterItems(ingredients);
-  const visibleSemiFinished = filterItems(semiFinishedItems);
+  const visibleIngredients = filterItems(ingredients, true);
+  const visibleSemiFinished = filterItems(semiFinishedItems, true);
+
+  const sectionsWithCount = useMemo(
+    () =>
+      sections.map((s) => ({
+        ...s,
+        count:
+          ingredients.filter((i) => (i.sectionIds ?? []).includes(s.id)).length +
+          semiFinishedItems.filter((i) => (i.sectionIds ?? []).includes(s.id)).length,
+      })),
+    [sections, ingredients, semiFinishedItems],
+  );
 
   const reviewRows = useMemo(() => {
     const rows: { key: string; name: string; unit: string; currentStock: number; reported: number; isNew: boolean }[] = [];
@@ -339,6 +358,28 @@ export default function OpnameClient({
             ))}
           </select>
         </div>
+
+        {sections.length > 0 && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600">Bagian</label>
+            <select
+              value={sectionId}
+              onChange={(e) => setSectionId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">— Semua Bagian —</option>
+              {sectionsWithCount.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.count} bahan)
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Pilih bagian kamu supaya cuma bahan bagian itu yang tampil — tidak perlu scroll semua
+              bahan.
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Tanggal Opname</label>

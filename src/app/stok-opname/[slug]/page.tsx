@@ -7,13 +7,7 @@ type StockOpnameInfo = {
   business_name: string;
   cost_control_enabled: boolean;
   employees: { id: string; name: string }[];
-  stock_locations: {
-    id: string;
-    name: string;
-    is_default_purchase: boolean;
-    is_production: boolean;
-    bound_section_ids: string[];
-  }[];
+  stock_locations: { id: string; name: string; is_default_purchase: boolean; is_production: boolean }[];
   sections: { id: string; name: string }[];
   ingredients: { id: string; name: string; unit: string; section_ids: string[] }[];
   semi_finished_items: { id: string; name: string; unit: string; section_ids: string[] }[];
@@ -68,17 +62,6 @@ export default async function StockOpnamePage({
   const ingredientStockById = new Map((snapshot?.ingredient_stocks ?? []).map((r) => [r.id, r.stock]));
   const semiFinishedStockById = new Map((snapshot?.semi_finished_stocks ?? []).map((r) => [r.id, r.stock]));
 
-  // Lokasi diikat ke Bagian tertentu (mis. lokasi Bar = Bagian "Bar") --
-  // sama pola dengan halaman Bahan Baku internal (lihat bahan-baku/page.tsx):
-  // kosong = tidak dibatasi, tampilkan semua seperti sebelumnya. Kalau
-  // terikat, link ini dikunci penuh ke Bagian itu -- tidak ada dropdown buat
-  // lihat/isi bahan Bagian lain, supaya link Bar & Kitchen tidak lagi
-  // "kebaca semua divisi".
-  const boundSectionIds = location.bound_section_ids;
-  const isLocked = boundSectionIds.length > 0;
-  const matchesBoundSection = (sectionIds: string[]) => sectionIds.some((id) => boundSectionIds.includes(id));
-  const lockedSectionId = isLocked ? boundSectionIds[0] : null;
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
       <OpnameClient
@@ -86,26 +69,24 @@ export default async function StockOpnamePage({
         businessName={info.business_name}
         location={{ id: location.id, name: location.name }}
         employees={info.employees}
-        lockedSectionId={lockedSectionId}
-        ingredients={info.ingredients
-          .filter((i) => !isLocked || matchesBoundSection(i.section_ids))
-          .map((i) => ({
-            id: i.id,
-            name: i.name,
-            unit: i.unit,
-            currentStock: ingredientStockById.get(i.id) ?? 0,
-          }))}
+        sections={info.sections}
+        ingredients={info.ingredients.map((i) => ({
+          id: i.id,
+          name: i.name,
+          unit: i.unit,
+          sectionIds: i.section_ids,
+          currentStock: ingredientStockById.get(i.id) ?? 0,
+        }))}
         semiFinishedItems={
           location.is_default_purchase
             ? []
-            : info.semi_finished_items
-                .filter((s) => !isLocked || matchesBoundSection(s.section_ids))
-                .map((s) => ({
-                  id: s.id,
-                  name: s.name,
-                  unit: s.unit,
-                  currentStock: semiFinishedStockById.get(s.id) ?? 0,
-                }))
+            : info.semi_finished_items.map((s) => ({
+                id: s.id,
+                name: s.name,
+                unit: s.unit,
+                sectionIds: s.section_ids,
+                currentStock: semiFinishedStockById.get(s.id) ?? 0,
+              }))
         }
       />
     </div>
