@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { findOrCreateMirrorIngredient } from "@/lib/find-or-create-mirror-ingredient";
 
 export type ImportActionState = { error: string | null; success: boolean };
 
@@ -84,13 +85,9 @@ export async function saveBsjImport(
       .eq("id", businessId)
       .single();
     if (!businessForMirror?.cost_control_enabled) {
-      const { data: mirrorIngredient } = await supabase
-        .from("ingredients")
-        .insert({ business_id: businessId, name: itemName, unit: "porsi", unit_cost: 0, stock: 0, min_stock: 0 })
-        .select("id")
-        .single();
-      if (mirrorIngredient) {
-        await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredient.id }).eq("id", itemId);
+      const mirrorIngredientId = await findOrCreateMirrorIngredient(supabase, businessId, itemName, "porsi", 0);
+      if (mirrorIngredientId) {
+        await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredientId }).eq("id", itemId);
       }
     }
   }

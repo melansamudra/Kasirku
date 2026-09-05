@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity-log";
 import { wouldCreateCycle } from "@/lib/cost-control/compute-cost";
 import { getCurrentActor } from "@/lib/current-actor";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
+import { findOrCreateMirrorIngredient } from "@/lib/find-or-create-mirror-ingredient";
 import { parseCsv } from "@/lib/csv";
 import ExcelJS from "exceljs";
 
@@ -153,21 +154,9 @@ export async function addSemiFinishedItem(
     .single();
 
   if (!businessForMirror?.cost_control_enabled) {
-    const { data: mirrorIngredient } = await supabase
-      .from("ingredients")
-      .insert({
-        business_id: businessId,
-        name,
-        unit,
-        unit_cost: 0,
-        stock: 0,
-        min_stock: minStock,
-      })
-      .select("id")
-      .single();
-
-    if (mirrorIngredient) {
-      await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredient.id }).eq("id", newItem.id);
+    const mirrorIngredientId = await findOrCreateMirrorIngredient(supabase, businessId, name, unit, 0);
+    if (mirrorIngredientId) {
+      await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredientId }).eq("id", newItem.id);
     }
   }
 
@@ -833,13 +822,9 @@ export async function importSemiFinishedManual(
 
       // Kembaran di Bahan Baku -- sama pola dengan addSemiFinishedItem.
       if (!business?.cost_control_enabled) {
-        const { data: mirrorIngredient } = await supabase
-          .from("ingredients")
-          .insert({ business_id: businessId, name, unit, unit_cost: price, stock: 0, min_stock: 0 })
-          .select("id")
-          .single();
-        if (mirrorIngredient) {
-          await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredient.id }).eq("id", itemId);
+        const mirrorIngredientId = await findOrCreateMirrorIngredient(supabase, businessId, name, unit, price);
+        if (mirrorIngredientId) {
+          await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredientId }).eq("id", itemId);
         }
       }
       created++;
