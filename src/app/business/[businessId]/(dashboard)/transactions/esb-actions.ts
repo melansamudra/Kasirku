@@ -29,6 +29,11 @@ const REQUIRED_COLUMNS = [
 
 type ColMap = Record<(typeof REQUIRED_COLUMNS)[number] | "Bill Number", number>;
 
+// Sama seperti norm() di fitur import products/finished-products/semi-finished-items
+// (commit 33c72f3) — trim + lowercase SAJA gagal cocokkan nama menu yang beda
+// spasi ganda/di tengah (umum di export ESB), bikin produk duplikat kebuat.
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
 function cellText(cell: ExcelJS.Cell): string {
   const v = cell.value;
   if (v == null) return "";
@@ -273,12 +278,12 @@ export async function previewEsbImport(
     .select("id, name")
     .eq("business_id", businessId)
     .is("deleted_at", null);
-  const knownNames = new Set((products ?? []).map((p) => p.name.trim().toLowerCase()));
+  const knownNames = new Set((products ?? []).map((p) => norm(p.name)));
 
   const toCreateByName = new Map<string, { name: string; category: string; price: number }>();
   const matchedNames = new Set<string>();
   for (const l of lines) {
-    const key = l.menu.toLowerCase();
+    const key = norm(l.menu);
     if (knownNames.has(key)) {
       matchedNames.add(key);
     } else if (!toCreateByName.has(key)) {
@@ -408,10 +413,10 @@ export async function confirmEsbImport(
     .select("id, name")
     .eq("business_id", businessId)
     .is("deleted_at", null);
-  const productIdByName = new Map((products ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
+  const productIdByName = new Map((products ?? []).map((p) => [norm(p.name), p.id]));
 
   const createdProducts: string[] = [];
-  const toCreate = draft.toCreate.filter((p) => !productIdByName.has(p.name.trim().toLowerCase()));
+  const toCreate = draft.toCreate.filter((p) => !productIdByName.has(norm(p.name)));
   const catalogLabel = costControlEnabled ? "Produk Jadi (HPP)" : "Kelola Produk";
 
   if (toCreate.length > 0) {
@@ -429,7 +434,7 @@ export async function confirmEsbImport(
         .eq("business_id", businessId)
         .is("deleted_at", null);
       productIdByName.clear();
-      for (const p of refreshed ?? []) productIdByName.set(p.name.trim().toLowerCase(), p.id);
+      for (const p of refreshed ?? []) productIdByName.set(norm(p.name), p.id);
     } else {
       const { data: created, error: insertErr } = await supabase
         .from("products")
@@ -438,7 +443,7 @@ export async function confirmEsbImport(
       if (insertErr) {
         return { error: `Gagal membuat produk baru: ${insertErr.message}`, result: null };
       }
-      for (const p of created ?? []) productIdByName.set(p.name.trim().toLowerCase(), p.id);
+      for (const p of created ?? []) productIdByName.set(norm(p.name), p.id);
     }
     createdProducts.push(...toCreate.map((p) => p.name));
   }
@@ -460,7 +465,7 @@ export async function confirmEsbImport(
   for (const t of draft.transactions) {
     const items: { product_id: string; qty: number; price: number }[] = [];
     for (const it of t.items) {
-      const productId = productIdByName.get(it.menu.toLowerCase());
+      const productId = productIdByName.get(norm(it.menu));
       if (!productId) {
         unmatchedMenus.add(it.menu);
         continue;

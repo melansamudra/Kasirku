@@ -4,11 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { Capacitor } from "@capacitor/core";
 import ImportTransactionsForm from "./import-transactions-form";
-import ImportSalesRecapForm from "./import-sales-recap-form";
 import ImportMokaForm from "./import-moka-form";
 import ImportEsbForm from "./import-esb-form";
 import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from "./actions";
-import type { ImportSalesRecapState } from "./rekap-actions";
 import type { EsbPreviewState, ImportEsbState } from "./esb-actions";
 
 // Export/import/manual-add are backoffice bulk-data tools, not something a
@@ -17,7 +15,6 @@ import type { EsbPreviewState, ImportEsbState } from "./esb-actions";
 export function TransactionActions({
   businessId,
   importAction,
-  importRekapAction,
   previewEsbAction,
   importEsbAction,
   previewMokaAction,
@@ -28,7 +25,6 @@ export function TransactionActions({
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
-  importRekapAction: (state: ImportSalesRecapState, formData: FormData) => Promise<ImportSalesRecapState>;
   previewEsbAction: (state: EsbPreviewState, formData: FormData) => Promise<EsbPreviewState>;
   importEsbAction: (state: ImportEsbState, formData: FormData) => Promise<ImportEsbState>;
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
@@ -39,7 +35,6 @@ export function TransactionActions({
 }) {
   const canImportRekap = costControlEnabled || stockLocationsEnabled || richStockOpsEnabled;
   const [importOpen, setImportOpen] = useState(false);
-  const [recapOpen, setRecapOpen] = useState(false);
   const [esbOpen, setEsbOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
 
@@ -67,25 +62,13 @@ export function TransactionActions({
         >
           📥 Impor CSV
         </button>
-        {/* Rekap periode (mis. laporan bulanan dari POS lain kayak ESB) --
-            beda dari "Impor CSV" yang butuh Referensi+Tanggal per baris,
-            ini cuma "Menu, Qty" digabung jadi 1 transaksi. Cocokkan ke
-            Produk Jadi (HPP) untuk bisnis cost-control, atau ke Kelola
-            Produk biasa untuk bisnis stok-lite (stock_locations_enabled). */}
-        {canImportRekap && (
-          <button
-            type="button"
-            onClick={() => setRecapOpen(true)}
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-          >
-            📥 Impor Rekap Penjualan
-          </button>
-        )}
         {/* Laporan DETAIL dari POS pihak ketiga (mis. ESB "Sales
             Recapitulation Detail Report") -- satu baris per menu per
             transaksi, sudah punya nomor transaksi + jam + tax/service
-            per baris. Beda dari "Impor Rekap Penjualan" yang cuma
-            Menu+Qty digabung per tanggal. */}
+            per baris. Fitur "Impor Rekap Penjualan" (Menu+Qty ringkas
+            tanpa nomor transaksi, cuma pakai `rekap-actions.ts`) sengaja
+            dihapus atas permintaan user 2026-09-05 -- ESB ini satu-satunya
+            jalur impor rekap yang dipertahankan. */}
         {canImportRekap && (
           <button
             type="button"
@@ -177,46 +160,6 @@ export function TransactionActions({
             </button>
             <div className="mt-4">
               <ImportTransactionsForm action={importAction} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {recapOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setRecapOpen(false)} />
-          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-900">Impor Rekap Penjualan</h2>
-              <button
-                onClick={() => setRecapOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-xs text-zinc-500">
-              Buat rekap penjualan dari file Excel/CSV. Kolom:{" "}
-              <strong>Tanggal, Menu, Kategori, Harga, Qty</strong>. Tanggal per baris boleh
-              dikosongkan (jatuh ke Tanggal Default di form) — kalau sumbernya cuma total sebulan
-              (mis. rekap ESB) tanpa breakdown harian, kosongkan semua Tanggal. Baris dengan
-              Tanggal sama digabung jadi 1 transaksi. Menu yang <strong>sudah ada</strong> di{" "}
-              {costControlEnabled ? "Produk Jadi (HPP)" : "Kelola Produk"} langsung dipakai
-              (Kategori/Harga di baris itu diabaikan) — stok bahan bakunya ikut terpotong otomatis
-              kalau resepnya sudah diisi. Menu yang <strong>belum ada</strong> otomatis dibuat
-              sebagai {costControlEnabled ? "Produk Jadi" : "produk"} baru pakai Kategori &amp; Harga
-              dari baris itu (HPP-nya nol sampai resepnya diisi manual) — jadi kedua kolom itu wajib
-              diisi buat menu yang belum ada.
-            </p>
-            <a
-              href="/template-rekap-penjualan"
-              download
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
-            >
-              ⬇ Download Template Excel
-            </a>
-            <div className="mt-4">
-              <ImportSalesRecapForm action={importRekapAction} />
             </div>
           </div>
         </div>
