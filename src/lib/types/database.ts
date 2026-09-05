@@ -325,6 +325,7 @@ export type Database = {
           location_transfer_slug: string | null;
           receive_stock_slug: string | null;
           kasbon_slug: string | null;
+          kasbon_enabled: boolean;
           procurement_budget_gate_enabled: boolean;
           break_attendance_enabled: boolean;
           personal_loan_enabled: boolean;
@@ -371,6 +372,7 @@ export type Database = {
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
           kasbon_slug?: string | null;
+          kasbon_enabled?: boolean;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
@@ -416,6 +418,7 @@ export type Database = {
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
           kasbon_slug?: string | null;
+          kasbon_enabled?: boolean;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;

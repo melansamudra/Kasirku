@@ -113,7 +113,11 @@ export default async function KasKecilPage({
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }] = await Promise.all([
-    supabase.from("businesses").select("id, name, owner_id, kasbon_slug").eq("id", businessId).single(),
+    supabase
+      .from("businesses")
+      .select("id, name, owner_id, kasbon_slug, kasbon_enabled")
+      .eq("id", businessId)
+      .single(),
     supabase.auth.getUser(),
   ]);
 
@@ -390,10 +394,16 @@ export default async function KasKecilPage({
           Pilih Tunai kalau uangnya sudah keluar dari petty cash, atau Hutang kalau nota supplier
           belum dibayar.
         </p>
-        <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} employees={employees} today={today} />
+        <AddExpenseQuickForm
+          businessId={businessId}
+          suppliers={suppliers}
+          employees={employees}
+          today={today}
+          kasbonEnabled={business.kasbon_enabled}
+        />
       </div>
 
-      {canVerify && (
+      {canVerify && business.kasbon_enabled && (
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
           <h2 className="mb-1 text-sm font-semibold text-zinc-900">🔗 Link Ajukan Kasbon</h2>
           <p className="mb-3 text-xs text-zinc-500">

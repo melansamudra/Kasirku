@@ -15,11 +15,13 @@ export default function AddExpenseQuickForm({
   suppliers,
   employees,
   today,
+  kasbonEnabled = true,
 }: {
   businessId: string;
   suppliers: Supplier[];
   employees: Employee[];
   today: string;
+  kasbonEnabled?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"tunai" | "hutang" | "kasbon">("tunai");
@@ -159,15 +161,17 @@ export default function AddExpenseQuickForm({
         >
           Nota Hutang
         </button>
-        <button
-          type="button"
-          onClick={() => handleModeChange("kasbon")}
-          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
-            mode === "kasbon" ? "bg-red-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-          }`}
-        >
-          Kasbon
-        </button>
+        {kasbonEnabled && (
+          <button
+            type="button"
+            onClick={() => handleModeChange("kasbon")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+              mode === "kasbon" ? "bg-red-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            Kasbon
+          </button>
+        )}
       </div>
       <p className="text-[11px] text-zinc-400">
         {mode === "tunai"
