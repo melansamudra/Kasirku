@@ -7,7 +7,13 @@ type StockOpnameInfo = {
   business_name: string;
   cost_control_enabled: boolean;
   employees: { id: string; name: string }[];
-  stock_locations: { id: string; name: string; is_default_purchase: boolean; is_production: boolean }[];
+  stock_locations: {
+    id: string;
+    name: string;
+    is_default_purchase: boolean;
+    is_production: boolean;
+    bound_section_ids: string[];
+  }[];
   sections: { id: string; name: string }[];
   ingredients: { id: string; name: string; unit: string; section_ids: string[] }[];
   semi_finished_items: { id: string; name: string; unit: string; section_ids: string[] }[];
@@ -62,6 +68,16 @@ export default async function StockOpnamePage({
   const ingredientStockById = new Map((snapshot?.ingredient_stocks ?? []).map((r) => [r.id, r.stock]));
   const semiFinishedStockById = new Map((snapshot?.semi_finished_stocks ?? []).map((r) => [r.id, r.stock]));
 
+  // Lokasi diikat ke Bagian tertentu (mis. lokasi Bar = Bagian "HM Bar") --
+  // dropdown "Bagian" di form cuma nampilin Bagian milik lokasi ini, supaya
+  // staf Kitchen tidak lihat pilihan "HM Bar" dan sebaliknya. Daftar BAHANNYA
+  // sendiri sengaja TIDAK ikut dipangkas di sini (beda dari percobaan
+  // sebelumnya yang di-revert) -- banyak bahan belum ditandai ke Bagian
+  // manapun, jadi "Semua Bagian" tetap harus bisa menampilkan semua bahan.
+  const boundSectionIds = location.bound_section_ids;
+  const visibleSections =
+    boundSectionIds.length > 0 ? info.sections.filter((s) => boundSectionIds.includes(s.id)) : info.sections;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
       <OpnameClient
@@ -69,7 +85,7 @@ export default async function StockOpnamePage({
         businessName={info.business_name}
         location={{ id: location.id, name: location.name }}
         employees={info.employees}
-        sections={info.sections}
+        sections={visibleSections}
         ingredients={info.ingredients.map((i) => ({
           id: i.id,
           name: i.name,
