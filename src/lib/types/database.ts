@@ -324,6 +324,7 @@ export type Database = {
           stock_opname_slug: string | null;
           location_transfer_slug: string | null;
           receive_stock_slug: string | null;
+          kasbon_slug: string | null;
           procurement_budget_gate_enabled: boolean;
           break_attendance_enabled: boolean;
           personal_loan_enabled: boolean;
@@ -369,6 +370,7 @@ export type Database = {
           stock_opname_slug?: string | null;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
+          kasbon_slug?: string | null;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
@@ -413,6 +415,7 @@ export type Database = {
           procurement_budget_gate_enabled?: boolean;
           location_transfer_slug?: string | null;
           receive_stock_slug?: string | null;
+          kasbon_slug?: string | null;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
@@ -4877,6 +4880,20 @@ export type Database = {
       get_stock_opname_info: {
         Args: { p_slug: string };
         Returns: Json;
+      };
+      get_kasbon_submit_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_petty_cash_kasbon_public: {
+        Args: {
+          p_slug: string;
+          p_employee_id: string;
+          p_amount: number;
+          p_note?: string | null;
+          p_date?: string | null;
+        };
+        Returns: string;
       };
       get_location_stock_snapshot: {
         Args: { p_slug: string; p_location_id: string };

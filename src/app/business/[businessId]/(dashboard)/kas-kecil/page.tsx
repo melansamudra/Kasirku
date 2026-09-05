@@ -10,6 +10,7 @@ import PettyCashAllocationForm from "./petty-cash-allocation-form";
 import DebtNoteCard from "./debt-note-card";
 import ClosePettyCashForm from "./close-petty-cash-form";
 import PrintClosureButton from "./print-closure-button";
+import KasbonLinkBox from "./kasbon-link-box";
 
 type DebtNoteRow = {
   id: string;
@@ -112,7 +113,7 @@ export default async function KasKecilPage({
   const supabase = await createClient();
 
   const [{ data: business }, { data: userData }] = await Promise.all([
-    supabase.from("businesses").select("id, name, owner_id").eq("id", businessId).single(),
+    supabase.from("businesses").select("id, name, owner_id, kasbon_slug").eq("id", businessId).single(),
     supabase.auth.getUser(),
   ]);
 
@@ -391,6 +392,17 @@ export default async function KasKecilPage({
         </p>
         <AddExpenseQuickForm businessId={businessId} suppliers={suppliers} employees={employees} today={today} />
       </div>
+
+      {canVerify && (
+        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+          <h2 className="mb-1 text-sm font-semibold text-zinc-900">🔗 Link Ajukan Kasbon</h2>
+          <p className="mb-3 text-xs text-zinc-500">
+            Karyawan bisa ajukan kasbon sendiri lewat link ini (tanpa login) — pengajuannya masuk ke
+            &quot;Menunggu Diperiksa&quot; di bawah, sama seperti nota lain.
+          </p>
+          <KasbonLinkBox businessId={businessId} initialSlug={business.kasbon_slug ?? ""} />
+        </div>
+      )}
 
       {canVerify && (
       <>

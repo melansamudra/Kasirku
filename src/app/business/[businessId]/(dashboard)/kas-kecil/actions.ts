@@ -9,6 +9,23 @@ import { postPurchaseJournal } from "../purchases/actions";
 
 export type ActionState = { error: string | null };
 
+export type RegenerateSlugState = { error: string | null; slug: string | null };
+
+// Link publik "Ajukan Kasbon" -- pola sama dengan regenerateStockOpnameSlug/
+// regenerateAttendanceSlug, cuma kolom slug-nya beda (kasbon_slug).
+export async function regenerateKasbonSlug(businessId: string): Promise<RegenerateSlugState> {
+  const supabase = await createClient();
+  const slug = crypto.randomUUID().replace(/-/g, "");
+
+  const { error } = await supabase.from("businesses").update({ kasbon_slug: slug }).eq("id", businessId);
+
+  if (error) return { error: error.message, slug: null };
+
+  await logActivity(supabase, businessId, "pengaturan", "warning", "Link ajukan kasbon diganti");
+  revalidatePath(`/business/${businessId}/kas-kecil`);
+  return { error: null, slug };
+}
+
 export async function reviewCashMovement(
   businessId: string,
   movementId: string,
