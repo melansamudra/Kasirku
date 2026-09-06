@@ -247,9 +247,17 @@ export default async function LabaRugiAkrualPage({
     }
 
     // (B) Kas Kecil -- ditelusuri per shift_cash_movements, dikelompokkan
-    // ke akun akhirnya (bukan cuma "Kas Kecil Menunggu Klasifikasi").
+    // ke akun akhirnya (bukan cuma "Kas Kecil Menunggu Klasifikasi"). Yang
+    // masih "pending" (belum disetujui/ditolak admin) SENGAJA tidak
+    // dihitung sama sekali di sini -- uangnya belum pasti (bisa saja nanti
+    // ditolak & balik lagi), selaras dengan Laporan Harian yang juga
+    // mengecualikan kas kecil pending (arahan user 2026-09-06, supaya dua
+    // laporan konsisten). journal_entry_id-nya tetap masuk handledEntryIds
+    // di bawah biar tidak kehitung generik lewat (C) juga.
     const piutangKaryawanAccount = accountByCode.get("1-060");
     for (const m of shiftMovements) {
+      if (m.status !== "posted") continue;
+
       const entryDate = m.journal_entries?.date;
       if (!entryDate) continue;
       if (fromIso && entryDate < fromIso) continue;
@@ -258,11 +266,11 @@ export default async function LabaRugiAkrualPage({
       const amount = Number(m.approved_amount ?? m.amount);
       if (m.category === "Kasbon") {
         addKeluar(piutangKaryawanAccount ? `${piutangKaryawanAccount.code} — ${piutangKaryawanAccount.name}` : "Piutang Karyawan (Kasbon)", amount);
-      } else if (m.status === "posted" && m.account_code) {
+      } else if (m.account_code) {
         const acc = accountByCode.get(m.account_code);
         addKeluar(acc ? `${acc.code} — ${acc.name}` : m.account_code, amount);
       } else {
-        addKeluar("Kas Kecil — Menunggu Diklasifikasi", amount);
+        addKeluar("Lainnya", amount);
       }
     }
 
@@ -271,20 +279,33 @@ export default async function LabaRugiAkrualPage({
     // A), deskripsi persis "Bayar utang dagang" dari addPurchasePayment
     // (sudah masuk A), dan entry yang jadi journal_entry_id salah satu
     // shift_cash_movements di atas (sudah masuk B). Sisanya ditelusuri dari
-    // akun lawannya apa adanya (gaji, transfer, dsb -- sudah akun asli,
-    // bukan suspense).
+    // akun lawannya apa adanya (gaji, "Catat Kas Keluar" langsung ke akun
+    // beban, dsb -- itu sudah akun asli, bukan suspense).
+    //
+    // Transfer antar akun kas/bank milik sendiri (mis. PDO: Rekening Utama
+    // -> Rekening Operasional) dikecualikan SEPENUHNYA (masuk maupun
+    // keluar) -- uangnya cuma pindah tempat, bukan pendapatan/beban, sama
+    // seperti perlakuan fetchKasBankLines di Kas & Bank/Laporan Harian
+    // (isTransferRelated). Tanpa ini, "Kas Keluar" di sini bisa lebih besar
+    // dari Laporan Harian untuk selisih sebesar nilai transfernya (ditemukan
+    // dari perbandingan user 2026-09-06).
     const handledEntryIds = new Set(
       shiftMovements.map((m) => m.journal_entry_id).filter((id): id is string => !!id),
     );
+    const isTransferEntry = (e: { source: string; description: string }) =>
+      e.source === "manual" &&
+      (e.description === "Transfer antar akun kas/bank" || e.description.startsWith("Transfer: "));
     for (const entry of entries) {
+      if (isTransferEntry(entry)) continue;
+
       const lines = entry.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
       for (const l of lines) {
         if (l.account_id === kasAccountId) totalKasMasuk += Number(l.debit);
       }
 
       // Kas Keluar sisanya (di luar A/B) -- ditelusuri dari akun lawan
-      // jurnalnya apa adanya (gaji, transfer, "Catat Kas Keluar" langsung ke
-      // akun beban, dsb -- itu sudah akun asli, bukan suspense).
+      // jurnalnya apa adanya (gaji, "Catat Kas Keluar" langsung ke akun
+      // beban, dsb -- itu sudah akun asli, bukan suspense).
       if (entry.source === "pembelian") continue;
       if (entry.description === "Bayar utang dagang") continue;
       if (handledEntryIds.has(entry.id)) continue;
