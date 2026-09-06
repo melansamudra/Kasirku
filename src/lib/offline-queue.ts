@@ -23,6 +23,7 @@ export type PendingRetailSale = {
     customerName: string | null;
     orderDiscName: string | null;
     orderType?: string | null;
+    billId?: string | null;
   };
 };
 

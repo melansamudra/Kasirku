@@ -1281,6 +1281,7 @@ export default function PosScreen({
         10000,
       );
     } catch {
+      const newCart = cart.filter((i) => !paidKeys.has(i.cartKey));
       await enqueueSale({
         clientRef,
         businessId,
@@ -1299,10 +1300,13 @@ export default function PosScreen({
           customerName: selectedCustomer?.name ?? null,
           orderDiscName: null,
           orderType: orderType ?? null,
+          // Bill (tagihan) cuma boleh dianggap lunas & dihapus kalau semua
+          // item di dalamnya sudah terbayar — kalau masih ada sisa (bayar
+          // sebagian/pisah), bill tetap harus nyangkut sampai sisanya lunas.
+          billId: activeBill && newCart.length === 0 ? activeBill.id : null,
         },
       });
       setSubmitting(false);
-      const newCart = cart.filter((i) => !paidKeys.has(i.cartKey));
       setCart(newCart);
       setPisahSelected(new Set());
       setPisahPaying(false);
@@ -1313,6 +1317,7 @@ export default function PosScreen({
         setSuccessOffline(true);
         setSuccessInvoice(`OFFLINE-${clientRef.slice(0, 8).toUpperCase()}`);
         setSuccessTransactionId(null);
+        setActiveBill(null);
       }
       void syncNow();
       return;
@@ -1442,6 +1447,7 @@ export default function PosScreen({
           customerName: selectedCustomer?.name || null,
           orderDiscName: selectedPromo?.name ?? null,
           orderType: orderType ?? null,
+          billId: activeBill?.id ?? null,
         },
       });
 

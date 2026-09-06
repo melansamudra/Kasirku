@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { checkout } from "@/app/business/[businessId]/pos/actions";
+import { checkout, deleteOpenBillAfterPayment } from "@/app/business/[businessId]/pos/actions";
 import { checkoutTicket } from "@/app/business/[businessId]/pos/ticket-actions";
 import {
   discardPending,
@@ -90,6 +90,13 @@ export function useOfflineSync(businessId: string) {
                 receiptPrintJobs: KitchenPrintJobPayload[];
               };
               void dispatchReceiptThenKitchenJobs(sale.businessId, receiptPrintJobs, printJobs);
+              // Penjualan ini tadinya dibuat offline dari sebuah bill yang
+              // disimpan (open_bills) — sekarang sudah lunas & tersinkron,
+              // jadi bill-nya harus dihapus dari server. Kalau tidak, bill
+              // tetap nyangkut di daftar walau sudah terbayar.
+              if (sale.payload.billId) {
+                void deleteOpenBillAfterPayment(sale.businessId, sale.payload.billId);
+              }
             }
           } else {
             await markError(sale, result.error);
