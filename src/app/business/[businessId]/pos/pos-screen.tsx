@@ -87,6 +87,14 @@ type CartItem = {
   batch: number;
 };
 
+// cartKey saja tidak cukup untuk identitas baris cart — produk yang sama
+// bisa muncul di batch berbeda (bon lama vs. tambahan baru) sebagai baris
+// terpisah. Dipakai untuk melacak qty yang dipilih per baris di mode pisah
+// bill.
+function pisahLineKey(item: CartItem): string {
+  return `${item.cartKey}::${item.batch}`;
+}
+
 type Tender = {
   id: string;
   method: string;
@@ -388,7 +396,11 @@ export default function PosScreen({
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [orderType, setOrderType] = useState<"DINE IN" | "TAKEAWAY" | null>(null);
   const [pisahBillMode, setPisahBillMode] = useState(false);
-  const [pisahSelected, setPisahSelected] = useState<Set<string>>(new Set());
+  // Key per baris cart (bukan cuma cartKey) supaya produk yang sama tapi ada
+  // di batch berbeda (mis. sudah di bon lama + ditambah lagi sebagai
+  // tambahan) tidak ketuker qty-nya. Value = qty yang dipilih untuk tagihan
+  // pisah ini (bisa sebagian dari qty total baris, mis. 1 dari 2 Es Teh).
+  const [pisahSelected, setPisahSelected] = useState<Map<string, number>>(new Map());
   const [pisahPaying, setPisahPaying] = useState(false);
   const [pisahTenders, setPisahTenders] = useState<Tender[]>([]);
   const [pisahBillCount, setPisahBillCount] = useState(1);
@@ -621,7 +633,12 @@ export default function PosScreen({
     return s + Math.max(0, rcv - t.amount);
   }, 0);
 
-  const pisahCart = pisahBillMode ? cart.filter((i) => pisahSelected.has(i.cartKey)) : [];
+  const pisahCart = pisahBillMode
+    ? cart.flatMap((i) => {
+        const selQty = pisahSelected.get(pisahLineKey(i)) ?? 0;
+        return selQty > 0 ? [{ ...i, qty: Math.min(selQty, i.qty) }] : [];
+      })
+    : [];
   const pisahTotals = calculateCheckoutTotals({
     items: pisahCart,
     orderDisc: 0,
@@ -1182,7 +1199,7 @@ export default function PosScreen({
 
   function handleEnterPisahBill() {
     setPisahBillMode(true);
-    setPisahSelected(new Set());
+    setPisahSelected(new Map());
     setPisahBillCount(1);
     setPaying(false);
     setTenders([]);
@@ -1190,16 +1207,30 @@ export default function PosScreen({
 
   function handleExitPisahBill() {
     setPisahBillMode(false);
-    setPisahSelected(new Set());
+    setPisahSelected(new Map());
     setPisahPaying(false);
     setPisahTenders([]);
   }
 
-  function togglePisahItem(cartKey: string) {
+  function incPisahQty(item: CartItem) {
+    const key = pisahLineKey(item);
     setPisahSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(cartKey)) next.delete(cartKey);
-      else next.add(cartKey);
+      const curr = prev.get(key) ?? 0;
+      if (curr >= item.qty) return prev;
+      const next = new Map(prev);
+      next.set(key, curr + 1);
+      return next;
+    });
+  }
+
+  function decPisahQty(item: CartItem) {
+    const key = pisahLineKey(item);
+    setPisahSelected((prev) => {
+      const curr = prev.get(key) ?? 0;
+      if (curr <= 0) return prev;
+      const next = new Map(prev);
+      if (curr <= 1) next.delete(key);
+      else next.set(key, curr - 1);
       return next;
     });
   }
@@ -1256,7 +1287,9 @@ export default function PosScreen({
     const billLabel = activeBill?.label
       ? `${activeBill.label} - T${pisahBillCount}`
       : `Tagihan ${pisahBillCount}`;
-    const paidKeys = new Set(pisahCart.map((i) => i.cartKey));
+    // Qty yang dibayar per baris — sisa qty yang tidak dipilih (mis. 1 dari
+    // 2 Es Teh) harus tetap di cart, bukan ikut hilang.
+    const paidQtyByLine = new Map(pisahCart.map((i) => [pisahLineKey(i), i.qty]));
 
     let result: CheckoutResult;
     try {
@@ -1281,7 +1314,12 @@ export default function PosScreen({
         10000,
       );
     } catch {
-      const newCart = cart.filter((i) => !paidKeys.has(i.cartKey));
+      const newCart = cart
+        .map((i) => {
+          const paidQty = paidQtyByLine.get(pisahLineKey(i)) ?? 0;
+          return paidQty > 0 ? { ...i, qty: i.qty - paidQty } : i;
+        })
+        .filter((i) => i.qty > 0);
       await enqueueSale({
         clientRef,
         businessId,
@@ -1308,7 +1346,7 @@ export default function PosScreen({
       });
       setSubmitting(false);
       setCart(newCart);
-      setPisahSelected(new Set());
+      setPisahSelected(new Map());
       setPisahPaying(false);
       setPisahTenders([]);
       setPisahBillCount((prev) => prev + 1);
@@ -1341,9 +1379,14 @@ export default function PosScreen({
     }
     void dispatchPrintJobs(businessId, result.printJobs);
 
-    const newCart = cart.filter((i) => !paidKeys.has(i.cartKey));
+    const newCart = cart
+      .map((i) => {
+        const paidQty = paidQtyByLine.get(pisahLineKey(i)) ?? 0;
+        return paidQty > 0 ? { ...i, qty: i.qty - paidQty } : i;
+      })
+      .filter((i) => i.qty > 0);
     setCart(newCart);
-    setPisahSelected(new Set());
+    setPisahSelected(new Map());
     setPisahPaying(false);
     setPisahTenders([]);
     setPisahBillCount((prev) => prev + 1);
@@ -2317,6 +2360,7 @@ export default function PosScreen({
                 const currBatch = item.batch ?? 0;
                 const prevBatch = index > 0 ? (cart[index - 1]?.batch ?? 0) : 0;
                 const showTambahanDivider = currBatch > 0 && prevBatch === 0 && index > 0;
+                const pisahSelQty = pisahBillMode ? (pisahSelected.get(pisahLineKey(item)) ?? 0) : 0;
                 return (
                   <div key={item.cartKey}>
                   {showTambahanDivider && (
@@ -2329,23 +2373,13 @@ export default function PosScreen({
                   <div
                     className={`rounded-xl border p-2.5 transition-colors ${
                       pisahBillMode
-                        ? pisahSelected.has(item.cartKey)
-                          ? "border-brand-400 bg-brand-50 cursor-pointer"
-                          : "border-zinc-200 bg-white cursor-pointer opacity-60"
+                        ? pisahSelQty > 0
+                          ? "border-brand-400 bg-brand-50"
+                          : "border-zinc-200 bg-white opacity-60"
                         : "border-zinc-100"
                     }`}
-                    onClick={pisahBillMode ? () => togglePisahItem(item.cartKey) : undefined}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      {pisahBillMode && (
-                        <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 text-[10px] font-bold ${
-                          pisahSelected.has(item.cartKey)
-                            ? "border-brand-600 bg-brand-600 text-white"
-                            : "border-zinc-300 bg-white"
-                        }`}>
-                          {pisahSelected.has(item.cartKey) && "✓"}
-                        </div>
-                      )}
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-zinc-900">{item.name}</p>
                         {item.selectedOptions.length > 0 && (
@@ -2367,6 +2401,32 @@ export default function PosScreen({
                         </button>
                       )}
                     </div>
+                    {pisahBillMode ? (
+                      <div className="mt-1.5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => decPisahQty(item)}
+                            disabled={pisahSelQty === 0}
+                            className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            −
+                          </button>
+                          <span className="w-10 text-center text-xs tabular-nums">{pisahSelQty} / {item.qty}</span>
+                          <button
+                            onClick={() => incPisahQty(item)}
+                            disabled={pisahSelQty >= item.qty}
+                            className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-100 text-xs font-bold text-zinc-600 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            +
+                          </button>
+                        </div>
+                        {pisahSelQty > 0 && (
+                          <p className="text-xs font-semibold text-zinc-900 tabular-nums">
+                            {formatRupiah(item.price * pisahSelQty)}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
                     <div className="mt-1.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
@@ -2398,6 +2458,9 @@ export default function PosScreen({
                         </p>
                       )}
                     </div>
+                    )}
+                    {!pisahBillMode && (
+                    <>
                     <div className="mt-1.5 flex items-center gap-1.5">
                       {discAmt > 0 && (
                         <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
@@ -2443,6 +2506,8 @@ export default function PosScreen({
                           OK
                         </button>
                       </div>
+                    )}
+                    </>
                     )}
                   </div>
                   </div>
@@ -2748,7 +2813,7 @@ export default function PosScreen({
               /* Layar bayar tagihan ini */
               <div className="space-y-2">
                 <p className="text-center text-xs font-semibold text-brand-700">
-                  Tagihan {pisahBillCount} — {pisahCart.length} item
+                  Tagihan {pisahBillCount} — {pisahCart.reduce((s, i) => s + i.qty, 0)} item
                 </p>
                 <div className="space-y-2">
                   {pisahTenders.map((t) => (
@@ -2825,7 +2890,7 @@ export default function PosScreen({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-zinc-500">
-                    Tagihan {pisahBillCount} · {pisahSelected.size} item dipilih
+                    Tagihan {pisahBillCount} · {pisahCart.reduce((s, i) => s + i.qty, 0)} item dipilih
                   </span>
                   {pisahTotals.total > 0 && (
                     <span className="font-bold text-zinc-900">{formatRupiah(pisahTotals.total)}</span>
