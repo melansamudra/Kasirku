@@ -885,6 +885,7 @@ export async function addPurchasePayment(
   const date = formData.get("date") as string;
   const amountRaw = formData.get("amount") as string;
   const note = (formData.get("note") as string)?.trim();
+  const paymentMethod = formData.get("paymentMethod") as string;
 
   if (!date) {
     return { error: "Tanggal wajib diisi." };
@@ -893,6 +894,9 @@ export async function addPurchasePayment(
   const amount = Number(amountRaw);
   if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
     return { error: "Jumlah bayar harus angka lebih dari 0." };
+  }
+  if (paymentMethod !== "tunai" && paymentMethod !== "transfer") {
+    return { error: "Metode pembayaran wajib dipilih." };
   }
 
   const supabase = await createClient();
@@ -939,7 +943,7 @@ export async function addPurchasePayment(
     return { error: error.message };
   }
 
-  const { error: journalRpcError } = await supabase.rpc("post_journal_entry", {
+  const { data: entryId, error: journalRpcError } = await supabase.rpc("post_journal_entry", {
     p_business_id: businessId,
     p_date: date,
     p_description: "Bayar utang dagang",
@@ -948,7 +952,21 @@ export async function addPurchasePayment(
       { account_code: "1-001", debit: 0, credit: amount },
     ],
   });
-  const journalError = journalRpcError?.message ?? null;
+  let journalError = journalRpcError?.message ?? null;
+
+  // post_journal_entry() belum punya parameter payment_method (lihat
+  // kas-harian/actions.ts) -- diisi lewat RPC terpisah setelah entrinya jadi,
+  // supaya "Pengeluaran Tunai" vs "Pengeluaran Transfer" di Laporan Harian
+  // ikut benar (sebelum ini payment_method selalu null/dianggap tunai untuk
+  // SEMUA pelunasan hutang dagang, walau aslinya transfer -- arahan user
+  // 2026-09-06).
+  if (!journalError && entryId) {
+    const { error: paymentMethodError } = await supabase.rpc("set_journal_entry_payment_method", {
+      p_entry_id: entryId,
+      p_payment_method: paymentMethod,
+    });
+    if (paymentMethodError) journalError = paymentMethodError.message;
+  }
 
   await logActivity(
     supabase,

@@ -18,6 +18,11 @@ export default function AddPaymentForm({
   const [amount, setAmount] = useState(String(sisaUtang));
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
+  // Default "transfer" -- pelunasan hutang dagang ke supplier di bisnis ini
+  // biasanya lewat transfer bank, beda dari nota tunai/kas kecil harian yang
+  // memang selalu kas fisik (arahan user 2026-09-06). Tetap bisa diganti ke
+  // Tunai kalau supplier tertentu dibayar cash.
+  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "transfer">("transfer");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -39,6 +44,7 @@ export default function AddPaymentForm({
     formData.set("date", date);
     formData.set("amount", amount);
     formData.set("note", note);
+    formData.set("paymentMethod", paymentMethod);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -75,6 +81,29 @@ export default function AddPaymentForm({
             onChange={(e) => setAmount(e.target.value)}
             className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
           />
+        </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-brand-800">Metode Bayar</label>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("tunai")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+              paymentMethod === "tunai" ? "bg-zinc-800 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+            }`}
+          >
+            💵 Tunai
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("transfer")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+              paymentMethod === "transfer" ? "bg-zinc-800 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+            }`}
+          >
+            🏦 Transfer
+          </button>
         </div>
       </div>
       <div>
