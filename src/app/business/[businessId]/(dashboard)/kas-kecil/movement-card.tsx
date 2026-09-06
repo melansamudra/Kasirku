@@ -56,6 +56,10 @@ export default function MovementCard({
   // langsung klik Setujui, pengeluaran ini harus tetap gagal (bukan
   // kepilih akun sembarangan/pertama di daftar).
   const [accountCode, setAccountCode] = useState("");
+  // Default = jumlah pengajuan (approve penuh). Admin bisa turunkan kalau
+  // cuma sebagian yang mau disetujui — sisanya otomatis balik ke kas
+  // (lihat review_shift_cash_movement), bukan jadi piutang/beban.
+  const [approvedAmount, setApprovedAmount] = useState(String(movement.amount));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmReject, setConfirmReject] = useState(false);
@@ -65,11 +69,26 @@ export default function MovementCard({
       setError("Pilih akun dulu.");
       return;
     }
+    const parsedApprovedAmount = Number(approvedAmount);
+    if (isKasbon && (!approvedAmount || !Number.isFinite(parsedApprovedAmount) || parsedApprovedAmount <= 0)) {
+      setError("Jumlah disetujui harus lebih dari 0.");
+      return;
+    }
+    if (isKasbon && parsedApprovedAmount > movement.amount) {
+      setError("Jumlah disetujui tidak boleh lebih dari jumlah pengajuan.");
+      return;
+    }
     setError(null);
     setPending(true);
     // Kasbon: akun reklas dipaksa server-side ke "Piutang Karyawan" (lihat
     // review_shift_cash_movement), tidak perlu kirim accountCode dari sini.
-    reviewCashMovement(businessId, movement.id, "approve", isKasbon ? undefined : accountCode)
+    reviewCashMovement(
+      businessId,
+      movement.id,
+      "approve",
+      isKasbon ? undefined : accountCode,
+      isKasbon ? parsedApprovedAmount : undefined,
+    )
       .then((res) => {
         setPending(false);
         if (res.error) {
@@ -156,8 +175,18 @@ export default function MovementCard({
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {isKasbon ? (
-          <span className="flex-1 min-w-[180px] rounded-lg bg-violet-50 px-2.5 py-2 text-xs font-medium text-violet-700">
-            → Piutang Karyawan (dipotong dari gaji berikutnya)
+          <span className="flex flex-1 min-w-[220px] items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700">
+            <span className="shrink-0">→ Disetujui Rp</span>
+            <input
+              type="number"
+              min={1}
+              max={movement.amount}
+              value={approvedAmount}
+              onChange={(e) => setApprovedAmount(e.target.value)}
+              disabled={pending}
+              className="w-24 min-w-0 rounded border border-violet-200 bg-white px-1.5 py-1 text-xs text-violet-900 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-100"
+            />
+            <span className="shrink-0 text-[10.5px] text-violet-500">(Piutang Karyawan)</span>
           </span>
         ) : (
           <select
@@ -208,6 +237,12 @@ export default function MovementCard({
         )}
       </div>
 
+      {isKasbon && Number(approvedAmount) > 0 && Number(approvedAmount) < movement.amount && (
+        <p className="mt-2 text-[11px] text-zinc-400">
+          Sisa {formatRupiah(movement.amount - Number(approvedAmount))} dianggap belum diserahkan ke karyawan,
+          otomatis balik ke kas (bukan piutang/beban).
+        </p>
+      )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );

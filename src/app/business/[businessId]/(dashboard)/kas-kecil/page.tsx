@@ -31,6 +31,7 @@ type DebtNoteRow = {
 type MovementRow = {
   id: string;
   amount: number;
+  approved_amount: number | null;
   category: string | null;
   description: string;
   receipt_url: string | null;
@@ -162,7 +163,7 @@ export default async function KasKecilPage({
     supabase
       .from("shift_cash_movements")
       .select(
-        "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees!employee_id(name), created_by_employee_name",
+        "id, amount, approved_amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees!employee_id(name), created_by_employee_name",
       )
       .eq("business_id", businessId)
       .eq("direction", "out")
@@ -172,7 +173,7 @@ export default async function KasKecilPage({
       const q = supabase
         .from("shift_cash_movements")
         .select(
-          "id, amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees!employee_id(name), created_by_employee_name",
+          "id, amount, approved_amount, category, description, receipt_url, status, account_code, origin, created_at, journal_entry_id, cashiers(name), employees!employee_id(name), created_by_employee_name",
         )
         .eq("business_id", businessId)
         .eq("direction", "out")
@@ -509,7 +510,23 @@ export default async function KasKecilPage({
                     </PillBadge>
                   </div>
                 </div>
-                <p className="shrink-0 text-sm font-bold text-red-600">-{formatRupiah(Number(m.amount))}</p>
+                <div className="shrink-0 text-right">
+                  {m.category === "Kasbon" &&
+                  m.status === "posted" &&
+                  m.approved_amount != null &&
+                  Number(m.approved_amount) !== Number(m.amount) ? (
+                    <>
+                      <p className="text-[11px] text-zinc-400 line-through">
+                        -{formatRupiah(Number(m.amount))}
+                      </p>
+                      <p className="text-sm font-bold text-red-600">
+                        -{formatRupiah(Number(m.approved_amount))}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-bold text-red-600">-{formatRupiah(Number(m.amount))}</p>
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -5124,6 +5124,7 @@ export type Database = {
           p_movement_id: string;
           p_decision: string;
           p_account_code?: string | null;
+          p_approved_amount?: number | null;
         };
         Returns: string;
       };

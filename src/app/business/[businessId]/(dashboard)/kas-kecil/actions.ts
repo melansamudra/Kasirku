@@ -31,12 +31,14 @@ export async function reviewCashMovement(
   movementId: string,
   decision: "approve" | "reject",
   accountCode?: string,
+  approvedAmount?: number,
 ): Promise<ActionState> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("review_shift_cash_movement", {
     p_movement_id: movementId,
     p_decision: decision,
     p_account_code: accountCode || null,
+    p_approved_amount: approvedAmount ?? null,
   });
 
   if (error) return { error: error.message };
@@ -47,7 +49,11 @@ export async function reviewCashMovement(
     "sistem",
     decision === "approve" ? "sukses" : "warning",
     decision === "approve" ? "Kas kecil disetujui" : "Kas kecil ditolak",
-    decision === "approve" && accountCode ? `Akun: ${accountCode}` : undefined,
+    decision === "approve" && accountCode
+      ? `Akun: ${accountCode}`
+      : decision === "approve" && approvedAmount
+        ? `Disetujui: Rp${approvedAmount.toLocaleString("id-ID")}`
+        : undefined,
   );
 
   revalidatePath(`/business/${businessId}/kas-kecil`);
