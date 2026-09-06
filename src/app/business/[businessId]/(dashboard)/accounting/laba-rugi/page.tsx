@@ -48,31 +48,91 @@ export default async function LabaRugiAkrualPage({
   // `accounts` narik SEMUA tipe (bukan cuma pendapatan/beban) karena mode
   // "Kas" (lihat di bawah) butuh akun Kas & Bank + tipe akun lawannya
   // (aset/kewajiban/modal) buat kategorisasi, sama seperti Arus Kas.
-  const [{ data: business }, { data: accounts }, entries] = await Promise.all([
-    supabase.from("businesses").select("id, name").eq("id", businessId).single(),
-    supabase
-      .from("accounts")
-      .select("id, code, name, type, normal_balance")
-      .eq("business_id", businessId),
-    fetchAllRows<{ journal_lines: { debit: number; credit: number; account_id: string }[] }>(
-      (from, to) => {
+  // purchasesUpperBound -- batas atas kalender buat kolom `date` (bukan
+  // timestamptz) di purchases/purchase_payments, sama pola dengan
+  // reports/harian/page.tsx.
+  const purchasesLowerBound = fromIso ? fromIso.slice(0, 10) : null;
+  const purchasesUpperBound = toIsoExclusive
+    ? new Date(new Date(toIsoExclusive).getTime() - 1).toISOString().slice(0, 10)
+    : null;
+
+  const [{ data: business }, { data: accounts }, entries, allPurchases, allPayments, shiftMovements] =
+    await Promise.all([
+      supabase.from("businesses").select("id, name").eq("id", businessId).single(),
+      supabase
+        .from("accounts")
+        .select("id, code, name, type, normal_balance")
+        .eq("business_id", businessId),
+      fetchAllRows<{
+        id: string;
+        description: string;
+        source: string;
+        journal_lines: { debit: number; credit: number; account_id: string }[];
+      }>((from, to) => {
         let q = supabase
           .from("journal_entries")
-          .select("journal_lines(debit, credit, account_id)")
+          .select("id, description, source, journal_lines(debit, credit, account_id)")
           .eq("business_id", businessId)
           .range(from, to);
         if (fromIso) q = q.gte("date", fromIso);
         if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
         return q;
-      },
-    ),
-  ]);
+      }),
+      // Mode "Kas" butuh purchases+purchase_payments+shift_cash_movements
+      // buat resolusi kategori per-akun (lihat komentar di bawah) -- narik
+      // SEMUA (bukan cuma yang sentuh periode ini) karena "porsi dibayar
+      // langsung saat pencatatan" vs cicilan lewat purchase_payments perlu
+      // dihitung dari riwayat lengkap tiap purchase (pola sama seperti
+      // sisaHutangAsOf di reports/harian/page.tsx).
+      fetchAllRows<{
+        id: string;
+        date: string;
+        category: string;
+        amount: number;
+        paid_amount: number;
+        expense_account_code: string | null;
+        voided: boolean;
+      }>((from, to) =>
+        supabase
+          .from("purchases")
+          .select("id, date, category, amount, paid_amount, expense_account_code, voided")
+          .eq("business_id", businessId)
+          .eq("voided", false)
+          .range(from, to),
+      ),
+      fetchAllRows<{ purchase_id: string; date: string; amount: number }>((from, to) =>
+        supabase
+          .from("purchase_payments")
+          .select("purchase_id, date, amount")
+          .eq("business_id", businessId)
+          .range(from, to),
+      ),
+      fetchAllRows<{
+        id: string;
+        amount: number;
+        approved_amount: number | null;
+        category: string | null;
+        status: string;
+        account_code: string | null;
+        journal_entry_id: string | null;
+        journal_entries: { date: string } | null;
+      }>((from, to) =>
+        supabase
+          .from("shift_cash_movements")
+          .select("id, amount, approved_amount, category, status, account_code, journal_entry_id, journal_entries!journal_entry_id(date)")
+          .eq("business_id", businessId)
+          .eq("direction", "out")
+          .neq("status", "rejected")
+          .range(from, to),
+      ),
+    ]);
 
   if (!business) {
     notFound();
   }
 
   const accountMap = new Map((accounts ?? []).map((a) => [a.id, a]));
+  const accountByCode = new Map((accounts ?? []).map((a) => [a.code, a]));
 
   const balanceByAccount = new Map<string, number>();
   for (const entry of entries) {
@@ -116,17 +176,119 @@ export default async function LabaRugiAkrualPage({
   // Mode "Kas" -- "Laba Rugi" versi kas masuk dikurangi SEMUA kas keluar
   // TANPA kecuali (termasuk pembelian bahan baku, bayar hutang, kasbon --
   // beda dari mode Akrual di atas yang HPP-nya cuma menghitung bahan yang
-  // benar-benar kepakai buat produk terjual). Angkanya sengaja identik
-  // dengan Laporan Arus Kas (lihat accounting/arus-kas/page.tsx) -- ini cuma
-  // cara lain nampilkannya biar bisa dibandingkan langsung sama versi
-  // Akrual di satu halaman yang sama (dari diskusi dengan user 2026-09-06:
-  // bingung kenapa Laba Bersih akrual tidak mencerminkan uang yang beneran
-  // keluar buat beli bahan baku).
+  // benar-benar kepakai buat produk terjual). Total Kas Masuk/Keluar sengaja
+  // identik dengan Laporan Arus Kas (lihat accounting/arus-kas/page.tsx).
+  //
+  // Rincian per kategori DI BAWAH beda dari Arus Kas -- Arus Kas cuma
+  // nampilkan nama AKUN LAWAN dari jurnal kas keluar apa adanya (banyak yang
+  // keluar cuma kebaca "Utang Dagang"/"Kas Kecil Menunggu Klasifikasi",
+  // bukan akun aslinya, karena itu akun perantara/suspense -- lihat diskusi
+  // 2026-09-06). Di sini ditelusuri lebih jauh sampai ke tujuan akhirnya:
+  //  - "Bayar utang dagang" (2-001) -> ditelusuri balik ke `purchases` yang
+  //    dilunasi lewat `purchase_payments` (link via purchase_id), dikelompokkan
+  //    per kategori pembelian aslinya (Bahan Baku/Barang Dagang/akun beban
+  //    Lainnya) -- bukan sekadar "Utang Dagang".
+  //  - Kas Kecil (1-050) -> ditelusuri ke `shift_cash_movements`-nya: Kasbon
+  //    selalu jadi "1-060 Piutang Karyawan" (dipaksa sistem saat approve,
+  //    lihat review_shift_cash_movement), kategori lain yang sudah "posted"
+  //    dikelompokkan per akun reklas pilihan admin, yang masih "pending"
+  //    dikelompokkan "Menunggu Diklasifikasi" (akun akhirnya belum pasti).
+  //  - Sisanya (gaji, transfer, "Catat Kas Keluar" langsung ke akun beban,
+  //    dst) tetap ditelusuri dari akun lawan jurnalnya apa adanya, seperti
+  //    Arus Kas -- itu sudah akun aslinya, tidak lewat suspense.
   const kasAccountId = (accounts ?? []).find((a) => a.code === KAS_ACCOUNT_CODE)?.id;
-  const kasCategoryTotals = new Map<string, { masuk: number; keluar: number }>();
+  const kasKeluarByLabel = new Map<string, number>();
+  let totalKasMasuk = 0;
+
+  function addKeluar(label: string, amount: number) {
+    if (amount <= 0) return;
+    kasKeluarByLabel.set(label, (kasKeluarByLabel.get(label) ?? 0) + amount);
+  }
+
+  function purchaseCategoryLabel(p: { category: string; expense_account_code: string | null }) {
+    if (p.category === "Lainnya") {
+      const acc = p.expense_account_code ? accountByCode.get(p.expense_account_code) : undefined;
+      return acc ? `${acc.code} — ${acc.name}` : "Lainnya";
+    }
+    return p.category;
+  }
+
+  // (A) Pembelian -- porsi yang dibayar LANGSUNG saat pembelian dicatat
+  // (tidak pernah masuk purchase_payments, lihat komentar sisaHutangAsOf di
+  // reports/harian/page.tsx) dihitung kalau tanggal pembeliannya di periode
+  // ini, ditambah cicilan/pelunasan (purchase_payments) yang tanggal
+  // bayarnya di periode ini -- TERLEPAS dari kapan pembeliannya dicatat,
+  // supaya pelunasan hutang lama (kayak 8 nota Agustus yang baru dibayar
+  // September) tetap kehitung di bulan uangnya beneran keluar.
   if (kasAccountId) {
+    const paymentsByPurchase = new Map<string, number>();
+    for (const pay of allPayments) {
+      paymentsByPurchase.set(pay.purchase_id, (paymentsByPurchase.get(pay.purchase_id) ?? 0) + Number(pay.amount));
+    }
+    for (const p of allPurchases) {
+      const label = purchaseCategoryLabel(p);
+      const lifetimeLaterPayments = paymentsByPurchase.get(p.id) ?? 0;
+      const initialPaid = Math.max(0, Number(p.paid_amount) - lifetimeLaterPayments);
+      if (
+        initialPaid > 0 &&
+        (!purchasesLowerBound || p.date >= purchasesLowerBound) &&
+        (!purchasesUpperBound || p.date <= purchasesUpperBound)
+      ) {
+        addKeluar(label, initialPaid);
+      }
+    }
+    const purchaseById = new Map(allPurchases.map((p) => [p.id, p]));
+    for (const pay of allPayments) {
+      if (purchasesLowerBound && pay.date < purchasesLowerBound) continue;
+      if (purchasesUpperBound && pay.date > purchasesUpperBound) continue;
+      const p = purchaseById.get(pay.purchase_id);
+      if (!p) continue; // pembelian sudah dibatalkan (voided) -- lihat allPurchases di atas
+      addKeluar(purchaseCategoryLabel(p), Number(pay.amount));
+    }
+
+    // (B) Kas Kecil -- ditelusuri per shift_cash_movements, dikelompokkan
+    // ke akun akhirnya (bukan cuma "Kas Kecil Menunggu Klasifikasi").
+    const piutangKaryawanAccount = accountByCode.get("1-060");
+    for (const m of shiftMovements) {
+      const entryDate = m.journal_entries?.date;
+      if (!entryDate) continue;
+      if (fromIso && entryDate < fromIso) continue;
+      if (toIsoExclusive && entryDate >= toIsoExclusive) continue;
+
+      const amount = Number(m.approved_amount ?? m.amount);
+      if (m.category === "Kasbon") {
+        addKeluar(piutangKaryawanAccount ? `${piutangKaryawanAccount.code} — ${piutangKaryawanAccount.name}` : "Piutang Karyawan (Kasbon)", amount);
+      } else if (m.status === "posted" && m.account_code) {
+        const acc = accountByCode.get(m.account_code);
+        addKeluar(acc ? `${acc.code} — ${acc.name}` : m.account_code, amount);
+      } else {
+        addKeluar("Kas Kecil — Menunggu Diklasifikasi", amount);
+      }
+    }
+
+    // (C) Sisanya -- semua kredit ke Kas & Bank yang BUKAN dari dua sumber
+    // di atas (supaya tidak dobel-hitung): source "pembelian" (sudah masuk
+    // A), deskripsi persis "Bayar utang dagang" dari addPurchasePayment
+    // (sudah masuk A), dan entry yang jadi journal_entry_id salah satu
+    // shift_cash_movements di atas (sudah masuk B). Sisanya ditelusuri dari
+    // akun lawannya apa adanya (gaji, transfer, dsb -- sudah akun asli,
+    // bukan suspense).
+    const handledEntryIds = new Set(
+      shiftMovements.map((m) => m.journal_entry_id).filter((id): id is string => !!id),
+    );
     for (const entry of entries) {
       const lines = entry.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
+      for (const l of lines) {
+        if (l.account_id === kasAccountId) totalKasMasuk += Number(l.debit);
+      }
+
+      // Kas Keluar sisanya (di luar A/B) -- ditelusuri dari akun lawan
+      // jurnalnya apa adanya (gaji, transfer, "Catat Kas Keluar" langsung ke
+      // akun beban, dsb -- itu sudah akun asli, bukan suspense).
+      if (entry.source === "pembelian") continue;
+      if (entry.description === "Bayar utang dagang") continue;
+      if (handledEntryIds.has(entry.id)) continue;
+
       const kasLines = lines.filter((l) => l.account_id === kasAccountId);
       if (kasLines.length === 0) continue;
 
@@ -134,26 +296,21 @@ export default async function LabaRugiAkrualPage({
         .filter((l) => l.account_id !== kasAccountId)
         .map((l) => accountMap.get(l.account_id))
         .filter((a): a is NonNullable<ReturnType<typeof accountMap.get>> => !!a);
-
       const label =
         counterpartAccounts.length > 0
-          ? Array.from(new Set(counterpartAccounts.map((a) => a.name))).join(" / ")
+          ? Array.from(new Set(counterpartAccounts.map((a) => `${a.code} — ${a.name}`))).join(" / ")
           : "Lainnya";
 
-      const cur = kasCategoryTotals.get(label) ?? { masuk: 0, keluar: 0 };
       for (const l of kasLines) {
-        cur.masuk += Number(l.debit);
-        cur.keluar += Number(l.credit);
+        addKeluar(label, Number(l.credit));
       }
-      kasCategoryTotals.set(label, cur);
     }
   }
-  const kasRows = Array.from(kasCategoryTotals.entries())
-    .map(([label, v]) => ({ label, ...v, net: v.masuk - v.keluar }))
-    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
-  const kasKeluarRows = kasRows.filter((r) => r.keluar > 0).sort((a, b) => b.keluar - a.keluar);
-  const totalKasMasuk = kasRows.reduce((s, r) => s + r.masuk, 0);
-  const totalKasKeluar = kasRows.reduce((s, r) => s + r.keluar, 0);
+
+  const kasKeluarRows = Array.from(kasKeluarByLabel.entries())
+    .map(([label, keluar]) => ({ label, keluar }))
+    .sort((a, b) => b.keluar - a.keluar);
+  const totalKasKeluar = kasKeluarRows.reduce((s, r) => s + r.keluar, 0);
   const labaBersihKas = totalKasMasuk - totalKasKeluar;
   const marginKas = totalKasMasuk > 0 ? Math.round((labaBersihKas / totalKasMasuk) * 100) : null;
   const maxKasKeluar = kasKeluarRows[0]?.keluar ?? 1;
