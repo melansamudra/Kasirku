@@ -223,30 +223,27 @@ export default async function ReportsHarianPage({
   // Kas keluar yang beneran berlaku (void/pending/ditolak/transfer-antar-
   // rekening sudah dikecualikan oleh fetchKasBankLines) -- dipisah Tunai vs
   // Transfer dari payment_method (null diperlakukan tunai, sesuai konvensi
-  // Kas Kecil yang memang selalu kas fisik). Tiga hal DIKECUALIKAN dari
-  // Pengeluaran karena bukan beban secara akuntansi (cuma tukar aset/lunasi
-  // kewajiban, sama sekali tidak mengurangi laba) -- beda dengan Kas & Bank
-  // (kas-harian/page.tsx) yang memang menampilkan pergerakan kas fisik apa
-  // adanya, laporan ini P&L-style jadi harus ikut definisi akuntansi:
-  //  - Kasbon (kategori "Kasbon" di shift_cash_movements) -> piutang karyawan
-  //  - Pembelian bahan baku/barang tunai (source "pembelian") -> Persediaan
-  //  - Pelunasan hutang dagang (deskripsi persis "Bayar utang dagang" dari
-  //    addPurchasePayment) -> Hutang Dagang, sudah punya baris sendiri
-  //    "Hutang Dibayar" di laporan ini, jangan sampai dobel kehitung.
-  const kasKeluarLines = kasBank.displayLines.filter((l) => {
-    if (Number(l.credit) <= 0) return false;
-    if (kasBank.movementByEntryId.get(l.journal_entries.id)?.category === "Kasbon") return false;
-    if (l.journal_entries.source === "pembelian") return false;
-    if (l.journal_entries.description === "Bayar utang dagang") return false;
-    return true;
-  });
+  // Kas Kecil yang memang selalu kas fisik).
+  //
+  // SEBELUMNYA (sampai 2026-09-06) tiga hal ini dikecualikan dari sini
+  // (Kasbon, Pembelian source "pembelian", "Bayar utang dagang") karena versi
+  // lama laporan ini P&L-style (ikut definisi akuntansi: beli barang cuma
+  // tukar Kas jadi Persediaan, bukan Beban). Ternyata itu bikin owner bingung
+  // -- "Total Pengeluaran"/"Laba Bersih" kelihatan kekecilan dibanding uang
+  // yang beneran keluar dari rekening (lihat diskusi 2026-09-06: HPP akrual
+  // cuma menghitung bahan yang KEPAKAI buat produk terjual, bukan yang
+  // dibeli). Atas permintaan user, sekarang laporan ini SENGAJA diganti jadi
+  // kas aktual apa adanya (persis Kas & Bank/Arus Kas) -- SEMUA kas keluar
+  // dihitung tanpa kecuali, termasuk Pembelian/Kasbon/Bayar Utang Dagang.
+  // Kolom "Pembelian Tunai/Transfer" & "Hutang Dibayar" di bawah sekarang
+  // cuma rincian SUBSET dari Total Pengeluaran ini (bukan tambahan terpisah
+  // lagi).
+  const kasKeluarLines = kasBank.displayLines.filter((l) => Number(l.credit) > 0);
 
-  // Pembelian tunai/transfer -- SENGAJA terpisah dari kasKeluarLines/
-  // Pengeluaran di atas (yang harus P&L-style, tidak boleh ikut Pembelian --
-  // lihat komentar di atas), tapi owner tetap mau bisa BACA berapa yang
-  // dibayar tunai vs transfer buat kontrol arus kas harian (arahan user
-  // 2026-09-03) -- jadi ditaruh kolom sendiri, tidak mempengaruhi Total
-  // Pengeluaran/Laba Bersih sama sekali. displayLines sudah otomatis
+  // Pembelian tunai/transfer -- rincian SUBSET dari kasKeluarLines/Pengeluaran
+  // di atas (sudah ikut kehitung di sana), ditaruh kolom sendiri cuma biar
+  // owner bisa lihat berapa dari Total Pengeluaran yang buat beli
+  // bahan/barang (arahan user 2026-09-03). displayLines sudah otomatis
   // mengecualikan pembelian yang voided (lewat isVoidRelated di kas-bank.ts).
   const pembelianKasLines = kasBank.displayLines.filter(
     (l) => Number(l.credit) > 0 && l.journal_entries.source === "pembelian",
@@ -583,16 +580,24 @@ export default async function ReportsHarianPage({
           </div>
 
           <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
-            Pengeluaran ditarik dari{" "}
+            Total Pengeluaran &amp; Laba Bersih di sini kas aktual apa adanya — ditarik dari{" "}
             <Link href={`/business/${businessId}/kas-harian`} className="text-brand-600 hover:underline">Kas &amp; Bank</Link>
-            {" "}(sudah dikecualikan void/pending/ditolak/transfer antar rekening). Pendapatan Gofood/Grabfood/Lain-lain
-            diinput lewat &quot;Catat Kas Masuk&quot; di Kas &amp; Bank, pilih akun 4-003 — Pendapatan Gofood, 4-004 —
-            Pendapatan Grabfood, atau 4-999 — Pendapatan Lain-lain sesuai sumbernya.
-            {hasPembelianKas && (
+            {" "}(sudah dikecualikan void/pending/ditolak/transfer antar rekening), SEMUA uang yang benar-benar keluar
+            dihitung tanpa kecuali — termasuk pembelian bahan baku/barang, kasbon, dan pelunasan hutang dagang. Ini
+            beda dari{" "}
+            <Link href={`/business/${businessId}/accounting/laba-rugi`} className="text-brand-600 hover:underline">
+              Laba Rugi (Akrual)
+            </Link>
+            {" "}yang cuma menghitung bahan baku sebagai beban (HPP) sebesar yang benar-benar kepakai untuk produk
+            terjual, bukan yang dibeli. Pendapatan Gofood/Grabfood/Lain-lain diinput lewat &quot;Catat Kas
+            Masuk&quot; di Kas &amp; Bank, pilih akun 4-003 — Pendapatan Gofood, 4-004 — Pendapatan Grabfood, atau
+            4-999 — Pendapatan Lain-lain sesuai sumbernya.
+            {(hasPembelianKas || hasHutang) && (
               <>
-                {" "}Kolom &quot;Pembelian Tunai/Transfer&quot; cuma buat kontrol arus kas (berapa Pembelian yang
-                sudah keluar duitnya) — sengaja TIDAK dihitung ke Total Pengeluaran/Laba Bersih di atas, karena beli
-                barang itu tukar Kas jadi Persediaan (bukan Beban), sudah tercermin lewat HPP.
+                {" "}Kolom {hasPembelianKas && <>&quot;Pembelian Tunai/Transfer&quot;</>}
+                {hasPembelianKas && hasHutang && " dan "}
+                {hasHutang && <>&quot;Hutang Dibayar&quot;</>} itu rincian yang SUDAH termasuk di dalam Total
+                Pengeluaran di atas (bukan tambahan lagi) — cuma dipisah biar kelihatan berapa porsinya.
               </>
             )}
             {hasEstimasiGaji && (
