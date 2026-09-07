@@ -4325,6 +4325,84 @@ export type Database = {
         };
         Relationships: [];
       };
+      transaction_mirror_links: {
+        Row: {
+          id: string;
+          from_business_id: string;
+          to_business_id: string;
+          to_cashier_id: string;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_business_id: string;
+          to_business_id: string;
+          to_cashier_id: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          from_business_id?: string;
+          to_business_id?: string;
+          to_cashier_id?: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      transaction_mirror_product_map: {
+        Row: {
+          id: string;
+          link_id: string;
+          from_product_id: string;
+          to_product_id: string;
+        };
+        Insert: {
+          id?: string;
+          link_id: string;
+          from_product_id: string;
+          to_product_id: string;
+        };
+        Update: {
+          id?: string;
+          link_id?: string;
+          from_product_id?: string;
+          to_product_id?: string;
+        };
+        Relationships: [];
+      };
+      mirrored_transactions: {
+        Row: {
+          id: string;
+          source_transaction_id: string;
+          source_business_id: string;
+          dest_transaction_id: string;
+          dest_business_id: string;
+          link_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_transaction_id: string;
+          source_business_id: string;
+          dest_transaction_id: string;
+          dest_business_id: string;
+          link_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          source_transaction_id?: string;
+          source_business_id?: string;
+          dest_transaction_id?: string;
+          dest_business_id?: string;
+          link_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       semi_finished_item_location_stock: {
         Row: {
           id: string;
@@ -5356,6 +5434,16 @@ export type Database = {
           p_manager_pin?: string | null;
         };
         Returns: undefined;
+      };
+      mirror_transaction_to_linked_store: {
+        Args: {
+          p_business_id: string;
+          p_transaction_id: string;
+        };
+        Returns: {
+          dest_transaction_id: string;
+          dest_invoice_number: string;
+        }[];
       };
       delete_open_bill: {
         Args: {

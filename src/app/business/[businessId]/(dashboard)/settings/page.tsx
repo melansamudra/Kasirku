@@ -8,6 +8,7 @@ import BusinessProfileForm from "./business-profile-form";
 import BusinessTypeForm from "./business-type-form";
 import DeletePaymentMethodButton from "./delete-payment-method-button";
 import DiscountRulesSection from "./discount-rules-section";
+import MirrorStoreSection from "./mirror-store-section";
 import PrinterCard from "./printer-card";
 import ReceiptSettingsSection from "./receipt-settings-section";
 import TaxServiceForm from "./tax-service-form";
@@ -65,6 +66,53 @@ export default async function SettingsPage({
     valid_until: string | null;
     products?: { name: string } | null;
   }[];
+
+  const { data: otherBusinessRows } = await supabase
+    .from("businesses")
+    .select("id, name")
+    .eq("owner_id", business.owner_id)
+    .neq("id", businessId)
+    .order("name", { ascending: true });
+
+  const otherBusinesses = otherBusinessRows ?? [];
+  const otherBusinessIds = otherBusinesses.map((b) => b.id);
+
+  const { data: activeLinkRow } = await supabase
+    .from("transaction_mirror_links")
+    .select("id, to_business_id, to_cashier_id")
+    .eq("from_business_id", businessId)
+    .eq("active", true)
+    .maybeSingle();
+
+  const [{ data: cashierRows }, { data: destProductRows }, { data: mappingRows }] = await Promise.all([
+    otherBusinessIds.length > 0
+      ? supabase
+          .from("cashiers")
+          .select("id, business_id, name")
+          .in("business_id", otherBusinessIds)
+          .eq("active", true)
+          .order("name", { ascending: true })
+      : Promise.resolve({ data: [] as { id: string; business_id: string; name: string }[] }),
+    activeLinkRow
+      ? supabase
+          .from("products")
+          .select("id, name")
+          .eq("business_id", activeLinkRow.to_business_id)
+          .is("deleted_at", null)
+          .order("name", { ascending: true })
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    activeLinkRow
+      ? supabase
+          .from("transaction_mirror_product_map")
+          .select("from_product_id, to_product_id")
+          .eq("link_id", activeLinkRow.id)
+      : Promise.resolve({ data: [] as { from_product_id: string; to_product_id: string }[] }),
+  ]);
+
+  const cashiersByBusiness: Record<string, { id: string; business_id: string; name: string }[]> = {};
+  for (const c of cashierRows ?? []) {
+    (cashiersByBusiness[c.business_id] ??= []).push(c);
+  }
 
   const [{ data: txRows }, { data: ticketTxRows }] = await Promise.all([
     supabase.from("transactions").select("id").eq("business_id", businessId).limit(1),
@@ -223,6 +271,17 @@ export default async function SettingsPage({
           businessId={businessId}
           rules={discountRules}
           products={productRows ?? []}
+        />
+
+        {/* Kirim Transaksi ke Toko Lain (mirror) */}
+        <MirrorStoreSection
+          businessId={businessId}
+          otherBusinesses={otherBusinesses}
+          cashiersByBusiness={cashiersByBusiness}
+          activeLink={activeLinkRow ?? null}
+          ownProducts={productRows ?? []}
+          destProducts={destProductRows ?? []}
+          mappings={mappingRows ?? []}
         />
 
         {/* Metode Pembayaran Custom */}

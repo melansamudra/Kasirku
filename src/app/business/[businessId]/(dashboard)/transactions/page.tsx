@@ -8,6 +8,7 @@ import { previewEsbImport, confirmEsbImport } from "./esb-actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
 import MirrorHint from "./mirror-hint";
+import SendToStoreToggle from "./send-to-store-toggle";
 import DateFilter from "./date-filter";
 
 function formatRupiah(value: number) {
@@ -59,6 +60,16 @@ export default async function TransactionsPage({
   const isOwner = business.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 
+  const { data: mirrorLinkRow } = isOwner
+    ? await supabase
+        .from("transaction_mirror_links")
+        .select("id")
+        .eq("from_business_id", businessId)
+        .eq("active", true)
+        .maybeSingle()
+    : { data: null };
+  const showSendToStore = isOwner && !!mirrorLinkRow;
+
   const today = todayWibDateString();
   const selectedDate = isOwner ? (dateParam ?? today) : today;
   const dayStart = `${selectedDate}T00:00:00+07:00`;
@@ -80,7 +91,7 @@ export default async function TransactionsPage({
     query.eq("voided", false);
   }
 
-  const [{ data: transactions }, visibleRows, { data: lockRows }] = await Promise.all([
+  const [{ data: transactions }, visibleRows, { data: lockRows }, sentRows] = await Promise.all([
     query,
     showMirrorToggle
       ? fetchAllRows<{ transaction_id: string }>((from, to) =>
@@ -97,10 +108,20 @@ export default async function TransactionsPage({
           .select("month_year")
           .eq("business_id", businessId)
       : Promise.resolve({ data: null }),
+    showSendToStore
+      ? fetchAllRows<{ source_transaction_id: string }>((from, to) =>
+          supabase
+            .from("mirrored_transactions")
+            .select("source_transaction_id")
+            .eq("source_business_id", businessId)
+            .range(from, to),
+        )
+      : Promise.resolve([]),
   ]);
 
   const visibleIds = new Set(visibleRows.map((r) => r.transaction_id));
   const lockedMonths = new Set((lockRows ?? []).map((r) => r.month_year as string));
+  const sentIds = new Set(sentRows.map((r) => r.source_transaction_id));
 
   function txLockedMonth(dateStr: string): boolean {
     const monthKey = new Date(dateStr).toLocaleDateString("en-CA", {
@@ -205,6 +226,13 @@ export default async function TransactionsPage({
                   transactionId={t.id}
                   visible={visibleIds.has(t.id)}
                   locked={txLockedMonth(t.date)}
+                />
+              )}
+              {showSendToStore && !t.voided && (
+                <SendToStoreToggle
+                  businessId={businessId}
+                  transactionId={t.id}
+                  alreadySent={sentIds.has(t.id)}
                 />
               )}
             </div>
