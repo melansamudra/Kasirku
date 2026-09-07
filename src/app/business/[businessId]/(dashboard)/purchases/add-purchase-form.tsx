@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { AddPurchaseState } from "./actions";
+import type { AddSupplierState } from "../suppliers/actions";
 
 const initialState: AddPurchaseState = { error: null, resetToken: 0 };
+const NEW_SUPPLIER = "__new__";
 
 type SupplierOption = { id: string; name: string };
 type IngredientOption = {
@@ -29,6 +32,7 @@ export type PurchasePrefill = {
 
 export default function AddPurchaseForm({
   action,
+  addSupplierAction,
   today,
   isFnb,
   suppliers,
@@ -39,6 +43,7 @@ export default function AddPurchaseForm({
   prefill,
 }: {
   action: (state: AddPurchaseState, formData: FormData) => Promise<AddPurchaseState>;
+  addSupplierAction: (state: AddSupplierState, formData: FormData) => Promise<AddSupplierState>;
   today: string;
   isFnb: boolean;
   suppliers: SupplierOption[];
@@ -71,6 +76,7 @@ export default function AddPurchaseForm({
       today={lastDate}
       isFnb={isFnb}
       suppliers={suppliers}
+      addSupplierAction={addSupplierAction}
       ingredients={ingredients}
       products={products}
       expenseAccounts={expenseAccounts}
@@ -87,6 +93,7 @@ function PurchaseFormFields({
   today,
   isFnb,
   suppliers,
+  addSupplierAction,
   ingredients,
   products,
   expenseAccounts,
@@ -99,15 +106,44 @@ function PurchaseFormFields({
   today: string;
   isFnb: boolean;
   suppliers: SupplierOption[];
+  addSupplierAction: (state: AddSupplierState, formData: FormData) => Promise<AddSupplierState>;
   ingredients: IngredientOption[];
   products: ProductOption[];
   expenseAccounts: ExpenseAccountOption[];
   locations: LocationOption[];
   prefill?: PurchasePrefill | null;
 }) {
+  const router = useRouter();
   const [category, setCategory] = useState<string>(
     prefill?.category ?? "Lainnya",
   );
+  const [supplierId, setSupplierId] = useState(prefill?.supplierId ?? "");
+  const [addingSupplier, setAddingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [addSupplierPending, setAddSupplierPending] = useState(false);
+  const [addSupplierError, setAddSupplierError] = useState<string | null>(null);
+
+  async function handleAddSupplier() {
+    const trimmed = newSupplierName.trim();
+    if (!trimmed) {
+      setAddSupplierError("Nama supplier baru wajib diisi.");
+      return;
+    }
+    setAddSupplierPending(true);
+    setAddSupplierError(null);
+    const formData = new FormData();
+    formData.set("name", trimmed);
+    const result = await addSupplierAction({ error: null, supplierId: null }, formData);
+    setAddSupplierPending(false);
+    if (result.error || !result.supplierId) {
+      setAddSupplierError(result.error ?? "Gagal menambah supplier baru.");
+      return;
+    }
+    setSupplierId(result.supplierId);
+    setAddingSupplier(false);
+    setNewSupplierName("");
+    router.refresh();
+  }
   const [expenseAccountCode, setExpenseAccountCode] = useState<string>(expenseAccounts[0]?.code ?? "");
   const [ingredientId, setIngredientId] = useState(
     prefill?.category === "Bahan Baku" ? prefill.itemId : ingredients[0]?.id ?? "",
@@ -158,8 +194,15 @@ function PurchaseFormFields({
           </label>
           <select
             id="supplierId"
-            name="supplierId"
-            defaultValue={prefill?.supplierId ?? ""}
+            value={addingSupplier ? NEW_SUPPLIER : supplierId}
+            onChange={(e) => {
+              if (e.target.value === NEW_SUPPLIER) {
+                setAddingSupplier(true);
+              } else {
+                setAddingSupplier(false);
+                setSupplierId(e.target.value);
+              }
+            }}
             className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           >
             <option value="">— Tanpa supplier —</option>
@@ -168,7 +211,43 @@ function PurchaseFormFields({
                 {s.name}
               </option>
             ))}
+            <option value={NEW_SUPPLIER}>+ Tambah Supplier Baru…</option>
           </select>
+          <input type="hidden" name="supplierId" value={supplierId} />
+          {addingSupplier && (
+            <div className="mt-2 space-y-1.5 rounded-lg border border-brand-200 bg-brand-50 p-2.5">
+              <input
+                type="text"
+                autoFocus
+                value={newSupplierName}
+                onChange={(e) => setNewSupplierName(e.target.value)}
+                placeholder="Nama supplier baru"
+                className="w-full rounded-lg border border-brand-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+              {addSupplierError && <p className="text-[11px] text-red-600">{addSupplierError}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddSupplier}
+                  disabled={addSupplierPending}
+                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {addSupplierPending ? "Menyimpan…" : "Tambah & Pilih"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingSupplier(false);
+                    setAddSupplierError(null);
+                    setNewSupplierName("");
+                  }}
+                  className="text-[11px] text-zinc-500 hover:text-zinc-700"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

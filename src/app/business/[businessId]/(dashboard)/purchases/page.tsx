@@ -12,6 +12,7 @@ import EditCategoryButton from "./edit-category-button";
 import EditSupplierButton from "./edit-supplier-button";
 import ReceiveDeliveryNoteForm from "./receive-delivery-note-form";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import { addSupplier } from "../suppliers/actions";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -329,6 +330,7 @@ export default async function PurchasesPage({
 
       <PurchaseFormWithRecommendations
         action={boundAddPurchase}
+        addSupplierAction={addSupplier.bind(null, businessId)}
         today={today}
         isFnb={isFnb}
         suppliers={suppliers ?? []}
@@ -427,7 +429,8 @@ export default async function PurchasesPage({
                       <EditSupplierButton
                         currentSupplierId={r.supplier_id}
                         suppliers={suppliers ?? []}
-                        action={updatePurchaseSupplier.bind(null, businessId, r.id)}
+                        updateSupplierAction={updatePurchaseSupplier.bind(null, businessId, r.id)}
+                        addSupplierAction={addSupplier.bind(null, businessId)}
                       />
                     </div>
                   )}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
-export type AddSupplierState = { error: string | null };
+export type AddSupplierState = { error: string | null; supplierId: string | null };
 
 export async function addSupplier(
   businessId: string,
@@ -20,29 +20,34 @@ export async function addSupplier(
   const bankAccountHolder = (formData.get("bankAccountHolder") as string)?.trim();
 
   if (!name) {
-    return { error: "Nama supplier wajib diisi." };
+    return { error: "Nama supplier wajib diisi.", supplierId: null };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("suppliers").insert({
-    business_id: businessId,
-    name,
-    phone: phone || null,
-    address: address || null,
-    notes: notes || null,
-    bank_name: bankName || null,
-    bank_account_number: bankAccountNumber || null,
-    bank_account_holder: bankAccountHolder || null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("suppliers")
+    .insert({
+      business_id: businessId,
+      name,
+      phone: phone || null,
+      address: address || null,
+      notes: notes || null,
+      bank_name: bankName || null,
+      bank_account_number: bankAccountNumber || null,
+      bank_account_holder: bankAccountHolder || null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message, supplierId: null };
   }
 
   await logActivity(supabase, businessId, "produk", "sukses", `Supplier baru: ${name}`);
   revalidatePath(`/business/${businessId}/suppliers`);
   revalidatePath(`/business/${businessId}/purchases`);
-  return { error: null };
+  revalidatePath(`/business/${businessId}/purchases/laporan-hutang`);
+  return { error: null, supplierId: inserted.id };
 }
 
 export type EditSupplierState = { error: string | null };

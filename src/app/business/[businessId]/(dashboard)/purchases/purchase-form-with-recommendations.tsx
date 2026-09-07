@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import AddPurchaseForm, { type PurchasePrefill } from "./add-purchase-form";
 import type { AddPurchaseState } from "./actions";
+import type { AddSupplierState } from "../suppliers/actions";
 
 type SupplierOption = { id: string; name: string };
 type IngredientOption = {
@@ -41,6 +42,7 @@ function formatRupiah(value: number) {
 
 export default function PurchaseFormWithRecommendations({
   action,
+  addSupplierAction,
   today,
   isFnb,
   suppliers,
@@ -53,6 +55,7 @@ export default function PurchaseFormWithRecommendations({
   initialPrefill,
 }: {
   action: (state: AddPurchaseState, formData: FormData) => Promise<AddPurchaseState>;
+  addSupplierAction: (state: AddSupplierState, formData: FormData) => Promise<AddSupplierState>;
   today: string;
   isFnb: boolean;
   suppliers: SupplierOption[];
@@ -157,6 +160,7 @@ export default function PurchaseFormWithRecommendations({
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">+ Catat Pembelian</h2>
         <AddPurchaseForm
           action={action}
+          addSupplierAction={addSupplierAction}
           today={today}
           isFnb={isFnb}
           suppliers={suppliers}

@@ -3,7 +3,7 @@
 import { useActionState, useRef, useEffect } from "react";
 import type { AddSupplierState } from "./actions";
 
-const initialState: AddSupplierState = { error: null };
+const initialState: AddSupplierState = { error: null, supplierId: null };
 
 export default function AddSupplierForm({
   action,
