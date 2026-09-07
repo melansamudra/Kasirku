@@ -4247,6 +4247,84 @@ export type Database = {
         };
         Relationships: [];
       };
+      inter_unit_transfer_items: {
+        Row: {
+          id: string;
+          transfer_id: string;
+          from_ingredient_id: string;
+          to_ingredient_id: string;
+          item_name: string;
+          unit: string;
+          qty: number;
+          unit_cost: number;
+          amount: number;
+        };
+        Insert: {
+          id?: string;
+          transfer_id: string;
+          from_ingredient_id: string;
+          to_ingredient_id: string;
+          item_name: string;
+          unit: string;
+          qty: number;
+          unit_cost?: number;
+          amount?: number;
+        };
+        Update: {
+          id?: string;
+          transfer_id?: string;
+          from_ingredient_id?: string;
+          to_ingredient_id?: string;
+          item_name?: string;
+          unit?: string;
+          qty?: number;
+          unit_cost?: number;
+          amount?: number;
+        };
+        Relationships: [];
+      };
+      inter_unit_transfers: {
+        Row: {
+          id: string;
+          from_business_id: string;
+          to_business_id: string;
+          from_location_id: string;
+          to_location_id: string;
+          transfer_number: string;
+          note: string | null;
+          sent_by_user_id: string | null;
+          sent_by_name: string;
+          total_amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_business_id: string;
+          to_business_id: string;
+          from_location_id: string;
+          to_location_id: string;
+          transfer_number: string;
+          note?: string | null;
+          sent_by_user_id?: string | null;
+          sent_by_name: string;
+          total_amount?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          from_business_id?: string;
+          to_business_id?: string;
+          from_location_id?: string;
+          to_location_id?: string;
+          transfer_number?: string;
+          note?: string | null;
+          sent_by_user_id?: string | null;
+          sent_by_name?: string;
+          total_amount?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       semi_finished_item_location_stock: {
         Row: {
           id: string;
@@ -4890,6 +4968,21 @@ export type Database = {
         Returns: {
           status: string;
           download_token: string | null;
+        }[];
+      };
+      ship_inter_unit_transfer: {
+        Args: {
+          p_from_business_id: string;
+          p_to_business_id: string;
+          p_from_location_id: string;
+          p_to_location_id: string;
+          p_items: Json;
+          p_sent_by_name: string;
+          p_note?: string | null;
+        };
+        Returns: {
+          transfer_id: string;
+          transfer_number: string;
         }[];
       };
       checkout_ticket_transaction: {

@@ -296,6 +296,7 @@ function buildCostControlNavGroups(
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
         { key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: FileText },
         { key: "rab-pembelian", href: `${base}/rab-pembelian`, label: "RAB Pembelian", icon: PiggyBank },
+        { key: "inter-unit-transfers", href: `${base}/inter-unit-transfers`, label: "Transfer Antar-Unit", icon: Truck },
       ],
     },
     {
@@ -470,6 +471,7 @@ function buildNavGroups(
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
         { key: "purchases", href: `${base}/purchases/laporan-hutang`, label: "Laporan Hutang", icon: FileBarChart2 },
         { key: "purchases", href: `${base}/purchases/pengajuan-pembayaran`, label: "Pengajuan Pembayaran", icon: Send },
+        { key: "inter-unit-transfers", href: `${base}/inter-unit-transfers`, label: "Transfer Antar-Unit", icon: Truck },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
         ...(stockLocationsEnabled
           ? [{ key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: Truck }]
