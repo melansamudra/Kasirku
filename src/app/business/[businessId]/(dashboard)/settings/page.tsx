@@ -22,7 +22,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner")
+    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner, mirroring_enabled")
     .eq("id", businessId)
     .single();
 
@@ -67,22 +67,31 @@ export default async function SettingsPage({
     products?: { name: string } | null;
   }[];
 
-  const { data: otherBusinessRows } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("owner_id", business.owner_id)
-    .neq("id", businessId)
-    .order("name", { ascending: true });
+  // Reuse toggle mirroring_enabled yang sama dengan fitur Mirror Accounts
+  // (diaktifkan admin per bisnis) -- supaya section ini tidak muncul untuk
+  // semua bisnis di platform, cuma yang memang diaktifkan (arahan user).
+  const storeMirrorEnabled = !!business.mirroring_enabled;
+
+  const { data: otherBusinessRows } = storeMirrorEnabled
+    ? await supabase
+        .from("businesses")
+        .select("id, name")
+        .eq("owner_id", business.owner_id)
+        .neq("id", businessId)
+        .order("name", { ascending: true })
+    : { data: [] as { id: string; name: string }[] };
 
   const otherBusinesses = otherBusinessRows ?? [];
   const otherBusinessIds = otherBusinesses.map((b) => b.id);
 
-  const { data: activeLinkRow } = await supabase
-    .from("transaction_mirror_links")
-    .select("id, to_business_id, to_cashier_id")
-    .eq("from_business_id", businessId)
-    .eq("active", true)
-    .maybeSingle();
+  const { data: activeLinkRow } = storeMirrorEnabled
+    ? await supabase
+        .from("transaction_mirror_links")
+        .select("id, to_business_id, to_cashier_id")
+        .eq("from_business_id", businessId)
+        .eq("active", true)
+        .maybeSingle()
+    : { data: null };
 
   const [{ data: cashierRows }, { data: destProductRows }, { data: mappingRows }] = await Promise.all([
     otherBusinessIds.length > 0
@@ -273,16 +282,18 @@ export default async function SettingsPage({
           products={productRows ?? []}
         />
 
-        {/* Kirim Transaksi ke Toko Lain (mirror) */}
-        <MirrorStoreSection
-          businessId={businessId}
-          otherBusinesses={otherBusinesses}
-          cashiersByBusiness={cashiersByBusiness}
-          activeLink={activeLinkRow ?? null}
-          ownProducts={productRows ?? []}
-          destProducts={destProductRows ?? []}
-          mappings={mappingRows ?? []}
-        />
+        {/* Kirim Transaksi ke Toko Lain (mirror) -- pakai toggle mirroring_enabled yang sama dengan Mirror Accounts */}
+        {storeMirrorEnabled && (
+          <MirrorStoreSection
+            businessId={businessId}
+            otherBusinesses={otherBusinesses}
+            cashiersByBusiness={cashiersByBusiness}
+            activeLink={activeLinkRow ?? null}
+            ownProducts={productRows ?? []}
+            destProducts={destProductRows ?? []}
+            mappings={mappingRows ?? []}
+          />
+        )}
 
         {/* Metode Pembayaran Custom */}
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

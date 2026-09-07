@@ -60,7 +60,10 @@ export default async function TransactionsPage({
   const isOwner = business.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business.mirroring_enabled;
 
-  const { data: mirrorLinkRow } = isOwner
+  // Pakai toggle mirroring_enabled yang sama dengan Mirror Accounts (arahan
+  // user) -- kalau dimatikan admin, toggle "Kirim ke Toko Lain" ikut hilang
+  // seketika tanpa perlu putuskan link-nya dulu.
+  const { data: mirrorLinkRow } = showMirrorToggle
     ? await supabase
         .from("transaction_mirror_links")
         .select("id")
@@ -68,7 +71,7 @@ export default async function TransactionsPage({
         .eq("active", true)
         .maybeSingle()
     : { data: null };
-  const showSendToStore = isOwner && !!mirrorLinkRow;
+  const showSendToStore = showMirrorToggle && !!mirrorLinkRow;
 
   const today = todayWibDateString();
   const selectedDate = isOwner ? (dateParam ?? today) : today;
