@@ -282,6 +282,7 @@ export default function PosScreen({
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [billsOpen, setBillsOpen] = useState(false);
+  const [billsRefreshing, setBillsRefreshing] = useState(false);
   const [posMenuOpen, setPosMenuOpen] = useState(false);
   // Laporan lives in the full backoffice sidebar, which the native app never
   // exposes (see dashboard-shell.tsx) — hide the link here too so it's not a
@@ -881,6 +882,32 @@ export default function PosScreen({
         : null,
     );
     setBillsOpen(false);
+  }
+
+  async function handleRefreshBills() {
+    if (billsRefreshing) return;
+    setBillsRefreshing(true);
+    await refreshCatalog();
+    setBillsRefreshing(false);
+  }
+
+  function handleNewBill() {
+    if (
+      (cart.length > 0 || activeBill) &&
+      !window.confirm("Keranjang aktif akan dikosongkan untuk mulai bon baru. Lanjutkan?")
+    ) {
+      return;
+    }
+    setCart([]);
+    setCartOrderIds([]);
+    setOrderDisc(0);
+    setOrderDiscType("pct");
+    setSelectedPromoId(null);
+    setActiveBill(null);
+    setSelectedCustomer(null);
+    setOrderType(null);
+    setInboxNotice(null);
+    setMobileCartOpen(false);
   }
 
   function handleDeleteBill(bill: OpenBill) {
@@ -2311,12 +2338,23 @@ export default function PosScreen({
         </div>
         <div className="flex-1 overflow-y-auto">
         <div className="p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-900">Keranjang</h2>
-            {activeBill && (
-              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
-                🧾 {activeBill.label}
-              </span>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-zinc-900">Keranjang</h2>
+              {activeBill && (
+                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+                  🧾 {activeBill.label}
+                </span>
+              )}
+            </div>
+            {(cart.length > 0 || activeBill) && (
+              <button
+                onClick={handleNewBill}
+                className="shrink-0 rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-semibold text-zinc-500 transition-colors hover:border-brand-300 hover:text-brand-600"
+                title="Kosongkan keranjang untuk mulai bon baru"
+              >
+                ➕ Bill Baru
+              </button>
             )}
           </div>
 
@@ -3225,12 +3263,23 @@ export default function PosScreen({
           <div className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
             <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
               <h2 className="text-sm font-bold text-zinc-900">🧾 Open Bill</h2>
-              <button
-                onClick={() => setBillsOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => void handleRefreshBills()}
+                  disabled={billsRefreshing}
+                  className="flex h-7 items-center gap-1 rounded-full bg-zinc-100 px-2.5 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-200 disabled:opacity-50"
+                  title="Sinkronkan bon dari device lain"
+                >
+                  <span className={billsRefreshing ? "inline-block animate-spin" : ""}>🔄</span>
+                  {billsRefreshing ? "Menyegarkan…" : "Segarkan"}
+                </button>
+                <button
+                  onClick={() => setBillsOpen(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
