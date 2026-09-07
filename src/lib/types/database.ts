@@ -2077,11 +2077,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      purchase_payment_request_items: {
+        Row: {
+          id: string;
+          business_id: string;
+          request_id: string;
+          purchase_id: string;
+          amount: number;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          request_id: string;
+          purchase_id: string;
+          amount: number;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          request_id?: string;
+          purchase_id?: string;
+          amount?: number;
+        };
+        Relationships: [];
+      };
       purchase_payment_requests: {
         Row: {
           id: string;
           business_id: string;
-          purchase_id: string;
           amount: number;
           payment_method: string;
           note: string | null;
@@ -2097,7 +2120,6 @@ export type Database = {
         Insert: {
           id?: string;
           business_id: string;
-          purchase_id: string;
           amount: number;
           payment_method: string;
           note?: string | null;
@@ -2113,7 +2135,6 @@ export type Database = {
         Update: {
           id?: string;
           business_id?: string;
-          purchase_id?: string;
           amount?: number;
           payment_method?: string;
           note?: string | null;
@@ -4321,6 +4342,9 @@ export type Database = {
           phone: string | null;
           address: string | null;
           notes: string | null;
+          bank_name: string | null;
+          bank_account_number: string | null;
+          bank_account_holder: string | null;
           created_at: string;
           deleted_at: string | null;
         };
@@ -4331,6 +4355,9 @@ export type Database = {
           phone?: string | null;
           address?: string | null;
           notes?: string | null;
+          bank_name?: string | null;
+          bank_account_number?: string | null;
+          bank_account_holder?: string | null;
           created_at?: string;
           deleted_at?: string | null;
         };
@@ -4341,6 +4368,9 @@ export type Database = {
           phone?: string | null;
           address?: string | null;
           notes?: string | null;
+          bank_name?: string | null;
+          bank_account_number?: string | null;
+          bank_account_holder?: string | null;
           created_at?: string;
           deleted_at?: string | null;
         };

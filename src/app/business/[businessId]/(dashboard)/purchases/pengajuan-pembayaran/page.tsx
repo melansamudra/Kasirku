@@ -30,7 +30,6 @@ const STATUS_LABEL: Record<string, string> = {
 
 type RequestRow = {
   id: string;
-  purchase_id: string;
   amount: number;
   payment_method: string;
   status: string;
@@ -49,38 +48,61 @@ export default async function PaymentRequestsPage({
   const { data: business } = await supabase.from("businesses").select("id, name").eq("id", businessId).single();
   if (!business) notFound();
 
-  const [requests, purchases] = await Promise.all([
+  const [requests, items] = await Promise.all([
     fetchAllRows<RequestRow>((from, to) =>
       supabase
         .from("purchase_payment_requests")
-        .select("id, purchase_id, amount, payment_method, status, requested_by_name, created_at")
+        .select("id, amount, payment_method, status, requested_by_name, created_at")
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })
         .range(from, to),
     ),
-    fetchAllRows<{ id: string; date: string; note: string | null; category: string; supplier_id: string | null }>(
-      (from, to) =>
-        supabase
-          .from("purchases")
-          .select("id, date, note, category, supplier_id")
-          .eq("business_id", businessId)
-          .range(from, to),
+    fetchAllRows<{ request_id: string; purchase_id: string }>((from, to) =>
+      supabase
+        .from("purchase_payment_request_items")
+        .select("request_id, purchase_id")
+        .eq("business_id", businessId)
+        .range(from, to),
     ),
   ]);
 
-  const purchaseById = new Map(purchases.map((p) => [p.id, p]));
-  const supplierIds = [...new Set(purchases.map((p) => p.supplier_id).filter((id): id is string => Boolean(id)))];
+  const purchaseIdsByRequest = new Map<string, string[]>();
+  for (const it of items) {
+    const list = purchaseIdsByRequest.get(it.request_id) ?? [];
+    list.push(it.purchase_id);
+    purchaseIdsByRequest.set(it.request_id, list);
+  }
+  const allPurchaseIds = [...new Set(items.map((it) => it.purchase_id))];
+  const { data: purchases } = allPurchaseIds.length
+    ? await supabase.from("purchases").select("id, supplier_id").in("id", allPurchaseIds)
+    : { data: [] };
+  const supplierIdByPurchase = new Map((purchases ?? []).map((p) => [p.id, p.supplier_id]));
+  const supplierIds = [...new Set((purchases ?? []).map((p) => p.supplier_id).filter((id): id is string => Boolean(id)))];
   const { data: suppliers } = supplierIds.length
     ? await supabase.from("suppliers").select("id, name").in("id", supplierIds)
     : { data: [] };
   const supplierNameById = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
 
+  function supplierSummary(requestId: string): string {
+    const purchaseIds = purchaseIdsByRequest.get(requestId) ?? [];
+    const names = [
+      ...new Set(
+        purchaseIds.map((pid) => {
+          const sid = supplierIdByPurchase.get(pid);
+          return sid ? supplierNameById.get(sid) ?? "—" : "Tanpa Supplier";
+        }),
+      ),
+    ];
+    if (names.length === 0) return "—";
+    if (names.length <= 2) return names.join(" & ");
+    return `${names[0]}, ${names[1]} +${names.length - 2} lainnya`;
+  }
+
   const pending = requests.filter((r) => r.status === "pending");
   const history = requests.filter((r) => r.status !== "pending");
 
   function RequestRowView({ r }: { r: RequestRow }) {
-    const purchase = purchaseById.get(r.purchase_id);
-    const supplierName = purchase?.supplier_id ? supplierNameById.get(purchase.supplier_id) : null;
+    const purchaseCount = purchaseIdsByRequest.get(r.id)?.length ?? 0;
     return (
       <Link
         key={r.id}
@@ -88,11 +110,9 @@ export default async function PaymentRequestsPage({
         className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50"
       >
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-900">
-            {supplierName ?? "—"} · {purchase?.note || purchase?.category || "Pembelian"}
-          </p>
+          <p className="truncate text-sm font-medium text-zinc-900">{supplierSummary(r.id)}</p>
           <p className="text-[11px] text-zinc-400">
-            Diajukan {formatDateTime(r.created_at)} · oleh {r.requested_by_name}
+            {purchaseCount} hutang · Diajukan {formatDateTime(r.created_at)} · oleh {r.requested_by_name}
           </p>
         </div>
         <div className="shrink-0 text-right">

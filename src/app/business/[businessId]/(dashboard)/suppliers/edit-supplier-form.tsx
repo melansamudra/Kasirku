@@ -9,12 +9,18 @@ export default function EditSupplierForm({
   phone,
   address,
   notes,
+  bankName,
+  bankAccountNumber,
+  bankAccountHolder,
   action,
 }: {
   name: string;
   phone: string | null;
   address: string | null;
   notes: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolder: string | null;
   action: (state: EditSupplierState, formData: FormData) => Promise<EditSupplierState>;
 }) {
   const router = useRouter();
@@ -24,6 +30,9 @@ export default function EditSupplierForm({
     phone: phone ?? "",
     address: address ?? "",
     notes: notes ?? "",
+    bankName: bankName ?? "",
+    bankAccountNumber: bankAccountNumber ?? "",
+    bankAccountHolder: bankAccountHolder ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -47,6 +56,9 @@ export default function EditSupplierForm({
     formData.set("phone", values.phone);
     formData.set("address", values.address);
     formData.set("notes", values.notes);
+    formData.set("bankName", values.bankName);
+    formData.set("bankAccountNumber", values.bankAccountNumber);
+    formData.set("bankAccountHolder", values.bankAccountHolder);
     const result = await action({ error: null }, formData);
     setPending(false);
 
@@ -96,6 +108,35 @@ export default function EditSupplierForm({
           type="text"
           value={values.notes}
           onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Nama Bank</label>
+          <input
+            type="text"
+            value={values.bankName}
+            onChange={(e) => setValues((v) => ({ ...v, bankName: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">No. Rekening</label>
+          <input
+            type="text"
+            value={values.bankAccountNumber}
+            onChange={(e) => setValues((v) => ({ ...v, bankAccountNumber: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-600">Atas Nama Rekening</label>
+        <input
+          type="text"
+          value={values.bankAccountHolder}
+          onChange={(e) => setValues((v) => ({ ...v, bankAccountHolder: e.target.value }))}
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>

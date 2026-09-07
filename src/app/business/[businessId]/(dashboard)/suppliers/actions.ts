@@ -15,6 +15,9 @@ export async function addSupplier(
   const phone = (formData.get("phone") as string)?.trim();
   const address = (formData.get("address") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim();
+  const bankName = (formData.get("bankName") as string)?.trim();
+  const bankAccountNumber = (formData.get("bankAccountNumber") as string)?.trim();
+  const bankAccountHolder = (formData.get("bankAccountHolder") as string)?.trim();
 
   if (!name) {
     return { error: "Nama supplier wajib diisi." };
@@ -27,6 +30,9 @@ export async function addSupplier(
     phone: phone || null,
     address: address || null,
     notes: notes || null,
+    bank_name: bankName || null,
+    bank_account_number: bankAccountNumber || null,
+    bank_account_holder: bankAccountHolder || null,
   });
 
   if (error) {
@@ -51,6 +57,9 @@ export async function editSupplier(
   const phone = (formData.get("phone") as string)?.trim();
   const address = (formData.get("address") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim();
+  const bankName = (formData.get("bankName") as string)?.trim();
+  const bankAccountNumber = (formData.get("bankAccountNumber") as string)?.trim();
+  const bankAccountHolder = (formData.get("bankAccountHolder") as string)?.trim();
 
   if (!name) {
     return { error: "Nama supplier wajib diisi." };
@@ -59,7 +68,15 @@ export async function editSupplier(
   const supabase = await createClient();
   const { error } = await supabase
     .from("suppliers")
-    .update({ name, phone: phone || null, address: address || null, notes: notes || null })
+    .update({
+      name,
+      phone: phone || null,
+      address: address || null,
+      notes: notes || null,
+      bank_name: bankName || null,
+      bank_account_number: bankAccountNumber || null,
+      bank_account_holder: bankAccountHolder || null,
+    })
     .eq("id", supplierId)
     .eq("business_id", businessId);
 

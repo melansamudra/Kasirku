@@ -32,6 +32,28 @@ const STATUS_LABEL: Record<string, string> = {
   rejected: "Ditolak",
 };
 
+type ItemRow = {
+  id: string;
+  amount: number;
+  purchase_id: string;
+  purchases: {
+    date: string;
+    due_date: string | null;
+    category: string;
+    note: string | null;
+    amount: number;
+    paid_amount: number;
+    supplier_id: string | null;
+    suppliers: {
+      name: string;
+      phone: string | null;
+      bank_name: string | null;
+      bank_account_number: string | null;
+      bank_account_holder: string | null;
+    } | null;
+  } | null;
+};
+
 export default async function PaymentRequestDetailPage({
   params,
 }: {
@@ -46,25 +68,48 @@ export default async function PaymentRequestDetailPage({
   const { data: request } = await supabase
     .from("purchase_payment_requests")
     .select(
-      "id, purchase_id, amount, payment_method, note, status, requested_by_name, approved_by_name, approved_at, reject_reason, created_at",
+      "id, amount, payment_method, note, status, requested_by_name, approved_by_name, approved_at, reject_reason, created_at",
     )
     .eq("id", requestId)
     .eq("business_id", businessId)
     .maybeSingle();
   if (!request) notFound();
 
-  const { data: purchase } = await supabase
-    .from("purchases")
-    .select("date, due_date, category, note, amount, paid_amount, supplier_id")
-    .eq("id", request.purchase_id)
-    .maybeSingle();
+  const { data: itemRows } = await supabase
+    .from("purchase_payment_request_items")
+    .select(
+      "id, amount, purchase_id, purchases(date, due_date, category, note, amount, paid_amount, supplier_id, suppliers(name, phone, bank_name, bank_account_number, bank_account_holder))",
+    )
+    .eq("request_id", requestId)
+    .eq("business_id", businessId);
 
-  const { data: supplier } = purchase?.supplier_id
-    ? await supabase.from("suppliers").select("name, phone").eq("id", purchase.supplier_id).maybeSingle()
-    : { data: null };
+  const items = (itemRows ?? []) as unknown as ItemRow[];
+
+  const bySupplier = new Map<
+    string,
+    { name: string; phone: string | null; bank: string | null; rows: ItemRow[]; subtotal: number }
+  >();
+  for (const it of items) {
+    const supplier = it.purchases?.suppliers;
+    const key = it.purchases?.supplier_id ?? "__tanpa_supplier__";
+    const entry = bySupplier.get(key) ?? {
+      name: supplier?.name ?? "Tanpa Supplier",
+      phone: supplier?.phone ?? null,
+      bank: supplier?.bank_account_number
+        ? `${supplier?.bank_name ? `${supplier.bank_name} — ` : ""}${supplier.bank_account_number}${
+            supplier?.bank_account_holder ? ` a.n. ${supplier.bank_account_holder}` : ""
+          }`
+        : null,
+      rows: [],
+      subtotal: 0,
+    };
+    entry.rows.push(it);
+    entry.subtotal += Number(it.amount);
+    bySupplier.set(key, entry);
+  }
+  const supplierGroups = [...bySupplier.values()];
 
   const actor = await getCurrentActor(supabase, businessId);
-  const sisaSebelum = purchase ? Number(purchase.amount) - Number(purchase.paid_amount) : 0;
 
   return (
     <div className="w-full max-w-2xl print:max-w-none">
@@ -93,9 +138,8 @@ export default async function PaymentRequestDetailPage({
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
           <div>
-            <p className="text-zinc-400">Supplier</p>
-            <p className="mt-0.5 font-semibold text-zinc-900">{supplier?.name ?? "—"}</p>
-            {supplier?.phone && <p className="text-zinc-500">{supplier.phone}</p>}
+            <p className="text-zinc-400">Jumlah Supplier</p>
+            <p className="mt-0.5 font-semibold text-zinc-900">{supplierGroups.length} supplier · {items.length} hutang</p>
           </div>
           <div className="text-right">
             <p className="text-zinc-400">Tanggal Pengajuan</p>
@@ -105,39 +149,44 @@ export default async function PaymentRequestDetailPage({
           </div>
         </div>
 
-        {purchase && (
-          <div className="mt-4 overflow-hidden rounded-lg border border-zinc-100">
-            <div className="bg-zinc-50 px-3 py-2 text-[11px] font-semibold text-zinc-500">Rincian Hutang yang Diajukan</div>
-            <div className="space-y-1.5 px-3 py-2.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Tanggal Pembelian</span>
-                <span className="font-medium text-zinc-800">{formatDate(purchase.date)}</span>
-              </div>
-              {purchase.due_date && (
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Jatuh Tempo</span>
-                  <span className="font-medium text-zinc-800">{formatDate(purchase.due_date)}</span>
+        <div className="mt-4 space-y-3">
+          {supplierGroups.map((g, idx) => (
+            <div key={idx} className="overflow-hidden rounded-lg border border-zinc-100">
+              <div className="flex items-center justify-between bg-zinc-50 px-3 py-2">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-800">{g.name}</p>
+                  {g.bank && <p className="text-[10.5px] text-zinc-500">🏦 {g.bank}</p>}
+                  {!g.bank && g.phone && <p className="text-[10.5px] text-zinc-500">{g.phone}</p>}
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Keterangan</span>
-                <span className="font-medium text-zinc-800">{purchase.note || purchase.category}</span>
+                <p className="text-xs font-bold text-brand-700">{formatRupiah(g.subtotal)}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Total Pembelian</span>
-                <span className="font-medium text-zinc-800">{formatRupiah(Number(purchase.amount))}</span>
-              </div>
-              <div className="flex justify-between border-t border-zinc-100 pt-1.5">
-                <span className="text-zinc-500">Sisa Hutang Saat Ini</span>
-                <span className="font-semibold text-amber-700">{formatRupiah(sisaSebelum)}</span>
+              <div className="divide-y divide-zinc-100">
+                {g.rows.map((it) => {
+                  const p = it.purchases;
+                  if (!p) return null;
+                  const sisaSebelum = Number(p.amount) - Number(p.paid_amount);
+                  return (
+                    <div key={it.id} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                      <div className="min-w-0">
+                        <p className="truncate text-zinc-700">{p.note || p.category}</p>
+                        <p className="text-[10.5px] text-zinc-400">
+                          {formatDate(p.date)}
+                          {p.due_date ? ` · Jatuh tempo ${formatDate(p.due_date)}` : ""} · Sisa hutang saat ini{" "}
+                          {formatRupiah(sisaSebelum)}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-semibold text-zinc-800">{formatRupiah(Number(it.amount))}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
 
         <div className="mt-3 ml-auto w-full max-w-[260px] space-y-1 text-xs">
           <div className="flex justify-between border-t border-zinc-100 pt-1 text-sm font-bold">
-            <span className="text-zinc-900">Jumlah Diajukan</span>
+            <span className="text-zinc-900">Total Diajukan</span>
             <span className="text-brand-700">{formatRupiah(Number(request.amount))}</span>
           </div>
           <div className="flex justify-between text-zinc-500">

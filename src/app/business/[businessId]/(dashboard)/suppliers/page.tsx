@@ -31,7 +31,7 @@ export default async function SuppliersPage({
 
   const { data: suppliers } = await supabase
     .from("suppliers")
-    .select("id, name, phone, address, notes")
+    .select("id, name, phone, address, notes, bank_name, bank_account_number, bank_account_holder")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -82,6 +82,13 @@ export default async function SuppliersPage({
                     {[s.phone, s.address].filter(Boolean).join(" · ") || "—"}
                   </p>
                   {s.notes && <p className="mt-0.5 text-xs text-zinc-400">{s.notes}</p>}
+                  {s.bank_account_number && (
+                    <p className="mt-0.5 text-xs text-zinc-400">
+                      🏦 {s.bank_name ? `${s.bank_name} — ` : ""}
+                      {s.bank_account_number}
+                      {s.bank_account_holder ? ` a.n. ${s.bank_account_holder}` : ""}
+                    </p>
+                  )}
                 </div>
                 {sisaUtang > 0 && (
                   <p className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
@@ -93,6 +100,9 @@ export default async function SuppliersPage({
                   phone={s.phone}
                   address={s.address}
                   notes={s.notes}
+                  bankName={s.bank_name}
+                  bankAccountNumber={s.bank_account_number}
+                  bankAccountHolder={s.bank_account_holder}
                   action={editSupplier.bind(null, businessId, s.id)}
                 />
                 <DeleteSupplierButton

@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { todayWibDateString } from "@/lib/wib";
-import { createPaymentRequest } from "../pengajuan-pembayaran/actions";
-import RequestPaymentForm from "./request-payment-form";
+import DebtSelectionList from "./debt-selection-list";
 import PrintButton from "./print-button";
 
 function formatRupiah(value: number) {
@@ -31,12 +30,6 @@ function agingBucketOf(dateStr: string, todayIso: string): AgingBucket {
   if (days <= 90) return "61-90 hari";
   return "90+ hari";
 }
-const AGING_COLOR: Record<AgingBucket, string> = {
-  "0-30 hari": "bg-zinc-100 text-zinc-500",
-  "31-60 hari": "bg-amber-50 text-amber-700",
-  "61-90 hari": "bg-orange-50 text-orange-700",
-  "90+ hari": "bg-red-50 text-red-700",
-};
 
 type PurchaseRow = {
   id: string;
@@ -62,7 +55,7 @@ export default async function LaporanHutangPage({
 
   const today = todayWibDateString();
 
-  const [{ data: suppliers }, purchases, pendingRequests] = await Promise.all([
+  const [{ data: suppliers }, purchases, pendingItems] = await Promise.all([
     supabase
       .from("suppliers")
       .select("id, name, phone")
@@ -81,17 +74,17 @@ export default async function LaporanHutangPage({
         .order("date", { ascending: true })
         .range(from, to),
     ),
-    fetchAllRows<{ id: string; purchase_id: string; amount: number }>((from, to) =>
+    fetchAllRows<{ request_id: string; purchase_id: string; amount: number }>((from, to) =>
       supabase
-        .from("purchase_payment_requests")
-        .select("id, purchase_id, amount")
+        .from("purchase_payment_request_items")
+        .select("request_id, purchase_id, amount, purchase_payment_requests!inner(status)")
         .eq("business_id", businessId)
-        .eq("status", "pending")
+        .eq("purchase_payment_requests.status", "pending")
         .range(from, to),
     ),
   ]);
 
-  const pendingByPurchase = new Map(pendingRequests.map((r) => [r.purchase_id, r]));
+  const pendingByPurchase = new Map(pendingItems.map((it) => [it.purchase_id, it]));
   const supplierMap = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
 
   const unpaid = purchases.filter((p) => Number(p.amount) - Number(p.paid_amount) > 0);
@@ -115,8 +108,23 @@ export default async function LaporanHutangPage({
     .map(([supplierId, rows]) => ({
       supplierId,
       supplierName: supplierId === "__tanpa_supplier__" ? "Tanpa Supplier" : supplierMap.get(supplierId) ?? "—",
-      rows: rows.sort((a, b) => a.date.localeCompare(b.date)),
       totalSisa: rows.reduce((s, r) => s + (Number(r.amount) - Number(r.paid_amount)), 0),
+      rows: rows
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((r) => {
+          const pendingReq = pendingByPurchase.get(r.id);
+          return {
+            id: r.id,
+            date: r.date,
+            dueDate: r.due_date,
+            label: r.note || r.category,
+            amount: Number(r.amount),
+            sisa: Number(r.amount) - Number(r.paid_amount),
+            bucket: agingBucketOf(r.date, today),
+            pendingRequestId: pendingReq?.request_id ?? null,
+            pendingAmount: pendingReq ? Number(pendingReq.amount) : null,
+          };
+        }),
     }))
     .sort((a, b) => b.totalSisa - a.totalSisa);
 
@@ -128,7 +136,10 @@ export default async function LaporanHutangPage({
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">Laporan Hutang — {business.name}</h1>
-          <p className="mt-0.5 text-xs text-zinc-500">Sisa hutang dagang per supplier, dirinci per tanggal pembelian.</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Sisa hutang dagang per supplier, dirinci per tanggal pembelian. Centang hutang yang mau diajukan —
+            bisa satu atau banyak sekaligus, boleh lintas supplier.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <PrintButton />
@@ -165,57 +176,8 @@ export default async function LaporanHutangPage({
       )}
 
       {supplierGroups.length > 0 ? (
-        <div className="mt-4 space-y-4">
-          {supplierGroups.map((g) => (
-            <div
-              key={g.supplierId}
-              className="overflow-hidden rounded-xl bg-white shadow-sm print:rounded-none print:border print:border-zinc-200 print:shadow-none"
-            >
-              <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-                <h2 className="text-sm font-bold text-zinc-900">{g.supplierName}</h2>
-                <p className="text-sm font-bold text-amber-700">{formatRupiah(g.totalSisa)}</p>
-              </div>
-              <div className="divide-y divide-zinc-100">
-                {g.rows.map((r) => {
-                  const sisa = Number(r.amount) - Number(r.paid_amount);
-                  const bucket = agingBucketOf(r.date, today);
-                  const pendingReq = pendingByPurchase.get(r.id);
-                  return (
-                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-zinc-800">{r.note || r.category}</p>
-                        <p className="text-[10.5px] text-zinc-400">
-                          {formatDate(r.date)}
-                          {r.due_date ? ` · Jatuh tempo ${formatDate(r.due_date)}` : ""} · Total{" "}
-                          {formatRupiah(Number(r.amount))}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${AGING_COLOR[bucket]}`}>
-                        {bucket}
-                      </span>
-                      <p className="shrink-0 text-sm font-bold text-amber-700">{formatRupiah(sisa)}</p>
-                      <div className="shrink-0 basis-full sm:basis-auto">
-                        {pendingReq ? (
-                          <Link
-                            href={`/business/${businessId}/purchases/pengajuan-pembayaran/${pendingReq.id}`}
-                            className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-                          >
-                            ⏳ Diajukan {formatRupiah(Number(pendingReq.amount))}
-                          </Link>
-                        ) : (
-                          <RequestPaymentForm
-                            businessId={businessId}
-                            sisaUtang={sisa}
-                            action={createPaymentRequest.bind(null, businessId, r.id)}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        <div className="mt-4">
+          <DebtSelectionList businessId={businessId} supplierGroups={supplierGroups} />
         </div>
       ) : (
         <p className="mt-6 rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-400">
@@ -224,9 +186,8 @@ export default async function LaporanHutangPage({
       )}
 
       <p className="mt-3 text-center text-[11px] text-zinc-400 print:hidden">
-        Klik &quot;Ajukan Pembayaran&quot; untuk mengirim rencana bayar ke Owner untuk disetujui — pembayaran
-        baru benar-benar tercatat (mengurangi sisa hutang &amp; posting jurnal) setelah disetujui, bukan saat
-        diajukan.
+        Pembayaran baru benar-benar tercatat (mengurangi sisa hutang &amp; posting jurnal) setelah pengajuan
+        disetujui Owner, bukan saat diajukan.
       </p>
     </div>
   );
