@@ -42,8 +42,6 @@ type DayData = {
   pendapatanLain: number;
   pengeluaranTunai: number;
   pengeluaranTransfer: number;
-  pembelianTunai: number;
-  pembelianTransfer: number;
   hutangBertambah: number;
   hutangDibayar: number;
   estimasiGaji: number;
@@ -61,8 +59,6 @@ function emptyDay(): DayData {
     pendapatanLain: 0,
     pengeluaranTunai: 0,
     pengeluaranTransfer: 0,
-    pembelianTunai: 0,
-    pembelianTransfer: 0,
     hutangBertambah: 0,
     hutangDibayar: 0,
     estimasiGaji: 0,
@@ -237,19 +233,9 @@ export default async function ReportsHarianPage({
   // dibeli). Atas permintaan user, sekarang laporan ini SENGAJA diganti jadi
   // kas aktual apa adanya (persis Kas & Bank/Arus Kas) -- SEMUA kas keluar
   // dihitung tanpa kecuali, termasuk Pembelian/Kasbon/Bayar Utang Dagang.
-  // Kolom "Pembelian Tunai/Transfer" & "Hutang Dibayar" di bawah sekarang
-  // cuma rincian SUBSET dari Total Pengeluaran ini (bukan tambahan terpisah
-  // lagi).
+  // Kolom "Hutang Dibayar" di bawah sekarang cuma rincian SUBSET dari Total
+  // Pengeluaran ini (bukan tambahan terpisah lagi).
   const kasKeluarLines = kasBank.displayLines.filter((l) => Number(l.credit) > 0);
-
-  // Pembelian tunai/transfer -- rincian SUBSET dari kasKeluarLines/Pengeluaran
-  // di atas (sudah ikut kehitung di sana), ditaruh kolom sendiri cuma biar
-  // owner bisa lihat berapa dari Total Pengeluaran yang buat beli
-  // bahan/barang (arahan user 2026-09-03). displayLines sudah otomatis
-  // mengecualikan pembelian yang voided (lewat isVoidRelated di kas-bank.ts).
-  const pembelianKasLines = kasBank.displayLines.filter(
-    (l) => Number(l.credit) > 0 && l.journal_entries.source === "pembelian",
-  );
 
   const dayMap = new Map<string, DayData>();
   function ensure(key: string): DayData {
@@ -283,14 +269,6 @@ export default async function ReportsHarianPage({
       e.pengeluaranTransfer += Number(l.credit);
     } else {
       e.pengeluaranTunai += Number(l.credit);
-    }
-  }
-  for (const l of pembelianKasLines) {
-    const e = ensure(toDateWib(l.journal_entries.date));
-    if (l.journal_entries.payment_method === "transfer") {
-      e.pembelianTransfer += Number(l.credit);
-    } else {
-      e.pembelianTunai += Number(l.credit);
     }
   }
   const employeeById = new Map((employees ?? []).map((emp) => [emp.id, emp]));
@@ -370,13 +348,11 @@ export default async function ReportsHarianPage({
     .map(([date, v]) => {
       const totalPendapatan = v.pendapatanPenjualan + v.pendapatanGofood + v.pendapatanGrabfood + v.pendapatanLain;
       const totalPengeluaran = v.pengeluaranTunai + v.pengeluaranTransfer;
-      const totalPembelianKas = v.pembelianTunai + v.pembelianTransfer;
       return {
         date,
         ...v,
         totalPendapatan,
         totalPengeluaran,
-        totalPembelianKas,
         persenBeban: totalPendapatan > 0 ? Math.round((totalPengeluaran / totalPendapatan) * 100) : 0,
         sisaHutang: sisaHutangAsOf(date),
         labaBersih: totalPendapatan - totalPengeluaran,
@@ -398,9 +374,6 @@ export default async function ReportsHarianPage({
       pengeluaranTunai: acc.pengeluaranTunai + d.pengeluaranTunai,
       pengeluaranTransfer: acc.pengeluaranTransfer + d.pengeluaranTransfer,
       totalPengeluaran: acc.totalPengeluaran + d.totalPengeluaran,
-      pembelianTunai: acc.pembelianTunai + d.pembelianTunai,
-      pembelianTransfer: acc.pembelianTransfer + d.pembelianTransfer,
-      totalPembelianKas: acc.totalPembelianKas + d.totalPembelianKas,
       hutangBertambah: acc.hutangBertambah + d.hutangBertambah,
       hutangDibayar: acc.hutangDibayar + d.hutangDibayar,
       labaBersih: acc.labaBersih + d.labaBersih,
@@ -410,7 +383,6 @@ export default async function ReportsHarianPage({
       count: 0, diskon: 0, service: 0, tax: 0,
       pendapatanPenjualan: 0, pendapatanGofood: 0, pendapatanGrabfood: 0, pendapatanLain: 0, totalPendapatan: 0,
       pengeluaranTunai: 0, pengeluaranTransfer: 0, totalPengeluaran: 0,
-      pembelianTunai: 0, pembelianTransfer: 0, totalPembelianKas: 0,
       hutangBertambah: 0, hutangDibayar: 0, labaBersih: 0, estimasiGaji: 0,
     },
   );
@@ -431,7 +403,6 @@ export default async function ReportsHarianPage({
   const hasGrabfood = dayList.some((d) => d.pendapatanGrabfood > 0);
   const hasPendapatanLain = dayList.some((d) => d.pendapatanLain > 0);
   const hasHutang = allPurchases.length > 0;
-  const hasPembelianKas = dayList.some((d) => d.totalPembelianKas > 0);
   const hasEstimasiGaji = dayList.some((d) => d.estimasiGaji > 0);
   const basePath = `/business/${businessId}/reports/harian`;
   const highlightLabel =
@@ -533,7 +504,6 @@ export default async function ReportsHarianPage({
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Tunai</th>
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Transfer</th>
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Total Pengeluaran</th>
-                    {hasPembelianKas && <th className="px-3 py-3 text-right print:px-1 print:py-1">Pembelian</th>}
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">% Beban</th>
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Nambah Hutang</th>}
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Hutang Dibayar</th>}
@@ -558,7 +528,6 @@ export default async function ReportsHarianPage({
                       <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.pengeluaranTunai > 0 ? fmt(d.pengeluaranTunai) : <span className="text-zinc-300">—</span>}</td>
                       <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.pengeluaranTransfer > 0 ? fmt(d.pengeluaranTransfer) : <span className="text-zinc-300">—</span>}</td>
                       <td className="px-3 py-2.5 text-right text-xs font-bold text-red-600 print:px-1 print:py-0.5">{fmt(d.totalPengeluaran)}</td>
-                      {hasPembelianKas && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.totalPembelianKas > 0 ? fmt(d.totalPembelianKas) : <span className="text-zinc-300">—</span>}</td>}
                       <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.persenBeban}%</td>
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-orange-600 print:px-1 print:py-0.5">{d.hutangBertambah > 0 ? fmt(d.hutangBertambah) : <span className="text-zinc-300">—</span>}</td>}
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.hutangDibayar > 0 ? fmt(d.hutangDibayar) : <span className="text-zinc-300">—</span>}</td>}
@@ -583,7 +552,6 @@ export default async function ReportsHarianPage({
                     <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{fmt(totals.pengeluaranTunai)}</td>
                     <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{fmt(totals.pengeluaranTransfer)}</td>
                     <td className="px-3 py-3 text-right text-sm font-bold text-red-600 print:px-1 print:py-1 print:text-[9px]">{fmt(totals.totalPengeluaran)}</td>
-                    {hasPembelianKas && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.totalPembelianKas)}</td>}
                     <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totalsPersenBeban}%</td>
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-orange-600 print:px-1 print:py-1">{fmt(totals.hutangBertambah)}</td>}
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.hutangDibayar)}</td>}
@@ -609,20 +577,14 @@ export default async function ReportsHarianPage({
             terjual, bukan yang dibeli. Pendapatan Gofood/Grabfood/Lain-lain diinput lewat &quot;Catat Kas
             Masuk&quot; di Kas &amp; Bank, pilih akun 4-003 — Pendapatan Gofood, 4-004 — Pendapatan Grabfood, atau
             4-999 — Pendapatan Lain-lain sesuai sumbernya.
-            {(hasPembelianKas || hasHutang) && (
+            {hasHutang && (
               <>
-                {" "}Kolom {hasPembelianKas && <>&quot;Pembelian&quot;</>}
-                {hasPembelianKas && hasHutang && " dan "}
-                {hasHutang && <>&quot;Hutang Dibayar&quot;</>} itu rincian yang SUDAH termasuk di dalam Total
-                Pengeluaran di atas (bukan tambahan lagi) — cuma dipisah biar kelihatan berapa porsinya.
-                {hasHutang && (
-                  <>
-                    {" "}Kolom &quot;Nambah Hutang&quot; beda sendiri — itu porsi pembelian hari itu yang BELUM
-                    dibayar (dicatat sebagai hutang baru), bukan bagian dari Total Pengeluaran (karena uangnya
-                    belum keluar). Dipasangkan dengan &quot;Hutang Dibayar&quot; biar kelihatan kenapa &quot;Sisa
-                    Hutang&quot; naik/turun hari itu.
-                  </>
-                )}
+                {" "}Kolom &quot;Hutang Dibayar&quot; itu rincian yang SUDAH termasuk di dalam Total Pengeluaran
+                di atas (bukan tambahan lagi) — cuma dipisah biar kelihatan berapa porsinya. Kolom &quot;Nambah
+                Hutang&quot; beda sendiri — itu porsi pembelian hari itu yang BELUM dibayar (dicatat sebagai
+                hutang baru), bukan bagian dari Total Pengeluaran (karena uangnya belum keluar). Dipasangkan
+                dengan &quot;Hutang Dibayar&quot; biar kelihatan kenapa &quot;Sisa Hutang&quot; naik/turun hari
+                itu.
               </>
             )}
             {hasEstimasiGaji && (
