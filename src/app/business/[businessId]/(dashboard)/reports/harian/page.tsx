@@ -44,6 +44,7 @@ type DayData = {
   pengeluaranTransfer: number;
   pembelianTunai: number;
   pembelianTransfer: number;
+  hutangBertambah: number;
   hutangDibayar: number;
   estimasiGaji: number;
 };
@@ -62,6 +63,7 @@ function emptyDay(): DayData {
     pengeluaranTransfer: 0,
     pembelianTunai: 0,
     pembelianTransfer: 0,
+    hutangBertambah: 0,
     hutangDibayar: 0,
     estimasiGaji: 0,
   };
@@ -329,6 +331,20 @@ export default async function ReportsHarianPage({
     lifetimePaymentsByPurchase.set(p.purchase_id, (lifetimePaymentsByPurchase.get(p.purchase_id) ?? 0) + Number(p.amount));
   }
 
+  // Nambah Hutang -- porsi pembelian yang BELUM dibayar saat itu juga
+  // (amount - yang langsung dilunasi saat transaksi dicatat), dibucket ke
+  // tanggal pembelian (bukan tanggal bayar, itu sudah masuk hutangDibayar
+  // di atas). Ini pasangan "Hutang Dibayar" -- bareng-bareng menjelaskan
+  // kenapa "Sisa Hutang" naik/turun hari itu.
+  for (const p of allPurchases) {
+    if (hutangDibayarLowerBound && p.date < hutangDibayarLowerBound) continue;
+    if (purchasesUpperBound && p.date > purchasesUpperBound) continue;
+    const viaLaterPayments = lifetimePaymentsByPurchase.get(p.id) ?? 0;
+    const initialPaid = Math.max(0, Number(p.paid_amount) - viaLaterPayments);
+    const addedToHutang = Number(p.amount) - initialPaid;
+    if (addedToHutang > 0) ensure(p.date).hutangBertambah += addedToHutang;
+  }
+
   function sisaHutangAsOf(dateKey: string) {
     const relevantPurchases = allPurchases.filter((p) => p.date <= dateKey);
     const totalPurchases = relevantPurchases.reduce((s, p) => s + Number(p.amount), 0);
@@ -385,6 +401,7 @@ export default async function ReportsHarianPage({
       pembelianTunai: acc.pembelianTunai + d.pembelianTunai,
       pembelianTransfer: acc.pembelianTransfer + d.pembelianTransfer,
       totalPembelianKas: acc.totalPembelianKas + d.totalPembelianKas,
+      hutangBertambah: acc.hutangBertambah + d.hutangBertambah,
       hutangDibayar: acc.hutangDibayar + d.hutangDibayar,
       labaBersih: acc.labaBersih + d.labaBersih,
       estimasiGaji: acc.estimasiGaji + d.estimasiGaji,
@@ -394,7 +411,7 @@ export default async function ReportsHarianPage({
       pendapatanPenjualan: 0, pendapatanGofood: 0, pendapatanGrabfood: 0, pendapatanLain: 0, totalPendapatan: 0,
       pengeluaranTunai: 0, pengeluaranTransfer: 0, totalPengeluaran: 0,
       pembelianTunai: 0, pembelianTransfer: 0, totalPembelianKas: 0,
-      hutangDibayar: 0, labaBersih: 0, estimasiGaji: 0,
+      hutangBertambah: 0, hutangDibayar: 0, labaBersih: 0, estimasiGaji: 0,
     },
   );
   const totalsPersenBeban = totals.totalPendapatan > 0 ? Math.round((totals.totalPengeluaran / totals.totalPendapatan) * 100) : 0;
@@ -516,9 +533,9 @@ export default async function ReportsHarianPage({
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Tunai</th>
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Transfer</th>
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Total Pengeluaran</th>
-                    {hasPembelianKas && <th className="px-3 py-3 text-right print:px-1 print:py-1">Pembelian Tunai</th>}
-                    {hasPembelianKas && <th className="px-3 py-3 text-right print:px-1 print:py-1">Pembelian Transfer</th>}
+                    {hasPembelianKas && <th className="px-3 py-3 text-right print:px-1 print:py-1">Pembelian</th>}
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">% Beban</th>
+                    {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Nambah Hutang</th>}
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Hutang Dibayar</th>}
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Sisa Hutang</th>}
                     {hasEstimasiGaji && <th className="px-3 py-3 text-right print:px-1 print:py-1">Estimasi Gaji</th>}
@@ -541,9 +558,9 @@ export default async function ReportsHarianPage({
                       <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.pengeluaranTunai > 0 ? fmt(d.pengeluaranTunai) : <span className="text-zinc-300">—</span>}</td>
                       <td className="px-3 py-2.5 text-right text-xs text-red-500 print:px-1 print:py-0.5">{d.pengeluaranTransfer > 0 ? fmt(d.pengeluaranTransfer) : <span className="text-zinc-300">—</span>}</td>
                       <td className="px-3 py-2.5 text-right text-xs font-bold text-red-600 print:px-1 print:py-0.5">{fmt(d.totalPengeluaran)}</td>
-                      {hasPembelianKas && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.pembelianTunai > 0 ? fmt(d.pembelianTunai) : <span className="text-zinc-300">—</span>}</td>}
-                      {hasPembelianKas && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.pembelianTransfer > 0 ? fmt(d.pembelianTransfer) : <span className="text-zinc-300">—</span>}</td>}
+                      {hasPembelianKas && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.totalPembelianKas > 0 ? fmt(d.totalPembelianKas) : <span className="text-zinc-300">—</span>}</td>}
                       <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.persenBeban}%</td>
+                      {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-orange-600 print:px-1 print:py-0.5">{d.hutangBertambah > 0 ? fmt(d.hutangBertambah) : <span className="text-zinc-300">—</span>}</td>}
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.hutangDibayar > 0 ? fmt(d.hutangDibayar) : <span className="text-zinc-300">—</span>}</td>}
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{fmt(d.sisaHutang)}</td>}
                       {hasEstimasiGaji && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.estimasiGaji > 0 ? fmt(d.estimasiGaji) : <span className="text-zinc-300">—</span>}</td>}
@@ -566,9 +583,9 @@ export default async function ReportsHarianPage({
                     <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{fmt(totals.pengeluaranTunai)}</td>
                     <td className="px-3 py-3 text-right text-xs font-bold text-red-500 print:px-1 print:py-1">{fmt(totals.pengeluaranTransfer)}</td>
                     <td className="px-3 py-3 text-right text-sm font-bold text-red-600 print:px-1 print:py-1 print:text-[9px]">{fmt(totals.totalPengeluaran)}</td>
-                    {hasPembelianKas && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.pembelianTunai)}</td>}
-                    {hasPembelianKas && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.pembelianTransfer)}</td>}
+                    {hasPembelianKas && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.totalPembelianKas)}</td>}
                     <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totalsPersenBeban}%</td>
+                    {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-orange-600 print:px-1 print:py-1">{fmt(totals.hutangBertambah)}</td>}
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.hutangDibayar)}</td>}
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(sisaHutangTerakhir)}</td>}
                     {hasEstimasiGaji && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(totals.estimasiGaji)}</td>}
@@ -594,10 +611,18 @@ export default async function ReportsHarianPage({
             4-999 — Pendapatan Lain-lain sesuai sumbernya.
             {(hasPembelianKas || hasHutang) && (
               <>
-                {" "}Kolom {hasPembelianKas && <>&quot;Pembelian Tunai/Transfer&quot;</>}
+                {" "}Kolom {hasPembelianKas && <>&quot;Pembelian&quot;</>}
                 {hasPembelianKas && hasHutang && " dan "}
                 {hasHutang && <>&quot;Hutang Dibayar&quot;</>} itu rincian yang SUDAH termasuk di dalam Total
                 Pengeluaran di atas (bukan tambahan lagi) — cuma dipisah biar kelihatan berapa porsinya.
+                {hasHutang && (
+                  <>
+                    {" "}Kolom &quot;Nambah Hutang&quot; beda sendiri — itu porsi pembelian hari itu yang BELUM
+                    dibayar (dicatat sebagai hutang baru), bukan bagian dari Total Pengeluaran (karena uangnya
+                    belum keluar). Dipasangkan dengan &quot;Hutang Dibayar&quot; biar kelihatan kenapa &quot;Sisa
+                    Hutang&quot; naik/turun hari itu.
+                  </>
+                )}
               </>
             )}
             {hasEstimasiGaji && (
