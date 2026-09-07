@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { todayWibDateString } from "@/lib/wib";
-import { addPurchase, addPurchasePayment, updatePurchaseCategory, voidPurchase } from "./actions";
+import { addPurchase, addPurchasePayment, updatePurchaseCategory, updatePurchaseSupplier, voidPurchase } from "./actions";
 import AddPaymentForm from "./add-payment-form";
 import PurchaseFormWithRecommendations from "./purchase-form-with-recommendations";
 import type { PurchasePrefill } from "./add-purchase-form";
 import VoidPurchaseButton from "./void-purchase-button";
 import EditCategoryButton from "./edit-category-button";
+import EditSupplierButton from "./edit-supplier-button";
 import ReceiveDeliveryNoteForm from "./receive-delivery-note-form";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
@@ -423,6 +424,11 @@ export default async function PurchasesPage({
                           action={updatePurchaseCategory.bind(null, businessId, r.id)}
                         />
                       )}
+                      <EditSupplierButton
+                        currentSupplierId={r.supplier_id}
+                        suppliers={suppliers ?? []}
+                        action={updatePurchaseSupplier.bind(null, businessId, r.id)}
+                      />
                     </div>
                   )}
                 </div>

@@ -1028,3 +1028,58 @@ export async function addPurchasePayment(
       : null,
   };
 }
+
+export type UpdateSupplierState = { error: string | null };
+
+// Perbaikan data lama -- banyak pembelian dicatat dengan nama supplier
+// diketik manual di kolom Catatan (mis. "Supplier: PT Glory Karunia
+// Perkasa") tanpa benar-benar memilih dari dropdown Supplier, jadi
+// supplier_id-nya kosong dan tidak kegrup dengan benar di Laporan Hutang
+// (arahan user 2026-09-07). Tidak menyentuh jurnal -- supplier_id murni
+// metadata, tidak dipakai di posting akuntansi manapun.
+export async function updatePurchaseSupplier(
+  businessId: string,
+  purchaseId: string,
+  supplierId: string | null,
+): Promise<UpdateSupplierState> {
+  const supabase = await createClient();
+
+  const { data: purchase } = await supabase
+    .from("purchases")
+    .select("id, voided, supplier_id")
+    .eq("id", purchaseId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!purchase) return { error: "Data pembelian tidak ditemukan." };
+  if (purchase.voided) return { error: "Pembelian ini sudah dibatalkan." };
+
+  if (supplierId) {
+    const { data: supplier } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("id", supplierId)
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!supplier) return { error: "Supplier tidak ditemukan." };
+  }
+
+  if (purchase.supplier_id === supplierId) {
+    return { error: null };
+  }
+
+  const { error } = await supabase
+    .from("purchases")
+    .update({ supplier_id: supplierId })
+    .eq("id", purchaseId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  await logActivity(supabase, businessId, "produk", "info", "Supplier pembelian diubah");
+  revalidatePath(`/business/${businessId}/purchases`);
+  revalidatePath(`/business/${businessId}/purchases/laporan-hutang`);
+  revalidatePath(`/business/${businessId}/suppliers`);
+  return { error: null };
+}
