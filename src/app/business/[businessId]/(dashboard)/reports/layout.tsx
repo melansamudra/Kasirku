@@ -16,9 +16,23 @@ export default async function ReportsLayout({
   ]);
   const isOwner = business?.owner_id === userData.user?.id;
 
+  // Staf dengan permission "reports" dapat akses PENUH ke laporan (semua
+  // sub-halaman & periode), sama seperti owner -- bukan cuma staf tanpa
+  // permission apapun yang dulu diam-diam dianggap "bukan owner = dibatasi".
+  let canAccessReports = isOwner;
+  if (!isOwner && userData.user) {
+    const { data: staff } = await supabase
+      .from("business_staff")
+      .select("permissions, active")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    canAccessReports = Boolean(staff?.active && (staff.permissions as string[]).includes("reports"));
+  }
+
   return (
     <div>
-      {isOwner && <ReportsSubnav businessId={businessId} />}
+      {canAccessReports && <ReportsSubnav businessId={businessId} />}
       {children}
     </div>
   );

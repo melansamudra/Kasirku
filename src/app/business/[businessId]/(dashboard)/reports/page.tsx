@@ -100,8 +100,22 @@ export default async function ReportsPage({
   if (!business) notFound();
 
   const isOwner = business.owner_id === userData.user?.id;
-  // Staf hanya bisa melihat laporan hari ini — paksa periode terlepas dari URL/cookie
-  const period = isOwner
+  // Staf dengan permission "reports" dapat akses PENUH ke semua periode,
+  // sama seperti owner. Staf TANPA permission itu (mis. cuma pegang
+  // "attendance") tetap dipaksa "Hari Ini" -- tidak seharusnya sampai bisa
+  // buka halaman ini sama sekali (ditutup di reports/layout.tsx), tapi ini
+  // jaga-jaga kalau diakses langsung lewat URL.
+  let canAccessReports = isOwner;
+  if (!isOwner && userData.user) {
+    const { data: staff } = await supabase
+      .from("business_staff")
+      .select("permissions, active")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    canAccessReports = Boolean(staff?.active && (staff.permissions as string[]).includes("reports"));
+  }
+  const period = canAccessReports
     ? parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value)
     : "today";
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
@@ -207,8 +221,8 @@ export default async function ReportsPage({
           <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Laporan Penjualan</p>
           <h1 className="text-xl font-bold text-zinc-900">{business.name}</h1>
         </div>
-        {isOwner && <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />}
-        {!isOwner && (
+        {canAccessReports && <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />}
+        {!canAccessReports && (
           <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
             Hari Ini
           </span>
@@ -414,7 +428,7 @@ export default async function ReportsPage({
           )}
 
           {/* Export */}
-          {isOwner && (
+          {canAccessReports && (
           <div className="overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-5 py-3.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Ekspor & Cetak</p>
