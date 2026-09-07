@@ -21,6 +21,18 @@ function formatQty(value: number) {
   return Number(value).toLocaleString("id-ID");
 }
 
+function daysAgoBadge(dateStr: string) {
+  const entry = new Date(`${dateStr}T00:00:00Z`);
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const days = Math.round((todayUtc.getTime() - entry.getTime()) / 86400000);
+
+  if (days <= 0) return { label: "Hari ini", tone: "neutral" as const };
+  if (days === 1) return { label: "Kemarin", tone: "neutral" as const };
+  if (days <= 2) return { label: `${days} hari lalu`, tone: "neutral" as const };
+  return { label: `Terlambat ${days} hari belum diverifikasi`, tone: "danger" as const };
+}
+
 export default async function LocationStockOpnamePage({
   params,
 }: {
@@ -142,11 +154,22 @@ export default async function LocationStockOpnamePage({
         <div className="mt-6">
           <h2 className="mb-2 text-sm font-bold text-amber-700">⏳ Menunggu Verifikasi</h2>
           <div className="space-y-4">
-            {[...pendingByDate.entries()].map(([date, rows]) => (
+            {[...pendingByDate.entries()].map(([date, rows]) => {
+              const badge = daysAgoBadge(date);
+              return (
               <div key={date} className="overflow-hidden rounded-xl border border-amber-200 bg-amber-50/40">
                 <div className="flex items-center justify-between border-b border-amber-200 px-4 py-3">
                   <div>
-                    <h3 className="text-sm font-bold text-zinc-900">{formatDate(date)}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-zinc-900">{formatDate(date)}</h3>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          badge.tone === "danger" ? "bg-red-100 text-red-700" : "bg-zinc-100 text-zinc-500"
+                        }`}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
                     <p className="text-[11px] text-zinc-500">{rows!.length} bahan dilaporkan</p>
                   </div>
                   <VerifyAllButton businessId={businessId} locationId={locationId} entryDate={date} count={rows!.length} />
@@ -174,7 +197,8 @@ export default async function LocationStockOpnamePage({
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

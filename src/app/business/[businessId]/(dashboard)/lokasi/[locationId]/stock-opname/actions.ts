@@ -26,10 +26,13 @@ export async function regenerateStockOpnameSlug(
 export type OpnameActionState = { error: string | null };
 
 // Titik SATU-SATUNYA di mana laporan stok opname staf benar-benar
-// mengubah stok sistem. Selisihnya dihitung ulang dari stok TERKINI (live)
-// di titik ini, bukan dari system_stock_at_report yang cuma snapshot
-// informasi saat staf submit -- bisa beda kalau ada pergerakan stok lain
-// di antara submit & verifikasi (mis. ada pembelian masuk duluan).
+// mengubah stok sistem. Koreksinya = reported_stock - system_stock_at_report
+// (selisih hasil hitung fisik terhadap stok sistem SAAT opname dilakukan),
+// lalu ditambahkan ke stok TERKINI (live) -- bukan menimpa stok terkini
+// dengan reported_stock secara mentah. Kalau verifikasi telat (mis. opname
+// tanggal 1 tapi baru diverifikasi tanggal 7) dan ada pergerakan stok lain
+// di antaranya (pembelian masuk, pemakaian, opname lain), pergerakan itu
+// tetap terjaga -- yang diterapkan cuma selisih temuan opname itu sendiri.
 async function applyOpnameEntry(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
@@ -42,6 +45,7 @@ async function applyOpnameEntry(
     item_name: string;
     unit: string;
     reported_stock: number;
+    system_stock_at_report: number;
     submitted_by_name: string;
   },
 ): Promise<string | null> {
@@ -66,15 +70,16 @@ async function applyOpnameEntry(
     currentStock = Number(row?.stock ?? 0);
   }
 
-  const diff = Number(entry.reported_stock) - currentStock;
-  if (diff !== 0) {
+  const correction = Number(entry.reported_stock) - Number(entry.system_stock_at_report);
+  if (correction !== 0) {
+    const newStock = currentStock + correction;
     if (entry.component_type === "ingredient") {
       const { error } = await supabase.from("ingredient_location_stock").upsert(
         {
           business_id: businessId,
           location_id: entry.location_id,
           ingredient_id: entry.ingredient_id as string,
-          stock: entry.reported_stock,
+          stock: newStock,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "location_id,ingredient_id" },
@@ -86,7 +91,7 @@ async function applyOpnameEntry(
           business_id: businessId,
           location_id: entry.location_id,
           semi_finished_item_id: entry.semi_finished_item_id as string,
-          stock: entry.reported_stock,
+          stock: newStock,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "location_id,semi_finished_item_id" },
@@ -102,8 +107,8 @@ async function applyOpnameEntry(
       item_name: entry.item_name,
       unit: entry.unit,
       stock_before: currentStock,
-      stock_after: entry.reported_stock,
-      diff,
+      stock_after: newStock,
+      diff: correction,
       reason: "Stok opname",
       submitted_by_name: entry.submitted_by_name,
     });
