@@ -4,6 +4,25 @@ import { getSubscriptionAccess } from "@/lib/billing/status";
 import { isFinancePlan, isStarterPlan } from "@/lib/billing/plans";
 import DashboardShell from "./dashboard-shell";
 
+// Judul tab browser pakai nama bisnis, bukan judul default aplikasi -- biar
+// terasa "punya sendiri" begitu staf/owner buka backoffice, terlepas dari
+// domain yang dipakai mengaksesnya (lihat rencana domain custom per toko).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ businessId: string }>;
+}) {
+  const { businessId } = await params;
+  const supabase = await createClient();
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name")
+    .eq("id", businessId)
+    .single();
+
+  return { title: business?.name ?? "KasirKu" };
+}
+
 export default async function BusinessDashboardLayout({
   children,
   params,
@@ -18,7 +37,7 @@ export default async function BusinessDashboardLayout({
     supabase
       .from("businesses")
       .select(
-        "id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys, stock_locations_enabled, rich_stock_ops_enabled",
+        "id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys, stock_locations_enabled, rich_stock_ops_enabled, storefront_enabled",
       )
       .eq("id", businessId)
       .single(),
@@ -87,6 +106,7 @@ export default async function BusinessDashboardLayout({
       costControlEnabled={business.cost_control_enabled ?? false}
       stockLocationsEnabled={business.stock_locations_enabled ?? false}
       sellProductsEnabled={business.sell_products_enabled ?? false}
+      storefrontEnabled={business.storefront_enabled ?? false}
       hiddenNavKeys={business.hidden_nav_keys ?? []}
       stockLocations={stockLocations ?? []}
     >

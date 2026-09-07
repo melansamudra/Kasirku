@@ -388,6 +388,7 @@ function buildNavGroups(
   stockLocations: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[] = [],
   sellProductsEnabled = false,
   stockLocationsEnabled = false,
+  storefrontEnabled = false,
 ): NavGroup[] {
   const isFnb = businessType === "fnb";
   const base = `/business/${businessId}`;
@@ -411,6 +412,9 @@ function buildNavGroups(
         { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
         { key: "shifts", href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
         { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas & Bank", icon: Wallet },
+        ...(storefrontEnabled
+          ? [{ key: "reservasi", href: `${base}/reservasi`, label: "Reservasi", icon: CalendarCheck, ownerOnly: true }]
+          : []),
       ],
     },
     {
@@ -922,6 +926,7 @@ export default function DashboardShell({
   stockLocations = [],
   sellProductsEnabled = false,
   stockLocationsEnabled = false,
+  storefrontEnabled = false,
   hiddenNavKeys = [],
   children,
 }: {
@@ -940,6 +945,7 @@ export default function DashboardShell({
   stockLocations?: { id: string; name: string; isProduction: boolean; isDefaultPurchase: boolean }[];
   sellProductsEnabled?: boolean;
   stockLocationsEnabled?: boolean;
+  storefrontEnabled?: boolean;
   hiddenNavKeys?: string[];
   children: React.ReactNode;
 }) {
@@ -993,6 +999,7 @@ export default function DashboardShell({
       stockLocations,
       sellProductsEnabled,
       stockLocationsEnabled,
+      storefrontEnabled,
     ),
     hiddenNavKeys,
   );

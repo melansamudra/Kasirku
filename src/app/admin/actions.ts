@@ -48,6 +48,96 @@ export async function toggleCostControl(businessId: string, enabled: boolean) {
   revalidatePath("/admin");
 }
 
+function slugify(name: string): string {
+  const base = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || "toko";
+}
+
+// Landing publik (menu + reservasi) untuk toko dengan domain custom (mis.
+// Mie Kota) -- lihat rencana "Domain Custom + Halaman Publik per Toko".
+// Slug dibuat sekali saat pertama diaktifkan, tetap dipakai walau toggle
+// dimatikan lalu dinyalakan lagi (supaya link yang sudah dibagikan tidak putus).
+export async function toggleStorefront(businessId: string, enabled: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  const { data: adminRow } = await service
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!adminRow) return;
+
+  if (enabled) {
+    const { data: biz } = await service
+      .from("businesses")
+      .select("name, storefront_slug")
+      .eq("id", businessId)
+      .single();
+
+    let slug = biz?.storefront_slug;
+    if (!slug) {
+      const base = slugify(biz?.name ?? "toko");
+      const { data: clash } = await service
+        .from("businesses")
+        .select("id")
+        .eq("storefront_slug", base)
+        .maybeSingle();
+      slug = clash ? `${base}-${businessId.slice(0, 6)}` : base;
+    }
+    await service
+      .from("businesses")
+      .update({ storefront_enabled: true, storefront_slug: slug })
+      .eq("id", businessId);
+  } else {
+    await service
+      .from("businesses")
+      .update({ storefront_enabled: false })
+      .eq("id", businessId);
+  }
+  revalidatePath("/admin");
+}
+
+export async function saveCustomDomain(businessId: string, domain: string | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  const { data: adminRow } = await service
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!adminRow) return;
+
+  // Terima "https://miekota.com/" atau sejenisnya -- simpan hostname-nya saja
+  // karena itu yang dicocokkan langsung ke header Host request di proxy.
+  let normalized: string | null = null;
+  if (domain && domain.trim()) {
+    try {
+      normalized = new URL(
+        domain.includes("://") ? domain : `https://${domain}`,
+      ).hostname.toLowerCase();
+    } catch {
+      normalized = domain.trim().toLowerCase();
+    }
+  }
+
+  await service
+    .from("businesses")
+    .update({ custom_domain: normalized })
+    .eq("id", businessId);
+  revalidatePath("/admin");
+}
+
 export type ActivateSubscriptionState = { error: string | null; resetToken: number };
 
 export async function activateSubscriptionManually(

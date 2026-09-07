@@ -5,6 +5,8 @@ import { activateSubscriptionManually } from "./actions";
 import ActivateSubscriptionForm from "./activate-subscription-form";
 import ToggleMirroringButton from "./toggle-mirroring-button";
 import ToggleCostControlButton from "./toggle-cost-control-button";
+import ToggleStorefrontButton from "./toggle-storefront-button";
+import EditCustomDomainForm from "./edit-custom-domain-form";
 
 type Stats = {
   total_businesses: number;
@@ -29,6 +31,9 @@ type BusinessRow = {
   period_end: string | null;
   mirroring_enabled: boolean;
   cost_control_enabled: boolean;
+  storefront_enabled: boolean;
+  custom_domain: string | null;
+  storefront_slug: string | null;
 };
 
 const BUSINESS_TYPE_ACCENT: Record<string, { label: string; chip: string }> = {
@@ -156,6 +161,8 @@ export default async function AdminPage() {
                   <th className="px-5 py-3">Transaksi</th>
                   <th className="px-5 py-3">Mirroring</th>
                   <th className="px-5 py-3">Produksi &amp; Distribusi</th>
+                  <th className="px-5 py-3">Toko Online</th>
+                  <th className="px-5 py-3">Domain Custom</th>
                   <th className="px-5 py-3">Aksi</th>
                 </tr>
               </thead>
@@ -211,6 +218,24 @@ export default async function AdminPage() {
                         <ToggleCostControlButton businessId={b.id} enabled={b.cost_control_enabled} />
                       </td>
                       <td className="px-5 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <ToggleStorefrontButton businessId={b.id} enabled={b.storefront_enabled} />
+                          {b.storefront_enabled && b.storefront_slug && (
+                            <a
+                              href={`/toko/${b.storefront_slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-brand-600 hover:underline"
+                            >
+                              /toko/{b.storefront_slug}
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <EditCustomDomainForm businessId={b.id} currentDomain={b.custom_domain} />
+                      </td>
+                      <td className="px-5 py-3">
                         <ActivateSubscriptionForm action={activateSubscriptionManually.bind(null, b.id)} subscriptionStatus={b.subscription_status} />
                       </td>
                     </tr>
@@ -218,7 +243,7 @@ export default async function AdminPage() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-5 py-8 text-center text-sm text-zinc-400">
+                    <td colSpan={10} className="px-5 py-8 text-center text-sm text-zinc-400">
                       Belum ada toko terdaftar.
                     </td>
                   </tr>

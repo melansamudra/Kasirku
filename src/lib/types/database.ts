@@ -335,6 +335,10 @@ export type Database = {
           po_approval_levels: number;
           stock_deduction_enabled: boolean;
           rich_stock_ops_enabled: boolean;
+          custom_domain: string | null;
+          storefront_enabled: boolean;
+          storefront_slug: string | null;
+          storefront_tagline: string | null;
         };
         Insert: {
           id?: string;
@@ -381,6 +385,10 @@ export type Database = {
           po_approval_levels?: number;
           stock_deduction_enabled?: boolean;
           rich_stock_ops_enabled?: boolean;
+          custom_domain?: string | null;
+          storefront_enabled?: boolean;
+          storefront_slug?: string | null;
+          storefront_tagline?: string | null;
         };
         Update: {
           id?: string;
@@ -427,6 +435,49 @@ export type Database = {
           po_approval_levels?: number;
           stock_deduction_enabled?: boolean;
           rich_stock_ops_enabled?: boolean;
+          custom_domain?: string | null;
+          storefront_enabled?: boolean;
+          storefront_slug?: string | null;
+          storefront_tagline?: string | null;
+        };
+        Relationships: [];
+      };
+      reservations: {
+        Row: {
+          id: string;
+          business_id: string;
+          customer_name: string;
+          phone: string;
+          party_size: number;
+          reservation_date: string;
+          reservation_time: string;
+          note: string | null;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          customer_name: string;
+          phone: string;
+          party_size: number;
+          reservation_date: string;
+          reservation_time: string;
+          note?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          customer_name?: string;
+          phone?: string;
+          party_size?: number;
+          reservation_date?: string;
+          reservation_time?: string;
+          note?: string | null;
+          status?: string;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -5039,7 +5090,33 @@ export type Database = {
           period_end: string | null;
           mirroring_enabled: boolean;
           cost_control_enabled: boolean;
+          storefront_enabled: boolean;
+          custom_domain: string | null;
+          storefront_slug: string | null;
         }[];
+      };
+      get_business_by_custom_domain: {
+        Args: { p_domain: string };
+        Returns: {
+          business_id: string;
+          storefront_slug: string;
+        }[];
+      };
+      get_storefront_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      create_public_reservation: {
+        Args: {
+          p_storefront_slug: string;
+          p_customer_name: string;
+          p_phone: string;
+          p_party_size: number;
+          p_reservation_date: string;
+          p_reservation_time: string;
+          p_note?: string | null;
+        };
+        Returns: string;
       };
       get_hpp_order_status: {
         Args: { p_order_id: string };

@@ -456,6 +456,26 @@ export async function updateBusinessProfile(
   return { error: null, saved: true };
 }
 
+export type StorefrontTaglineState = { error: string | null; saved?: boolean };
+
+export async function updateStorefrontTagline(
+  businessId: string,
+  _prevState: StorefrontTaglineState,
+  formData: FormData,
+): Promise<StorefrontTaglineState> {
+  const tagline = (formData.get("tagline") as string)?.trim() || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ storefront_tagline: tagline })
+    .eq("id", businessId);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/business/${businessId}/settings`);
+  return { error: null, saved: true };
+}
+
 export type DiscountRuleState = { error: string | null };
 
 export async function addProductDiscountRule(

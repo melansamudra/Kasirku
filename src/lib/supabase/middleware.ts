@@ -1,6 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/types/database";
+import { SITE_URL } from "@/lib/site";
+
+// Hostname platform sendiri (mis. "kasirku.id" / preview Vercel) -- dihitung
+// sekali di module scope. Dipakai untuk skip lookup domain custom ke DB pada
+// trafik normal; cuma hostname LAIN (domain custom milik toko, mis.
+// miekota.com) yang kena 1 RPC tambahan saat membuka "/".
+const PLATFORM_HOSTNAME = (() => {
+  try {
+    return new URL(SITE_URL).hostname;
+  } catch {
+    return "";
+  }
+})();
 
 export async function updateSession(request: NextRequest) {
   const hostname = request.headers.get("host") ?? "";
@@ -56,6 +69,33 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Domain custom per toko (mis. miekota.com): "/" biasanya render portal
+  // marketing CreateImpact yang sama untuk semua hostname -- kalau hostname
+  // request ini cocok dengan businesses.custom_domain, tampilkan landing
+  // publik toko itu (menu + reservasi) alih-alih portal itu. Rewrite (bukan
+  // redirect) supaya URL bar tetap domain milik toko. Query DB cuma jalan
+  // untuk hostname yang BUKAN domain platform sendiri, jadi trafik normal
+  // (kasirku.id, preview *.vercel.app, localhost) tidak kena beban tambahan.
+  if (request.nextUrl.pathname === "/") {
+    const hostname = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
+    const isPlatformHost =
+      !hostname ||
+      hostname === PLATFORM_HOSTNAME ||
+      hostname === "localhost" ||
+      hostname.endsWith(".vercel.app");
+    if (!isPlatformHost) {
+      const { data } = await supabase.rpc("get_business_by_custom_domain", {
+        p_domain: hostname,
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row?.storefront_slug) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/toko/${row.storefront_slug}`;
+        return NextResponse.rewrite(url);
+      }
+    }
+  }
+
   const authPages = ["/login", "/signup", "/forgot-password"];
   const isAuthPage = authPages.some((path) =>
     request.nextUrl.pathname.startsWith(path),
@@ -71,6 +111,10 @@ export async function updateSession(request: NextRequest) {
   // (/permintaan-gudang sempat ada di sini juga, tapi fitur "Gudang" lama
   // sudah dipensiunkan total — digantikan stok per lokasi + Permintaan
   // Barang yang sekarang sadar-lokasi.)
+  // /toko/* adalah landing publik toko (menu + reservasi) untuk domain
+  // custom per bisnis — sama alasannya dengan /order, harus bisa diakses
+  // pengunjung tanpa login. Rewrite dari "/" di atas mengubah pathname ini
+  // sebelum sampai ke pengecekan isPublicPath, jadi wajib masuk daftar juga.
   // /order/* adalah halaman self-order pelanggan (scan QR) — tanpa login.
   // /auth/callback menukar kode dari link email jadi sesi, sebelum user ada.
   // /reset-password sama kasusnya: link reset dari email membawa token di URL
@@ -110,6 +154,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicPath =
     isAuthPage ||
     request.nextUrl.pathname === "/" ||
+    request.nextUrl.pathname.startsWith("/toko") ||
     request.nextUrl.pathname.startsWith("/order") ||
     request.nextUrl.pathname.startsWith("/absen") ||
     request.nextUrl.pathname.startsWith("/permintaan-barang") ||

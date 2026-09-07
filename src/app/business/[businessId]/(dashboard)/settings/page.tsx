@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateKitchenPrinter, updateTaxService } from "./actions";
+import { addKitchenPrinter, addPaymentMethod, saveSelfOrderBanner, updateBusinessProfile, updateBusinessType, updateKitchenPrinter, updateStorefrontTagline, updateTaxService } from "./actions";
 import SelfOrderBannerForm from "./self-order-banner-form";
 import AddPaymentMethodForm from "./add-payment-method-form";
 import AddPrinterForm from "./add-printer-form";
@@ -11,7 +11,9 @@ import DiscountRulesSection from "./discount-rules-section";
 import MirrorStoreSection from "./mirror-store-section";
 import PrinterCard from "./printer-card";
 import ReceiptSettingsSection from "./receipt-settings-section";
+import StorefrontTaglineForm from "./storefront-tagline-form";
 import TaxServiceForm from "./tax-service-form";
+import { SITE_URL } from "@/lib/site";
 export default async function SettingsPage({
   params,
 }: {
@@ -22,7 +24,7 @@ export default async function SettingsPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner, mirroring_enabled")
+    .select("id, name, business_type, owner_id, address, phone, receipt_settings, tax_enabled, tax_rate, service_enabled, service_rate, self_order_banner, mirroring_enabled, storefront_enabled, storefront_slug, storefront_tagline")
     .eq("id", businessId)
     .single();
 
@@ -274,6 +276,23 @@ export default async function SettingsPage({
           phone={(business as unknown as { phone?: string | null }).phone ?? null}
           initialSettings={((business as unknown as { receipt_settings?: object }).receipt_settings ?? {}) as import("@/lib/escpos").ReceiptSettings}
         />
+
+        {/* Toko Online (landing publik + reservasi) -- cuma tampil kalau storefront_enabled dinyalakan admin */}
+        {business.storefront_enabled && business.storefront_slug && (
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-zinc-900">Toko Online</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Landing publik dengan menu &amp; form reservasi untuk pelanggan.
+            </p>
+            <div className="mt-4">
+              <StorefrontTaglineForm
+                action={updateStorefrontTagline.bind(null, businessId)}
+                tagline={business.storefront_tagline}
+                storefrontUrl={`${SITE_URL}/toko/${business.storefront_slug}`}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Diskon & Promo */}
         <DiscountRulesSection
