@@ -364,7 +364,12 @@ export default async function ReportsHarianPage({
         totalBeban,
         persenTotalBeban: totalPendapatan > 0 ? Math.round((totalBeban / totalPendapatan) * 100) : 0,
         sisaHutang: sisaHutangAsOf(date),
-        labaBersih: totalPendapatan - totalPengeluaran,
+        // Service (dibagi ke karyawan/tip pool) & Tax (utang PPN, harus
+        // disetor ke pajak) BUKAN hak usaha -- dikeluarkan dari Laba Bersih
+        // walau keduanya masih ikut dihitung di "Total Pendapatan" (karena
+        // uangnya beneran diterima kasir, cuma bukan laba). Tanpa ini Laba
+        // Bersih overstate sebesar Service+Tax yang dipungut hari itu.
+        labaBersih: totalPendapatan - v.service - v.tax - totalPengeluaran,
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -596,6 +601,18 @@ export default async function ReportsHarianPage({
             terjual, bukan yang dibeli. Pendapatan Gofood/Grabfood/Lain-lain diinput lewat &quot;Catat Kas
             Masuk&quot; di Kas &amp; Bank, pilih akun 4-003 — Pendapatan Gofood, 4-004 — Pendapatan Grabfood, atau
             4-999 — Pendapatan Lain-lain sesuai sumbernya.
+            {(hasService || hasTax) && (
+              <>
+                {" "}Kolom {hasService && <>&quot;Service&quot;</>}
+                {hasService && hasTax && " dan "}
+                {hasTax && <>&quot;Tax&quot;</>} itu rincian yang SUDAH termasuk di dalam Pendapatan Penjualan/Total
+                Pendapatan di atas (uangnya beneran diterima kasir), TAPI dikeluarkan dari Laba Bersih —
+                {hasService && " Service dibagi ke karyawan (tip pool)"}
+                {hasService && hasTax && ", "}
+                {hasTax && "Tax adalah utang PPN yang harus disetor ke kantor pajak"}, jadi dua-duanya bukan hak
+                usaha walau sempat masuk kas.
+              </>
+            )}
             {hasHutang && (
               <>
                 {" "}Kolom &quot;Hutang Dibayar&quot; itu rincian yang SUDAH termasuk di dalam Total Pengeluaran
