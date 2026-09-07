@@ -348,12 +348,20 @@ export default async function ReportsHarianPage({
     .map(([date, v]) => {
       const totalPendapatan = v.pendapatanPenjualan + v.pendapatanGofood + v.pendapatanGrabfood + v.pendapatanLain;
       const totalPengeluaran = v.pengeluaranTunai + v.pengeluaranTransfer;
+      // Total Beban (Estimasi) -- BUKAN kas aktual seperti Total Pengeluaran
+      // di atas. Ini gambaran beban SEUTUHNYA hari itu: kas yang beneran
+      // keluar + pembelian yang masih hutang (belum keluar kasnya) + estimasi
+      // gaji (belum tentu dibayar hari itu juga). Sengaja dipisah dari Total
+      // Pengeluaran/Laba Bersih, cuma buat perkiraan kasar total beban.
+      const totalBebanEstimasi = totalPengeluaran + v.hutangBertambah + v.estimasiGaji;
       return {
         date,
         ...v,
         totalPendapatan,
         totalPengeluaran,
         persenBeban: totalPendapatan > 0 ? Math.round((totalPengeluaran / totalPendapatan) * 100) : 0,
+        totalBebanEstimasi,
+        persenBebanEstimasi: totalPendapatan > 0 ? Math.round((totalBebanEstimasi / totalPendapatan) * 100) : 0,
         sisaHutang: sisaHutangAsOf(date),
         labaBersih: totalPendapatan - totalPengeluaran,
       };
@@ -378,15 +386,18 @@ export default async function ReportsHarianPage({
       hutangDibayar: acc.hutangDibayar + d.hutangDibayar,
       labaBersih: acc.labaBersih + d.labaBersih,
       estimasiGaji: acc.estimasiGaji + d.estimasiGaji,
+      totalBebanEstimasi: acc.totalBebanEstimasi + d.totalBebanEstimasi,
     }),
     {
       count: 0, diskon: 0, service: 0, tax: 0,
       pendapatanPenjualan: 0, pendapatanGofood: 0, pendapatanGrabfood: 0, pendapatanLain: 0, totalPendapatan: 0,
       pengeluaranTunai: 0, pengeluaranTransfer: 0, totalPengeluaran: 0,
-      hutangBertambah: 0, hutangDibayar: 0, labaBersih: 0, estimasiGaji: 0,
+      hutangBertambah: 0, hutangDibayar: 0, labaBersih: 0, estimasiGaji: 0, totalBebanEstimasi: 0,
     },
   );
   const totalsPersenBeban = totals.totalPendapatan > 0 ? Math.round((totals.totalPengeluaran / totals.totalPendapatan) * 100) : 0;
+  const totalsPersenBebanEstimasi =
+    totals.totalPendapatan > 0 ? Math.round((totals.totalBebanEstimasi / totals.totalPendapatan) * 100) : 0;
   // Sisa Hutang Terkini harus "per akhir periode" (atau hari ini kalau
   // periodenya open-ended kayak Bulan Ini/Semua) -- BUKAN dayList[0], karena
   // dayList cuma keisi dari hari yang ada transaksi/kas/pendapatan Ojol/
@@ -404,6 +415,7 @@ export default async function ReportsHarianPage({
   const hasPendapatanLain = dayList.some((d) => d.pendapatanLain > 0);
   const hasHutang = allPurchases.length > 0;
   const hasEstimasiGaji = dayList.some((d) => d.estimasiGaji > 0);
+  const hasTotalBebanEstimasi = dayList.some((d) => d.hutangBertambah > 0 || d.estimasiGaji > 0);
   const basePath = `/business/${businessId}/reports/harian`;
   const highlightLabel =
     period === "custom" && from && to
@@ -505,10 +517,12 @@ export default async function ReportsHarianPage({
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Pengeluaran Transfer</th>
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Total Pengeluaran</th>
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">% Beban</th>
-                    {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Nambah Hutang</th>}
+                    {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Pembelian Hutang</th>}
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Hutang Dibayar</th>}
                     {hasHutang && <th className="px-3 py-3 text-right print:px-1 print:py-1">Sisa Hutang</th>}
                     {hasEstimasiGaji && <th className="px-3 py-3 text-right print:px-1 print:py-1">Estimasi Gaji</th>}
+                    {hasTotalBebanEstimasi && <th className="px-3 py-3 text-right print:px-1 print:py-1">Total Beban (Estimasi)</th>}
+                    {hasTotalBebanEstimasi && <th className="px-3 py-3 text-right print:px-1 print:py-1">% Beban (Estimasi)</th>}
                     <th className="px-3 py-3 text-right print:px-1 print:py-1">Laba Bersih</th>
                   </tr>
                 </thead>
@@ -533,6 +547,8 @@ export default async function ReportsHarianPage({
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-amber-600 print:px-1 print:py-0.5">{d.hutangDibayar > 0 ? fmt(d.hutangDibayar) : <span className="text-zinc-300">—</span>}</td>}
                       {hasHutang && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{fmt(d.sisaHutang)}</td>}
                       {hasEstimasiGaji && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.estimasiGaji > 0 ? fmt(d.estimasiGaji) : <span className="text-zinc-300">—</span>}</td>}
+                      {hasTotalBebanEstimasi && <td className="px-3 py-2.5 text-right text-xs font-bold text-zinc-600 print:px-1 print:py-0.5">{fmt(d.totalBebanEstimasi)}</td>}
+                      {hasTotalBebanEstimasi && <td className="px-3 py-2.5 text-right text-xs text-zinc-500 print:px-1 print:py-0.5">{d.persenBebanEstimasi}%</td>}
                       <td className={`px-3 py-2.5 text-right text-xs font-bold print:px-1 print:py-0.5 ${d.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(d.labaBersih)}</td>
                     </tr>
                   ))}
@@ -557,6 +573,8 @@ export default async function ReportsHarianPage({
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-amber-600 print:px-1 print:py-1">{fmt(totals.hutangDibayar)}</td>}
                     {hasHutang && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(sisaHutangTerakhir)}</td>}
                     {hasEstimasiGaji && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{fmt(totals.estimasiGaji)}</td>}
+                    {hasTotalBebanEstimasi && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-600 print:px-1 print:py-1">{fmt(totals.totalBebanEstimasi)}</td>}
+                    {hasTotalBebanEstimasi && <td className="px-3 py-3 text-right text-xs font-bold text-zinc-500 print:px-1 print:py-1">{totalsPersenBebanEstimasi}%</td>}
                     <td className={`px-3 py-3 text-right text-sm font-bold print:px-1 print:py-1 print:text-[9px] ${totals.labaBersih >= 0 ? "text-brand-700" : "text-red-600"}`}>{fmt(totals.labaBersih)}</td>
                   </tr>
                 </tfoot>
@@ -580,7 +598,7 @@ export default async function ReportsHarianPage({
             {hasHutang && (
               <>
                 {" "}Kolom &quot;Hutang Dibayar&quot; itu rincian yang SUDAH termasuk di dalam Total Pengeluaran
-                di atas (bukan tambahan lagi) — cuma dipisah biar kelihatan berapa porsinya. Kolom &quot;Nambah
+                di atas (bukan tambahan lagi) — cuma dipisah biar kelihatan berapa porsinya. Kolom &quot;Pembelian
                 Hutang&quot; beda sendiri — itu porsi pembelian hari itu yang BELUM dibayar (dicatat sebagai
                 hutang baru), bukan bagian dari Total Pengeluaran (karena uangnya belum keluar). Dipasangkan
                 dengan &quot;Hutang Dibayar&quot; biar kelihatan kenapa &quot;Sisa Hutang&quot; naik/turun hari
@@ -594,6 +612,15 @@ export default async function ReportsHarianPage({
                 izin-telat, dan sengaja TIDAK dihitung ke Total Pengeluaran/Laba Bersih di atas karena gaji
                 sungguhan baru tercatat sebagai pengeluaran saat benar dibayarkan lewat{" "}
                 <Link href={`/business/${businessId}/payroll`} className="text-brand-600 hover:underline">Payroll</Link>.
+              </>
+            )}
+            {hasTotalBebanEstimasi && (
+              <>
+                {" "}Kolom &quot;Total Beban (Estimasi)&quot; &amp; &quot;% Beban (Estimasi)&quot; itu perkiraan
+                beban SEUTUHNYA hari itu = Total Pengeluaran + Pembelian Hutang + Estimasi Gaji — beda dari
+                &quot;Total Pengeluaran&quot;/&quot;% Beban&quot; di atas yang cuma kas aktual. Sengaja
+                dipisah, TIDAK mengurangi Laba Bersih, karena sebagian (Pembelian Hutang &amp; Estimasi Gaji)
+                belum tentu benar-benar keluar kasnya hari itu juga.
               </>
             )}
           </p>
