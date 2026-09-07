@@ -28,6 +28,22 @@ type TransferRow = {
   created_at: string;
 };
 
+type PendingRequest = {
+  id: string;
+  pr_number: string | null;
+  business_id: string;
+  location_id: string | null;
+  employee_name: string | null;
+  note: string | null;
+  created_at: string;
+};
+type PendingRequestItem = {
+  purchase_request_id: string;
+  item_name: string;
+  unit: string | null;
+  qty_ordered: number;
+};
+
 export default async function InterUnitTransfersPage({
   params,
 }: {
@@ -95,6 +111,67 @@ export default async function InterUnitTransfersPage({
   const { data: businessNames } = await supabase.from("businesses").select("id, name").in("id", allBusinessIds);
   const nameById = new Map((businessNames ?? []).map((b) => [b.id, b.name]));
 
+  // Permintaan Barang yang masih menunggu di unit lain (owner sama) --
+  // READ-ONLY, tidak menyentuh alur Permintaan Barang yang sudah aktif
+  // dipakai sama sekali. Staf di sini cuma BACA, lalu proses manual lewat
+  // form "Kirim ke Unit Lain" di atas -- tidak ada keterhubungan data
+  // otomatis (arahan user 2026-09-07, opsi paling rendah risiko).
+  let pendingRequestGroups: {
+    id: string;
+    prNumber: string | null;
+    businessName: string;
+    locationName: string;
+    employeeName: string | null;
+    note: string | null;
+    createdAt: string;
+    items: { name: string; unit: string; qty: number }[];
+  }[] = [];
+  if (siblings.length > 0) {
+    const pendingRequests = await fetchAllRows<PendingRequest>((from, to) =>
+      supabase
+        .from("purchase_requests")
+        .select("id, pr_number, business_id, location_id, employee_name, note, created_at")
+        .in(
+          "business_id",
+          siblings.map((s) => s.id),
+        )
+        .eq("status", "baru")
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    );
+
+    if (pendingRequests.length > 0) {
+      const requestIds = pendingRequests.map((r) => r.id);
+      const items = await fetchAllRows<PendingRequestItem>((from, to) =>
+        supabase
+          .from("purchase_request_items")
+          .select("purchase_request_id, item_name, unit, qty_ordered")
+          .in("purchase_request_id", requestIds)
+          .range(from, to),
+      );
+      const itemsByRequest = new Map<string, { name: string; unit: string; qty: number }[]>();
+      for (const it of items) {
+        const list = itemsByRequest.get(it.purchase_request_id) ?? [];
+        list.push({ name: it.item_name, unit: it.unit ?? "", qty: Number(it.qty_ordered) });
+        itemsByRequest.set(it.purchase_request_id, list);
+      }
+
+      pendingRequestGroups = pendingRequests.map((r) => {
+        const locName = r.location_id ? locationsByBusiness.get(r.business_id)?.find((l) => l.id === r.location_id)?.name : null;
+        return {
+          id: r.id,
+          prNumber: r.pr_number,
+          businessName: nameById.get(r.business_id) ?? "—",
+          locationName: locName ?? "—",
+          employeeName: r.employee_name,
+          note: r.note,
+          createdAt: r.created_at,
+          items: itemsByRequest.get(r.id) ?? [],
+        };
+      });
+    }
+  }
+
   // Stok saya per lokasi -- buat item picker di form kirim. Query terpisah
   // (bukan embed ingredients(...)) karena ingredient_location_stock belum
   // terdaftar relationship-nya di tipe database.ts.
@@ -161,6 +238,44 @@ export default async function InterUnitTransfersPage({
         Kirim/terima stok antar unit usaha (pemilik sama). Nilai barang otomatis jadi Piutang Antar-Unit di
         pengirim dan Hutang Antar-Unit di penerima.
       </p>
+
+      {pendingRequestGroups.length > 0 && (
+        <div className="mt-4">
+          <h2 className="mb-2 text-sm font-bold text-amber-700">
+            ⏳ Permintaan Menunggu dari Unit Lain ({pendingRequestGroups.length})
+          </h2>
+          <div className="space-y-2">
+            {pendingRequestGroups.map((r) => (
+              <div key={r.id} className="rounded-xl border border-amber-200 bg-amber-50/40 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    {r.businessName} — {r.locationName}
+                  </p>
+                  <p className="text-[10.5px] text-zinc-400">{formatDateTime(r.createdAt)}</p>
+                </div>
+                <p className="text-[11px] text-zinc-500">
+                  {r.prNumber ? `${r.prNumber} · ` : ""}
+                  {r.employeeName ? `oleh ${r.employeeName}` : ""}
+                  {r.note ? ` · ${r.note}` : ""}
+                </p>
+                {r.items.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5 text-xs text-zinc-600">
+                    {r.items.map((it, idx) => (
+                      <li key={idx}>
+                        • {it.name} — {it.qty} {it.unit}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[10.5px] text-zinc-400">
+            Ini cuma tampilan baca — belum ada keterhubungan otomatis ke Permintaan Barang. Cocokkan manual
+            lewat form &quot;Kirim ke Unit Lain&quot; di bawah.
+          </p>
+        </div>
+      )}
 
       <div className="mt-4">
         <ShipTransferForm
