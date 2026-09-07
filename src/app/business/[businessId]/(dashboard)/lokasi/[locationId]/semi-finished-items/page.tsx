@@ -2,9 +2,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AdjustStockForm from "@/components/adjust-stock-form";
+import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import { adjustSemiFinishedLocationStock } from "./actions";
 import { updateLocationOpnameSections } from "../bahan-baku/actions";
 import LocationSectionSelect from "../bahan-baku/location-section-select";
+
+function formatRupiah(value: number) {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
 
 export default async function LocationSemiFinishedItemsPage({
   params,
@@ -68,6 +73,7 @@ export default async function LocationSemiFinishedItemsPage({
   ]);
 
   const stockByItem = new Map((stockRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
+  const costs = await computeAllSemiFinishedItemCosts(supabase, businessId);
 
   // Lokasi diikat ke Bagian tertentu (sama pola dengan halaman Bahan Baku) --
   // kosong = tidak dibatasi, tampilkan semua BSJ seperti sebelumnya.
@@ -123,6 +129,7 @@ export default async function LocationSemiFinishedItemsPage({
         {visibleItems.length > 0 ? (
           visibleItems.map((i) => {
             const stock = stockByItem.get(i.id) ?? 0;
+            const cost = costs.get(i.id);
             return (
               <div
                 key={i.id}
@@ -132,6 +139,9 @@ export default async function LocationSemiFinishedItemsPage({
                   <p className="text-sm font-medium text-zinc-900">{i.name}</p>
                   <p className="text-xs text-zinc-500">
                     Stok di {location.name}: {stock} {i.unit}
+                  </p>
+                  <p className="text-xs font-medium text-brand-600">
+                    HPP {formatRupiah(cost?.unitCost ?? 0)}/{i.unit}
                   </p>
                 </div>
                 <AdjustStockForm
