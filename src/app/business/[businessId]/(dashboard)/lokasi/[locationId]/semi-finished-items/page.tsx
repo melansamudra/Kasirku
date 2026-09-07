@@ -130,27 +130,89 @@ export default async function LocationSemiFinishedItemsPage({
           visibleItems.map((i) => {
             const stock = stockByItem.get(i.id) ?? 0;
             const cost = costs.get(i.id);
+            const breakdown = cost?.breakdown ?? [];
             return (
-              <div
-                key={i.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-900">{i.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    Stok di {location.name}: {stock} {i.unit}
-                  </p>
-                  <p className="text-xs font-medium text-brand-600">
-                    HPP {formatRupiah(cost?.unitCost ?? 0)}/{i.unit}
-                  </p>
+              <details key={i.id} className="group rounded-xl border border-zinc-200 bg-white">
+                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 select-none">
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 text-zinc-300 transition-transform group-open:rotate-90">▶</span>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                      <p className="text-xs text-zinc-500">
+                        Stok di {location.name}: {stock} {i.unit}
+                        {breakdown.length > 0 ? ` · ${breakdown.length} bahan` : " · belum ada resep"}
+                      </p>
+                      <p className="text-xs font-medium text-brand-600">
+                        HPP {formatRupiah(cost?.unitCost ?? 0)}/{i.unit}
+                      </p>
+                    </div>
+                  </div>
+                </summary>
+
+                <div className="border-t border-zinc-100 px-4 pb-3 pt-2">
+                  {breakdown.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="text-zinc-400">
+                          <tr>
+                            <th className="py-1 text-left font-medium">Bahan</th>
+                            <th className="py-1 text-right font-medium">Jumlah</th>
+                            <th className="py-1 text-right font-medium">Harga Satuan</th>
+                            <th className="py-1 text-right font-medium">Biaya</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-50">
+                          {breakdown.map((line, idx) => (
+                            <tr key={idx}>
+                              <td className="py-1.5 text-zinc-700">
+                                {line.name}
+                                {line.componentType === "semi_finished" && (
+                                  <span className="ml-1 text-[10px] text-zinc-400">(BSJ)</span>
+                                )}
+                              </td>
+                              <td className="py-1.5 text-right text-zinc-500">
+                                {Number(line.qty.toFixed(4)).toLocaleString("id-ID")} {line.unit}
+                              </td>
+                              <td className="py-1.5 text-right text-zinc-500">{formatRupiah(line.unitCost)}</td>
+                              <td className="py-1.5 text-right font-medium text-zinc-800">
+                                {formatRupiah(line.subtotal)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        {cost && cost.fluctuationPct > 0 && (
+                          <tfoot>
+                            <tr>
+                              <td colSpan={3} className="pt-1.5 text-right text-zinc-400">
+                                Loss Faktor ({cost.fluctuationPct}%)
+                              </td>
+                              <td className="pt-1.5 text-right font-medium text-zinc-600">
+                                {formatRupiah(cost.unitCost - cost.rawCost)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="py-2 text-xs text-zinc-400">Belum ada resep untuk bahan ini.</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <Link
+                      href={`/business/${businessId}/semi-finished-items/${i.id}`}
+                      className="text-xs font-medium text-brand-600 hover:underline"
+                    >
+                      Edit Resep / HPP →
+                    </Link>
+                    <AdjustStockForm
+                      itemName={i.name}
+                      currentStock={stock}
+                      unit={i.unit}
+                      action={adjustSemiFinishedLocationStock.bind(null, businessId, locationId, i.id)}
+                    />
+                  </div>
                 </div>
-                <AdjustStockForm
-                  itemName={i.name}
-                  currentStock={stock}
-                  unit={i.unit}
-                  action={adjustSemiFinishedLocationStock.bind(null, businessId, locationId, i.id)}
-                />
-              </div>
+              </details>
             );
           })
         ) : locationSectionIds.length > 0 ? (
