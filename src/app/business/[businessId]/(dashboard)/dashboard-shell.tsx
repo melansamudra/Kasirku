@@ -50,6 +50,8 @@ import {
   PiggyBank,
   ChefHat,
   Truck,
+  FileBarChart2,
+  Send,
   type LucideIcon,
 } from "lucide-react";
 import LogoutButton from "@/app/dashboard/logout-button";
@@ -287,6 +289,8 @@ function buildCostControlNavGroups(
       items: [
         { key: "suppliers", href: `${base}/suppliers`, label: "Supplier", icon: Store },
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+        { key: "purchases", href: `${base}/purchases/laporan-hutang`, label: "Laporan Hutang", icon: FileBarChart2 },
+        { key: "purchases", href: `${base}/purchases/pengajuan-pembayaran`, label: "Pengajuan Pembayaran", icon: Send },
         { key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt },
         { key: "kas-kecil", href: `${base}/kas-kecil`, label: "Kas Kecil", icon: PiggyBank },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
@@ -464,6 +468,8 @@ function buildNavGroups(
       title: "Pembelian, Hutang & Kas Kecil",
       items: [
         { key: "purchases", href: `${base}/purchases`, label: "Pembelian & Hutang", icon: ShoppingBag },
+        { key: "purchases", href: `${base}/purchases/laporan-hutang`, label: "Laporan Hutang", icon: FileBarChart2 },
+        { key: "purchases", href: `${base}/purchases/pengajuan-pembayaran`, label: "Pengajuan Pembayaran", icon: Send },
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
         ...(stockLocationsEnabled
           ? [{ key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: Truck }]

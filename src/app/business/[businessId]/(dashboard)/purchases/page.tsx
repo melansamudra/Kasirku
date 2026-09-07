@@ -254,12 +254,26 @@ export default async function PurchasesPage({
             Pembelian formal dari supplier, bisa dibayar tunai atau utang.
           </p>
         </div>
-        <Link
-          href={`/business/${businessId}/suppliers`}
-          className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
-        >
-          Kelola Supplier →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/business/${businessId}/purchases/laporan-hutang`}
+            className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
+          >
+            Laporan Hutang →
+          </Link>
+          <Link
+            href={`/business/${businessId}/purchases/pengajuan-pembayaran`}
+            className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
+          >
+            Pengajuan Pembayaran →
+          </Link>
+          <Link
+            href={`/business/${businessId}/suppliers`}
+            className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
+          >
+            Kelola Supplier →
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3">

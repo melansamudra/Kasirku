@@ -876,48 +876,48 @@ export async function updatePurchaseCategory(
 
 export type AddPaymentState = { error: string | null };
 
-export async function addPurchasePayment(
+export type ApplyPaymentResult =
+  // Tidak lolos validasi (pembelian tidak ada/sudah dibatalkan/jumlah lebih
+  // dari sisa utang) -- TIDAK ADA apa pun yang tersimpan, beda dari
+  // journalError di bawah (pembayarannya sudah tersimpan, cuma jurnalnya gagal).
+  | { ok: false; validationError: string }
+  | { ok: true; journalError: string | null };
+
+// Inti pelunasan hutang dagang (update paid_amount, insert purchase_payments,
+// posting jurnal + payment_method) -- dipakai LANGSUNG oleh addPurchasePayment
+// di bawah (Bayar instan dari halaman Pembelian) DAN oleh approvePaymentRequest
+// (pengajuan-pembayaran/actions.ts) saat owner menyetujui pengajuan. Kegagalan
+// jurnal dikembalikan sebagai warning, bukan membatalkan pembayaran yang sudah
+// tersimpan -- sama seperti pola postPurchaseJournal di atas.
+export async function applyPurchasePayment(
+  supabase: SupabaseServerClient,
   businessId: string,
   purchaseId: string,
-  _prevState: AddPaymentState,
-  formData: FormData,
-): Promise<AddPaymentState> {
-  const date = formData.get("date") as string;
-  const amountRaw = formData.get("amount") as string;
-  const note = (formData.get("note") as string)?.trim();
-  const paymentMethod = formData.get("paymentMethod") as string;
-
-  if (!date) {
-    return { error: "Tanggal wajib diisi." };
-  }
-
-  const amount = Number(amountRaw);
-  if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
-    return { error: "Jumlah bayar harus angka lebih dari 0." };
-  }
-  if (paymentMethod !== "tunai" && paymentMethod !== "transfer") {
-    return { error: "Metode pembayaran wajib dipilih." };
-  }
-
-  const supabase = await createClient();
-
+  date: string,
+  amount: number,
+  note: string | null,
+  paymentMethod: "tunai" | "transfer",
+): Promise<ApplyPaymentResult> {
   const { data: purchase } = await supabase
     .from("purchases")
-    .select("id, business_id, amount, paid_amount, ingredient_id, product_id, voided")
+    .select("id, business_id, amount, paid_amount, voided")
     .eq("id", purchaseId)
     .eq("business_id", businessId)
     .single();
 
   if (!purchase) {
-    return { error: "Data pembelian tidak ditemukan." };
+    return { ok: false, validationError: "Data pembelian tidak ditemukan." };
   }
   if (purchase.voided) {
-    return { error: "Pembelian ini sudah dibatalkan, tidak bisa dibayar." };
+    return { ok: false, validationError: "Pembelian ini sudah dibatalkan, tidak bisa dibayar." };
   }
 
   const sisaUtang = Number(purchase.amount) - Number(purchase.paid_amount);
   if (amount > sisaUtang) {
-    return { error: `Jumlah bayar melebihi sisa utang (${sisaUtang.toLocaleString("id-ID")}).` };
+    return {
+      ok: false,
+      validationError: `Jumlah bayar melebihi sisa utang (${sisaUtang.toLocaleString("id-ID")}).`,
+    };
   }
 
   const newPaidAmount = Number(purchase.paid_amount) + amount;
@@ -928,7 +928,7 @@ export async function addPurchasePayment(
     .eq("id", purchaseId);
 
   if (updateError) {
-    return { error: updateError.message };
+    return { ok: false, validationError: updateError.message };
   }
 
   const { error } = await supabase.from("purchase_payments").insert({
@@ -936,11 +936,11 @@ export async function addPurchasePayment(
     purchase_id: purchaseId,
     date,
     amount,
-    note: note || null,
+    note,
   });
 
   if (error) {
-    return { error: error.message };
+    return { ok: false, validationError: error.message };
   }
 
   const { data: entryId, error: journalRpcError } = await supabase.rpc("post_journal_entry", {
@@ -967,6 +967,47 @@ export async function addPurchasePayment(
     });
     if (paymentMethodError) journalError = paymentMethodError.message;
   }
+
+  return { ok: true, journalError };
+}
+
+export async function addPurchasePayment(
+  businessId: string,
+  purchaseId: string,
+  _prevState: AddPaymentState,
+  formData: FormData,
+): Promise<AddPaymentState> {
+  const date = formData.get("date") as string;
+  const amountRaw = formData.get("amount") as string;
+  const note = (formData.get("note") as string)?.trim();
+  const paymentMethod = formData.get("paymentMethod") as string;
+
+  if (!date) {
+    return { error: "Tanggal wajib diisi." };
+  }
+
+  const amount = Number(amountRaw);
+  if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
+    return { error: "Jumlah bayar harus angka lebih dari 0." };
+  }
+  if (paymentMethod !== "tunai" && paymentMethod !== "transfer") {
+    return { error: "Metode pembayaran wajib dipilih." };
+  }
+
+  const supabase = await createClient();
+  const result = await applyPurchasePayment(
+    supabase,
+    businessId,
+    purchaseId,
+    date,
+    amount,
+    note || null,
+    paymentMethod,
+  );
+  if (!result.ok) {
+    return { error: result.validationError };
+  }
+  const journalError = result.journalError;
 
   await logActivity(
     supabase,

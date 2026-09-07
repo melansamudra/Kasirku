@@ -2077,6 +2077,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      purchase_payment_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          purchase_id: string;
+          amount: number;
+          payment_method: string;
+          note: string | null;
+          requested_by_user_id: string;
+          requested_by_name: string;
+          status: string;
+          approved_by_user_id: string | null;
+          approved_by_name: string | null;
+          approved_at: string | null;
+          reject_reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          purchase_id: string;
+          amount: number;
+          payment_method: string;
+          note?: string | null;
+          requested_by_user_id: string;
+          requested_by_name: string;
+          status?: string;
+          approved_by_user_id?: string | null;
+          approved_by_name?: string | null;
+          approved_at?: string | null;
+          reject_reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          purchase_id?: string;
+          amount?: number;
+          payment_method?: string;
+          note?: string | null;
+          requested_by_user_id?: string;
+          requested_by_name?: string;
+          status?: string;
+          approved_by_user_id?: string | null;
+          approved_by_name?: string | null;
+          approved_at?: string | null;
+          reject_reason?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       purchase_payments: {
         Row: {
           id: string;
