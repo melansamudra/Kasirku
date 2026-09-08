@@ -108,6 +108,8 @@ export async function updateSession(request: NextRequest) {
   // /portal-lokasi/* adalah halaman scan link/QR tanpa login buat staf
   // dapur/bar/front (submit lewat RPC security definer, bukan API route,
   // jadi tidak perlu whitelist /api/* juga) — sama pola dengan /absen.
+  // /hpp-menu/* adalah link publik read-only cek HPP menu (dibagikan ke tim
+  // Dapur/Bar) — sama pola juga, lewat RPC get_hpp_menu_info.
   // (/permintaan-gudang sempat ada di sini juga, tapi fitur "Gudang" lama
   // sudah dipensiunkan total — digantikan stok per lokasi + Permintaan
   // Barang yang sekarang sadar-lokasi.)
@@ -164,6 +166,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/transfer-internal") ||
     request.nextUrl.pathname.startsWith("/terima-barang") ||
     request.nextUrl.pathname.startsWith("/portal-lokasi") ||
+    request.nextUrl.pathname.startsWith("/hpp-menu") ||
     request.nextUrl.pathname.startsWith("/api/attendance-checkin") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
