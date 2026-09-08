@@ -1,34 +1,36 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { BatchRecipeState } from "./actions";
+import type { BatchRecipeItemInput, BatchRecipeState } from "./actions";
 
 type Ingredient = { id: string; name: string; unit: string };
-type DraftRow = { key: string; ingredientId: string; qty: string };
+type DraftRow = {
+  key: string;
+  mode: "existing" | "new";
+  ingredientId: string;
+  newName: string;
+  newUnit: string;
+  newUnitCost: string;
+  qty: string;
+};
+
+const NEW_INGREDIENT_VALUE = "__new__";
 
 function emptyRow(): DraftRow {
-  return { key: crypto.randomUUID(), ingredientId: "", qty: "" };
+  return { key: crypto.randomUUID(), mode: "existing", ingredientId: "", newName: "", newUnit: "", newUnitCost: "", qty: "" };
 }
 
 export default function AddRecipeForm({
   action,
   ingredients,
 }: {
-  action: (items: { ingredientId: string; qty: number }[]) => Promise<BatchRecipeState>;
+  action: (items: BatchRecipeItemInput[]) => Promise<BatchRecipeState>;
   ingredients: Ingredient[];
 }) {
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  if (ingredients.length === 0) {
-    return (
-      <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        Belum ada bahan baku untuk toko ini. Tambahkan dulu di halaman Bahan Baku.
-      </p>
-    );
-  }
 
   function updateRow(key: string, patch: Partial<DraftRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -46,23 +48,36 @@ export default function AddRecipeForm({
     setError(null);
     setSavedMsg(null);
 
-    const filled = rows.filter((r) => r.ingredientId || r.qty);
+    const filled = rows.filter((r) => r.ingredientId || r.newName || r.qty);
     if (filled.length === 0) {
       setError("Isi minimal satu baris bahan.");
       return;
     }
-    const items: { ingredientId: string; qty: number }[] = [];
+    const items: BatchRecipeItemInput[] = [];
     for (const r of filled) {
       const qty = Number(r.qty);
-      if (!r.ingredientId) {
-        setError("Ada baris yang belum pilih bahan.");
-        return;
-      }
       if (!r.qty || Number.isNaN(qty) || qty <= 0) {
         setError("Ada baris dengan jumlah yang belum diisi/tidak valid.");
         return;
       }
-      items.push({ ingredientId: r.ingredientId, qty });
+      if (r.mode === "new") {
+        if (!r.newName.trim() || !r.newUnit.trim()) {
+          setError("Ada bahan baru yang nama/satuannya belum diisi.");
+          return;
+        }
+        const unitCost = r.newUnitCost ? Number(r.newUnitCost) : 0;
+        if (Number.isNaN(unitCost) || unitCost < 0) {
+          setError(`Harga bahan baru "${r.newName}" harus angka dan tidak boleh negatif.`);
+          return;
+        }
+        items.push({ kind: "new", name: r.newName.trim(), unit: r.newUnit.trim(), unitCost, qty });
+      } else {
+        if (!r.ingredientId) {
+          setError("Ada baris yang belum pilih bahan.");
+          return;
+        }
+        items.push({ kind: "existing", ingredientId: r.ingredientId, qty });
+      }
     }
 
     startTransition(async () => {
@@ -78,44 +93,118 @@ export default function AddRecipeForm({
 
   return (
     <div className="space-y-3">
-      {rows.map((row, idx) => (
-        <div key={row.key} className="flex items-start gap-2">
-          <div className="flex-1">
-            <select
-              value={row.ingredientId}
-              onChange={(e) => updateRow(row.key, { ingredientId: e.target.value })}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            >
-              <option value="">Pilih bahan…</option>
-              {ingredients.map((ing) => (
-                <option key={ing.id} value={ing.id}>
-                  {ing.name} ({ing.unit})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-28">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={row.qty}
-              onChange={(e) => updateRow(row.key, { qty: e.target.value })}
-              placeholder="Jumlah"
-              className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => removeRow(row.key)}
-            disabled={rows.length === 1}
-            title="Hapus baris"
-            className="shrink-0 rounded-lg px-2.5 py-2 text-sm text-zinc-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            ✕
-          </button>
-          {idx === rows.length - 1 && (
-            <span className="sr-only">baris terakhir</span>
+      {ingredients.length === 0 && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          Belum ada bahan baku untuk toko ini — pilih &quot;+ Bahan baru...&quot; di bawah untuk langsung buat sambil susun resep.
+        </p>
+      )}
+
+      {rows.map((row) => (
+        <div key={row.key} className="rounded-xl border border-zinc-100 bg-zinc-50 p-2.5">
+          {row.mode === "existing" ? (
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <select
+                  value={row.ingredientId}
+                  onChange={(e) => {
+                    if (e.target.value === NEW_INGREDIENT_VALUE) {
+                      updateRow(row.key, { mode: "new", ingredientId: "" });
+                    } else {
+                      updateRow(row.key, { ingredientId: e.target.value });
+                    }
+                  }}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                >
+                  <option value="">Pilih bahan…</option>
+                  <option value={NEW_INGREDIENT_VALUE}>➕ Bahan baru...</option>
+                  {ingredients.map((ing) => (
+                    <option key={ing.id} value={ing.id}>
+                      {ing.name} ({ing.unit})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-28">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={row.qty}
+                  onChange={(e) => updateRow(row.key, { qty: e.target.value })}
+                  placeholder="Jumlah"
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeRow(row.key)}
+                disabled={rows.length === 1}
+                title="Hapus baris"
+                className="shrink-0 rounded-lg px-2.5 py-2 text-sm text-zinc-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-brand-600">➕ Bahan baru</p>
+                <button
+                  type="button"
+                  onClick={() => updateRow(row.key, { mode: "existing", newName: "", newUnit: "", newUnitCost: "" })}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-600"
+                >
+                  Batal, pilih dari daftar
+                </button>
+              </div>
+              <div className="flex items-start gap-2">
+                <input
+                  type="text"
+                  value={row.newName}
+                  onChange={(e) => updateRow(row.key, { newName: e.target.value })}
+                  placeholder="Nama bahan baru"
+                  className="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+                <input
+                  type="text"
+                  value={row.newUnit}
+                  onChange={(e) => updateRow(row.key, { newUnit: e.target.value })}
+                  placeholder="Satuan (gr/ml/pcs)"
+                  className="w-32 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
+              <div className="flex items-start gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={row.newUnitCost}
+                  onChange={(e) => updateRow(row.key, { newUnitCost: e.target.value })}
+                  placeholder="Harga per satuan (boleh kosong = 0)"
+                  className="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+                <div className="w-28">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={row.qty}
+                    onChange={(e) => updateRow(row.key, { qty: e.target.value })}
+                    placeholder="Jumlah"
+                    className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeRow(row.key)}
+                  disabled={rows.length === 1}
+                  title="Hapus baris"
+                  className="shrink-0 rounded-lg px-2.5 py-2 text-sm text-zinc-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
           )}
         </div>
       ))}
