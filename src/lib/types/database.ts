@@ -58,6 +58,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      payment_reconciliations: {
+        Row: {
+          id: string;
+          business_id: string;
+          payment_method: string;
+          period_start: string;
+          period_end: string;
+          expected_amount: number;
+          received_amount: number;
+          difference: number;
+          expense_id: string | null;
+          journal_entry_id: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          payment_method: string;
+          period_start: string;
+          period_end: string;
+          expected_amount: number;
+          received_amount: number;
+          difference: number;
+          expense_id?: string | null;
+          journal_entry_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          payment_method?: string;
+          period_start?: string;
+          period_end?: string;
+          expected_amount?: number;
+          received_amount?: number;
+          difference?: number;
+          expense_id?: string | null;
+          journal_entry_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       accounts: {
         Row: {
           id: string;
@@ -456,6 +501,7 @@ export type Database = {
           reservation_time: string;
           note: string | null;
           status: string;
+          table_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -468,6 +514,7 @@ export type Database = {
           reservation_time: string;
           note?: string | null;
           status?: string;
+          table_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -480,9 +527,50 @@ export type Database = {
           reservation_time?: string;
           note?: string | null;
           status?: string;
+          table_id?: string | null;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "reservations_table_id_fkey";
+            columns: ["table_id"];
+            isOneToOne: false;
+            referencedRelation: "tables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      reservation_items: {
+        Row: {
+          id: string;
+          reservation_id: string;
+          product_id: string | null;
+          product_name: string;
+          qty: number;
+        };
+        Insert: {
+          id?: string;
+          reservation_id: string;
+          product_id?: string | null;
+          product_name: string;
+          qty: number;
+        };
+        Update: {
+          id?: string;
+          reservation_id?: string;
+          product_id?: string | null;
+          product_name?: string;
+          qty?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reservation_items_reservation_id_fkey";
+            columns: ["reservation_id"];
+            isOneToOne: false;
+            referencedRelation: "reservations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       cashiers: {
         Row: {
@@ -5121,8 +5209,18 @@ export type Database = {
           p_reservation_date: string;
           p_reservation_time: string;
           p_note?: string | null;
+          p_table_id?: string | null;
+          p_items?: Json | null;
         };
         Returns: string;
+      };
+      get_storefront_table_availability: {
+        Args: { p_slug: string; p_date: string };
+        Returns: {
+          table_id: string;
+          table_name: string;
+          is_taken: boolean;
+        }[];
       };
       get_hpp_order_status: {
         Args: { p_order_id: string };
