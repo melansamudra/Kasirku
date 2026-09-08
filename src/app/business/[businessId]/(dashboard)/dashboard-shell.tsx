@@ -76,6 +76,7 @@ const STARTER_ALLOWED_KEYS = new Set([
   "purchases", "suppliers", "purchase-requests", "kas-kecil",
   // Lainnya
   "notifikasi", "activity",
+  "stock-opname", "accounting-rekonsiliasi-metode-bayar",
 ]);
 
 // Bisnis dengan cost_control_enabled (dapur pusat semacam Lauk Nusantara)
