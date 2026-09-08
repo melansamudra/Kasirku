@@ -19,6 +19,12 @@ export default function ReportsSubnav({ businessId }: { businessId: string }) {
   const pathname = usePathname();
   const base = `/business/${businessId}/reports`;
 
+  // Laba Rugi diakses lewat grup sidebar "Kontrol Biaya (COGS)" (bersama
+  // Laporan COGS, Kalkulator HPP, dst), bukan bagian dari keluarga laporan
+  // operasional harian ini -- tab-tab di atas juga tidak memuat "Laba Rugi"
+  // sama sekali, jadi menampilkannya di halaman itu cuma bikin bingung.
+  if (pathname === `${base}/laba-rugi`) return null;
+
   return (
     <div className="mb-5 flex overflow-x-auto border-b border-zinc-200 bg-white print:hidden">
       {NAV_ITEMS.map((item) => {
