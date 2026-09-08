@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import {
-  addIngredient,
+  addIngredientOrSemiFinished,
   addIngredientPurchaseUnit,
   addOpnameSection,
   adjustIngredientStock,
@@ -105,7 +105,15 @@ export default async function IngredientsPage({
         .order("created_at", { ascending: false })
         .limit(10);
 
-  const boundAddIngredient = addIngredient.bind(null, businessId);
+  const boundAddIngredient = addIngredientOrSemiFinished.bind(null, businessId);
+
+  const { data: semiFinishedItemsRaw } = await supabase
+    .from("semi_finished_items")
+    .select("id, name, unit, stock, min_stock, manual_unit_cost, category")
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+  const semiFinishedItems = semiFinishedItemsRaw ?? [];
   const boundImportIngredients = importIngredients.bind(null, businessId);
   const boundAddOpnameSection = addOpnameSection.bind(null, businessId);
 
@@ -237,9 +245,58 @@ export default async function IngredientsPage({
           )}
         </div>
 
+        {/* Pembatas visual: Bahan Baku biasa di atas, Bahan Setengah Jadi di
+            bawah -- dua kelompok data yang beda sifatnya (harga manual vs
+            dihitung dari resep), sengaja tidak dicampur satu tabel. */}
+        <div className="mt-8 flex items-center gap-3">
+          <div className="h-px flex-1 bg-zinc-200" />
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Bahan Setengah Jadi</p>
+          <div className="h-px flex-1 bg-zinc-200" />
+        </div>
+
+        <div className="mt-4">
+          {semiFinishedItems.length > 0 ? (
+            <div className="space-y-2">
+              {semiFinishedItems.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900">{s.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      Stok {s.stock} {s.unit}
+                      {s.category && <span className="ml-1.5 text-zinc-400">· {s.category}</span>}
+                    </p>
+                  </div>
+                  <p className="text-xs text-zinc-400">
+                    {s.manual_unit_cost != null ? "HPP manual" : "HPP dari resep"} — kelola detail di{" "}
+                    <a
+                      href={`/business/${businessId}/semi-finished-items`}
+                      className="font-medium text-brand-600 hover:underline"
+                    >
+                      Bahan Setengah Jadi
+                    </a>
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+              Belum ada bahan setengah jadi. Tambahkan lewat form di bawah (pilih &quot;Bahan Setengah
+              Jadi&quot;).
+            </p>
+          )}
+        </div>
+
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan Baku</h2>
-          <AddIngredientForm action={boundAddIngredient} costControlEnabled={costControlEnabled} />
+          <h2 className="mb-4 text-sm font-semibold text-zinc-900">Tambah Bahan</h2>
+          <AddIngredientForm
+            action={boundAddIngredient}
+            costControlEnabled={costControlEnabled}
+            ingredientOptions={ingredients.map((i) => ({ id: i.id, name: i.name, unit: i.unit }))}
+            semiFinishedOptions={semiFinishedItems.map((s) => ({ id: s.id, name: s.name, unit: s.unit }))}
+          />
         </div>
 
         {adjustments && adjustments.length > 0 && (

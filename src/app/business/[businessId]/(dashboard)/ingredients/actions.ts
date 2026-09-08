@@ -6,6 +6,8 @@ import { logActivity } from "@/lib/activity-log";
 import { parseCsv } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/pagination";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
+import { findOrCreateMirrorIngredient } from "@/lib/find-or-create-mirror-ingredient";
+import { produceSemiFinishedFlat } from "./produce-flat";
 import ExcelJS from "exceljs";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -242,6 +244,174 @@ export async function addIngredient(
   );
   revalidatePath(`/business/${businessId}/ingredients`);
   return { error: null };
+}
+
+export type AddItemState = { error: string | null; warnings?: string[] };
+
+type RecipeRowInput = { component: string; qty: number };
+
+// Form gabungan "Tambah Bahan" -- ceklis itemType menentukan cabang mana
+// yang jalan. Sengaja duplikasi sebagian logika addSemiFinishedItem
+// (semi-finished-items/actions.ts) alih-alih memanggilnya langsung, karena
+// di sini perlu ID item yang baru dibuat untuk lanjut ke langkah Produksi
+// Awal (opsional) -- addSemiFinishedItem cuma mengembalikan {error}.
+export async function addIngredientOrSemiFinished(
+  businessId: string,
+  _prevState: AddItemState,
+  formData: FormData,
+): Promise<AddItemState> {
+  const itemType = (formData.get("itemType") as string) === "semi_finished" ? "semi_finished" : "ingredient";
+
+  if (itemType === "ingredient") {
+    const result = await addIngredient(businessId, { error: null }, formData);
+    return { error: result.error };
+  }
+
+  // --- Bahan Setengah Jadi ---
+  const name = (formData.get("name") as string)?.trim();
+  const unit = (formData.get("unit") as string)?.trim();
+  const minStockRaw = formData.get("minStock") as string;
+  const minStock = minStockRaw ? Number(minStockRaw) : 0;
+  const fluctuationRaw = formData.get("fluctuationPct") as string;
+  const fluctuationPct = fluctuationRaw ? Number(fluctuationRaw) : 0;
+  const barcode = (formData.get("barcode") as string)?.trim() || null;
+  const category = (formData.get("category") as string)?.trim() || null;
+  const isManualCost = formData.get("isManualCost") === "on";
+  const manualUnitCostRaw = formData.get("manualUnitCost") as string;
+  const produceQtyRaw = formData.get("produceQty") as string;
+  let manualUnitCost: number | null = null;
+
+  if (!name || !unit) return { error: "Nama dan satuan wajib diisi." };
+  if (!(minStock >= 0)) return { error: "Stok minimum tidak valid." };
+  if (!(fluctuationPct >= 0) || fluctuationPct >= 100) return { error: "Fluctuation % harus antara 0-99." };
+  if (isManualCost) {
+    manualUnitCost = Number(manualUnitCostRaw);
+    if (!manualUnitCostRaw || Number.isNaN(manualUnitCost) || manualUnitCost < 0) {
+      return { error: "HPP manual harus angka 0 atau lebih." };
+    }
+  }
+
+  const recipeRowsRaw = isManualCost ? null : (formData.get("recipeRows") as string | null);
+  let recipeRows: RecipeRowInput[] = [];
+  if (recipeRowsRaw) {
+    try {
+      recipeRows = JSON.parse(recipeRowsRaw);
+    } catch {
+      return { error: "Data komponen resep tidak valid." };
+    }
+  }
+  const recipeYieldRaw = formData.get("recipeYieldQty") as string | null;
+  const recipeYieldQty = recipeYieldRaw ? Number(recipeYieldRaw) : null;
+  for (const row of recipeRows) {
+    const [componentType, componentId] = String(row.component ?? "").split(":");
+    if ((componentType !== "ingredient" && componentType !== "semi_finished") || !componentId) {
+      return { error: "Komponen resep tidak valid." };
+    }
+    if (!(Number(row.qty) > 0)) return { error: "Jumlah komponen resep harus lebih dari 0." };
+  }
+
+  const produceQty = produceQtyRaw ? Number(produceQtyRaw) : 0;
+  if (produceQtyRaw && (Number.isNaN(produceQty) || produceQty < 0)) {
+    return { error: "Qty produksi awal harus angka 0 atau lebih." };
+  }
+  if (produceQty > 0 && recipeRows.length === 0) {
+    return { error: "Isi komponen resep dulu sebelum bisa produksi awal." };
+  }
+
+  const supabase = await createClient();
+  const { data: newItem, error } = await supabase
+    .from("semi_finished_items")
+    .insert({
+      business_id: businessId,
+      name,
+      unit,
+      min_stock: minStock,
+      fluctuation_pct: fluctuationPct,
+      barcode,
+      category,
+      manual_unit_cost: manualUnitCost,
+      batch_yield_qty: recipeRows.length > 0 && recipeYieldQty && recipeYieldQty > 0 ? recipeYieldQty : null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !newItem) {
+    return {
+      error: error?.message.includes("semi_finished_items_business_id_barcode_key")
+        ? "Barcode sudah dipakai bahan setengah jadi lain."
+        : (error?.message ?? "Gagal menyimpan."),
+    };
+  }
+
+  const { data: businessForMirror } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled")
+    .eq("id", businessId)
+    .single();
+
+  let mirrorIngredientId: string | null = null;
+  if (!businessForMirror?.cost_control_enabled) {
+    mirrorIngredientId = await findOrCreateMirrorIngredient(supabase, businessId, name, unit, 0);
+    if (mirrorIngredientId) {
+      await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredientId }).eq("id", newItem.id);
+      if (isManualCost && manualUnitCost !== null) {
+        await supabase.from("ingredients").update({ unit_cost: manualUnitCost }).eq("id", mirrorIngredientId);
+        await supabase.from("ingredient_price_history").insert({
+          business_id: businessId,
+          ingredient_id: mirrorIngredientId,
+          unit_cost: manualUnitCost,
+          source: "bsj",
+        });
+      }
+    }
+  }
+
+  for (const row of recipeRows) {
+    const [componentType, componentId] = row.component.split(":");
+    const table = componentType === "ingredient" ? "ingredients" : "semi_finished_items";
+    const { data: component } = await supabase
+      .from(table)
+      .select("unit")
+      .eq("id", componentId)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (!component) continue;
+
+    await supabase.from("semi_finished_recipes").insert({
+      business_id: businessId,
+      semi_finished_item_id: newItem.id,
+      component_type: componentType,
+      ingredient_id: componentType === "ingredient" ? componentId : null,
+      component_semi_finished_id: componentType === "semi_finished" ? componentId : null,
+      qty: row.qty,
+      unit: component.unit,
+    });
+  }
+
+  await logActivity(supabase, businessId, "produk", "sukses", `Bahan setengah jadi baru: ${name}`);
+
+  let warnings: string[] = [];
+  if (produceQty > 0 && mirrorIngredientId) {
+    const result = await produceSemiFinishedFlat(supabase, businessId, newItem.id, produceQty);
+    if (result.error) {
+      warnings.push(`Item tersimpan, tapi produksi awal gagal: ${result.error}`);
+    } else {
+      warnings = result.warnings;
+      await logActivity(
+        supabase,
+        businessId,
+        "produk",
+        "sukses",
+        `Produksi awal: ${name}`,
+        `${produceQty} ${unit}`,
+      );
+    }
+  }
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/finished-products`);
+  return { error: null, warnings: warnings.length > 0 ? warnings : undefined };
 }
 
 export type EditIngredientState = { error: string | null };
