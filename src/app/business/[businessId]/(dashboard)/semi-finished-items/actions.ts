@@ -157,6 +157,20 @@ export async function addSemiFinishedItem(
     const mirrorIngredientId = await findOrCreateMirrorIngredient(supabase, businessId, name, unit, 0);
     if (mirrorIngredientId) {
       await supabase.from("semi_finished_items").update({ ingredient_id: mirrorIngredientId }).eq("id", newItem.id);
+
+      // BSJ "terima dari luar" (harga manual, bukan diproduksi sendiri) --
+      // harga itu LANGSUNG jadi unit_cost kembarannya juga, supaya resep
+      // produk yang pakai bahan ini kehitung HPP-nya, bukan nunggu Produksi
+      // (yang memang cuma relevan buat BSJ yang benar-benar dibikin sendiri).
+      if (isManualCost && manualUnitCost !== null) {
+        await supabase.from("ingredients").update({ unit_cost: manualUnitCost }).eq("id", mirrorIngredientId);
+        await supabase.from("ingredient_price_history").insert({
+          business_id: businessId,
+          ingredient_id: mirrorIngredientId,
+          unit_cost: manualUnitCost,
+          source: "bsj",
+        });
+      }
     }
   }
 
@@ -249,10 +263,25 @@ export async function updateSemiFinishedItem(
   }
 
   // Sinkronkan nama/unit ke kembaran di Bahan Baku supaya tidak beda nama
-  // antara halaman BSJ dan halaman Bahan Baku (stok/unit_cost kembaran TIDAK
-  // disentuh di sini -- itu murni domain fitur Produksi).
+  // antara halaman BSJ dan halaman Bahan Baku. Stok kembaran tetap murni
+  // domain fitur Produksi -- tapi unit_cost DIKECUALIKAN: kalau BSJ ini
+  // pakai HPP manual ("terima dari luar", bukan diproduksi sendiri), harga
+  // itu ikut ditulis ke unit_cost kembarannya juga, supaya resep produk yang
+  // pakai bahan ini langsung kehitung HPP-nya tanpa nunggu Produksi (yang
+  // memang tidak relevan buat BSJ jenis ini).
   if (existing?.ingredient_id) {
     await supabase.from("ingredients").update({ name, unit, min_stock: minStock }).eq("id", existing.ingredient_id);
+
+    if (isManualCost && manualUnitCost !== null) {
+      await supabase.from("ingredients").update({ unit_cost: manualUnitCost }).eq("id", existing.ingredient_id);
+      await supabase.from("ingredient_price_history").insert({
+        business_id: businessId,
+        ingredient_id: existing.ingredient_id,
+        unit_cost: manualUnitCost,
+        source: "bsj",
+      });
+      await recalculateProductCostsForIngredient(supabase, existing.ingredient_id);
+    }
   }
 
   await logActivity(supabase, businessId, "produk", "info", `Bahan setengah jadi diubah: ${name}`);
@@ -731,7 +760,7 @@ export async function importSemiFinishedManual(
     supabase.from("businesses").select("cost_control_enabled").eq("id", businessId).single(),
     supabase
       .from("semi_finished_items")
-      .select("id, name")
+      .select("id, name, ingredient_id")
       .eq("business_id", businessId)
       .is("deleted_at", null),
     supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId),
@@ -807,6 +836,18 @@ export async function importSemiFinishedManual(
       }
       itemId = match.id;
       updated++;
+
+      // Harga manual BSJ ikut ditulis ke unit_cost kembarannya juga -- sama
+      // alasan dengan updateSemiFinishedItem (lihat komentar di sana).
+      if (match.ingredient_id) {
+        await supabase.from("ingredients").update({ unit: unit, unit_cost: price }).eq("id", match.ingredient_id);
+        await supabase.from("ingredient_price_history").insert({
+          business_id: businessId,
+          ingredient_id: match.ingredient_id,
+          unit_cost: price,
+          source: "bsj",
+        });
+      }
     } else {
       const { data: inserted, error } = await supabase
         .from("semi_finished_items")
