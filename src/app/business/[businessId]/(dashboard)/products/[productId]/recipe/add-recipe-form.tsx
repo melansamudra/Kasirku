@@ -23,9 +23,11 @@ function emptyRow(): DraftRow {
 export default function AddRecipeForm({
   action,
   ingredients,
+  onSaved,
 }: {
   action: (items: BatchRecipeItemInput[]) => Promise<BatchRecipeState>;
   ingredients: Ingredient[];
+  onSaved?: () => void;
 }) {
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export default function AddRecipeForm({
       }
       setSavedMsg(`${result.savedCount} bahan berhasil ditambahkan ke resep.`);
       setRows([emptyRow()]);
+      onSaved?.();
     });
   }
 

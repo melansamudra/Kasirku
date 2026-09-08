@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
+import InlineRecipeEditor from "./inline-recipe-editor";
 
 type Row = {
   id: string;
@@ -15,6 +16,9 @@ type Row = {
   hppChecked: boolean;
   updatedAt: string;
 };
+
+type RecipeLine = { id: string; qty: number; unit: string; ingredientId: string; name: string; unitCost: number };
+type Ingredient = { id: string; name: string; unit: string };
 
 const DEPARTMENT_LABELS: Record<string, string> = {
   dapur: "🍳 Dapur",
@@ -30,9 +34,29 @@ function fmtDate(v: string) {
   return new Date(v).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export default function HppMenuListClient({ businessId, rows }: { businessId: string; rows: Row[] }) {
+export default function HppMenuListClient({
+  businessId,
+  rows,
+  recipesByProduct,
+  ingredients,
+}: {
+  businessId: string;
+  rows: Row[];
+  recipesByProduct: Record<string, RecipeLine[]>;
+  ingredients: Ingredient[];
+}) {
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const departments = useMemo(() => {
     const set = new Set(rows.map((r) => r.department).filter((d): d is string => Boolean(d)));
@@ -106,36 +130,62 @@ export default function HppMenuListClient({ businessId, rows }: { businessId: st
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
-                  <tr key={r.id} className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/business/${businessId}/products/${r.id}/recipe`}
-                        className="text-xs font-medium text-zinc-800 hover:text-brand-600 hover:underline print:no-underline print:text-zinc-800"
-                      >
-                        {r.name}
-                      </Link>
-                      <div className="text-[10px] text-zinc-400">
-                        {r.category}
-                        {r.department && ` · ${DEPARTMENT_LABELS[r.department] ?? r.department}`}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs text-zinc-600">{fmt(r.price)}</td>
-                    <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
-                      {fmt(r.cost)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
-                      {r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
-                    </td>
-                    <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
-                      {fmt(r.margin)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
-                      {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
-                      {fmtDate(r.updatedAt)}
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((r, i) => {
+                  const isOpen = expanded.has(r.id);
+                  return (
+                    <Fragment key={r.id}>
+                      <tr className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(r.id)}
+                            className="flex items-center gap-1.5 text-left text-xs font-medium text-zinc-800 hover:text-brand-600 print:pointer-events-none"
+                          >
+                            <span className="text-[10px] text-zinc-400 print:hidden">{isOpen ? "▾" : "▸"}</span>
+                            {r.name}
+                          </button>
+                          <div className="text-[10px] text-zinc-400">
+                            {r.category}
+                            {r.department && ` · ${DEPARTMENT_LABELS[r.department] ?? r.department}`}
+                            {" · "}
+                            <Link
+                              href={`/business/${businessId}/products/${r.id}/recipe`}
+                              className="text-zinc-400 hover:text-brand-600 hover:underline print:hidden"
+                            >
+                              buka halaman penuh ↗
+                            </Link>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-zinc-600">{fmt(r.price)}</td>
+                        <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
+                          {fmt(r.cost)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
+                          {r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
+                          {fmt(r.margin)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
+                          {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
+                          {fmtDate(r.updatedAt)}
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="border-b border-zinc-50 last:border-0 print:hidden">
+                          <td colSpan={6} className="bg-zinc-50/60 px-4 py-3">
+                            <InlineRecipeEditor
+                              businessId={businessId}
+                              productId={r.id}
+                              items={recipesByProduct[r.id] ?? []}
+                              ingredients={ingredients}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -53,8 +53,56 @@ export default async function ReportsHppMenuPage({
     };
   });
 
+  const productIds = products.map((p) => p.id);
+
+  // Resep tiap produk -- dimuat sekaligus di sini supaya bisa diedit langsung
+  // dari halaman ini (expand per baris), tanpa pindah ke halaman resep.
+  const recipeRows = productIds.length
+    ? await fetchAllRows<{
+        id: string;
+        product_id: string;
+        qty: number;
+        unit: string;
+        ingredients: { id: string; name: string; unit_cost: number } | null;
+      }>((from, to) =>
+        supabase
+          .from("product_recipes")
+          .select("id, product_id, qty, unit, ingredients(id, name, unit_cost)")
+          .in("product_id", productIds)
+          .order("id", { ascending: true })
+          .range(from, to),
+      )
+    : [];
+
+  const recipesByProduct: Record<
+    string,
+    { id: string; qty: number; unit: string; ingredientId: string; name: string; unitCost: number }[]
+  > = {};
+  for (const r of recipeRows) {
+    const ing = r.ingredients as unknown as { id: string; name: string; unit_cost: number } | null;
+    if (!ing) continue;
+    (recipesByProduct[r.product_id] ??= []).push({
+      id: r.id,
+      qty: Number(r.qty),
+      unit: r.unit,
+      ingredientId: ing.id,
+      name: ing.name,
+      unitCost: Number(ing.unit_cost),
+    });
+  }
+
+  const ingredients = await fetchAllRows<{ id: string; name: string; unit: string }>((from, to) =>
+    supabase
+      .from("ingredients")
+      .select("id, name, unit")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .range(from, to),
+  );
+
   return (
-    <div className="w-full max-w-3xl">
+    <div className="w-full max-w-4xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">Daftar HPP Menu</h1>
@@ -64,7 +112,12 @@ export default async function ReportsHppMenuPage({
         </div>
       </div>
 
-      <HppMenuListClient businessId={businessId} rows={rows} />
+      <HppMenuListClient
+        businessId={businessId}
+        rows={rows}
+        recipesByProduct={recipesByProduct}
+        ingredients={ingredients}
+      />
     </div>
   );
 }

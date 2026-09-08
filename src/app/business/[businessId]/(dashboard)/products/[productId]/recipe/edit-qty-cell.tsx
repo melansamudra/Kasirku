@@ -13,12 +13,14 @@ export default function EditQtyCell({
   recipeItemId,
   qty,
   unit,
+  onSaved,
 }: {
   businessId: string;
   productId: string;
   recipeItemId: string;
   qty: number;
   unit: string;
+  onSaved?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(qty));
@@ -55,6 +57,7 @@ export default function EditQtyCell({
         return;
       }
       setEditing(false);
+      onSaved?.();
     });
   }
 
