@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import HppMenuListClient from "./hpp-menu-list-client";
+import ShareLinkButton from "./share-link-button";
 
 export default async function ReportsHppMenuPage({
   params,
@@ -10,7 +11,7 @@ export default async function ReportsHppMenuPage({
 }) {
   const { businessId } = await params;
   const supabase = await createClient();
-  const { data: biz } = await supabase.from("businesses").select("id").eq("id", businessId).maybeSingle();
+  const { data: biz } = await supabase.from("businesses").select("id, hpp_menu_slug").eq("id", businessId).maybeSingle();
   if (!biz) notFound();
 
   // Katalog produk aktif -- bukan berbasis transaksi/periode seperti laporan
@@ -103,13 +104,14 @@ export default async function ReportsHppMenuPage({
 
   return (
     <div className="w-full max-w-4xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">Daftar HPP Menu</h1>
           <p className="mt-1 text-sm text-zinc-500">
             HPP seluruh menu (bukan berdasarkan periode transaksi) — {rows.length} menu.
           </p>
         </div>
+        <ShareLinkButton businessId={businessId} slug={biz.hpp_menu_slug} />
       </div>
 
       <HppMenuListClient

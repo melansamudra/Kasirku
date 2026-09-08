@@ -339,6 +339,7 @@ export type Database = {
           storefront_enabled: boolean;
           storefront_slug: string | null;
           storefront_tagline: string | null;
+          hpp_menu_slug: string | null;
         };
         Insert: {
           id?: string;
@@ -389,6 +390,7 @@ export type Database = {
           storefront_enabled?: boolean;
           storefront_slug?: string | null;
           storefront_tagline?: string | null;
+          hpp_menu_slug?: string | null;
         };
         Update: {
           id?: string;
@@ -439,6 +441,7 @@ export type Database = {
           storefront_enabled?: boolean;
           storefront_slug?: string | null;
           storefront_tagline?: string | null;
+          hpp_menu_slug?: string | null;
         };
         Relationships: [];
       };
@@ -5213,6 +5216,10 @@ export type Database = {
         Returns: string;
       };
       get_stock_opname_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      get_hpp_menu_info: {
         Args: { p_slug: string };
         Returns: Json;
       };
