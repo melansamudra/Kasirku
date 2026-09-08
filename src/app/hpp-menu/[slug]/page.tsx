@@ -51,7 +51,7 @@ export default async function PublicHppMenuPage({ params }: { params: Promise<{ 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-6">
       <div className="mx-auto w-full max-w-4xl">
-        <h1 className="text-lg font-bold text-zinc-900">Daftar HPP Menu — {info.business_name}</h1>
+        <h1 className="text-lg font-bold text-zinc-900">Daftar HPP Menu</h1>
         <p className="mt-1 text-sm text-zinc-500">Harga Jual, HPP, dan Margin seluruh menu — {rows.length} menu.</p>
         <PublicHppMenuClient rows={rows} />
       </div>
