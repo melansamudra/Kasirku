@@ -127,6 +127,7 @@ function buildCostControlNavGroups(
           : []),
         { key: "finished-products", href: `${base}/finished-products`, label: "Produk Jadi (HPP)", icon: Package },
         { key: "laporan-persediaan", href: `${base}/laporan-persediaan`, label: "Laporan Persediaan", icon: Boxes },
+        { key: "stock-opname", href: `${base}/stock-opname`, label: "Stock Opname", icon: ClipboardList },
       ],
     },
     // Grup "Operasional" (Outlet + Permintaan Resto) disembunyikan sementara

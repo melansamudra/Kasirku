@@ -1250,6 +1250,56 @@ export type Database = {
           },
         ];
       };
+      ingredient_opname_entries: {
+        Row: {
+          id: string;
+          business_id: string;
+          ingredient_id: string;
+          entry_date: string;
+          reported_stock: number;
+          system_stock_at_report: number;
+          status: string;
+          submitted_by_name: string | null;
+          note: string | null;
+          verified_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          ingredient_id: string;
+          entry_date?: string;
+          reported_stock: number;
+          system_stock_at_report: number;
+          status?: string;
+          submitted_by_name?: string | null;
+          note?: string | null;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          ingredient_id?: string;
+          entry_date?: string;
+          reported_stock?: number;
+          system_stock_at_report?: number;
+          status?: string;
+          submitted_by_name?: string | null;
+          note?: string | null;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_opname_entries_ingredient_id_fkey";
+            columns: ["ingredient_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ingredients: {
         Row: {
           id: string;
