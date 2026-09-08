@@ -428,6 +428,9 @@ function buildNavGroups(
         ...(isFnb
           ? [
               { key: "ingredients", href: `${base}/ingredients`, label: "Bahan Baku", icon: Beaker },
+              ...(stockLocationsEnabled
+                ? []
+                : [{ key: "stock-opname", href: `${base}/stock-opname`, label: "Stock Opname", icon: ClipboardList }]),
               {
                 key: "tables",
                 href: `${base}/tables`,
