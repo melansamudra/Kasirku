@@ -4,52 +4,51 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { recalculateProductCost } from "@/lib/recalculate-product-cost";
 
-export type RecipeState = { error: string | null };
+export type BatchRecipeState = { error: string | null; savedCount: number };
 
-export async function addRecipeItem(
+// Tambah banyak bahan sekaligus dalam satu submit -- dipakai form multi-baris
+// di add-recipe-form.tsx supaya user tidak perlu simpan satu-satu per bahan.
+export async function addRecipeItems(
   businessId: string,
   productId: string,
-  _prevState: RecipeState,
-  formData: FormData,
-): Promise<RecipeState> {
-  const ingredientId = formData.get("ingredientId") as string;
-  const qtyRaw = formData.get("qty") as string;
-  const qty = Number(qtyRaw);
-
-  if (!ingredientId) {
-    return { error: "Pilih bahan baku dulu." };
-  }
-  if (!qtyRaw || Number.isNaN(qty) || qty <= 0) {
-    return { error: "Jumlah harus angka lebih dari 0." };
+  items: { ingredientId: string; qty: number }[],
+): Promise<BatchRecipeState> {
+  const valid = items.filter((it) => it.ingredientId && it.qty > 0);
+  if (valid.length === 0) {
+    return { error: "Tambahkan minimal satu bahan dengan jumlah lebih dari 0.", savedCount: 0 };
   }
 
   const supabase = await createClient();
 
-  const { data: ingredient } = await supabase
+  const ingredientIds = [...new Set(valid.map((it) => it.ingredientId))];
+  const { data: ingredientRows } = await supabase
     .from("ingredients")
-    .select("unit")
-    .eq("id", ingredientId)
-    .single();
+    .select("id, unit")
+    .in("id", ingredientIds);
+  const unitById = new Map((ingredientRows ?? []).map((i) => [i.id, i.unit]));
 
-  if (!ingredient) {
-    return { error: "Bahan baku tidak ditemukan." };
+  const rows = valid
+    .filter((it) => unitById.has(it.ingredientId))
+    .map((it) => ({
+      product_id: productId,
+      ingredient_id: it.ingredientId,
+      qty: it.qty,
+      unit: unitById.get(it.ingredientId)!,
+    }));
+
+  if (rows.length === 0) {
+    return { error: "Bahan baku tidak ditemukan.", savedCount: 0 };
   }
 
-  const { error: insertError } = await supabase.from("product_recipes").insert({
-    product_id: productId,
-    ingredient_id: ingredientId,
-    qty,
-    unit: ingredient.unit,
-  });
-
+  const { error: insertError } = await supabase.from("product_recipes").insert(rows);
   if (insertError) {
-    return { error: insertError.message };
+    return { error: insertError.message, savedCount: 0 };
   }
 
   await recalculateProductCost(supabase, productId);
 
   revalidatePath(`/business/${businessId}/products/${productId}/recipe`);
-  return { error: null };
+  return { error: null, savedCount: rows.length };
 }
 
 export async function removeRecipeItem(

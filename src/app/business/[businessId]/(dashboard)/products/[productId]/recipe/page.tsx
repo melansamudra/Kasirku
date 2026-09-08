@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
-import { addRecipeItem } from "./actions";
+import { addRecipeItems } from "./actions";
 import AddRecipeForm from "./add-recipe-form";
 import RemoveRecipeButton from "./remove-recipe-button";
 
@@ -49,7 +49,7 @@ export default async function ProductRecipePage({
       .range(from, to),
   );
 
-  const boundAddRecipeItem = addRecipeItem.bind(null, businessId, productId);
+  const boundAddRecipeItems = addRecipeItems.bind(null, businessId, productId);
 
   const price = Number(product.price);
   const cost = Number(product.cost);
@@ -147,7 +147,7 @@ export default async function ProductRecipePage({
 
         <div className="mt-4 border-t border-zinc-100 pt-4">
           <h3 className="mb-3 text-xs font-semibold text-zinc-700">Tambah Bahan ke Resep</h3>
-          <AddRecipeForm action={boundAddRecipeItem} ingredients={ingredients ?? []} />
+          <AddRecipeForm action={boundAddRecipeItems} ingredients={ingredients ?? []} />
         </div>
       </div>
     </div>
