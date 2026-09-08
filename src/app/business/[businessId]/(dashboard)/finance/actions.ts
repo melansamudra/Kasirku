@@ -22,6 +22,7 @@ const EXPENSE_CATEGORY_ACCOUNT: Record<string, string> = {
   "Komisi Ojol": "5-108",
   Marketing: "5-103",
   Perlengkapan: "5-104",
+  "Biaya Admin Bank/EDC": "5-109",
   "Lain-lain": "5-999",
 };
 
