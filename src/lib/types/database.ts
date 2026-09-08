@@ -2043,6 +2043,7 @@ export type Database = {
           sort_order: number | null;
           semi_finished_item_id: string | null;
           department: string | null;
+          hpp_checked: boolean;
         };
         Insert: {
           id?: string;
@@ -2066,6 +2067,7 @@ export type Database = {
           sort_order?: number | null;
           semi_finished_item_id?: string | null;
           department?: string | null;
+          hpp_checked?: boolean;
         };
         Update: {
           id?: string;
@@ -2089,6 +2091,7 @@ export type Database = {
           sort_order?: number | null;
           semi_finished_item_id?: string | null;
           department?: string | null;
+          hpp_checked?: boolean;
         };
         Relationships: [];
       };

@@ -379,6 +379,18 @@ export async function toggleFeatured(businessId: string, productId: string, feat
   revalidatePath(`/business/${businessId}/products`);
 }
 
+// Penanda visual "HPP sudah diperiksa" per produk -- tidak mempengaruhi
+// perhitungan cost sama sekali, murni checklist manual di Kelola Produk.
+export async function toggleHppChecked(businessId: string, productId: string, checked: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("products")
+    .update({ hpp_checked: checked })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/products`);
+}
+
 export async function deleteProduct(businessId: string, productId: string) {
   const supabase = await createClient();
 
