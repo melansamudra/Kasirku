@@ -7,41 +7,82 @@ type Row = {
   id: string;
   name: string;
   category: string;
+  department: string | null;
   price: number;
   cost: number;
   margin: number;
   pct: number;
+  hppChecked: boolean;
+  updatedAt: string;
+};
+
+const DEPARTMENT_LABELS: Record<string, string> = {
+  dapur: "🍳 Dapur",
+  bar: "🍹 Bar",
+  front: "🛎️ Front",
 };
 
 function fmt(v: number) {
   return `Rp${Math.round(v).toLocaleString("id-ID")}`;
 }
 
+function fmtDate(v: string) {
+  return new Date(v).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
 export default function HppMenuListClient({ businessId, rows }: { businessId: string; rows: Row[] }) {
   const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("");
+
+  const departments = useMemo(() => {
+    const set = new Set(rows.map((r) => r.department).filter((d): d is string => Boolean(d)));
+    return [...set];
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
-  }, [rows, search]);
+    return rows.filter((r) => {
+      if (department && r.department !== department) return false;
+      if (!q) return true;
+      return r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q);
+    });
+  }, [rows, search, department]);
 
   const withoutHpp = filtered.filter((r) => r.cost <= 0).length;
 
   return (
     <>
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-2 print:hidden">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari nama menu atau kategori..."
-          className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          className="min-w-[200px] flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
+        <select
+          value={department}
+          onChange={(e) => setDepartment(e.target.value)}
+          className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Semua Bagian</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {DEPARTMENT_LABELS[d] ?? d}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+        >
+          🖨️ Cetak PDF
+        </button>
       </div>
 
       {withoutHpp > 0 && (
-        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 print:hidden">
           {withoutHpp} menu belum punya HPP (masih Rp0).
         </p>
       )}
@@ -61,6 +102,7 @@ export default function HppMenuListClient({ businessId, rows }: { businessId: st
                   <th className="px-4 py-3 text-right">HPP</th>
                   <th className="px-4 py-3 text-right">%HPP</th>
                   <th className="px-4 py-3 text-right">Margin</th>
+                  <th className="px-4 py-3 text-right">Diperiksa/Diupdate</th>
                 </tr>
               </thead>
               <tbody>
@@ -69,11 +111,14 @@ export default function HppMenuListClient({ businessId, rows }: { businessId: st
                     <td className="px-4 py-3">
                       <Link
                         href={`/business/${businessId}/products/${r.id}/recipe`}
-                        className="text-xs font-medium text-zinc-800 hover:text-brand-600 hover:underline"
+                        className="text-xs font-medium text-zinc-800 hover:text-brand-600 hover:underline print:no-underline print:text-zinc-800"
                       >
                         {r.name}
                       </Link>
-                      <div className="text-[10px] text-zinc-400">{r.category}</div>
+                      <div className="text-[10px] text-zinc-400">
+                        {r.category}
+                        {r.department && ` · ${DEPARTMENT_LABELS[r.department] ?? r.department}`}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-zinc-600">{fmt(r.price)}</td>
                     <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
@@ -84,6 +129,10 @@ export default function HppMenuListClient({ businessId, rows }: { businessId: st
                     </td>
                     <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
                       {fmt(r.margin)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
+                      {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
+                      {fmtDate(r.updatedAt)}
                     </td>
                   </tr>
                 ))}
