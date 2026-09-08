@@ -156,12 +156,19 @@ export async function createBusiness(
   }
 
   // Toko FnB baru otomatis dapat fitur stok multi-lokasi (lite) — Kitchen,
-  // Bar, Gudang Utama — plus PR/PO (default 2-level, lihat kolom
-  // po_approval_levels) dan BSJ ringan. Ini TIDAK sama dengan
-  // cost_control_enabled (yang all-or-nothing & mengganti total nav/dashboard
-  // ke gaya Llauk) — cuma membuka rute stok tambahan lewat
-  // hasStockLocationAccess(). Retail/tiket sengaja dilewati karena konsep
-  // dapur/lokasi produksi tidak relevan untuk mereka.
+  // Bar — plus PR/PO (default 2-level, lihat kolom po_approval_levels) dan
+  // BSJ ringan. Ini TIDAK sama dengan cost_control_enabled (yang all-or-
+  // nothing & mengganti total nav/dashboard ke gaya Llauk) — cuma membuka
+  // rute stok tambahan lewat hasStockLocationAccess(). Retail/tiket sengaja
+  // dilewati karena konsep dapur/lokasi produksi tidak relevan untuk mereka.
+  //
+  // "Gudang Utama" (lokasi default-purchase/warehouse pusat) SENGAJA TIDAK
+  // dibuat otomatis lagi (dulu selalu ada, banyak yang ujung-ujungnya kosong
+  // tidak kepakai -- kasus Kota Baru 2026-09-08). Kebanyakan bisnis FnB cukup
+  // Kitchen+Bar; kalau owner memang butuh gudang pusat terpisah (multi-outlet
+  // belanja terpusat, dll), tinggal insert manual ke stock_locations dengan
+  // is_default_purchase=true -- belum ada UI "tambah lokasi" sendiri, jadi
+  // ini masih permintaan lewat admin/skrip, bukan self-service.
   if (businessType === "fnb") {
     const { error: stockLocationsFlagError } = await supabase
       .from("businesses")
@@ -172,7 +179,6 @@ export async function createBusiness(
       await supabase.from("stock_locations").insert([
         { business_id: business.id, name: "Kitchen", sort_order: 1, is_default_purchase: false, is_production: false },
         { business_id: business.id, name: "Bar", sort_order: 2, is_default_purchase: false, is_production: false },
-        { business_id: business.id, name: "Gudang Utama", sort_order: 3, is_default_purchase: true, is_production: false },
       ]);
     }
   }
