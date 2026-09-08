@@ -14,6 +14,7 @@ type HppMenuInfo = {
     cost: number;
     hpp_checked: boolean;
     updated_at: string;
+    recipe: { ingredient_name: string; qty: number; unit: string; unit_cost: number }[];
   }[];
 };
 
@@ -43,6 +44,7 @@ export default async function PublicHppMenuPage({ params }: { params: Promise<{ 
       pct,
       hppChecked: p.hpp_checked,
       updatedAt: p.updated_at,
+      recipe: p.recipe ?? [],
     };
   });
 

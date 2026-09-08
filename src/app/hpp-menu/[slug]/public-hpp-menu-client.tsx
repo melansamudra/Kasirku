@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+
+type RecipeLine = { ingredient_name: string; qty: number; unit: string; unit_cost: number };
 
 type Row = {
   id: string;
@@ -13,6 +15,7 @@ type Row = {
   pct: number;
   hppChecked: boolean;
   updatedAt: string;
+  recipe: RecipeLine[];
 };
 
 const DEPARTMENT_LABELS: Record<string, string> = {
@@ -32,6 +35,16 @@ function fmtDate(v: string) {
 export default function PublicHppMenuClient({ rows }: { rows: Row[] }) {
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const departments = useMemo(() => {
     const set = new Set(rows.map((r) => r.department).filter((d): d is string => Boolean(d)));
@@ -97,31 +110,81 @@ export default function PublicHppMenuClient({ rows }: { rows: Row[] }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
-                  <tr key={r.id} className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-zinc-800">{r.name}</span>
-                      <div className="text-[10px] text-zinc-400">
-                        {r.category}
-                        {r.department && ` · ${DEPARTMENT_LABELS[r.department] ?? r.department}`}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs text-zinc-600">{fmt(r.price)}</td>
-                    <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
-                      {fmt(r.cost)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
-                      {r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
-                    </td>
-                    <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
-                      {fmt(r.margin)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
-                      {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
-                      {fmtDate(r.updatedAt)}
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((r, i) => {
+                  const isOpen = expanded.has(r.id);
+                  return (
+                    <Fragment key={r.id}>
+                      <tr className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(r.id)}
+                            className="flex items-center gap-1.5 text-left text-xs font-medium text-zinc-800 hover:text-brand-600 print:pointer-events-none"
+                          >
+                            <span className="text-[10px] text-zinc-400 print:hidden">{isOpen ? "▾" : "▸"}</span>
+                            {r.name}
+                          </button>
+                          <div className="text-[10px] text-zinc-400">
+                            {r.category}
+                            {r.department && ` · ${DEPARTMENT_LABELS[r.department] ?? r.department}`}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-zinc-600">{fmt(r.price)}</td>
+                        <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
+                          {fmt(r.cost)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
+                          {r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
+                          {fmt(r.margin)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
+                          {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
+                          {fmtDate(r.updatedAt)}
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="border-b border-zinc-50 last:border-0">
+                          <td colSpan={6} className="bg-zinc-50/60 px-4 py-3">
+                            {r.recipe.length > 0 ? (
+                              <div className="overflow-hidden rounded-lg border border-zinc-100 bg-white">
+                                <table className="w-full text-xs">
+                                  <thead className="bg-zinc-50 text-[10px] text-zinc-500">
+                                    <tr>
+                                      <th className="px-2 py-1.5 text-left">Bahan</th>
+                                      <th className="px-2 py-1.5 text-right">Jumlah</th>
+                                      <th className="px-2 py-1.5 text-right">Harga Satuan</th>
+                                      <th className="px-2 py-1.5 text-right">Biaya</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-zinc-100">
+                                    {r.recipe.map((line, idx) => (
+                                      <tr key={idx}>
+                                        <td className="px-2 py-1.5 text-zinc-800">{line.ingredient_name}</td>
+                                        <td className="px-2 py-1.5 text-right text-zinc-600">
+                                          {line.qty} {line.unit}
+                                        </td>
+                                        <td className="px-2 py-1.5 text-right text-zinc-500">{fmt(line.unit_cost)}</td>
+                                        <td className="px-2 py-1.5 text-right font-medium text-zinc-800">
+                                          {fmt(line.qty * line.unit_cost)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="rounded-lg border border-dashed border-zinc-200 px-3 py-3 text-center text-[11px] text-zinc-400">
+                                Belum ada resep untuk menu ini.
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
