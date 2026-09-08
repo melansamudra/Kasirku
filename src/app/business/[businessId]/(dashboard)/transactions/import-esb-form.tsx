@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { EsbPreviewState, ImportEsbState } from "./esb-actions";
+
+type Outlet = { id: string; name: string };
 
 const initPreview: EsbPreviewState = { error: null, preview: null };
 const initImport: ImportEsbState = { error: null, result: null };
@@ -19,13 +21,18 @@ export default function ImportEsbForm({
   previewAction: previewEsbAction,
   importAction: confirmEsbAction,
   onClose,
+  outlets,
 }: {
   previewAction: (state: EsbPreviewState, formData: FormData) => Promise<EsbPreviewState>;
   importAction: (state: ImportEsbState, formData: FormData) => Promise<ImportEsbState>;
   onClose: () => void;
+  outlets?: Outlet[];
 }) {
   const [previewState, previewAction, isPreviewing] = useActionState(previewEsbAction, initPreview);
   const [importState, importAction, isImporting] = useActionState(confirmEsbAction, initImport);
+  // Auto-pilih kalau cuma ada 1 outlet -- tidak perlu bikin user milih
+  // sesuatu yang jawabannya cuma satu.
+  const [outletId, setOutletId] = useState(outlets?.length === 1 ? outlets[0].id : "");
 
   // Langkah 3: Selesai
   if (importState.result) {
@@ -131,6 +138,30 @@ export default function ImportEsbForm({
           </details>
         )}
 
+        {outlets && outlets.length > 1 && (
+          <div>
+            <label htmlFor="esb-outlet" className="mb-1 block text-xs font-medium text-zinc-600">
+              Outlet
+            </label>
+            <select
+              id="esb-outlet"
+              value={outletId}
+              onChange={(e) => setOutletId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">— Pilih outlet —</option>
+              {outlets.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Stok bahan setengah jadi di outlet ini akan otomatis berkurang sesuai resep.
+            </p>
+          </div>
+        )}
+
         {importState.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{importState.error}</p>}
 
         <div className="flex gap-2">
@@ -143,6 +174,7 @@ export default function ImportEsbForm({
           </button>
           <form action={importAction} className="flex-1">
             <input type="hidden" name="dataJson" value={dataJson} />
+            <input type="hidden" name="outletId" value={outletId} />
             <button
               type="submit"
               disabled={isImporting || transactionCount === 0}

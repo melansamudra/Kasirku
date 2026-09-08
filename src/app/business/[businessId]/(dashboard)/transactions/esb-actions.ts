@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { syncFinishedProductsToCatalog } from "@/lib/cost-control/sync-finished-products-catalog";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import { deductOutletStockForSale } from "@/lib/cost-control/deduct-outlet-stock";
 
 // Kolom yang dibaca dari "Sales Recapitulation Detail Report" ESB -- laporan
 // SATU BARIS PER MENU per transaksi (beda dari import_sales_recap yang cuma
@@ -384,6 +385,7 @@ export async function confirmEsbImport(
 ): Promise<ImportEsbState> {
   const dataJson = formData.get("dataJson") as string | null;
   if (!dataJson) return { error: "Data tidak valid, coba upload ulang.", result: null };
+  const outletId = (formData.get("outletId") as string | null) || null;
 
   let draft: DraftPayload;
   try {
@@ -515,6 +517,16 @@ export async function confirmEsbImport(
   }
 
   const itemCount = payload.reduce((sum, p) => sum + p.items.length, 0);
+
+  if (outletId) {
+    // Diratakan dari semua transaksi di batch ini -- deductOutletStockForSale
+    // sendiri yang menjumlahkan per BSJ x qty (lihat helper-nya untuk kenapa
+    // cuma baris resep component_type "semi_finished" yang kepotong).
+    const flatItems = payload.flatMap((p) => p.items.map((it) => ({ productId: it.product_id, qty: it.qty })));
+    if (flatItems.length > 0) {
+      await deductOutletStockForSale(supabase, businessId, outletId, flatItems);
+    }
+  }
 
   await logActivity(
     supabase,

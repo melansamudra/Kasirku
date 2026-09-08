@@ -36,13 +36,14 @@ export default async function TransactionsPage({
   const { date: dateParam } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: business }, { data: userData }] = await Promise.all([
+  const [{ data: business }, { data: userData }, { data: outlets }] = await Promise.all([
     supabase
       .from("businesses")
       .select("id, name, owner_id, mirroring_enabled, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
       .eq("id", businessId)
       .single(),
     supabase.auth.getUser(),
+    supabase.from("outlets").select("id, name").eq("business_id", businessId).eq("active", true).order("name"),
   ]);
 
   if (!business) {
@@ -165,6 +166,7 @@ export default async function TransactionsPage({
               costControlEnabled={costControlEnabled}
               stockLocationsEnabled={business.stock_locations_enabled}
               richStockOpsEnabled={business.rich_stock_ops_enabled ?? false}
+              outlets={outlets ?? []}
             />
           )}
         </div>

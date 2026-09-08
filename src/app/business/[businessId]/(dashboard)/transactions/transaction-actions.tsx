@@ -9,6 +9,8 @@ import ImportEsbForm from "./import-esb-form";
 import type { ImportTransactionsState, MokaPreviewState, MokaImportState } from "./actions";
 import type { EsbPreviewState, ImportEsbState } from "./esb-actions";
 
+type Outlet = { id: string; name: string };
+
 // Export/import/manual-add are backoffice bulk-data tools, not something a
 // cashier needs from the Android app — only the transaction list itself
 // (rendered by the server component around these) stays visible there.
@@ -22,6 +24,7 @@ export function TransactionActions({
   costControlEnabled = false,
   stockLocationsEnabled = false,
   richStockOpsEnabled = false,
+  outlets,
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
@@ -32,6 +35,7 @@ export function TransactionActions({
   costControlEnabled?: boolean;
   stockLocationsEnabled?: boolean;
   richStockOpsEnabled?: boolean;
+  outlets?: Outlet[];
 }) {
   const canImportRekap = costControlEnabled || stockLocationsEnabled || richStockOpsEnabled;
   const [importOpen, setImportOpen] = useState(false);
@@ -190,7 +194,12 @@ export function TransactionActions({
               Upload file yang sama 2x aman — transaksi yang sudah pernah masuk otomatis dilewati.
             </p>
             <div className="mt-4">
-              <ImportEsbForm previewAction={previewEsbAction} importAction={importEsbAction} onClose={() => setEsbOpen(false)} />
+              <ImportEsbForm
+                previewAction={previewEsbAction}
+                importAction={importEsbAction}
+                onClose={() => setEsbOpen(false)}
+                outlets={outlets}
+              />
             </div>
           </div>
         </div>
