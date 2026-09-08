@@ -5,13 +5,10 @@ import { fetchAllRows } from "@/lib/pagination";
 import { addRecipeItems } from "./actions";
 import AddRecipeForm from "./add-recipe-form";
 import RemoveRecipeButton from "./remove-recipe-button";
+import EditQtyCell from "./edit-qty-cell";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
-}
-
-function formatQty(value: number) {
-  return Number(value.toFixed(4)).toLocaleString("id-ID");
 }
 
 export default async function ProductRecipePage({
@@ -117,7 +114,7 @@ export default async function ProductRecipePage({
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right text-zinc-600">
-                        {formatQty(r.qty)} {r.unit}
+                        <EditQtyCell businessId={businessId} productId={productId} recipeItemId={r.id} qty={r.qty} unit={r.unit} />
                       </td>
                       <td className="px-3 py-2 text-right text-zinc-500">{formatRupiah(r.unitCost)}</td>
                       <td className="px-3 py-2 text-right font-medium text-zinc-800">{formatRupiah(r.lineCost)}</td>

@@ -97,3 +97,33 @@ export async function removeRecipeItem(
   await recalculateProductCost(supabase, productId);
   revalidatePath(`/business/${businessId}/products/${productId}/recipe`);
 }
+
+export type UpdateQtyResult = { error: string | null };
+
+// Ubah jumlah bahan di satu baris resep yang sudah tersimpan, tanpa perlu
+// hapus lalu tambah ulang bahannya.
+export async function updateRecipeItemQty(
+  businessId: string,
+  productId: string,
+  recipeItemId: string,
+  qty: number,
+): Promise<UpdateQtyResult> {
+  if (!qty || Number.isNaN(qty) || qty <= 0) {
+    return { error: "Jumlah harus angka lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("product_recipes")
+    .update({ qty })
+    .eq("id", recipeItemId)
+    .eq("product_id", productId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await recalculateProductCost(supabase, productId);
+  revalidatePath(`/business/${businessId}/products/${productId}/recipe`);
+  return { error: null };
+}
