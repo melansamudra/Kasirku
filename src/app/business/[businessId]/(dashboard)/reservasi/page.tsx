@@ -42,7 +42,9 @@ export default async function ReservasiPage({
 
   const { data: reservations } = await supabase
     .from("reservations")
-    .select("id, customer_name, phone, party_size, reservation_time, note, status")
+    .select(
+      "id, customer_name, phone, party_size, reservation_time, note, status, tables(name), reservation_items(product_name, qty)",
+    )
     .eq("business_id", businessId)
     .eq("reservation_date", selectedDate)
     .order("reservation_time", { ascending: true });
@@ -68,8 +70,21 @@ export default async function ReservasiPage({
                   </p>
                   <p className="text-xs text-zinc-500">
                     {r.party_size} tamu · {r.phone}
+                    {r.tables?.name && ` · Meja ${r.tables.name}`}
                   </p>
                   {r.note && <p className="mt-1 text-xs text-zinc-400">{r.note}</p>}
+                  {r.reservation_items && r.reservation_items.length > 0 && (
+                    <div className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase text-amber-700">Pre-order</p>
+                      <ul className="mt-0.5 text-xs text-amber-800">
+                        {r.reservation_items.map((item, i) => (
+                          <li key={i}>
+                            {item.qty}x {item.product_name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${

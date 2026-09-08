@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ReservationForm from "./reservation-form";
+import MieKotaLanding from "./mie-kota-landing";
 import { submitReservation } from "./actions";
 
 type StorefrontProduct = {
@@ -47,6 +48,13 @@ export default async function StorefrontPage({
   );
 
   const boundSubmit = submitReservation.bind(null, slug);
+
+  // Landing khusus dengan hero scroll-animasi + configurator menu untuk
+  // "Mie Kota" -- bisnis lain yang pakai storefront tetap dapat versi
+  // generic di bawah, sengaja tidak dijadikan template umum.
+  if (slug === "mie-kota-pusat") {
+    return <MieKotaLanding slug={slug} business={business} products={products} submitReservation={boundSubmit} />;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50">

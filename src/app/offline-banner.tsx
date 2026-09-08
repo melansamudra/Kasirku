@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 // Banner app-wide (bukan cuma POS) — mitigasi utama untuk risiko data
 // keuangan basi ditampilkan seolah live sejak cakupan offline diperluas ke
 // semua halaman (lihat public/sw.js). Read-only, tidak ada antrian/retry
 // di sini — itu tetap eksklusif punya POS (use-offline-sync.ts).
 export default function OfflineBanner() {
+  const pathname = usePathname();
   const [isOnline, setIsOnline] = useState(
     () => typeof navigator === "undefined" || navigator.onLine,
   );
@@ -25,6 +27,12 @@ export default function OfflineBanner() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Landing publik toko (/toko/[slug]) tidak butuh peringatan "data mungkin
+  // basi" -- halaman itu statis/read-only untuk pengunjung tanpa login, dan
+  // status navigator.onLine sering keliru "offline" di WiFi lokal tanpa
+  // akses internet keluar (mis. saat demo/testing di jaringan LAN).
+  if (pathname?.startsWith("/toko/")) return null;
 
   if (isOnline) return null;
 
