@@ -29,7 +29,7 @@ export default async function StockOpnamePage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, stock_opname_slug")
     .eq("id", businessId)
     .single();
 
@@ -82,6 +82,19 @@ export default async function StockOpnamePage({
           setelah diverifikasi — bukan langsung saat dicatat.
         </p>
       </div>
+
+      {business.stock_opname_slug && (
+        <div className="mt-4 rounded-2xl border border-dashed border-brand-200 bg-brand-50 px-4 py-3">
+          <p className="text-xs font-semibold text-brand-800">Link Publik untuk Staf</p>
+          <p className="mt-0.5 text-[11px] text-brand-700">
+            Bagikan link ini ke staf supaya bisa isi hasil hitung fisik sendiri (tanpa login) — hasilnya
+            tetap masuk sebagai &quot;pending&quot;, menunggu diverifikasi di halaman ini.
+          </p>
+          <code className="mt-1.5 block truncate rounded-lg bg-white px-2.5 py-1.5 text-[11px] text-zinc-700">
+            /bahan-opname/{business.stock_opname_slug}
+          </code>
+        </div>
+      )}
 
       {departmentsInUse.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">

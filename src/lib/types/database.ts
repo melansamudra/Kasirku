@@ -5367,6 +5367,19 @@ export type Database = {
         Args: { p_slug: string };
         Returns: Json;
       };
+      get_ingredient_opname_info: {
+        Args: { p_slug: string };
+        Returns: Json;
+      };
+      submit_ingredient_opname: {
+        Args: {
+          p_slug: string;
+          p_entry_date: string;
+          p_submitted_by_name?: string | null;
+          p_items: Json;
+        };
+        Returns: number;
+      };
       get_hpp_menu_info: {
         Args: { p_slug: string };
         Returns: Json;

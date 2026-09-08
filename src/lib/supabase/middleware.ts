@@ -163,6 +163,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/permintaan-resto") ||
     request.nextUrl.pathname.startsWith("/produksi-scan") ||
     request.nextUrl.pathname.startsWith("/stok-opname") ||
+    request.nextUrl.pathname.startsWith("/bahan-opname") ||
     request.nextUrl.pathname.startsWith("/transfer-internal") ||
     request.nextUrl.pathname.startsWith("/terima-barang") ||
     request.nextUrl.pathname.startsWith("/portal-lokasi") ||
