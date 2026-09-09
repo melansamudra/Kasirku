@@ -987,23 +987,24 @@ export default function DashboardShell({
   // mirrors Moka's own "Cashier: App Only" vs "Administrator: App & Back-
   // office" split. Whoever is logged in (owner or staff), the native app
   // only ever gets this curated set (Laporan/Riwayat Transaksi/Riwayat
-  // Shift/Kas & Bank/Kelola Produk/Pelanggan/Kas Kecil/Pengaturan) here;
-  // everything else in this sidebar stays desktop-browser-only. Pengaturan
-  // is included specifically because Tambah Printer lives there (pos/printers
-  // is view+test only, adding/editing a printer still needs the full
-  // Settings form) — bypassOwnerOnly is what lets a normally owner-only item
-  // through despite navIsOwner being forced false.
+  // Shift/Kas & Bank/Kelola Produk/Pelanggan/Kas Kecil/Reservasi/Pengaturan)
+  // here; everything else in this sidebar stays desktop-browser-only.
+  // Reservasi & Pengaturan are both normally ownerOnly items (Reservasi so
+  // staff can't be checklist-granted it separately, Pengaturan because
+  // Tambah Printer lives there) -- bypassOwnerOnly is what lets them through
+  // here despite navIsOwner being forced false, so a cashier at the counter
+  // can see today's table reservations without leaving the app.
   const isNative = isNativeState ?? Capacitor.isNativePlatform();
   const navIsOwner = isNative ? false : isOwner;
   const nativeBase = [
     "transactions", "shifts", "settings",
-    "reports", "kas-harian", "products", "customers", "kas-kecil",
+    "reports", "kas-harian", "products", "customers", "kas-kecil", "reservasi",
   ];
   const navPermissions = isNative
     ? [...new Set([...nativeBase, ...permissions])]
     : permissions;
   const navBypassOwnerOnly = isNative
-    ? ["settings"]
+    ? ["settings", "reservasi"]
     : permissions.includes("settings") ? ["settings"] : [];
 
   const allGroups = filterGroupsForHiddenKeys(
