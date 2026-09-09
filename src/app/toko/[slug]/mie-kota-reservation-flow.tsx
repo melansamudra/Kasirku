@@ -47,6 +47,7 @@ export default function MieKotaReservationFlow({
   const [loadingTables, startLoadingTables] = useTransition();
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [qtyByProduct, setQtyByProduct] = useState<Record<string, number>>({});
+  const [noteByProduct, setNoteByProduct] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setDate(todayStr());
@@ -63,7 +64,7 @@ export default function MieKotaReservationFlow({
 
   const items = Object.entries(qtyByProduct)
     .filter(([, qty]) => qty > 0)
-    .map(([product_id, qty]) => ({ product_id, qty }));
+    .map(([product_id, qty]) => ({ product_id, qty, note: noteByProduct[product_id]?.trim() || undefined }));
 
   const itemsTotal = items.reduce((sum, it) => {
     const p = products.find((prod) => prod.id === it.product_id);
@@ -189,29 +190,42 @@ export default function MieKotaReservationFlow({
                     return (
                       <div
                         key={p.id}
-                        className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-1.5"
+                        className="rounded-lg border border-zinc-100 px-3 py-1.5"
                       >
-                        <div>
-                          <p className="text-xs font-medium text-zinc-800">{p.name}</p>
-                          <p className="text-[11px] text-zinc-400">Rp{p.price.toLocaleString("id-ID")}</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-zinc-800">{p.name}</p>
+                            <p className="text-[11px] text-zinc-400">Rp{p.price.toLocaleString("id-ID")}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => changeQty(p.id, -1)}
+                              className="h-6 w-6 rounded-full border border-zinc-200 text-xs"
+                            >
+                              -
+                            </button>
+                            <span className="w-4 text-center text-xs">{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => changeQty(p.id, 1)}
+                              className="h-6 w-6 rounded-full border border-zinc-200 text-xs"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => changeQty(p.id, -1)}
-                            className="h-6 w-6 rounded-full border border-zinc-200 text-xs"
-                          >
-                            -
-                          </button>
-                          <span className="w-4 text-center text-xs">{qty}</span>
-                          <button
-                            type="button"
-                            onClick={() => changeQty(p.id, 1)}
-                            className="h-6 w-6 rounded-full border border-zinc-200 text-xs"
-                          >
-                            +
-                          </button>
-                        </div>
+                        {qty > 0 && (
+                          <input
+                            type="text"
+                            value={noteByProduct[p.id] ?? ""}
+                            onChange={(e) =>
+                              setNoteByProduct((prev) => ({ ...prev, [p.id]: e.target.value }))
+                            }
+                            placeholder="Catatan menu ini (mis. pedas, tanpa bawang)"
+                            className="mt-1.5 w-full rounded-md border border-zinc-200 px-2 py-1 text-[11px] focus:border-amber-600 focus:outline-none"
+                          />
+                        )}
                       </div>
                     );
                   })}

@@ -43,7 +43,7 @@ export default async function ReservasiPage({
   const { data: reservations } = await supabase
     .from("reservations")
     .select(
-      "id, customer_name, phone, party_size, reservation_time, note, status, tables(name), reservation_items(product_name, qty)",
+      "id, customer_name, phone, party_size, reservation_time, note, status, tables(name), reservation_items(product_name, qty, note)",
     )
     .eq("business_id", businessId)
     .eq("reservation_date", selectedDate)
@@ -80,6 +80,7 @@ export default async function ReservasiPage({
                         {r.reservation_items.map((item, i) => (
                           <li key={i}>
                             {item.qty}x {item.product_name}
+                            {item.note && <span className="text-amber-600"> — {item.note}</span>}
                           </li>
                         ))}
                       </ul>

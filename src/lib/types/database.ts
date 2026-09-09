@@ -547,6 +547,7 @@ export type Database = {
           product_id: string | null;
           product_name: string;
           qty: number;
+          note: string | null;
         };
         Insert: {
           id?: string;
@@ -554,6 +555,7 @@ export type Database = {
           product_id?: string | null;
           product_name: string;
           qty: number;
+          note?: string | null;
         };
         Update: {
           id?: string;
@@ -561,6 +563,7 @@ export type Database = {
           product_id?: string | null;
           product_name?: string;
           qty?: number;
+          note?: string | null;
         };
         Relationships: [
           {
