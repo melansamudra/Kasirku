@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { GoogleAnalytics } from "@/lib/analytics/google-analytics";
 import ServiceWorkerRegister from "./service-worker-register";
 import OfflineBanner from "./offline-banner";
+import PullToRefresh from "./pull-to-refresh";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,6 +43,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegister />
+        <PullToRefresh />
         <OfflineBanner />
         {children}
         <GoogleAnalytics />
