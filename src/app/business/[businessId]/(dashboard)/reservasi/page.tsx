@@ -4,6 +4,7 @@ import { todayWibDateString } from "@/lib/wib";
 import DateFilter from "../transactions/date-filter";
 import { updateReservationStatus } from "./actions";
 import StatusButtons from "./status-buttons";
+import TableBlockButton from "./table-block-button";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Menunggu",
@@ -43,11 +44,23 @@ export default async function ReservasiPage({
   const { data: reservations } = await supabase
     .from("reservations")
     .select(
-      "id, customer_name, phone, party_size, reservation_time, note, status, tables(name), reservation_items(product_name, qty, note)",
+      "id, customer_name, phone, party_size, reservation_time, note, status, table_id, is_manual_block, tables(name), reservation_items(product_name, qty, note)",
     )
     .eq("business_id", businessId)
     .eq("reservation_date", selectedDate)
     .order("reservation_time", { ascending: true });
+
+  const { data: tables } = await supabase
+    .from("tables")
+    .select("id, name")
+    .eq("business_id", businessId)
+    .order("name");
+
+  const takenByTableId = new Map(
+    (reservations ?? [])
+      .filter((r) => r.table_id && r.status !== "cancelled")
+      .map((r) => [r.table_id as string, r]),
+  );
 
   return (
     <div className="w-full max-w-2xl">
@@ -59,9 +72,54 @@ export default async function ReservasiPage({
         Reservasi yang masuk lewat halaman publik toko.
       </p>
 
+      {tables && tables.length > 0 && (
+        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-4">
+          <p className="text-sm font-bold text-zinc-900">Kelola Meja — {selectedDate}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            Blokir meja yang tidak boleh dipilih pelanggan lewat website (mis. rusak atau sudah
+            direservasi manual di tempat).
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {tables.map((t) => {
+              const taken = takenByTableId.get(t.id) ?? null;
+              const blockedReservationId = taken?.is_manual_block ? taken.id : null;
+              return (
+                <div
+                  key={t.id}
+                  className={`rounded-lg border p-2.5 ${
+                    taken ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"
+                  }`}
+                >
+                  <p className="text-xs font-semibold text-zinc-800">Meja {t.name}</p>
+                  <p className="mt-0.5 text-[10px] text-zinc-500">
+                    {!taken
+                      ? "Tersedia"
+                      : taken.is_manual_block
+                        ? "Diblokir manual"
+                        : `Reservasi: ${taken.customer_name}`}
+                  </p>
+                  {(!taken || blockedReservationId) && (
+                    <div className="mt-1.5">
+                      <TableBlockButton
+                        businessId={businessId}
+                        tableId={t.id}
+                        date={selectedDate}
+                        blockedReservationId={blockedReservationId}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 space-y-2">
-        {reservations && reservations.length > 0 ? (
-          reservations.map((r) => (
+        {reservations && reservations.filter((r) => !r.is_manual_block).length > 0 ? (
+          reservations
+            .filter((r) => !r.is_manual_block)
+            .map((r) => (
             <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-4">
               <div className="flex items-start justify-between gap-2">
                 <div>

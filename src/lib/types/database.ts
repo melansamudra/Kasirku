@@ -502,6 +502,7 @@ export type Database = {
           note: string | null;
           status: string;
           table_id: string | null;
+          is_manual_block: boolean;
           created_at: string;
         };
         Insert: {
@@ -515,6 +516,7 @@ export type Database = {
           note?: string | null;
           status?: string;
           table_id?: string | null;
+          is_manual_block?: boolean;
           created_at?: string;
         };
         Update: {
@@ -528,6 +530,7 @@ export type Database = {
           note?: string | null;
           status?: string;
           table_id?: string | null;
+          is_manual_block?: boolean;
           created_at?: string;
         };
         Relationships: [
@@ -2188,6 +2191,7 @@ export type Database = {
           semi_finished_item_id: string | null;
           department: string | null;
           hpp_checked: boolean;
+          available: boolean;
         };
         Insert: {
           id?: string;
@@ -2212,6 +2216,7 @@ export type Database = {
           semi_finished_item_id?: string | null;
           department?: string | null;
           hpp_checked?: boolean;
+          available?: boolean;
         };
         Update: {
           id?: string;
@@ -2236,6 +2241,7 @@ export type Database = {
           semi_finished_item_id?: string | null;
           department?: string | null;
           hpp_checked?: boolean;
+          available?: boolean;
         };
         Relationships: [];
       };

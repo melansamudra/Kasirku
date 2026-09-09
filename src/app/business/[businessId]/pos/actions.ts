@@ -431,6 +431,26 @@ async function buildKitchenPrintJobsForItems(
   });
 }
 
+// Toggle cepat "menu habis" dari layar kasir -- independen dari stock
+// (yang buat bisnis FnB biasa cuma placeholder besar/tidak dilacak ketat).
+// Menu yang available=false disembunyikan dari grid kasir & self-order
+// sampai dinyalakan lagi.
+export async function toggleProductAvailability(
+  businessId: string,
+  productId: string,
+  available: boolean,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ available })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 export async function logKitchenPrintFailures(
   businessId: string,
   failures: { printer: string; error: string }[],
@@ -988,6 +1008,7 @@ export type PosProduct = {
   variant_label: string | null;
   image_url: string | null;
   show_in_self_order: boolean;
+  available: boolean;
 };
 
 export type PosOpenBill = {
@@ -1052,7 +1073,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
   ] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label, image_url, show_in_self_order")
+      .select("id, name, category, price, cost, stock, emoji, barcode, sku, variant_label, image_url, show_in_self_order, available")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),

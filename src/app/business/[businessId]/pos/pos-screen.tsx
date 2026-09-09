@@ -16,6 +16,7 @@ import {
   getTodayShifts,
   saveOpenBill,
   setSelfOrderEnabled,
+  toggleProductAvailability,
   toggleSelfOrderVisibility,
   updateSelfOrderStatus,
   voidPosTransaction,
@@ -62,6 +63,7 @@ type Product = {
   variant_label: string | null;
   image_url: string | null;
   show_in_self_order: boolean;
+  available: boolean;
 };
 
 type SelectedOption = {
@@ -423,13 +425,30 @@ export default function PosScreen({
     retryNow: retryPrintsNow,
     discard: discardPrint,
   } = usePrintRetry(businessId);
+  // Optimistic: tombol "Habis"/"Tersedia" di grid kasir ubah state ini
+  // langsung (tidak nunggu router.refresh) -- sumber kebenaran server tetap
+  // products.available, ini cuma overlay sampai halaman di-refresh ulang.
+  const [availabilityOverride, setAvailabilityOverride] = useState<Record<string, boolean>>({});
+
   const effectiveProducts = useMemo(() => {
     const deltas = pendingStockDeltas(pending);
-    if (Object.keys(deltas).length === 0) return products;
-    return products.map((p) =>
-      deltas[p.id] ? { ...p, stock: Math.max(0, p.stock - deltas[p.id]) } : p,
-    );
-  }, [products, pending]);
+    return products.map((p) => {
+      const available = availabilityOverride[p.id] ?? p.available;
+      const stock = deltas[p.id] ? Math.max(0, p.stock - deltas[p.id]) : p.stock;
+      if (stock === p.stock && available === p.available) return p;
+      return { ...p, stock, available };
+    });
+  }, [products, pending, availabilityOverride]);
+
+  function handleToggleAvailability(productId: string, nextAvailable: boolean) {
+    setAvailabilityOverride((prev) => ({ ...prev, [productId]: nextAvailable }));
+    void toggleProductAvailability(businessId, productId, nextAvailable).then((result) => {
+      if (result.error) {
+        setAvailabilityOverride((prev) => ({ ...prev, [productId]: !nextAvailable }));
+        alert(`Gagal ubah status menu: ${result.error}`);
+      }
+    });
+  }
 
   // Semua promo yang valid hari ini (active + dalam rentang tanggal).
   const availablePromos = useMemo<DiscountRule[]>(() => {
@@ -581,6 +600,10 @@ export default function PosScreen({
 
   function handleProductClick(group: { name: string; variants: Product[] }) {
     if (group.variants.length === 1) {
+      if (!group.variants[0].available) {
+        alert(`${group.name} sedang habis / tidak tersedia.`);
+        return;
+      }
       openOptionPickerOrAddToCart(group.variants[0]);
     } else {
       setVariantPickerGroup(group);
@@ -2091,55 +2114,86 @@ export default function PosScreen({
                 ) : (
                   <span className={viewMode === "kecil" ? "text-base" : "text-lg"}>{single.emoji || "📦"}</span>
                 );
+                // Toggle "habis" cuma masuk akal untuk produk tanpa varian --
+                // grup varian (mis. ukuran S/M/L) tidak punya satu status
+                // ketersediaan tunggal untuk semua variannya sekaligus.
+                const soldOut = !isVariantGroup && !single.available;
+                const availabilityBadge = !isVariantGroup && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleAvailability(single.id, !single.available);
+                    }}
+                    title={soldOut ? "Tandai tersedia lagi" : "Tandai habis"}
+                    className={`absolute -left-1.5 -top-1.5 z-10 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow-sm ${
+                      soldOut ? "bg-red-600 text-white" : "bg-white text-zinc-300 hover:text-red-500"
+                    }`}
+                  >
+                    {soldOut ? "HABIS" : "●"}
+                  </button>
+                );
 
                 if (viewMode === "list") {
                   return (
+                    <div key={g.name} className="relative">
+                      {availabilityBadge}
+                      <button
+                        onClick={() => handleProductClick(g)}
+                        className={`relative flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                          soldOut
+                            ? "border-zinc-100 bg-zinc-50 opacity-60"
+                            : "border-zinc-200 bg-white hover:border-brand-300"
+                        }`}
+                      >
+                        {inCart > 0 && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                            {inCart}
+                          </span>
+                        )}
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg overflow-hidden">
+                          {thumb}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
+                          <p className="text-xs text-zinc-500">
+                            {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold text-zinc-900">{price}</p>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={g.name} className="relative">
+                    {availabilityBadge}
                     <button
-                      key={g.name}
                       onClick={() => handleProductClick(g)}
-                      className="relative flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-brand-300"
+                      className={`relative w-full rounded-xl border p-3 text-left transition-colors ${
+                        soldOut
+                          ? "border-zinc-100 bg-zinc-50 opacity-60"
+                          : "border-zinc-200 bg-white hover:border-brand-300"
+                      }`}
                     >
                       {inCart > 0 && (
                         <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
                           {inCart}
                         </span>
                       )}
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-lg overflow-hidden">
+                      <div className={`mb-2 flex items-center justify-center rounded-lg bg-zinc-100 overflow-hidden ${viewMode === "kecil" ? "h-8 w-8 text-base" : viewMode === "besar" ? "h-16 w-16 text-3xl" : "h-9 w-9 text-lg"}`}>
                         {thumb}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-zinc-900">{g.name}</p>
+                      <p className={`truncate font-medium text-zinc-900 ${viewMode === "kecil" ? "text-xs" : "text-sm"}`}>{g.name}</p>
+                      {viewMode !== "kecil" && (
                         <p className="text-xs text-zinc-500">
                           {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
                         </p>
-                      </div>
-                      <p className="shrink-0 text-sm font-semibold text-zinc-900">{price}</p>
+                      )}
+                      <p className={`mt-1 font-semibold text-zinc-900 ${viewMode === "kecil" ? "text-xs" : "text-sm"}`}>{price}</p>
                     </button>
-                  );
-                }
-
-                return (
-                  <button
-                    key={g.name}
-                    onClick={() => handleProductClick(g)}
-                    className="relative rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-brand-300"
-                  >
-                    {inCart > 0 && (
-                      <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
-                        {inCart}
-                      </span>
-                    )}
-                    <div className={`mb-2 flex items-center justify-center rounded-lg bg-zinc-100 overflow-hidden ${viewMode === "kecil" ? "h-8 w-8 text-base" : viewMode === "besar" ? "h-16 w-16 text-3xl" : "h-9 w-9 text-lg"}`}>
-                      {thumb}
-                    </div>
-                    <p className={`truncate font-medium text-zinc-900 ${viewMode === "kecil" ? "text-xs" : "text-sm"}`}>{g.name}</p>
-                    {viewMode !== "kecil" && (
-                      <p className="text-xs text-zinc-500">
-                        {isVariantGroup ? `${g.variants.length} varian` : `Stok ${single.stock}`}
-                      </p>
-                    )}
-                    <p className={`mt-1 font-semibold text-zinc-900 ${viewMode === "kecil" ? "text-xs" : "text-sm"}`}>{price}</p>
-                  </button>
+                  </div>
                 );
               })}
             </div>
