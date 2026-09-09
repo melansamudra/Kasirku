@@ -717,6 +717,7 @@ function SidebarContent({
   onNavigate,
   showLogout = true,
   flat = false,
+  hideSwitchBusiness = false,
 }: {
   businessId: string;
   businessName: string;
@@ -728,6 +729,10 @@ function SidebarContent({
   costControlEnabled?: boolean;
   onNavigate?: () => void;
   showLogout?: boolean;
+  // App Android adalah alat kasir, bukan backoffice (lihat komentar isNative
+  // di DashboardShell) -- tablet kasir yang berdiri sendiri di satu toko
+  // tidak perlu jalan pintas balik ke pemilihan semua toko.
+  hideSwitchBusiness?: boolean;
   // Staf (non-owner) lihat daftar halaman RATA, tanpa judul kategori
   // pembungkus (Operasional Harian/Data Master/dst) -- header kategori itu
   // sendiri tidak pernah jadi item yang bisa dicentang di form Kelola Admin,
@@ -830,13 +835,15 @@ function SidebarContent({
       </nav>
 
       <div className="border-t border-zinc-100 px-3 py-3">
-        <Link
-          href="/dashboard"
-          onClick={onNavigate}
-          className="mb-1 block rounded-lg px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-50"
-        >
-          ← Semua Toko
-        </Link>
+        {!hideSwitchBusiness && (
+          <Link
+            href="/dashboard"
+            onClick={onNavigate}
+            className="mb-1 block rounded-lg px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-50"
+          >
+            ← Semua Toko
+          </Link>
+        )}
         {showLogout && <LogoutButton />}
       </div>
     </div>
@@ -1036,6 +1043,7 @@ export default function DashboardShell({
             costControlEnabled={costControlEnabled}
             showLogout={false}
             flat={!isOwner}
+            hideSwitchBusiness={isNative}
           />
         </div>
       </aside>
@@ -1059,6 +1067,7 @@ export default function DashboardShell({
               costControlEnabled={costControlEnabled}
               onNavigate={() => setMobileNavOpen(false)}
               flat={!isOwner}
+              hideSwitchBusiness={isNative}
             />
           </div>
         </div>
