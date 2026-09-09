@@ -17,7 +17,6 @@ import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
 import DepartmentSelect from "./department-select";
 import EditIngredientForm from "./edit-ingredient-form";
-import GenerateBarcodesButton from "./generate-barcodes-button";
 import ImportIngredientsForm from "./import-ingredients-form";
 import IngredientSearch from "./ingredient-search";
 import OpnameSectionManager from "./opname-section-manager";
@@ -127,7 +126,6 @@ export default async function IngredientsPage({
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <GenerateBarcodesButton businessId={businessId} />
             <a
               href={`/business/${businessId}/ingredients/export`}
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
