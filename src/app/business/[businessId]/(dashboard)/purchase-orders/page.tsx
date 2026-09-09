@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import { hasPoAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -78,11 +78,11 @@ export default async function PurchaseOrdersPage({
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled")
+    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, po_enabled")
     .eq("id", businessId)
     .single();
 
-  if (!business || !hasStockLocationAccess(business)) {
+  if (!business || !hasPoAccess(business)) {
     notFound();
   }
 

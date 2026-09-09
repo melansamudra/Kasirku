@@ -12,3 +12,16 @@ export function hasStockLocationAccess(business: {
 }): boolean {
   return !!(business.cost_control_enabled || business.stock_locations_enabled || business.rich_stock_ops_enabled);
 }
+
+// Purchase Order sendirian, tanpa ikut membuka seluruh paket fitur
+// per-lokasi (Kartu Stok/Transfer/Stock Opname/BSJ per lokasi) yang datang
+// bareng hasStockLocationAccess() di atas. Bisnis 1-lokasi standar (mis.
+// Mie Kota) bisa nyalain PO doang lewat businesses.po_enabled.
+export function hasPoAccess(business: {
+  cost_control_enabled: boolean | null;
+  stock_locations_enabled: boolean | null;
+  rich_stock_ops_enabled?: boolean | null;
+  po_enabled?: boolean | null;
+}): boolean {
+  return hasStockLocationAccess(business) || !!business.po_enabled;
+}

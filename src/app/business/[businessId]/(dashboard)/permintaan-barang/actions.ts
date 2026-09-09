@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { getCurrentActor, canApprovePo } from "@/lib/current-actor";
-import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import { hasPoAccess } from "@/lib/cost-control/has-stock-access";
 
 export type ActionState = { error: string | null };
 
@@ -458,7 +458,7 @@ export async function forwardAllocationsToSupplier(
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, po_approval_levels")
+    .select("cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, po_enabled, po_approval_levels")
     .eq("id", businessId)
     .single();
 
@@ -474,7 +474,7 @@ export async function forwardAllocationsToSupplier(
   let poItemCount = 0;
   let mergedIntoExisting = false;
 
-  if (business && hasStockLocationAccess(business)) {
+  if (business && hasPoAccess(business)) {
     const actor = await getCurrentActor(supabase, businessId);
     if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
 

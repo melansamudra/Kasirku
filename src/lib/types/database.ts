@@ -380,6 +380,7 @@ export type Database = {
           po_approval_levels: number;
           stock_deduction_enabled: boolean;
           rich_stock_ops_enabled: boolean;
+          po_enabled: boolean;
           custom_domain: string | null;
           storefront_enabled: boolean;
           storefront_slug: string | null;
@@ -431,6 +432,7 @@ export type Database = {
           po_approval_levels?: number;
           stock_deduction_enabled?: boolean;
           rich_stock_ops_enabled?: boolean;
+          po_enabled?: boolean;
           custom_domain?: string | null;
           storefront_enabled?: boolean;
           storefront_slug?: string | null;
@@ -482,6 +484,7 @@ export type Database = {
           po_approval_levels?: number;
           stock_deduction_enabled?: boolean;
           rich_stock_ops_enabled?: boolean;
+          po_enabled?: boolean;
           custom_domain?: string | null;
           storefront_enabled?: boolean;
           storefront_slug?: string | null;

@@ -37,7 +37,7 @@ export default async function BusinessDashboardLayout({
     supabase
       .from("businesses")
       .select(
-        "id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys, stock_locations_enabled, rich_stock_ops_enabled, storefront_enabled",
+        "id, name, business_type, owner_id, mirroring_enabled, cost_control_enabled, sell_products_enabled, hidden_nav_keys, stock_locations_enabled, rich_stock_ops_enabled, storefront_enabled, po_enabled",
       )
       .eq("id", businessId)
       .single(),
@@ -105,6 +105,7 @@ export default async function BusinessDashboardLayout({
       mirroringEnabled={business.mirroring_enabled ?? false}
       costControlEnabled={business.cost_control_enabled ?? false}
       stockLocationsEnabled={business.stock_locations_enabled ?? false}
+      poEnabled={business.po_enabled ?? false}
       sellProductsEnabled={business.sell_products_enabled ?? false}
       storefrontEnabled={business.storefront_enabled ?? false}
       hiddenNavKeys={business.hidden_nav_keys ?? []}
