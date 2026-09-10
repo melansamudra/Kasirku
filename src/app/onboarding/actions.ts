@@ -167,10 +167,17 @@ export async function createBusiness(
   // Order tetap aktif lewat po_enabled di atas, Stock Opname global otomatis
   // ikut muncul selama stock_locations_enabled false -- lihat dashboard-shell
   // .tsx), sama seperti "Gudang Utama" yang sudah lebih dulu dilepas dari
-  // auto-create. Kalau owner memang butuh stok multi-lokasi (Kitchen, Bar,
-  // gudang pusat, dll), tinggal insert manual ke stock_locations + set
-  // stock_locations_enabled dengan skrip/SQL admin -- belum ada UI "tambah
-  // lokasi" sendiri, jadi ini masih permintaan lewat admin, bukan self-service.
+  // auto-create. Kalau owner memang butuh stok multi-lokasi, tinggal insert
+  // manual ke stock_locations + set stock_locations_enabled dengan skrip/SQL
+  // admin -- belum ada UI "tambah lokasi" sendiri, jadi ini masih permintaan
+  // lewat admin, bukan self-service.
+  //
+  // Starter kit standar buat bisnis multi-lokasi yang di-setup manual mulai
+  // sekarang (arahan user 2026-09-10): 3 lokasi -- Gudang
+  // (is_default_purchase=true, tempat pembelian mendarat duluan), Kitchen,
+  // Bar -- bukan cuma Kitchen+Bar seperti pola lama (Llauk, Adi's Culinary).
+  // Distribusi dari Gudang ke Kitchen/Bar pakai fitur Transfer Internal yang
+  // sudah ada.
 
   const copyFromBusinessId = (formData.get("copyFromBusinessId") as string) || null;
   if (copyFromBusinessId) {
