@@ -571,12 +571,7 @@ export default async function StockOpnamePage({
           </p>
 
           <div className="mt-3">
-            <KartuStokList
-              items={rekonsilRows}
-              renderPendingAction={(row) =>
-                row.opnameEntryId ? <EntryActions businessId={businessId} entryId={row.opnameEntryId} /> : null
-              }
-            />
+            <KartuStokList items={rekonsilRows} businessId={businessId} />
           </div>
         </div>
       )}

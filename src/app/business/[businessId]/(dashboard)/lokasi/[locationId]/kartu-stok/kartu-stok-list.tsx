@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
+import EntryActions from "../../../stock-opname/entry-actions";
 
 function formatQty(value: number) {
   return Number(value.toFixed(2)).toLocaleString("id-ID");
@@ -38,13 +39,15 @@ export type KartuStokRow = {
 
 export default function KartuStokList({
   items,
-  renderPendingAction,
+  businessId,
 }: {
   items: KartuStokRow[];
-  // Render-prop supaya komponen ini tetap generik -- pemanggil yang
-  // menyediakan UI aksinya sendiri (businessId, entryId, fungsi
-  // verifikasi/tolak beda-beda per konsumer).
-  renderPendingAction?: (item: KartuStokRow) => ReactNode;
+  // Kalau diisi, baris dengan opname pending dapat cekbox+tombol
+  // Verifikasi/Tolak langsung di situ (dipakai Rekonsil Stok Harian).
+  // Server Component tidak bisa kirim function sebagai prop ke sini
+  // (Client Component) -- makanya EntryActions di-render langsung di
+  // dalam, bukan lewat render-prop dari pemanggil.
+  businessId?: string;
 }) {
   const [query, setQuery] = useState("");
 
@@ -131,9 +134,9 @@ export default function KartuStokList({
                     </p>
                   </div>
                 </div>
-                {item.lastOpname?.status === "pending" && renderPendingAction && (
+                {item.lastOpname?.status === "pending" && businessId && item.opnameEntryId && (
                   <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
-                    {renderPendingAction(item)}
+                    <EntryActions businessId={businessId} entryId={item.opnameEntryId} />
                   </div>
                 )}
               </div>
