@@ -26,6 +26,7 @@ export default function DepartmentSelect({
   function toggle(dep: string) {
     const next = value.includes(dep) ? value.filter((d) => d !== dep) : [...value, dep];
     setValue(next);
+    setOpen(false);
     setPending(true);
     action(ingredientId, next)
       .then(() => {
