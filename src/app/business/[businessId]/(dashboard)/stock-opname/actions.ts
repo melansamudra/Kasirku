@@ -184,3 +184,21 @@ export async function rejectOpnameEntry(businessId: string, entryId: string): Pr
   revalidatePath(`/business/${businessId}/stock-opname`);
   return { error: null };
 }
+
+export type RegenerateSlugState = { error: string | null; slug: string | null };
+
+// Bisnis yang dibuat setelah migration 20260828100000 (backfill sekali jalan
+// buat data lama) tidak otomatis punya stock_opname_slug -- kolomnya sama
+// dengan versi per-lokasi (lokasi/[locationId]/stock-opname/actions.ts),
+// tapi di sini businessId saja cukup, tidak ada locationId.
+export async function regenerateIngredientOpnameSlug(businessId: string): Promise<RegenerateSlugState> {
+  const supabase = await createClient();
+  const slug = crypto.randomUUID().replace(/-/g, "");
+
+  const { error } = await supabase.from("businesses").update({ stock_opname_slug: slug }).eq("id", businessId);
+  if (error) return { error: error.message, slug: null };
+
+  await logActivity(supabase, businessId, "pengaturan", "warning", "Link stok opname diganti");
+  revalidatePath(`/business/${businessId}/stock-opname`);
+  return { error: null, slug };
+}
