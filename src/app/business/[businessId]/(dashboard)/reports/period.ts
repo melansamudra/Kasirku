@@ -35,14 +35,14 @@ function todayStr() {
   return new Date().toLocaleDateString("en-CA", { timeZone: REPORT_TIMEZONE });
 }
 
-function addDaysStr(dateStr: string, days: number) {
+export function addDaysStr(dateStr: string, days: number) {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
 /** Ubah tanggal lokal WIB (YYYY-MM-DD) jadi timestamp UTC awal hari itu. */
-function wibStartOfDay(dateStr: string) {
+export function wibStartOfDay(dateStr: string) {
   return `${dateStr}T00:00:00+07:00`;
 }
 
