@@ -1,9 +1,14 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { todayWibDateString } from "@/lib/wib";
 import { submitOpnameEntries } from "./actions";
 import OpnameForm from "./opname-form";
 import EntryActions from "./entry-actions";
+import KartuStokList, { type KartuStokRow } from "../lokasi/[locationId]/kartu-stok/kartu-stok-list";
+import { PERIOD_COOKIE_NAME, PERIOD_DESCRIPTIONS, getPeriodRange, parsePeriod } from "../reports/period";
+import PeriodTabs from "../reports/period-tabs";
 
 const DEPARTMENT_LABELS: Record<string, string> = { dapur: "Dapur", bar: "Bar", front: "Front" };
 
@@ -20,10 +25,10 @@ export default async function StockOpnamePage({
   searchParams,
 }: {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ divisi?: string }>;
+  searchParams: Promise<{ divisi?: string; period?: string; from?: string; to?: string }>;
 }) {
   const { businessId } = await params;
-  const { divisi } = await searchParams;
+  const { divisi, period: periodParam, from, to } = await searchParams;
 
   const supabase = await createClient();
 
@@ -36,6 +41,10 @@ export default async function StockOpnamePage({
   if (!business) {
     notFound();
   }
+
+  const cookieStore = await cookies();
+  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const { data: allIngredients } = await supabase
     .from("ingredients")
@@ -61,14 +70,69 @@ export default async function StockOpnamePage({
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const { data: ledger } = await supabase
-    .from("stock_adjustments")
-    .select("id, entry_date, item_name, unit, stock_before, stock_after, diff, reason, created_at")
+  // Stok Data di bawah tetap real-time (saldo & opname terakhir SAAT INI),
+  // cuma Stock Masuk/Keluar yang difilter periode -- sama pola dengan Kartu
+  // Stok per-lokasi (lokasi/[locationId]/kartu-stok/page.tsx).
+  const adjustments = await fetchAllRows<{
+    ingredient_id: string | null;
+    item_name: string;
+    unit: string | null;
+    diff: number;
+  }>((rangeFrom, rangeTo) => {
+    let q = supabase
+      .from("stock_adjustments")
+      .select("ingredient_id, item_name, unit, diff")
+      .eq("business_id", businessId)
+      .is("location_id", null)
+      .not("ingredient_id", "is", null);
+    if (fromIso) q = q.gte("entry_date", fromIso.slice(0, 10));
+    if (toIsoExclusive) q = q.lt("entry_date", toIsoExclusive.slice(0, 10));
+    return q.range(rangeFrom, rangeTo);
+  });
+
+  const { data: latestOpnamePerIngredient } = await supabase
+    .from("ingredient_opname_entries")
+    .select("ingredient_id, reported_stock, status, entry_date")
     .eq("business_id", businessId)
-    .not("ingredient_id", "is", null)
-    .order("entry_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(30);
+    .order("created_at", { ascending: false });
+
+  const rows = new Map<string, KartuStokRow>();
+  for (const ing of allIngredients ?? []) {
+    rows.set(`ing:${ing.id}`, {
+      key: `ing:${ing.id}`,
+      id: ing.id,
+      componentType: "ingredient",
+      name: ing.name,
+      unit: ing.unit,
+      stokData: Number(ing.stock),
+      stockMasuk: 0,
+      stockKeluar: 0,
+      lastOpname: null,
+    });
+  }
+  for (const a of adjustments) {
+    if (!a.ingredient_id) continue;
+    const row = rows.get(`ing:${a.ingredient_id}`);
+    if (!row) continue;
+    const diff = Number(a.diff);
+    if (diff > 0) row.stockMasuk += diff;
+    else row.stockKeluar += Math.abs(diff);
+  }
+  for (const o of latestOpnamePerIngredient ?? []) {
+    const row = rows.get(`ing:${o.ingredient_id}`);
+    // Baris pertama yang ketemu per bahan = paling baru (sudah order by
+    // created_at desc), sisanya (opname lama) dilewati.
+    if (row && !row.lastOpname) {
+      row.lastOpname = {
+        reportedStock: Number(o.reported_stock),
+        status: o.status as "pending" | "verified" | "rejected",
+        entryDate: o.entry_date,
+      };
+    }
+  }
+  const kartuStokList = [...rows.values()]
+    .filter((r) => !selectedDivisi || visibleIngredients.some((i) => i.id === r.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const boundSubmit = submitOpnameEntries.bind(null, businessId);
   const today = todayWibDateString();
@@ -167,29 +231,50 @@ export default async function StockOpnamePage({
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-zinc-900">Kartu Stok (Riwayat Koreksi)</h2>
-          <p className="mt-0.5 text-[11px] text-zinc-400">Mutasi stok hasil verifikasi opname, terbaru dulu.</p>
+      <div className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-bold text-zinc-900">Kartu Stok</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              Stok Data & Stok Riil selalu saldo terkini. Stock Masuk/Keluar: {PERIOD_DESCRIPTIONS[period]}.
+            </p>
+          </div>
+          <PeriodTabs basePath={`/business/${businessId}/stock-opname`} period={period} />
         </div>
-        <div className="divide-y divide-zinc-50 px-4">
-          {(ledger ?? []).length === 0 && (
-            <p className="py-6 text-center text-xs text-zinc-300">Belum ada riwayat koreksi stok.</p>
-          )}
-          {(ledger ?? []).map((l) => (
-            <div key={l.id} className="flex items-center justify-between py-2 text-xs">
-              <div>
-                <p className="font-medium text-zinc-700">{l.item_name}</p>
-                <p className="text-[11px] text-zinc-400">
-                  {formatDate(l.entry_date)} · {l.stock_before} → {l.stock_after} {l.unit}
-                </p>
-              </div>
-              <span className={`font-semibold ${Number(l.diff) >= 0 ? "text-brand-700" : "text-red-600"}`}>
-                {Number(l.diff) > 0 ? "+" : ""}
-                {l.diff} {l.unit}
-              </span>
-            </div>
-          ))}
+
+        {period === "custom" && (
+          <form method="get" className="mt-3 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4">
+            <input type="hidden" name="period" value="custom" />
+            {selectedDivisi && <input type="hidden" name="divisi" value={selectedDivisi} />}
+            <label className="text-xs font-medium text-zinc-600">
+              Dari
+              <input
+                type="date"
+                name="from"
+                defaultValue={from}
+                className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="text-xs font-medium text-zinc-600">
+              Sampai
+              <input
+                type="date"
+                name="to"
+                defaultValue={to}
+                className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              Terapkan
+            </button>
+          </form>
+        )}
+
+        <div className="mt-3">
+          <KartuStokList items={kartuStokList} />
         </div>
       </div>
     </div>
