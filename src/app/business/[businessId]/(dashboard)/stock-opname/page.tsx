@@ -223,7 +223,7 @@ export default async function StockOpnamePage({
       // sistem tanggal itu vs hasil hitung fisik tanggal itu.
       supabase
         .from("ingredient_opname_entries")
-        .select("ingredient_id, reported_stock, status, entry_date")
+        .select("id, ingredient_id, reported_stock, status, entry_date")
         .eq("business_id", businessId)
         .eq("entry_date", rekonsilDate)
         .order("created_at", { ascending: false }),
@@ -280,6 +280,7 @@ export default async function StockOpnamePage({
           status: o.status as "pending" | "verified" | "rejected",
           entryDate: o.entry_date,
         };
+        row.opnameEntryId = o.id;
       }
     }
 
@@ -570,7 +571,12 @@ export default async function StockOpnamePage({
           </p>
 
           <div className="mt-3">
-            <KartuStokList items={rekonsilRows} />
+            <KartuStokList
+              items={rekonsilRows}
+              renderPendingAction={(row) =>
+                row.opnameEntryId ? <EntryActions businessId={businessId} entryId={row.opnameEntryId} /> : null
+              }
+            />
           </div>
         </div>
       )}

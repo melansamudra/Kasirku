@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 function formatQty(value: number) {
   return Number(value.toFixed(2)).toLocaleString("id-ID");
@@ -30,9 +30,22 @@ export type KartuStokRow = {
   stockMasuk: number;
   stockKeluar: number;
   lastOpname: { reportedStock: number; status: "pending" | "verified" | "rejected"; entryDate: string } | null;
+  // Opsional -- diisi pemanggil yang tahu id entri opname-nya (mis. Rekonsil
+  // Stok Harian, yang menguncinya ke satu tanggal spesifik jadi tidak
+  // ambigu). Kalau null/tidak diisi, tidak ada aksi verifikasi yang tampil.
+  opnameEntryId?: string | null;
 };
 
-export default function KartuStokList({ items }: { items: KartuStokRow[] }) {
+export default function KartuStokList({
+  items,
+  renderPendingAction,
+}: {
+  items: KartuStokRow[];
+  // Render-prop supaya komponen ini tetap generik -- pemanggil yang
+  // menyediakan UI aksinya sendiri (businessId, entryId, fungsi
+  // verifikasi/tolak beda-beda per konsumer).
+  renderPendingAction?: (item: KartuStokRow) => ReactNode;
+}) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -118,6 +131,11 @@ export default function KartuStokList({ items }: { items: KartuStokRow[] }) {
                     </p>
                   </div>
                 </div>
+                {item.lastOpname?.status === "pending" && renderPendingAction && (
+                  <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
+                    {renderPendingAction(item)}
+                  </div>
+                )}
               </div>
             );
           })
