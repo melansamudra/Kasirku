@@ -4973,18 +4973,21 @@ export type Database = {
           transaction_id: string;
           ingredient_id: string;
           qty: number;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
           transaction_id: string;
           ingredient_id: string;
           qty: number;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
           transaction_id?: string;
           ingredient_id?: string;
           qty?: number;
+          location_id?: string | null;
         };
         Relationships: [];
       };
