@@ -6,6 +6,7 @@ import ActivateSubscriptionForm from "./activate-subscription-form";
 import ToggleMirroringButton from "./toggle-mirroring-button";
 import ToggleCostControlButton from "./toggle-cost-control-button";
 import ToggleStorefrontButton from "./toggle-storefront-button";
+import ToggleStockLocationsButton from "./toggle-stock-locations-button";
 import EditCustomDomainForm from "./edit-custom-domain-form";
 
 type Stats = {
@@ -34,6 +35,7 @@ type BusinessRow = {
   storefront_enabled: boolean;
   custom_domain: string | null;
   storefront_slug: string | null;
+  stock_locations_enabled: boolean;
 };
 
 const BUSINESS_TYPE_ACCENT: Record<string, { label: string; chip: string }> = {
@@ -163,6 +165,7 @@ export default async function AdminPage() {
                   <th className="px-5 py-3">Produksi &amp; Distribusi</th>
                   <th className="px-5 py-3">Toko Online</th>
                   <th className="px-5 py-3">Domain Custom</th>
+                  <th className="px-5 py-3">Mode Stok Multi-Lokasi</th>
                   <th className="px-5 py-3">Aksi</th>
                 </tr>
               </thead>
@@ -236,6 +239,9 @@ export default async function AdminPage() {
                         <EditCustomDomainForm businessId={b.id} currentDomain={b.custom_domain} />
                       </td>
                       <td className="px-5 py-3">
+                        <ToggleStockLocationsButton businessId={b.id} enabled={b.stock_locations_enabled} />
+                      </td>
+                      <td className="px-5 py-3">
                         <ActivateSubscriptionForm action={activateSubscriptionManually.bind(null, b.id)} subscriptionStatus={b.subscription_status} />
                       </td>
                     </tr>
@@ -243,7 +249,7 @@ export default async function AdminPage() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-5 py-8 text-center text-sm text-zinc-400">
+                    <td colSpan={13} className="px-5 py-8 text-center text-sm text-zinc-400">
                       Belum ada toko terdaftar.
                     </td>
                   </tr>

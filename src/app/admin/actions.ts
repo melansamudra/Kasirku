@@ -48,6 +48,51 @@ export async function toggleCostControl(businessId: string, enabled: boolean) {
   revalidatePath("/admin");
 }
 
+// Mode Stok: Simpel (default semua pendaftar baru sejak 2026-09-10, tanpa
+// lokasi) vs Multi-Lokasi (Gudang+Kitchen+Bar, dulu selalu manual lewat SQL
+// -- lihat memory project-warehouse-starter-kit). Nyalain toggle ini bikin
+// starter kit 3 lokasi standar SEKALI (idempotent -- dicek dulu biar tidak
+// dobel kalau di-toggle off lalu on lagi); matiin cuma matiin flag-nya,
+// lokasi yang sudah ada TIDAK dihapus (konsisten sama toggle lain di sini).
+export async function toggleStockLocations(businessId: string, enabled: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const service = createServiceClient();
+  const { data: adminRow } = await service
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!adminRow) return;
+
+  await service
+    .from("businesses")
+    .update({ stock_locations_enabled: enabled })
+    .eq("id", businessId);
+
+  if (enabled) {
+    const { data: existingLocations } = await service
+      .from("stock_locations")
+      .select("name")
+      .eq("business_id", businessId);
+    const existingNames = new Set((existingLocations ?? []).map((l) => l.name));
+
+    const starterKit = [
+      { name: "Gudang", sort_order: 0, is_default_purchase: true, is_production: false },
+      { name: "Kitchen", sort_order: 1, is_default_purchase: false, is_production: true },
+      { name: "Bar", sort_order: 2, is_default_purchase: false, is_production: false },
+    ].filter((loc) => !existingNames.has(loc.name));
+
+    if (starterKit.length > 0) {
+      await service.from("stock_locations").insert(starterKit.map((loc) => ({ business_id: businessId, ...loc })));
+    }
+  }
+
+  revalidatePath("/admin");
+}
+
 function slugify(name: string): string {
   const base = name
     .toLowerCase()
