@@ -7,7 +7,6 @@ import { submitOpnameEntries } from "./actions";
 import OpnameForm from "./opname-form";
 import EntryActions from "./entry-actions";
 import KartuStokList, { type KartuStokRow } from "../lokasi/[locationId]/kartu-stok/kartu-stok-list";
-import RekonsilList, { type RekonsilRow } from "./rekonsil-list";
 import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
@@ -183,12 +182,12 @@ export default async function StockOpnamePage({
   // dikurangi semua pergerakan yang terjadi SETELAH tanggal itu. Tidak ada
   // tabel snapshot harian, jadi ini dihitung on-the-fly dari log pergerakan
   // yang sudah ada (stock_adjustments + transaction_ingredient_consumption).
-  let rekonsilRows: RekonsilRow[] = [];
+  let rekonsilRows: KartuStokRow[] = [];
   if (activeTab === "rekonsil") {
     const dayStartIso = wibStartOfDay(rekonsilDate);
     const nextDayStartIso = wibStartOfDay(addDaysStr(rekonsilDate, 1));
 
-    const [adjFromDate, consOnDay, consAfterDay] = await Promise.all([
+    const [adjFromDate, consOnDay, consAfterDay, opnameOnDate] = await Promise.all([
       fetchAllRows<{ ingredient_id: string | null; entry_date: string; diff: number }>((rf, rt) =>
         supabase
           .from("stock_adjustments")
@@ -218,17 +217,30 @@ export default async function StockOpnamePage({
           .gte("transactions.date", nextDayStartIso)
           .range(rf, rt),
       ),
+      // Hasil hitung fisik (opname) YANG DICATAT PERSIS di tanggal terpilih --
+      // beda dari Kartu Stok tab yang selalu nampilin opname TERBARU (tanpa
+      // peduli tanggal). Di sini justru itu yang mau dibandingkan: stok
+      // sistem tanggal itu vs hasil hitung fisik tanggal itu.
+      supabase
+        .from("ingredient_opname_entries")
+        .select("ingredient_id, reported_stock, status, entry_date")
+        .eq("business_id", businessId)
+        .eq("entry_date", rekonsilDate)
+        .order("created_at", { ascending: false }),
     ]);
 
-    const rekonsilMap = new Map<string, RekonsilRow & { afterDate: number }>();
+    const rekonsilMap = new Map<string, KartuStokRow & { afterDate: number }>();
     for (const ing of allIngredients ?? []) {
       rekonsilMap.set(ing.id, {
+        key: `ing:${ing.id}`,
         id: ing.id,
+        componentType: "ingredient",
         name: ing.name,
         unit: ing.unit,
-        saldoAkhir: Number(ing.stock),
-        masuk: 0,
-        keluar: 0,
+        stokData: Number(ing.stock),
+        stockMasuk: 0,
+        stockKeluar: 0,
+        lastOpname: null,
         afterDate: 0,
       });
     }
@@ -238,8 +250,8 @@ export default async function StockOpnamePage({
       if (!row) continue;
       const diff = Number(a.diff);
       if (a.entry_date === rekonsilDate) {
-        if (diff > 0) row.masuk += diff;
-        else row.keluar += Math.abs(diff);
+        if (diff > 0) row.stockMasuk += diff;
+        else row.stockKeluar += Math.abs(diff);
       } else {
         // entry_date > rekonsilDate (query sudah difilter >= rekonsilDate) --
         // dijumlahkan dulu, nanti dikurangkan dari saldo sekarang di bawah.
@@ -248,7 +260,7 @@ export default async function StockOpnamePage({
     }
     for (const c of consOnDay) {
       const row = rekonsilMap.get(c.ingredient_id);
-      if (row) row.keluar += Number(c.qty);
+      if (row) row.stockKeluar += Number(c.qty);
     }
     for (const c of consAfterDay) {
       const row = rekonsilMap.get(c.ingredient_id);
@@ -257,9 +269,22 @@ export default async function StockOpnamePage({
       // ke afterDate supaya "saldo sekarang - afterDate" balik jadi benar.
       if (row) row.afterDate -= Number(c.qty);
     }
+    for (const o of opnameOnDate.data ?? []) {
+      const row = rekonsilMap.get(o.ingredient_id);
+      // Baris pertama per bahan = paling baru (sudah order by created_at
+      // desc) -- kalau bahan itu diopname 2x di tanggal yang sama, yang
+      // dipakai buat dibandingkan adalah submission terakhir.
+      if (row && !row.lastOpname) {
+        row.lastOpname = {
+          reportedStock: Number(o.reported_stock),
+          status: o.status as "pending" | "verified" | "rejected",
+          entryDate: o.entry_date,
+        };
+      }
+    }
 
     rekonsilRows = [...rekonsilMap.values()]
-      .map((r) => ({ ...r, saldoAkhir: r.saldoAkhir - r.afterDate }))
+      .map((r) => ({ ...r, stokData: r.stokData - r.afterDate }))
       .filter((r) => !selectedDivisi || visibleIngredients.some((i) => i.id === r.id))
       .map(({ afterDate: _afterDate, ...rest }) => rest)
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -539,11 +564,13 @@ export default async function StockOpnamePage({
             </button>
           </form>
           <p className="mt-2 text-[11px] text-zinc-400">
-            Saldo Akhir dihitung persis di akhir tanggal {formatDate(rekonsilDate)}, bukan saldo hari ini.
+            Stok Data dihitung persis di akhir tanggal {formatDate(rekonsilDate)} (bukan saldo hari ini). Stok
+            Riil & Selisih diambil dari hasil Catat Opname yang tercatat di tanggal itu juga — kalau tidak ada
+            opname di tanggal ini, kolomnya kosong.
           </p>
 
           <div className="mt-3">
-            <RekonsilList items={rekonsilRows} />
+            <KartuStokList items={rekonsilRows} />
           </div>
         </div>
       )}
