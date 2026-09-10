@@ -484,6 +484,9 @@ function buildNavGroups(
         { key: "purchases", href: `${base}/purchases/laporan-hutang`, label: "Laporan Hutang", icon: FileBarChart2 },
         { key: "purchases", href: `${base}/purchases/pengajuan-pembayaran`, label: "Pengajuan Pembayaran", icon: Send },
         { key: "inter-unit-transfers", href: `${base}/inter-unit-transfers`, label: "Transfer Antar-Unit", icon: Truck },
+        ...(stockLocationsEnabled
+          ? [{ key: "transfer-bahan-baku", href: `${base}/transfer-bahan-baku`, label: "Transfer Bahan Baku", icon: ArrowLeftRight }]
+          : []),
         { key: "purchase-requests", href: `${base}/permintaan-barang`, label: "Permintaan Barang", icon: ClipboardList },
         ...(stockLocationsEnabled || poEnabled
           ? [{ key: "purchase-orders", href: `${base}/purchase-orders`, label: "Purchase Order", icon: Truck }]

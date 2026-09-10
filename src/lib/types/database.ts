@@ -5309,6 +5309,20 @@ export type Database = {
           transfer_number: string;
         }[];
       };
+      transfer_ingredient_stock: {
+        Args: {
+          p_business_id: string;
+          p_from_location_id: string;
+          p_to_location_id: string;
+          p_items: Json;
+          p_sent_by_name: string;
+          p_note?: string | null;
+        };
+        Returns: {
+          transfer_id: string;
+          transfer_number: string;
+        }[];
+      };
       checkout_ticket_transaction: {
         Args: {
           p_business_id: string;
