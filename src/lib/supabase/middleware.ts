@@ -110,6 +110,9 @@ export async function updateSession(request: NextRequest) {
   // jadi tidak perlu whitelist /api/* juga) — sama pola dengan /absen.
   // /hpp-menu/* adalah link publik read-only cek HPP menu (dibagikan ke tim
   // Dapur/Bar) — sama pola juga, lewat RPC get_hpp_menu_info.
+  // /kasbon/* adalah form publik pengajuan kasbon (link dibagikan ke
+  // karyawan) — sama pola juga, lewat RPC get_kasbon_submit_info /
+  // submit_kasbon_request, tanpa sesi login.
   // (/permintaan-gudang sempat ada di sini juga, tapi fitur "Gudang" lama
   // sudah dipensiunkan total — digantikan stok per lokasi + Permintaan
   // Barang yang sekarang sadar-lokasi.)
@@ -168,6 +171,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/terima-barang") ||
     request.nextUrl.pathname.startsWith("/portal-lokasi") ||
     request.nextUrl.pathname.startsWith("/hpp-menu") ||
+    request.nextUrl.pathname.startsWith("/kasbon") ||
     request.nextUrl.pathname.startsWith("/api/attendance-checkin") ||
     request.nextUrl.pathname.startsWith("/auth/callback") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
