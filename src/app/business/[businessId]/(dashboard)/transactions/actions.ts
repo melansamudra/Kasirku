@@ -1,5 +1,6 @@
 "use server";
 
+import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseCsv } from "@/lib/csv";
@@ -131,7 +132,17 @@ export async function importTransactions(
     return { error: "File CSV kosong atau cuma berisi header.", result: null };
   }
 
-  const dataRows = rows.slice(1);
+  return processImportRows(businessId, rows.slice(1));
+}
+
+// Diekstrak dari importTransactions supaya versi Excel (importTransactionsXlsx,
+// dipakai bisnis baru lewat tombol "Impor Transaksi") bisa pakai logika
+// pemrosesan baris yang SAMA PERSIS -- cuma beda cara baca file-nya (CSV
+// text vs ExcelJS), bukan beda aturan bisnis.
+async function processImportRows(
+  businessId: string,
+  dataRows: string[][],
+): Promise<ImportTransactionsState> {
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -307,6 +318,72 @@ type MokaTxParsed = {
   paymentMethod: string;
   total: number;
 };
+
+// ─── Impor Transaksi (Excel) ────────────────────────────────────────────────
+// Template generik pengganti "Impor CSV" buat bisnis baru (1 lokasi, tanpa
+// Kitchen/Bar) -- kolom & aturan bisnisnya SAMA PERSIS (lihat IMPORT_COLUMNS
+// & processImportRows di atas), cuma format file-nya .xlsx bukan .csv, biar
+// aman dibuka/diedit ulang pakai Excel tanpa masalah encoding/leading-zero
+// yang sering kejadian di CSV. Bisnis lama (stock_locations_enabled/
+// cost_control_enabled/rich_stock_ops_enabled) tetap pakai "Impor CSV" biasa,
+// tidak disentuh -- lihat gate di transaction-actions.tsx.
+function excelCellText(cell: ExcelJS.Cell): string {
+  const v = cell.value;
+  if (v == null) return "";
+  if (v instanceof Date) {
+    const y = v.getUTCFullYear();
+    const m = String(v.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(v.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof v === "object" && "richText" in v) {
+    return (v as { richText: { text: string }[] }).richText.map((t) => t.text).join("");
+  }
+  if (typeof v === "object" && "result" in v) {
+    return String((v as { result: unknown }).result ?? "");
+  }
+  return String(v).trim();
+}
+
+export async function importTransactionsXlsx(
+  businessId: string,
+  _prevState: ImportTransactionsState,
+  formData: FormData,
+): Promise<ImportTransactionsState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "Pilih file Excel dulu.", result: null };
+  }
+  if (!file.name.toLowerCase().endsWith(".xlsx") && !file.name.toLowerCase().endsWith(".xls")) {
+    return { error: "File harus format Excel (.xlsx).", result: null };
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.load(buffer);
+  } catch {
+    return { error: "File Excel tidak bisa dibaca. Pastikan ini file .xlsx asli.", result: null };
+  }
+  const sheet = workbook.worksheets[0];
+  if (!sheet) return { error: "File Excel tidak memiliki sheet.", result: null };
+
+  const dataRows: string[][] = [];
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // header, sama seperti dataRows = rows.slice(1) di versi CSV
+    const values: string[] = [];
+    for (let c = 1; c <= IMPORT_COLUMNS.length; c++) {
+      values.push(excelCellText(row.getCell(c)));
+    }
+    if (values.some((v) => v.trim() !== "")) dataRows.push(values);
+  });
+
+  if (dataRows.length === 0) {
+    return { error: "File Excel kosong atau cuma berisi header.", result: null };
+  }
+
+  return processImportRows(businessId, dataRows);
+}
 
 export type MokaPreviewState = {
   error: string | null;

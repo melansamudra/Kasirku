@@ -17,6 +17,7 @@ type Outlet = { id: string; name: string };
 export function TransactionActions({
   businessId,
   importAction,
+  importXlsxAction,
   previewEsbAction,
   importEsbAction,
   previewMokaAction,
@@ -28,6 +29,7 @@ export function TransactionActions({
 }: {
   businessId: string;
   importAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
+  importXlsxAction: (state: ImportTransactionsState, formData: FormData) => Promise<ImportTransactionsState>;
   previewEsbAction: (state: EsbPreviewState, formData: FormData) => Promise<EsbPreviewState>;
   importEsbAction: (state: ImportEsbState, formData: FormData) => Promise<ImportEsbState>;
   previewMokaAction: (state: MokaPreviewState, formData: FormData) => Promise<MokaPreviewState>;
@@ -38,7 +40,17 @@ export function TransactionActions({
   outlets?: Outlet[];
 }) {
   const canImportRekap = costControlEnabled || stockLocationsEnabled || richStockOpsEnabled;
+  // Bisnis 1-lokasi standar (tanpa Kitchen/Bar, bukan cost-control) --
+  // mayoritas pendaftar baru sejak default onboarding diubah 2026-09-10 --
+  // dapat template "Impor Transaksi" (Excel) yang lebih rapi sebagai
+  // pengganti "Impor CSV" lama, dan TIDAK dapat "Impor Moka POS" (dicek
+  // langsung ke data: cuma Adi's Culinary Banyumanik/Pleburan yang benar2
+  // pakai Moka, keduanya stockLocationsEnabled=true jadi tidak kena gate
+  // ini). Bisnis lama/multi-lokasi/cost-control TIDAK disentuh sama sekali
+  // -- tetap dapat "Impor CSV" + "Impor Moka POS" seperti biasa.
+  const isSimpleBusiness = !canImportRekap;
   const [importOpen, setImportOpen] = useState(false);
+  const [importXlsxOpen, setImportXlsxOpen] = useState(false);
   const [esbOpen, setEsbOpen] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
 
@@ -59,13 +71,23 @@ export function TransactionActions({
         >
           ⬇️ Ekspor Lengkap
         </a>
-        <button
-          type="button"
-          onClick={() => setImportOpen(true)}
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-        >
-          📥 Impor CSV
-        </button>
+        {isSimpleBusiness ? (
+          <button
+            type="button"
+            onClick={() => setImportXlsxOpen(true)}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            📥 Impor Transaksi
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            📥 Impor CSV
+          </button>
+        )}
         {/* Laporan DETAIL dari POS pihak ketiga (mis. ESB "Sales
             Recapitulation Detail Report") -- satu baris per menu per
             transaksi, sudah punya nomor transaksi + jam + tax/service
@@ -82,10 +104,14 @@ export function TransactionActions({
             📥 Impor Detail ESB
           </button>
         )}
-        {/* Moka POS itu produk POS pihak ketiga spesifik -- tidak relevan
-            buat bisnis cost-control (Llauk Nusantara dkk SENGAJA tidak jual
-            lewat POS Kasirku ataupun Moka sama sekali). */}
-        {!costControlEnabled && (
+        {/* Moka POS itu produk POS pihak ketiga spesifik. Dicek langsung ke
+            data 2026-09-10: cuma Adi's Culinary Banyumanik/Pleburan yang
+            benar-benar pakai (2.833 dari 2.836 transaksi tanpa-item),
+            keduanya stockLocationsEnabled=true -- jadi digate ke
+            !isSimpleBusiness (bukan cuma !costControlEnabled lagi) supaya
+            bisnis baru/1-lokasi tidak lihat tombol ini, tapi Adi's Culinary
+            & bisnis multi-lokasi lain tetap dapat seperti biasa. */}
+        {!costControlEnabled && !isSimpleBusiness && (
           <button
             type="button"
             onClick={() => setMokaOpen(true)}
@@ -164,6 +190,42 @@ export function TransactionActions({
             </button>
             <div className="mt-4">
               <ImportTransactionsForm action={importAction} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importXlsxOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setImportXlsxOpen(false)} />
+          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-900">Impor Transaksi</h2>
+              <button
+                onClick={() => setImportXlsxOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs text-zinc-500 hover:bg-zinc-200"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500">
+              Kolom: Referensi, Tanggal (YYYY-MM-DD), Nama Produk, Qty, Metode Bayar, Pelanggan
+              (opsional). Baris dengan Referensi yang sama digabung jadi satu transaksi — pakai
+              ini untuk transaksi dengan lebih dari satu produk. Produk &amp; pelanggan harus
+              sudah ada di data toko ini.
+            </p>
+            <a
+              href="/template-impor-transaksi.xlsx"
+              download
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+            >
+              ⬇ Download Template Excel
+            </a>
+            <div className="mt-4">
+              <ImportTransactionsForm
+                action={importXlsxAction}
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              />
             </div>
           </div>
         </div>

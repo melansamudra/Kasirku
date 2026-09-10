@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchAllRows } from "@/lib/pagination";
-import { importTransactions, previewMokaImport, importFromMoka } from "./actions";
+import { importTransactions, importTransactionsXlsx, previewMokaImport, importFromMoka } from "./actions";
 import { previewEsbImport, confirmEsbImport } from "./esb-actions";
 import { TransactionActions } from "./transaction-actions";
 import MirrorToggle from "./mirror-toggle";
@@ -137,6 +137,7 @@ export default async function TransactionsPage({
   }
 
   const boundImportTransactions = importTransactions.bind(null, businessId);
+  const boundImportTransactionsXlsx = importTransactionsXlsx.bind(null, businessId);
   const boundPreviewEsb = previewEsbImport.bind(null, businessId);
   const boundImportEsb = confirmEsbImport.bind(null, businessId);
   const boundPreviewMoka = previewMokaImport.bind(null, businessId);
@@ -159,6 +160,7 @@ export default async function TransactionsPage({
             <TransactionActions
               businessId={businessId}
               importAction={boundImportTransactions}
+              importXlsxAction={boundImportTransactionsXlsx}
               previewEsbAction={boundPreviewEsb}
               importEsbAction={boundImportEsb}
               previewMokaAction={boundPreviewMoka}
