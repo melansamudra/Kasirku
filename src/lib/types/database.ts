@@ -371,6 +371,7 @@ export type Database = {
           receive_stock_slug: string | null;
           kasbon_slug: string | null;
           kasbon_enabled: boolean;
+          location_scoped_sales_enabled: boolean;
           procurement_budget_gate_enabled: boolean;
           break_attendance_enabled: boolean;
           personal_loan_enabled: boolean;
@@ -424,6 +425,7 @@ export type Database = {
           receive_stock_slug?: string | null;
           kasbon_slug?: string | null;
           kasbon_enabled?: boolean;
+          location_scoped_sales_enabled?: boolean;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;
@@ -476,6 +478,7 @@ export type Database = {
           receive_stock_slug?: string | null;
           kasbon_slug?: string | null;
           kasbon_enabled?: boolean;
+          location_scoped_sales_enabled?: boolean;
           break_attendance_enabled?: boolean;
           personal_loan_enabled?: boolean;
           sell_products_enabled?: boolean;

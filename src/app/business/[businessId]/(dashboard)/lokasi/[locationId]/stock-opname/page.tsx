@@ -7,6 +7,11 @@ import DirectOpnameForm from "./direct-opname-form";
 import { VerifyEntryButtons, VerifyAllButton } from "./verify-buttons";
 import { submitLocationStockOpnameDirect, submitWarehouseStockOpnameDirect } from "./actions";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import { todayWibDateString } from "@/lib/wib";
+
+function formatRupiah(value: number) {
+  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
+}
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("id-ID", {
@@ -39,15 +44,19 @@ export default async function LocationStockOpnamePage({
   searchParams,
 }: {
   params: Promise<{ businessId: string; locationId: string }>;
-  searchParams: Promise<{ bagian?: string }>;
+  searchParams: Promise<{ bagian?: string; tab?: string; date?: string }>;
 }) {
   const { businessId, locationId } = await params;
-  const { bagian: bagianParam } = await searchParams;
+  const { bagian: bagianParam, tab: tabParam, date: dateParam } = await searchParams;
+  const activeTab: "opname" | "nilai" = tabParam === "nilai" ? "nilai" : "opname";
+  const nilaiDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam ?? "") ? (dateParam as string) : todayWibDateString();
   const supabase = await createClient();
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, stock_opname_slug")
+    .select(
+      "id, name, cost_control_enabled, stock_locations_enabled, rich_stock_ops_enabled, stock_opname_slug, location_scoped_sales_enabled",
+    )
     .eq("id", businessId)
     .single();
   if (!business || !hasStockLocationAccess(business)) {
@@ -70,6 +79,78 @@ export default async function LocationStockOpnamePage({
   // langsung (tidak ada link publik/Bagian, itu konsep khusus ingredients).
   const isStandaloneWarehouse =
     location.is_default_purchase && !location.is_production && location.warehouse_mode === "standalone";
+
+  // Tab "Nilai Persediaan": stok per bahan MUNDUR ke tanggal yang dipilih
+  // (sama konsep hitung mundur dengan Rekonsil Stok Harian di Kartu Stok),
+  // dikali unit_cost -- belum didukung buat Gudang standalone (warehouse_items
+  // belum punya kolom harga).
+  type NilaiRow = { id: string; name: string; unit: string; stock: number; unitCost: number; value: number };
+  let nilaiRows: NilaiRow[] = [];
+  if (activeTab === "nilai" && !isStandaloneWarehouse) {
+    const dayStartIso = new Date(`${nilaiDate}T00:00:00+07:00`).toISOString();
+    const nextDay = new Date(`${nilaiDate}T00:00:00+07:00`);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const nextDayStartIso = nextDay.toISOString();
+
+    const [ingredientRows, { data: stockRows }, adjAfterDate, consAfterDate] = await Promise.all([
+      fetchAllRows<{ id: string; name: string; unit: string; unit_cost: number }>((from, to) =>
+        supabase
+          .from("ingredients")
+          .select("id, name, unit, unit_cost")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .range(from, to),
+      ),
+      supabase
+        .from("ingredient_location_stock")
+        .select("ingredient_id, stock")
+        .eq("business_id", businessId)
+        .eq("location_id", locationId),
+      fetchAllRows<{ ingredient_id: string | null; diff: number }>((rf, rt) =>
+        supabase
+          .from("stock_adjustments")
+          .select("ingredient_id, diff")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .not("ingredient_id", "is", null)
+          .gt("entry_date", nilaiDate)
+          .range(rf, rt),
+      ),
+      business.location_scoped_sales_enabled
+        ? fetchAllRows<{ ingredient_id: string; qty: number }>((rf, rt) =>
+            supabase
+              .from("transaction_ingredient_consumption")
+              .select("ingredient_id, qty, transactions!inner(business_id, date, voided)")
+              .eq("transactions.business_id", businessId)
+              .eq("location_id", locationId)
+              .eq("transactions.voided", false)
+              .gte("transactions.date", nextDayStartIso)
+              .range(rf, rt),
+          )
+        : Promise.resolve([]),
+    ]);
+
+    const afterDateByIngredient = new Map<string, number>();
+    for (const a of adjAfterDate) {
+      if (!a.ingredient_id) continue;
+      afterDateByIngredient.set(a.ingredient_id, (afterDateByIngredient.get(a.ingredient_id) ?? 0) + Number(a.diff));
+    }
+    for (const c of consAfterDate) {
+      afterDateByIngredient.set(c.ingredient_id, (afterDateByIngredient.get(c.ingredient_id) ?? 0) - Number(c.qty));
+    }
+
+    const currentStockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+    nilaiRows = ingredientRows
+      .map((i) => {
+        const current = currentStockByIngredient.get(i.id) ?? 0;
+        const stock = current - (afterDateByIngredient.get(i.id) ?? 0);
+        const unitCost = Number(i.unit_cost) || 0;
+        return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, value: stock * unitCost };
+      })
+      .filter((r) => Math.abs(r.stock) > 0.001)
+      .sort((a, b) => b.value - a.value);
+  }
+  const nilaiTotal = nilaiRows.reduce((s, r) => s + r.value, 0);
 
   let directWarehouseItems: { id: string; name: string; unit: string; currentStock: number }[] = [];
   if (isStandaloneWarehouse) {
@@ -189,10 +270,89 @@ export default async function LocationStockOpnamePage({
       </Link>
       <h1 className="mt-2 text-lg font-bold text-zinc-900">Stok Opname — {location.name}</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Laporan stok fisik dari staf menunggu diverifikasi dulu sebelum mengubah stok sistem.
+        {activeTab === "opname"
+          ? "Laporan stok fisik dari staf menunggu diverifikasi dulu sebelum mengubah stok sistem."
+          : `Stok & nilai persediaan per bahan di ${location.name}, mundur ke tanggal yang dipilih.`}
       </p>
 
-      {isStandaloneWarehouse ? (
+      <div className="mt-3 flex shrink-0 rounded-xl bg-zinc-100 p-1 text-xs font-semibold w-fit">
+        <Link
+          href={`/business/${businessId}/lokasi/${locationId}/stock-opname`}
+          className={`rounded-lg px-3 py-1.5 transition-colors ${
+            activeTab === "opname" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+          }`}
+        >
+          Catat Opname
+        </Link>
+        <Link
+          href={`/business/${businessId}/lokasi/${locationId}/stock-opname?tab=nilai`}
+          className={`rounded-lg px-3 py-1.5 transition-colors ${
+            activeTab === "nilai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+          }`}
+        >
+          Nilai Persediaan
+        </Link>
+      </div>
+
+      {activeTab === "nilai" ? (
+        isStandaloneWarehouse ? (
+          <p className="mt-4 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+            Nilai Persediaan belum didukung untuk Gudang mode &quot;Berdiri Sendiri&quot; -- barang Gudang di sini
+            belum punya kolom harga.
+          </p>
+        ) : (
+          <div className="mt-4">
+            <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4">
+              <input type="hidden" name="tab" value="nilai" />
+              <label className="text-xs font-medium text-zinc-600">
+                Tanggal
+                <input
+                  type="date"
+                  name="date"
+                  defaultValue={nilaiDate}
+                  max={todayWibDateString()}
+                  className="mt-1 block rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+              >
+                Tampilkan
+              </button>
+            </form>
+
+            <div className="mt-4 rounded-xl bg-brand-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">
+                Total Nilai Persediaan — {formatDate(nilaiDate)}
+              </p>
+              <p className="mt-1 text-2xl font-bold text-zinc-900">{formatRupiah(nilaiTotal)}</p>
+            </div>
+
+            <div className="mt-3 overflow-hidden rounded-xl bg-white shadow-sm">
+              {nilaiRows.length > 0 ? (
+                <div className="divide-y divide-zinc-100">
+                  {nilaiRows.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-zinc-800">{r.name}</p>
+                        <p className="text-[10.5px] text-zinc-400">
+                          {formatQty(r.stock)} {r.unit} &times; {formatRupiah(r.unitCost)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-semibold text-zinc-900">{formatRupiah(r.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-4 py-8 text-center text-xs text-zinc-400">
+                  Tidak ada stok bahan baku di lokasi ini pada tanggal tersebut.
+                </p>
+              )}
+            </div>
+          </div>
+        )
+      ) : isStandaloneWarehouse ? (
         <DirectOpnameForm
           ingredients={directWarehouseItems}
           action={submitWarehouseStockOpnameDirect.bind(null, businessId, locationId)}
@@ -241,7 +401,7 @@ export default async function LocationStockOpnamePage({
         </>
       )}
 
-      {pendingByDate.size > 0 && (
+      {activeTab === "opname" && pendingByDate.size > 0 && (
         <div className="mt-6">
           <h2 className="mb-2 text-sm font-bold text-amber-700">⏳ Menunggu Verifikasi</h2>
           <div className="space-y-4">
@@ -294,6 +454,7 @@ export default async function LocationStockOpnamePage({
         </div>
       )}
 
+      {activeTab === "opname" && (
       <div className="mt-6 space-y-4">
         <h2 className="text-sm font-bold text-zinc-900">Riwayat Terverifikasi</h2>
         {verifiedByDate.size > 0 ? (
@@ -332,6 +493,7 @@ export default async function LocationStockOpnamePage({
           </p>
         )}
       </div>
+      )}
     </div>
   );
 }
