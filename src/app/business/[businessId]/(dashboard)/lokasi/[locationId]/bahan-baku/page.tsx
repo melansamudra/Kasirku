@@ -185,7 +185,7 @@ export default async function LocationBahanBakuPage({
     { data: locationSectionRows },
     { data: ingredientSectionRows },
     purchaseUnitRows,
-    { data: productCategoryRows },
+    productRowsForCategories,
   ] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
@@ -223,8 +223,13 @@ export default async function LocationBahanBakuPage({
         .range(from, to),
     ),
     // Kategori produk yang bisa diklaim lokasi ini (lihat migrasi
-    // category_based_consumption_location) -- dipakai LocationCategorySelect.
-    supabase.from("product_categories").select("name").eq("business_id", businessId).order("name", { ascending: true }),
+    // category_based_consumption_location) -- ambil dari products.category
+    // yang BENERAN dipakai (bukan tabel product_categories, yang cuma
+    // registry nama buat dropdown form produk dan sering kosong/tidak
+    // sinkron dengan kategori yang sebenarnya ada di produk).
+    fetchAllRows<{ category: string | null }>((from, to) =>
+      supabase.from("products").select("category").eq("business_id", businessId).is("deleted_at", null).range(from, to),
+    ),
   ]);
 
   const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
@@ -407,7 +412,7 @@ export default async function LocationBahanBakuPage({
         locationId={locationId}
         locationName={location.name}
         categories={location.product_categories}
-        allCategories={(productCategoryRows ?? []).map((c) => c.name)}
+        allCategories={[...new Set(productRowsForCategories.map((p) => p.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b))}
         action={updateLocationProductCategories.bind(null, businessId)}
       />
 
