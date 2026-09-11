@@ -322,3 +322,85 @@ export async function verifyAllPendingForDate(
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/kartu-stok`);
   return { error: null };
 }
+
+// Koreksi cepat langsung dari tab Nilai Persediaan (stok DAN/ATAU satuan) --
+// dipakai kalau angka dari import/opname ternyata salah label satuan (mis.
+// "1500 KG" yang sebenarnya "1500 gr"), tanpa harus keluar ke halaman lain.
+// Cuma jalan buat tanggal HARI INI (nilai di tanggal lampau itu hasil hitung
+// mundur, bukan baris yang bisa ditimpa langsung).
+export async function adjustNilaiPersediaanItem(
+  businessId: string,
+  locationId: string,
+  itemType: "ingredient" | "warehouse_item",
+  itemId: string,
+  newStock: number,
+  newUnit: string,
+): Promise<OpnameActionState> {
+  if (Number.isNaN(newStock) || newStock < 0) {
+    return { error: "Stok harus angka dan tidak boleh negatif." };
+  }
+  newUnit = newUnit.trim();
+  if (!newUnit) return { error: "Satuan wajib diisi." };
+
+  const supabase = await createClient();
+
+  if (itemType === "ingredient") {
+    const [{ data: ingredient }, { data: stockRow }] = await Promise.all([
+      supabase.from("ingredients").select("id, name, unit").eq("id", itemId).eq("business_id", businessId).maybeSingle(),
+      supabase
+        .from("ingredient_location_stock")
+        .select("id, stock")
+        .eq("location_id", locationId)
+        .eq("ingredient_id", itemId)
+        .maybeSingle(),
+    ]);
+    if (!ingredient) return { error: "Bahan baku tidak ditemukan." };
+
+    if (newUnit !== ingredient.unit) {
+      await supabase.from("ingredients").update({ unit: newUnit }).eq("id", itemId);
+    }
+
+    const stockBefore = Number(stockRow?.stock ?? 0);
+    if (Math.abs(newStock - stockBefore) > 1e-9) {
+      if (stockRow) {
+        await supabase.from("ingredient_location_stock").update({ stock: newStock, updated_at: new Date().toISOString() }).eq("id", stockRow.id);
+      } else {
+        await supabase.from("ingredient_location_stock").insert({ business_id: businessId, location_id: locationId, ingredient_id: itemId, stock: newStock });
+      }
+      await supabase.from("stock_adjustments").insert({
+        business_id: businessId, ingredient_id: itemId, location_id: locationId,
+        item_name: ingredient.name, unit: newUnit,
+        stock_before: stockBefore, stock_after: newStock, diff: newStock - stockBefore,
+        reason: "Koreksi dari Nilai Persediaan",
+      });
+    }
+  } else {
+    const { data: item } = await supabase
+      .from("warehouse_items")
+      .select("id, name, unit, stock")
+      .eq("id", itemId)
+      .eq("business_id", businessId)
+      .eq("location_id", locationId)
+      .maybeSingle();
+    if (!item) return { error: "Barang Gudang tidak ditemukan." };
+
+    const stockBefore = Number(item.stock);
+    const changed = newUnit !== item.unit || Math.abs(newStock - stockBefore) > 1e-9;
+    if (changed) {
+      await supabase.from("warehouse_items").update({ unit: newUnit, stock: newStock, updated_at: new Date().toISOString() }).eq("id", itemId);
+    }
+    if (Math.abs(newStock - stockBefore) > 1e-9) {
+      await supabase.from("stock_adjustments").insert({
+        business_id: businessId, warehouse_item_id: itemId, location_id: locationId,
+        item_name: item.name, unit: newUnit,
+        stock_before: stockBefore, stock_after: newStock, diff: newStock - stockBefore,
+        reason: "Koreksi dari Nilai Persediaan",
+      });
+    }
+  }
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/stock-opname`);
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/kartu-stok`);
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}

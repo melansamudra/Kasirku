@@ -5,7 +5,8 @@ import { fetchAllRows } from "@/lib/pagination";
 import StockOpnameLinkBox from "./link-box";
 import DirectOpnameForm from "./direct-opname-form";
 import { VerifyEntryButtons, VerifyAllButton } from "./verify-buttons";
-import { submitLocationStockOpnameDirect, submitWarehouseStockOpnameDirect } from "./actions";
+import { submitLocationStockOpnameDirect, submitWarehouseStockOpnameDirect, adjustNilaiPersediaanItem } from "./actions";
+import EditNilaiItemForm from "./edit-nilai-item-form";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 import { todayWibDateString } from "@/lib/wib";
 
@@ -85,7 +86,15 @@ export default async function LocationStockOpnamePage({
   // dikali unit_cost. Gudang standalone pakai warehouse_items.unit_cost --
   // lebih sederhana dari versi ingredients (tidak ada komponen konsumsi
   // penjualan, Gudang tidak pernah langsung kepotong resep).
-  type NilaiRow = { id: string; name: string; unit: string; stock: number; unitCost: number; value: number };
+  type NilaiRow = {
+    id: string;
+    name: string;
+    unit: string;
+    stock: number;
+    unitCost: number;
+    value: number;
+    itemType: "ingredient" | "warehouse_item";
+  };
   let nilaiRows: NilaiRow[] = [];
   if (activeTab === "nilai" && isStandaloneWarehouse) {
     const [{ data: warehouseItemRows }, adjAfterDate] = await Promise.all([
@@ -117,7 +126,7 @@ export default async function LocationStockOpnamePage({
         const current = Number(i.stock);
         const stock = current - (afterDateByItem.get(i.id) ?? 0);
         const unitCost = Number(i.unit_cost) || 0;
-        return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, value: stock * unitCost };
+        return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, value: stock * unitCost, itemType: "warehouse_item" as const };
       })
       .filter((r) => Math.abs(r.stock) > 0.001)
       .sort((a, b) => b.value - a.value);
@@ -180,7 +189,7 @@ export default async function LocationStockOpnamePage({
         const current = currentStockByIngredient.get(i.id) ?? 0;
         const stock = current - (afterDateByIngredient.get(i.id) ?? 0);
         const unitCost = Number(i.unit_cost) || 0;
-        return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, value: stock * unitCost };
+        return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, value: stock * unitCost, itemType: "ingredient" as const };
       })
       .filter((r) => Math.abs(r.stock) > 0.001)
       .sort((a, b) => b.value - a.value);
@@ -369,7 +378,16 @@ export default async function LocationStockOpnamePage({
                           {formatQty(r.stock)} {r.unit} &times; {formatRupiah(r.unitCost)}
                         </p>
                       </div>
-                      <span className="shrink-0 font-semibold text-zinc-900">{formatRupiah(r.value)}</span>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="font-semibold text-zinc-900">{formatRupiah(r.value)}</span>
+                        {nilaiDate === todayWibDateString() && (
+                          <EditNilaiItemForm
+                            currentStock={r.stock}
+                            currentUnit={r.unit}
+                            action={adjustNilaiPersediaanItem.bind(null, businessId, locationId, r.itemType, r.id)}
+                          />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
