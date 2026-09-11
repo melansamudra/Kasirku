@@ -3,12 +3,22 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import AdjustStockForm from "@/components/adjust-stock-form";
-import { adjustIngredientLocationStock, updateLocationOpnameSections } from "./actions";
+import {
+  adjustIngredientLocationStock,
+  adjustWarehouseItemStock,
+  addWarehouseItem,
+  deleteWarehouseItem,
+  toggleWarehouseMode,
+  updateLocationOpnameSections,
+} from "./actions";
 import LocationSectionSelect from "./location-section-select";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
 import ReceiveLinkBox from "./receive-link-box";
 import IngredientSearch from "../../../ingredients/ingredient-search";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import WarehouseModeSwitch from "./warehouse-mode-switch";
+import AddWarehouseItemForm from "./add-warehouse-item-form";
+import DeleteWarehouseItemButton from "./delete-warehouse-item-button";
 
 export default async function LocationBahanBakuPage({
   params,
@@ -30,13 +40,133 @@ export default async function LocationBahanBakuPage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name, is_default_purchase")
+    .select("id, name, is_default_purchase, is_production, warehouse_mode")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
 
   if (!location) {
     notFound();
+  }
+
+  // Lokasi Gudang murni (titik beli default, bukan lokasi produksi) boleh
+  // pilih 2 sistem stok -- lihat catatan di migrasi warehouse_standalone_mode.
+  // Kitchen/Bar/lokasi lain selalu tetap di jalur lama ("connected").
+  const isPureWarehouse = location.is_default_purchase && !location.is_production;
+  const modeSwitch = isPureWarehouse ? (
+    <WarehouseModeSwitch
+      mode={location.warehouse_mode as "connected" | "standalone"}
+      action={toggleWarehouseMode.bind(null, businessId, locationId)}
+    />
+  ) : null;
+
+  if (isPureWarehouse && location.warehouse_mode === "standalone") {
+    const [{ data: items }, { data: adjustments }] = await Promise.all([
+      supabase
+        .from("warehouse_items")
+        .select("id, name, unit, stock")
+        .eq("business_id", businessId)
+        .eq("location_id", locationId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("stock_adjustments")
+        .select("id, item_name, unit, stock_before, stock_after, diff, reason, created_at")
+        .eq("business_id", businessId)
+        .eq("location_id", locationId)
+        .not("warehouse_item_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
+    const warehouseItems = items ?? [];
+
+    return (
+      <div className="w-full max-w-2xl">
+        <p className="text-xs text-zinc-400">
+          <Link href={`/business/${businessId}/ingredients`} className="hover:text-brand-600 hover:underline">
+            Bahan Baku
+          </Link>{" "}
+          · Stok per Lokasi
+        </p>
+        <h1 className="mt-1 text-lg font-bold text-zinc-900">Bahan Gudang — {location.name}</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Barang di lokasi ini dicatat <strong>sendiri, terpisah dari master bahan baku</strong> — tidak
+          dipakai resep Kitchen/Bar dan tidak muncul di Transfer Bahan Baku. Kalau barangnya dipakai
+          Kitchen/Bar, catat manual.
+        </p>
+
+        {modeSwitch}
+
+        <div className="mt-4">
+          <AddWarehouseItemForm action={addWarehouseItem.bind(null, businessId, locationId)} />
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {warehouseItems.length > 0 ? (
+            warehouseItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-zinc-900">{item.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    Stok: {Number(item.stock)} {item.unit}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <AdjustStockForm
+                    itemName={item.name}
+                    currentStock={Number(item.stock)}
+                    unit={item.unit}
+                    action={adjustWarehouseItemStock.bind(null, businessId, locationId, item.id)}
+                  />
+                  <DeleteWarehouseItemButton
+                    itemName={item.name}
+                    action={deleteWarehouseItem.bind(null, businessId, locationId, item.id)}
+                  />
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
+              Belum ada barang Gudang — tambahkan lewat form di atas.
+            </p>
+          )}
+        </div>
+
+        {adjustments && adjustments.length > 0 && (
+          <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+              Riwayat Penyesuaian Stok — {location.name}
+            </h2>
+            <div className="space-y-2">
+              {adjustments.map((a) => (
+                <div key={a.id} className="border-b border-zinc-100 pb-2 text-xs last:border-0">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-zinc-800">{a.item_name}</p>
+                    <p
+                      className={
+                        Number(a.diff) > 0 ? "font-semibold text-brand-600" : "font-semibold text-red-500"
+                      }
+                    >
+                      {Number(a.diff) > 0 ? "+" : ""}
+                      {a.diff} {a.unit}
+                    </p>
+                  </div>
+                  <p className="text-zinc-500">
+                    {a.stock_before} → {a.stock_after} {a.unit} · {a.reason} ·{" "}
+                    {new Date(a.created_at).toLocaleString("id-ID", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   const [
@@ -240,6 +370,8 @@ export default async function LocationBahanBakuPage({
         baku pusat. Daftar bahannya sama (satu master untuk seluruh bisnis), cuma jumlah stoknya
         dilacak sendiri-sendiri per lokasi.
       </p>
+
+      {modeSwitch}
 
       {business.receive_stock_slug && (
         <ReceiveLinkBox businessId={businessId} locationId={locationId} initialSlug={business.receive_stock_slug} />

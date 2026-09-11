@@ -49,7 +49,7 @@ export default async function TransferBahanBakuPage({
   const [{ data: locations }, transferRows] = await Promise.all([
     supabase
       .from("stock_locations")
-      .select("id, name")
+      .select("id, name, warehouse_mode")
       .eq("business_id", businessId)
       .order("sort_order", { ascending: true }),
     fetchAllRows<TransferRow>((from, to) =>
@@ -62,8 +62,11 @@ export default async function TransferBahanBakuPage({
     ),
   ]);
 
-  const locationList = locations ?? [];
-  const nameByLocation = new Map(locationList.map((l) => [l.id, l.name]));
+  // Lokasi Gudang mode "standalone" (barang berdiri sendiri, lihat migrasi
+  // warehouse_standalone_mode) tidak pernah punya ingredient_location_stock
+  // -- disembunyikan dari picker biar tidak bingung ("kok Gudang kosong").
+  const locationList = (locations ?? []).filter((l) => l.warehouse_mode !== "standalone");
+  const nameByLocation = new Map((locations ?? []).map((l) => [l.id, l.name]));
 
   const transferIds = transferRows.map((t) => t.id);
   const itemRows =

@@ -130,6 +130,166 @@ export async function updateLocationOpnameSections(
   return { error: null };
 }
 
+// Toggle per-lokasi Gudang murni: jalur lama ("connected", stok pakai
+// ingredients yang sama dengan Kitchen/Bar) vs baru ("standalone", barang
+// dicatat sendiri di warehouse_items, tidak nyambung ke resep/Transfer
+// Bahan Baku) -- lihat catatan di migrasi warehouse_standalone_mode.
+export async function toggleWarehouseMode(
+  businessId: string,
+  locationId: string,
+  mode: "connected" | "standalone",
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("stock_locations")
+    .update({ warehouse_mode: mode })
+    .eq("id", locationId)
+    .eq("business_id", businessId);
+
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "info",
+    `Mode stok Gudang diganti`,
+    mode === "standalone" ? "Berdiri sendiri (terpisah dari master bahan baku)" : "Terhubung ke master bahan baku",
+  );
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}
+
+export type AddWarehouseItemState = { error: string | null };
+
+export async function addWarehouseItem(
+  businessId: string,
+  locationId: string,
+  name: string,
+  unit: string,
+  initialStock: number,
+): Promise<AddWarehouseItemState> {
+  name = name.trim();
+  unit = unit.trim();
+  if (!name) return { error: "Nama barang wajib diisi." };
+  if (!unit) return { error: "Satuan wajib diisi." };
+  if (Number.isNaN(initialStock) || initialStock < 0) {
+    return { error: "Stok awal harus angka dan tidak boleh negatif." };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("warehouse_items").insert({
+    business_id: businessId,
+    location_id: locationId,
+    name,
+    unit,
+    stock: initialStock,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: `Barang "${name}" sudah ada di lokasi ini.` };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}
+
+export async function deleteWarehouseItem(
+  businessId: string,
+  locationId: string,
+  itemId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("warehouse_items")
+    .delete()
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .eq("location_id", locationId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}
+
+export async function adjustWarehouseItemStock(
+  businessId: string,
+  locationId: string,
+  itemId: string,
+  newStock: number,
+  reason: string,
+): Promise<AdjustStockResult> {
+  if (Number.isNaN(newStock) || newStock < 0) {
+    return { error: "Stok fisik harus angka dan tidak boleh negatif." };
+  }
+  reason = reason.trim();
+  if (!reason) {
+    return { error: "Alasan penyesuaian wajib diisi." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: item } = await supabase
+    .from("warehouse_items")
+    .select("id, name, unit, stock")
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .eq("location_id", locationId)
+    .maybeSingle();
+
+  if (!item) {
+    return { error: "Barang tidak ditemukan." };
+  }
+
+  const stockBefore = Number(item.stock);
+  const diff = newStock - stockBefore;
+
+  if (diff === 0) {
+    return { error: "Stok fisik sama dengan stok sistem, tidak ada yang disesuaikan." };
+  }
+
+  const { error: updateError } = await supabase
+    .from("warehouse_items")
+    .update({ stock: newStock, updated_at: new Date().toISOString() })
+    .eq("id", itemId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await supabase.from("stock_adjustments").insert({
+    business_id: businessId,
+    warehouse_item_id: itemId,
+    location_id: locationId,
+    item_name: item.name,
+    unit: item.unit,
+    stock_before: stockBefore,
+    stock_after: newStock,
+    diff,
+    reason,
+  });
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "info",
+    `Stok Gudang ${item.name} disesuaikan`,
+    `${stockBefore} → ${newStock} ${item.unit} (${reason})`,
+  );
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}
+
 export type RegenerateReceiveSlugState = { error: string | null; slug: string | null };
 
 // Slug per BISNIS (bukan per lokasi, pola sama stock_opname_slug) -- lokasi
