@@ -35,10 +35,13 @@ function daysAgoBadge(dateStr: string) {
 
 export default async function LocationStockOpnamePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string; locationId: string }>;
+  searchParams: Promise<{ bagian?: string }>;
 }) {
   const { businessId, locationId } = await params;
+  const { bagian: bagianParam } = await searchParams;
   const supabase = await createClient();
 
   const { data: business } = await supabase
@@ -62,30 +65,66 @@ export default async function LocationStockOpnamePage({
   }
 
   let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
+  let locationSections: { id: string; name: string }[] = [];
+  let selectedSectionId: string | null = null;
   if (!costControlUiEnabled) {
-    const [ingredientRows, { data: stockRows }] = await Promise.all([
-      fetchAllRows((from, to) =>
+    const [ingredientRows, { data: stockRows }, { data: locationSectionRows }, { data: sectionItemRows }] =
+      await Promise.all([
+        fetchAllRows((from, to) =>
+          supabase
+            .from("ingredients")
+            .select("id, name, unit")
+            .eq("business_id", businessId)
+            .is("deleted_at", null)
+            .order("name", { ascending: true })
+            .range(from, to),
+        ),
         supabase
-          .from("ingredients")
-          .select("id, name, unit")
+          .from("ingredient_location_stock")
+          .select("ingredient_id, stock")
           .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .order("name", { ascending: true })
-          .range(from, to),
-      ),
-      supabase
-        .from("ingredient_location_stock")
-        .select("ingredient_id, stock")
-        .eq("business_id", businessId)
-        .eq("location_id", locationId),
-    ]);
+          .eq("location_id", locationId),
+        // Bagian yang ditandai "termasuk lokasi ini" (diatur dari halaman
+        // Bahan Baku, "Bagian Lokasi Ini") -- dipakai buat mempersempit
+        // daftar bahan di form opname, sama tujuannya dengan yang sudah ada
+        // di Bahan Baku/Kartu Stok, tapi sebelumnya BELUM diterapkan di
+        // halaman Stok Opname ini sama sekali (form-nya selalu nampilin
+        // SEMUA bahan bisnis, keluhan user: 331 bahan sekaligus).
+        supabase
+          .from("stock_location_opname_sections")
+          .select("section_id, ingredient_opname_sections(id, name)")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId),
+        supabase
+          .from("ingredient_opname_section_items")
+          .select("ingredient_id, section_id")
+          .eq("business_id", businessId),
+      ]);
+
+    locationSections = (locationSectionRows ?? [])
+      .map((r) => r.ingredient_opname_sections as unknown as { id: string; name: string } | null)
+      .filter((s): s is { id: string; name: string } => !!s)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    selectedSectionId =
+      bagianParam && locationSections.some((s) => s.id === bagianParam) ? bagianParam : null;
+
+    const sectionIdsByIngredient = new Map<string, string[]>();
+    for (const row of sectionItemRows ?? []) {
+      const list = sectionIdsByIngredient.get(row.ingredient_id) ?? [];
+      list.push(row.section_id);
+      sectionIdsByIngredient.set(row.ingredient_id, list);
+    }
+
     const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
-    directIngredients = ingredientRows.map((i) => ({
-      id: i.id,
-      name: i.name,
-      unit: i.unit,
-      currentStock: stockByIngredient.get(i.id) ?? 0,
-    }));
+    directIngredients = ingredientRows
+      .filter((i) => !selectedSectionId || (sectionIdsByIngredient.get(i.id) ?? []).includes(selectedSectionId))
+      .map((i) => ({
+        id: i.id,
+        name: i.name,
+        unit: i.unit,
+        currentStock: stockByIngredient.get(i.id) ?? 0,
+      }));
   }
 
   const [{ data: pendingEntries }, { data: adjustments }] = await Promise.all([
@@ -147,7 +186,32 @@ export default async function LocationStockOpnamePage({
           </div>
         </div>
       ) : (
-        <DirectOpnameForm businessId={businessId} locationId={locationId} ingredients={directIngredients} />
+        <>
+          {locationSections.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href={`/business/${businessId}/lokasi/${locationId}/stock-opname`}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  !selectedSectionId ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+                }`}
+              >
+                Semua Bagian
+              </a>
+              {locationSections.map((s) => (
+                <a
+                  key={s.id}
+                  href={`/business/${businessId}/lokasi/${locationId}/stock-opname?bagian=${s.id}`}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    selectedSectionId === s.id ? "bg-brand-600 text-white" : "bg-white text-zinc-600 hover:bg-zinc-100"
+                  }`}
+                >
+                  {s.name}
+                </a>
+              ))}
+            </div>
+          )}
+          <DirectOpnameForm businessId={businessId} locationId={locationId} ingredients={directIngredients} />
+        </>
       )}
 
       {pendingByDate.size > 0 && (
