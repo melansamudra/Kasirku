@@ -382,6 +382,7 @@ export default async function LocationStockOpnamePage({
                         <span className="font-semibold text-zinc-900">{formatRupiah(r.value)}</span>
                         {nilaiDate === todayWibDateString() && (
                           <EditNilaiItemForm
+                            currentName={r.name}
                             currentStock={r.stock}
                             currentUnit={r.unit}
                             action={adjustNilaiPersediaanItem.bind(null, businessId, locationId, r.itemType, r.id)}

@@ -335,12 +335,15 @@ export async function adjustNilaiPersediaanItem(
   itemId: string,
   newStock: number,
   newUnit: string,
+  newName: string,
 ): Promise<OpnameActionState> {
   if (Number.isNaN(newStock) || newStock < 0) {
     return { error: "Stok harus angka dan tidak boleh negatif." };
   }
   newUnit = newUnit.trim();
   if (!newUnit) return { error: "Satuan wajib diisi." };
+  newName = newName.trim();
+  if (!newName) return { error: "Nama wajib diisi." };
 
   const supabase = await createClient();
 
@@ -356,8 +359,12 @@ export async function adjustNilaiPersediaanItem(
     ]);
     if (!ingredient) return { error: "Bahan baku tidak ditemukan." };
 
-    if (newUnit !== ingredient.unit) {
-      await supabase.from("ingredients").update({ unit: newUnit }).eq("id", itemId);
+    if (newUnit !== ingredient.unit || newName !== ingredient.name) {
+      const { error: updateError } = await supabase
+        .from("ingredients")
+        .update({ unit: newUnit, name: newName })
+        .eq("id", itemId);
+      if (updateError) return { error: updateError.message };
     }
 
     const stockBefore = Number(stockRow?.stock ?? 0);
@@ -369,7 +376,7 @@ export async function adjustNilaiPersediaanItem(
       }
       await supabase.from("stock_adjustments").insert({
         business_id: businessId, ingredient_id: itemId, location_id: locationId,
-        item_name: ingredient.name, unit: newUnit,
+        item_name: newName, unit: newUnit,
         stock_before: stockBefore, stock_after: newStock, diff: newStock - stockBefore,
         reason: "Koreksi dari Nilai Persediaan",
       });
@@ -385,14 +392,22 @@ export async function adjustNilaiPersediaanItem(
     if (!item) return { error: "Barang Gudang tidak ditemukan." };
 
     const stockBefore = Number(item.stock);
-    const changed = newUnit !== item.unit || Math.abs(newStock - stockBefore) > 1e-9;
+    const changed = newUnit !== item.unit || newName !== item.name || Math.abs(newStock - stockBefore) > 1e-9;
     if (changed) {
-      await supabase.from("warehouse_items").update({ unit: newUnit, stock: newStock, updated_at: new Date().toISOString() }).eq("id", itemId);
+      const { error: updateError } = await supabase
+        .from("warehouse_items")
+        .update({ name: newName, unit: newUnit, stock: newStock, updated_at: new Date().toISOString() })
+        .eq("id", itemId);
+      if (updateError) {
+        return {
+          error: updateError.code === "23505" ? `Barang "${newName}" sudah ada di lokasi ini.` : updateError.message,
+        };
+      }
     }
     if (Math.abs(newStock - stockBefore) > 1e-9) {
       await supabase.from("stock_adjustments").insert({
         business_id: businessId, warehouse_item_id: itemId, location_id: locationId,
-        item_name: item.name, unit: newUnit,
+        item_name: newName, unit: newUnit,
         stock_before: stockBefore, stock_after: newStock, diff: newStock - stockBefore,
         reason: "Koreksi dari Nilai Persediaan",
       });

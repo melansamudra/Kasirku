@@ -5,16 +5,19 @@ import { useRouter } from "next/navigation";
 import type { OpnameActionState } from "./actions";
 
 export default function EditNilaiItemForm({
+  currentName,
   currentStock,
   currentUnit,
   action,
 }: {
+  currentName: string;
   currentStock: number;
   currentUnit: string;
-  action: (newStock: number, newUnit: string) => Promise<OpnameActionState>;
+  action: (newStock: number, newUnit: string, newName: string) => Promise<OpnameActionState>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState(currentName);
   const [stock, setStock] = useState(String(currentStock));
   const [unit, setUnit] = useState(currentUnit);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,7 @@ export default function EditNilaiItemForm({
   async function handleSubmit() {
     setError(null);
     setSubmitting(true);
-    const result = await action(Number(stock), unit);
+    const result = await action(Number(stock), unit, name);
     setSubmitting(false);
     if (result.error) {
       setError(result.error);
@@ -46,6 +49,13 @@ export default function EditNilaiItemForm({
 
   return (
     <div className="flex shrink-0 flex-col items-end gap-1">
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Nama barang"
+        className="w-40 rounded-lg border border-zinc-200 px-2 py-1 text-[11px] focus:border-brand-600 focus:outline-none"
+      />
       <div className="flex items-center gap-1">
         <input
           type="number"
