@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addPettyCashExpense, addSupplierDebtNoteAdmin, addPettyCashKasbon } from "./actions";
 
@@ -35,6 +35,8 @@ export default function AddExpenseQuickForm({
   const [hutangDate, setHutangDate] = useState(today);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -313,15 +315,43 @@ export default function AddExpenseQuickForm({
                 "🧾"
               )}
             </div>
-            <input
-              key={mode}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleReceiptChange}
-              disabled={uploading}
-              className="flex-1 text-xs text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
-            />
+            <div className="flex flex-1 gap-2">
+              <input
+                key={`${mode}-file`}
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleReceiptChange}
+                disabled={uploading}
+                className="hidden"
+              />
+              <input
+                key={`${mode}-camera`}
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleReceiptChange}
+                disabled={uploading}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex-1 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-200 disabled:opacity-50"
+              >
+                📁 Pilih File
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={uploading}
+                className="flex-1 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-200 disabled:opacity-50"
+              >
+                📷 Kamera
+              </button>
+            </div>
           </div>
         </div>
       )}
