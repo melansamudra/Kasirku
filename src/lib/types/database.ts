@@ -4567,6 +4567,7 @@ export type Database = {
           is_production: boolean;
           portal_slug: string | null;
           warehouse_mode: string;
+          product_categories: string[];
         };
         Insert: {
           id?: string;
@@ -4578,6 +4579,7 @@ export type Database = {
           is_production?: boolean;
           portal_slug?: string | null;
           warehouse_mode?: string;
+          product_categories?: string[];
         };
         Update: {
           id?: string;
@@ -4589,6 +4591,7 @@ export type Database = {
           is_production?: boolean;
           portal_slug?: string | null;
           warehouse_mode?: string;
+          product_categories?: string[];
         };
         Relationships: [];
       };

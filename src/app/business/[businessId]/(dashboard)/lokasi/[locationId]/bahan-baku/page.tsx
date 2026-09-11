@@ -10,8 +10,10 @@ import {
   deleteWarehouseItem,
   toggleWarehouseMode,
   updateLocationOpnameSections,
+  updateLocationProductCategories,
 } from "./actions";
 import LocationSectionSelect from "./location-section-select";
+import LocationCategorySelect from "./location-category-select";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
 import ReceiveLinkBox from "./receive-link-box";
 import IngredientSearch from "../../../ingredients/ingredient-search";
@@ -40,7 +42,7 @@ export default async function LocationBahanBakuPage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name, is_default_purchase, is_production, warehouse_mode")
+    .select("id, name, is_default_purchase, is_production, warehouse_mode, product_categories")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -183,6 +185,7 @@ export default async function LocationBahanBakuPage({
     { data: locationSectionRows },
     { data: ingredientSectionRows },
     purchaseUnitRows,
+    { data: productCategoryRows },
   ] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
@@ -219,6 +222,9 @@ export default async function LocationBahanBakuPage({
         .eq("business_id", businessId)
         .range(from, to),
     ),
+    // Kategori produk yang bisa diklaim lokasi ini (lihat migrasi
+    // category_based_consumption_location) -- dipakai LocationCategorySelect.
+    supabase.from("product_categories").select("name").eq("business_id", businessId).order("name", { ascending: true }),
   ]);
 
   const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
@@ -395,6 +401,14 @@ export default async function LocationBahanBakuPage({
         sectionIds={locationSectionIds}
         sections={opnameSectionsWithCount}
         action={updateLocationOpnameSections.bind(null, businessId)}
+      />
+
+      <LocationCategorySelect
+        locationId={locationId}
+        locationName={location.name}
+        categories={location.product_categories}
+        allCategories={(productCategoryRows ?? []).map((c) => c.name)}
+        action={updateLocationProductCategories.bind(null, businessId)}
       />
 
       {pendingPos.length > 0 && (

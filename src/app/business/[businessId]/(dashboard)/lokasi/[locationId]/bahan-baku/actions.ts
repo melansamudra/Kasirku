@@ -130,6 +130,28 @@ export async function updateLocationOpnameSections(
   return { error: null };
 }
 
+// Kategori PRODUK yang "diklaim" lokasi ini (sync penuh, sama pola dengan
+// updateLocationOpnameSections) -- dipakai RPC penjualan buat nentuin lokasi
+// mana yang kepotong stok bahannya, didahulukan di atas tebak-tebakan dari
+// ketersediaan stok. Lihat migrasi category_based_consumption_location.
+export async function updateLocationProductCategories(
+  businessId: string,
+  locationId: string,
+  categories: string[],
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("stock_locations")
+    .update({ product_categories: categories })
+    .eq("id", locationId)
+    .eq("business_id", businessId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/bahan-baku`);
+  return { error: null };
+}
+
 // Toggle per-lokasi Gudang murni: jalur lama ("connected", stok pakai
 // ingredients yang sama dengan Kitchen/Bar) vs baru ("standalone", barang
 // dicatat sendiri di warehouse_items, tidak nyambung ke resep/Transfer
