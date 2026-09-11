@@ -4364,6 +4364,156 @@ export type Database = {
         };
         Relationships: [];
       };
+      warehouse_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          request_number: string;
+          from_location_id: string;
+          to_location_id: string;
+          requested_by_name: string;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          request_number: string;
+          from_location_id: string;
+          to_location_id: string;
+          requested_by_name: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          request_number?: string;
+          from_location_id?: string;
+          to_location_id?: string;
+          requested_by_name?: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      warehouse_request_items: {
+        Row: {
+          id: string;
+          warehouse_request_id: string;
+          business_id: string;
+          item_name: string;
+          unit: string | null;
+          qty_requested: number;
+          qty_sent: number;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          warehouse_request_id: string;
+          business_id: string;
+          item_name: string;
+          unit?: string | null;
+          qty_requested: number;
+          qty_sent?: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          warehouse_request_id?: string;
+          business_id?: string;
+          item_name?: string;
+          unit?: string | null;
+          qty_requested?: number;
+          qty_sent?: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      warehouse_delivery_notes: {
+        Row: {
+          id: string;
+          business_id: string;
+          dn_number: string;
+          warehouse_request_id: string | null;
+          from_location_id: string;
+          to_location_id: string;
+          prepared_by: string;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          dn_number: string;
+          warehouse_request_id?: string | null;
+          from_location_id: string;
+          to_location_id: string;
+          prepared_by: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          dn_number?: string;
+          warehouse_request_id?: string | null;
+          from_location_id?: string;
+          to_location_id?: string;
+          prepared_by?: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      warehouse_delivery_note_items: {
+        Row: {
+          id: string;
+          delivery_note_id: string;
+          business_id: string;
+          warehouse_item_id: string | null;
+          item_name: string;
+          unit: string | null;
+          qty: number;
+          received_ingredient_id: string | null;
+          received_qty: number | null;
+          received_at: string | null;
+          received_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          delivery_note_id: string;
+          business_id: string;
+          warehouse_item_id?: string | null;
+          item_name: string;
+          unit?: string | null;
+          qty: number;
+          received_ingredient_id?: string | null;
+          received_qty?: number | null;
+          received_at?: string | null;
+          received_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          delivery_note_id?: string;
+          business_id?: string;
+          warehouse_item_id?: string | null;
+          item_name?: string;
+          unit?: string | null;
+          qty?: number;
+          received_ingredient_id?: string | null;
+          received_qty?: number | null;
+          received_at?: string | null;
+          received_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       warehouse_items: {
         Row: {
           id: string;
@@ -5360,6 +5510,21 @@ export type Database = {
         Returns: {
           transfer_id: string;
           transfer_number: string;
+        }[];
+      };
+      create_warehouse_delivery_note: {
+        Args: {
+          p_business_id: string;
+          p_from_location_id: string;
+          p_to_location_id: string;
+          p_prepared_by: string;
+          p_items: Json;
+          p_warehouse_request_id?: string | null;
+          p_note?: string | null;
+        };
+        Returns: {
+          delivery_note_id: string;
+          dn_number: string;
         }[];
       };
       checkout_ticket_transaction: {

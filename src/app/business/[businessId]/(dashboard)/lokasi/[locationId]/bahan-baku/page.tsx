@@ -93,6 +93,12 @@ export default async function LocationBahanBakuPage({
           dipakai resep Kitchen/Bar dan tidak muncul di Transfer Bahan Baku. Kalau barangnya dipakai
           Kitchen/Bar, catat manual.
         </p>
+        <Link
+          href={`/business/${businessId}/lokasi/${locationId}/permintaan-gudang`}
+          className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline"
+        >
+          → Lihat Permintaan Masuk &amp; Buat Surat Jalan
+        </Link>
 
         {modeSwitch}
 
@@ -370,6 +376,12 @@ export default async function LocationBahanBakuPage({
         baku pusat. Daftar bahannya sama (satu master untuk seluruh bisnis), cuma jumlah stoknya
         dilacak sendiri-sendiri per lokasi.
       </p>
+      <Link
+        href={`/business/${businessId}/lokasi/${locationId}/permintaan-gudang`}
+        className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline"
+      >
+        → Minta Barang dari Gudang
+      </Link>
 
       {modeSwitch}
 
