@@ -41,6 +41,7 @@ async function applyOpnameEntry(
     component_type: string;
     ingredient_id: string | null;
     semi_finished_item_id: string | null;
+    warehouse_item_id: string | null;
     location_id: string;
     item_name: string;
     unit: string;
@@ -59,13 +60,21 @@ async function applyOpnameEntry(
       .eq("ingredient_id", entry.ingredient_id as string)
       .maybeSingle();
     currentStock = Number(row?.stock ?? 0);
-  } else {
+  } else if (entry.component_type === "semi_finished") {
     const { data: row } = await supabase
       .from("semi_finished_item_location_stock")
       .select("stock")
       .eq("business_id", businessId)
       .eq("location_id", entry.location_id)
       .eq("semi_finished_item_id", entry.semi_finished_item_id as string)
+      .maybeSingle();
+    currentStock = Number(row?.stock ?? 0);
+  } else {
+    const { data: row } = await supabase
+      .from("warehouse_items")
+      .select("stock")
+      .eq("business_id", businessId)
+      .eq("id", entry.warehouse_item_id as string)
       .maybeSingle();
     currentStock = Number(row?.stock ?? 0);
   }
@@ -85,7 +94,7 @@ async function applyOpnameEntry(
         { onConflict: "location_id,ingredient_id" },
       );
       if (error) return error.message;
-    } else {
+    } else if (entry.component_type === "semi_finished") {
       const { error } = await supabase.from("semi_finished_item_location_stock").upsert(
         {
           business_id: businessId,
@@ -97,12 +106,20 @@ async function applyOpnameEntry(
         { onConflict: "location_id,semi_finished_item_id" },
       );
       if (error) return error.message;
+    } else {
+      const { error } = await supabase
+        .from("warehouse_items")
+        .update({ stock: newStock, updated_at: new Date().toISOString() })
+        .eq("id", entry.warehouse_item_id as string)
+        .eq("business_id", businessId);
+      if (error) return error.message;
     }
 
     const { error: adjError } = await supabase.from("stock_adjustments").insert({
       business_id: businessId,
       ingredient_id: entry.component_type === "ingredient" ? entry.ingredient_id : null,
       semi_finished_item_id: entry.component_type === "semi_finished" ? entry.semi_finished_item_id : null,
+      warehouse_item_id: entry.component_type === "warehouse_item" ? entry.warehouse_item_id : null,
       location_id: entry.location_id,
       item_name: entry.item_name,
       unit: entry.unit,
@@ -125,7 +142,7 @@ async function applyOpnameEntry(
 export async function submitLocationStockOpnameDirect(
   businessId: string,
   locationId: string,
-  counts: { ingredientId: string; ingredientName: string; unit: string; reportedStock: number }[],
+  counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[],
 ): Promise<OpnameActionState> {
   if (counts.length === 0) return { error: "Belum ada bahan yang diisi." };
 
@@ -133,7 +150,7 @@ export async function submitLocationStockOpnameDirect(
   const actor = await getCurrentActor(supabase, businessId);
   if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
 
-  const ingredientIds = counts.map((c) => c.ingredientId);
+  const ingredientIds = counts.map((c) => c.itemId);
   const { data: stockRows } = await supabase
     .from("ingredient_location_stock")
     .select("ingredient_id, stock")
@@ -147,11 +164,11 @@ export async function submitLocationStockOpnameDirect(
     business_id: businessId,
     location_id: locationId,
     component_type: "ingredient" as const,
-    ingredient_id: c.ingredientId,
-    item_name: c.ingredientName,
+    ingredient_id: c.itemId,
+    item_name: c.itemName,
     unit: c.unit,
     reported_stock: c.reportedStock,
-    system_stock_at_report: stockByIngredient.get(c.ingredientId) ?? 0,
+    system_stock_at_report: stockByIngredient.get(c.itemId) ?? 0,
     submitted_by_name: actor.name,
     entry_date: entryDate,
   }));
@@ -166,6 +183,59 @@ export async function submitLocationStockOpnameDirect(
     "sukses",
     "Stok opname diajukan",
     `${counts.length} bahan · oleh ${actor.name}`,
+  );
+  revalidatePath(`/business/${businessId}/lokasi/${locationId}/stock-opname`);
+  return { error: null };
+}
+
+// Sama pola dengan submitLocationStockOpnameDirect, tapi target
+// warehouse_items (Gudang standalone) -- lihat migrasi
+// warehouse_stock_opname kenapa ini numpang di stock_opname_entries yang
+// sama (component_type='warehouse_item'), bukan tabel/alur verifikasi baru.
+export async function submitWarehouseStockOpnameDirect(
+  businessId: string,
+  locationId: string,
+  counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[],
+): Promise<OpnameActionState> {
+  if (counts.length === 0) return { error: "Belum ada barang yang diisi." };
+
+  const supabase = await createClient();
+  const actor = await getCurrentActor(supabase, businessId);
+  if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+
+  const itemIds = counts.map((c) => c.itemId);
+  const { data: itemRows } = await supabase
+    .from("warehouse_items")
+    .select("id, stock")
+    .eq("business_id", businessId)
+    .eq("location_id", locationId)
+    .in("id", itemIds);
+  const stockByItem = new Map((itemRows ?? []).map((r) => [r.id, Number(r.stock)]));
+
+  const entryDate = new Date().toISOString().slice(0, 10);
+  const rows = counts.map((c) => ({
+    business_id: businessId,
+    location_id: locationId,
+    component_type: "warehouse_item" as const,
+    warehouse_item_id: c.itemId,
+    item_name: c.itemName,
+    unit: c.unit,
+    reported_stock: c.reportedStock,
+    system_stock_at_report: stockByItem.get(c.itemId) ?? 0,
+    submitted_by_name: actor.name,
+    entry_date: entryDate,
+  }));
+
+  const { error } = await supabase.from("stock_opname_entries").insert(rows);
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "sukses",
+    "Stok opname Gudang diajukan",
+    `${counts.length} barang · oleh ${actor.name}`,
   );
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/stock-opname`);
   return { error: null };

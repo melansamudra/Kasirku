@@ -2,18 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { submitLocationStockOpnameDirect } from "./actions";
+import type { OpnameActionState } from "./actions";
 
-type IngredientRow = { id: string; name: string; unit: string; currentStock: number };
+type ItemRow = { id: string; name: string; unit: string; currentStock: number };
 
 export default function DirectOpnameForm({
-  businessId,
-  locationId,
   ingredients,
+  action,
+  label = "bahan",
 }: {
-  businessId: string;
-  locationId: string;
-  ingredients: IngredientRow[];
+  ingredients: ItemRow[];
+  action: (counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[]) => Promise<OpnameActionState>;
+  label?: string;
 }) {
   const router = useRouter();
   const [counts, setCounts] = useState<Record<string, string>>({});
@@ -30,20 +30,20 @@ export default function DirectOpnameForm({
     const filled = ingredients
       .filter((i) => counts[i.id] !== undefined && counts[i.id] !== "")
       .map((i) => ({
-        ingredientId: i.id,
-        ingredientName: i.name,
+        itemId: i.id,
+        itemName: i.name,
         unit: i.unit,
         reportedStock: Number(counts[i.id]),
       }));
 
     if (filled.length === 0) {
-      setError("Isi minimal 1 bahan dengan jumlah stok fisiknya.");
+      setError(`Isi minimal 1 ${label} dengan jumlah stok fisiknya.`);
       return;
     }
 
     setError(null);
     setSubmitting(true);
-    const result = await submitLocationStockOpnameDirect(businessId, locationId, filled);
+    const result = await action(filled);
     setSubmitting(false);
 
     if (result.error) {
@@ -60,7 +60,7 @@ export default function DirectOpnameForm({
     <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
       <h2 className="text-sm font-semibold text-zinc-900">Input Stok Opname</h2>
       <p className="mt-0.5 text-xs text-zinc-500">
-        Isi stok fisik hasil hitung — cuma bahan yang diisi yang diajukan. Perubahan stok baru
+        Isi stok fisik hasil hitung — cuma {label} yang diisi yang diajukan. Perubahan stok baru
         berlaku setelah diverifikasi.
       </p>
 

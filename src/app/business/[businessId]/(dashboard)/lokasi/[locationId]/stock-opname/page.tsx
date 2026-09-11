@@ -5,6 +5,7 @@ import { fetchAllRows } from "@/lib/pagination";
 import StockOpnameLinkBox from "./link-box";
 import DirectOpnameForm from "./direct-opname-form";
 import { VerifyEntryButtons, VerifyAllButton } from "./verify-buttons";
+import { submitLocationStockOpnameDirect, submitWarehouseStockOpnameDirect } from "./actions";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatDate(dateStr: string) {
@@ -56,7 +57,7 @@ export default async function LocationStockOpnamePage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name")
+    .select("id, name, is_default_purchase, is_production, warehouse_mode")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -64,10 +65,27 @@ export default async function LocationStockOpnamePage({
     notFound();
   }
 
+  // Gudang standalone (lihat migrasi warehouse_stock_opname) -- barangnya
+  // warehouse_items, bukan ingredients, jadi opname-nya selalu form
+  // langsung (tidak ada link publik/Bagian, itu konsep khusus ingredients).
+  const isStandaloneWarehouse =
+    location.is_default_purchase && !location.is_production && location.warehouse_mode === "standalone";
+
+  let directWarehouseItems: { id: string; name: string; unit: string; currentStock: number }[] = [];
+  if (isStandaloneWarehouse) {
+    const { data: items } = await supabase
+      .from("warehouse_items")
+      .select("id, name, unit, stock")
+      .eq("business_id", businessId)
+      .eq("location_id", locationId)
+      .order("name", { ascending: true });
+    directWarehouseItems = (items ?? []).map((i) => ({ id: i.id, name: i.name, unit: i.unit, currentStock: Number(i.stock) }));
+  }
+
   let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
   let locationSections: { id: string; name: string }[] = [];
   let selectedSectionId: string | null = null;
-  if (!costControlUiEnabled) {
+  if (!costControlUiEnabled && !isStandaloneWarehouse) {
     const [ingredientRows, { data: stockRows }, { data: locationSectionRows }, { data: sectionItemRows }] =
       await Promise.all([
         fetchAllRows((from, to) =>
@@ -174,7 +192,13 @@ export default async function LocationStockOpnamePage({
         Laporan stok fisik dari staf menunggu diverifikasi dulu sebelum mengubah stok sistem.
       </p>
 
-      {costControlUiEnabled ? (
+      {isStandaloneWarehouse ? (
+        <DirectOpnameForm
+          ingredients={directWarehouseItems}
+          action={submitWarehouseStockOpnameDirect.bind(null, businessId, locationId)}
+          label="barang"
+        />
+      ) : costControlUiEnabled ? (
         <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
           <div className="mt-3">
@@ -210,7 +234,10 @@ export default async function LocationStockOpnamePage({
               ))}
             </div>
           )}
-          <DirectOpnameForm businessId={businessId} locationId={locationId} ingredients={directIngredients} />
+          <DirectOpnameForm
+            ingredients={directIngredients}
+            action={submitLocationStockOpnameDirect.bind(null, businessId, locationId)}
+          />
         </>
       )}
 

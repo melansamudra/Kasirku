@@ -4186,6 +4186,7 @@ export type Database = {
           component_type: string;
           ingredient_id: string | null;
           semi_finished_item_id: string | null;
+          warehouse_item_id: string | null;
           item_name: string;
           unit: string;
           reported_stock: number;
@@ -4203,6 +4204,7 @@ export type Database = {
           component_type: string;
           ingredient_id?: string | null;
           semi_finished_item_id?: string | null;
+          warehouse_item_id?: string | null;
           item_name: string;
           unit: string;
           reported_stock: number;
@@ -4220,6 +4222,7 @@ export type Database = {
           component_type?: string;
           ingredient_id?: string | null;
           semi_finished_item_id?: string | null;
+          warehouse_item_id?: string | null;
           item_name?: string;
           unit?: string;
           reported_stock?: number;
