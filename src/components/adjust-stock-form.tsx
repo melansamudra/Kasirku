@@ -11,24 +11,36 @@ const REASONS = [
   "Lainnya",
 ];
 
+type PurchaseUnit = { unitName: string; conversion: number };
+
 export default function AdjustStockForm({
   itemName,
   currentStock,
   unit,
+  purchaseUnits,
   action,
 }: {
   itemName: string;
   currentStock: number;
   unit?: string;
+  // Opsional -- kalau bahan ini punya "Satuan Beli" terdaftar (mis. "KG" =
+  // 1000 gr), munculkan pilihan satuan di sini juga, sama pola dengan form
+  // Pembelian. Angka yang diketik otomatis dikonversi ke satuan dasar
+  // sebelum dikirim ke `action` -- action-nya sendiri TIDAK berubah, tetap
+  // cuma terima angka di satuan dasar seperti sebelumnya.
+  purchaseUnits?: PurchaseUnit[];
   action: (newStock: number, reason: string) => Promise<{ error: string | null }>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [newStock, setNewStock] = useState(String(currentStock));
+  const [inputUnit, setInputUnit] = useState(unit ?? "");
   const [reason, setReason] = useState(REASONS[0]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const unitSuffix = unit ? ` ${unit}` : "";
+  const selectedVariant = (purchaseUnits ?? []).find((u) => u.unitName === inputUnit);
+  const baseValue = selectedVariant ? (Number(newStock) || 0) * selectedVariant.conversion : Number(newStock) || 0;
 
   if (!open) {
     return (
@@ -44,7 +56,7 @@ export default function AdjustStockForm({
   async function handleSubmit() {
     setError(null);
     setSubmitting(true);
-    const result = await action(Number(newStock), reason);
+    const result = await action(baseValue, reason);
     setSubmitting(false);
 
     if (result.error) {
@@ -65,17 +77,38 @@ export default function AdjustStockForm({
       </p>
       <div className="mt-2 space-y-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">
-            Stok fisik sebenarnya{unitSuffix}
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="any"
-            value={newStock}
-            onChange={(e) => setNewStock(e.target.value)}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Stok fisik sebenarnya</label>
+          <div className="flex gap-1.5">
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={newStock}
+              onChange={(e) => setNewStock(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+            {purchaseUnits && purchaseUnits.length > 0 ? (
+              <select
+                value={inputUnit}
+                onChange={(e) => setInputUnit(e.target.value)}
+                className="shrink-0 rounded-lg border border-zinc-200 px-2 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              >
+                {unit && <option value={unit}>{unit}</option>}
+                {purchaseUnits.map((u) => (
+                  <option key={u.unitName} value={u.unitName}>
+                    {u.unitName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              unitSuffix && <span className="flex shrink-0 items-center text-xs text-zinc-500">{unit}</span>
+            )}
+          </div>
+          {selectedVariant && (
+            <p className="mt-1 text-[10.5px] text-zinc-400">
+              = {baseValue} {unit} (1 {selectedVariant.unitName} = {selectedVariant.conversion} {unit})
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Alasan</label>

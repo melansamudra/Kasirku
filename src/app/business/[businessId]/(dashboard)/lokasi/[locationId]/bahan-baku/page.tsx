@@ -46,6 +46,7 @@ export default async function LocationBahanBakuPage({
     { data: opnameSections },
     { data: locationSectionRows },
     { data: ingredientSectionRows },
+    purchaseUnitRows,
   ] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
@@ -72,9 +73,25 @@ export default async function LocationBahanBakuPage({
     supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId).order("name", { ascending: true }),
     supabase.from("stock_location_opname_sections").select("section_id").eq("business_id", businessId).eq("location_id", locationId),
     supabase.from("ingredient_opname_section_items").select("ingredient_id, section_id").eq("business_id", businessId),
+    // "Satuan Beli" (mis. "KG" = 1000 gr) -- dipakai di form "Sesuaikan
+    // Stok" di bawah, sama pola dengan form Pembelian, supaya isi stok awal
+    // lokasi (mis. Gudang) bisa pakai satuan besar tanpa hitung manual.
+    fetchAllRows((from, to) =>
+      supabase
+        .from("ingredient_purchase_units")
+        .select("ingredient_id, unit_name, conversion")
+        .eq("business_id", businessId)
+        .range(from, to),
+    ),
   ]);
 
   const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+  const purchaseUnitsByIngredient = new Map<string, { unitName: string; conversion: number }[]>();
+  for (const row of purchaseUnitRows) {
+    const list = purchaseUnitsByIngredient.get(row.ingredient_id) ?? [];
+    list.push({ unitName: row.unit_name, conversion: Number(row.conversion) });
+    purchaseUnitsByIngredient.set(row.ingredient_id, list);
+  }
 
   // Lokasi diikat ke Bagian tertentu (Kitchen Llauk = "Adonan, Topping" mis.)
   // -- kosong = tidak dibatasi, tampilkan semua bahan seperti sebelumnya.
@@ -304,6 +321,7 @@ export default async function LocationBahanBakuPage({
                     itemName={i.name}
                     currentStock={stock}
                     unit={i.unit}
+                    purchaseUnits={purchaseUnitsByIngredient.get(i.id)}
                     action={adjustIngredientLocationStock.bind(null, businessId, locationId, i.id)}
                   />
                 </div>
