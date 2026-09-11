@@ -889,6 +889,8 @@ export default function PosScreen({
 
     setCart(next);
     setActiveBill({ id: bill.id, label: bill.label, customer_id: bill.customer_id ?? null });
+    setBonLabel(bill.label);
+    setBonCustomerName(bill.customer_name ?? "");
 
     // Auto-pilih customer jika bon punya customer_id yang tersimpan
     if (bill.customer_id) {
@@ -927,6 +929,8 @@ export default function PosScreen({
     setOrderDiscType("pct");
     setSelectedPromoId(null);
     setActiveBill(null);
+    setBonLabel("");
+    setBonCustomerName("");
     setSelectedCustomer(null);
     setOrderType(null);
     setInboxNotice(null);
@@ -1122,6 +1126,9 @@ export default function PosScreen({
 
   async function handleAddAndPay(order: SelfOrder) {
     await handleAddOrderToCart(order);
+    setBonLabel(
+      order.customerName ? `${order.tableName} - ${order.customerName}` : order.tableName,
+    );
     handleOpenPayment();
   }
 
@@ -1170,6 +1177,10 @@ export default function PosScreen({
 
   async function handleAddAllAndPay(tableName: string) {
     await handleAddAllOrdersForTable(tableName);
+    const firstOrder = selfOrders.find((o) => o.tableName === tableName);
+    setBonLabel(
+      firstOrder?.customerName ? `${tableName} - ${firstOrder.customerName}` : tableName,
+    );
     handleOpenPayment();
   }
 
@@ -1334,8 +1345,9 @@ export default function PosScreen({
       received: t.method === "Tunai" ? (Number(t.received) || t.amount) : t.amount,
     }));
     const clientRef = crypto.randomUUID();
-    const billLabel = activeBill?.label
-      ? `${activeBill.label} - T${pisahBillCount}`
+    const baseLabel = activeBill?.label || bonLabel;
+    const billLabel = baseLabel
+      ? `${baseLabel} - T${pisahBillCount}`
       : `Tagihan ${pisahBillCount}`;
     // Qty yang dibayar per baris — sisa qty yang tidak dipilih (mis. 1 dari
     // 2 Es Teh) harus tetap di cart, bukan ikut hilang.
@@ -1357,7 +1369,7 @@ export default function PosScreen({
           false,
           hasReceiptPrinters && autoReceiptPrint,
           billLabel,
-          selectedCustomer?.name ?? null,
+          selectedCustomer?.name || bonCustomerName || null,
           null,
           orderType ?? null,
         ),
@@ -1385,7 +1397,7 @@ export default function PosScreen({
           customerId: selectedCustomer?.id ?? null,
           selfOrderIds: [],
           orderLabel: billLabel,
-          customerName: selectedCustomer?.name ?? null,
+          customerName: selectedCustomer?.name || bonCustomerName || null,
           orderDiscName: null,
           orderType: orderType ?? null,
           // Bill (tagihan) cuma boleh dianggap lunas & dihapus kalau semua
@@ -1406,6 +1418,8 @@ export default function PosScreen({
         setSuccessInvoice(`OFFLINE-${clientRef.slice(0, 8).toUpperCase()}`);
         setSuccessTransactionId(null);
         setActiveBill(null);
+        setBonLabel("");
+        setBonCustomerName("");
       }
       void syncNow();
       return;
@@ -1450,6 +1464,8 @@ export default function PosScreen({
         void deleteOpenBillAfterPayment(businessId, activeBill.id);
         setActiveBill(null);
       }
+      setBonLabel("");
+      setBonCustomerName("");
       setSelectedCustomer(null);
       setCustomerPickerOpen(false);
       setCustomerSearch("");
@@ -1462,6 +1478,11 @@ export default function PosScreen({
 
     if (!currentShiftId) {
       setOpenShiftModalOpen(true);
+      return;
+    }
+
+    if (cartOrderIds.length === 0 && (!bonLabel.trim() || !bonCustomerName.trim())) {
+      setError("Isi No Meja & Nama dulu sebelum bayar.");
       return;
     }
 
@@ -1511,7 +1532,7 @@ export default function PosScreen({
           hasKitchenPrinters && !activeBill,
           hasReceiptPrinters && autoReceiptPrint,
           activeBill?.label || bonLabel || null,
-          selectedCustomer?.name || null,
+          selectedCustomer?.name || bonCustomerName || null,
           selectedPromo?.name ?? null,
           orderType ?? null,
         ),
@@ -1537,7 +1558,7 @@ export default function PosScreen({
           customerId: selectedCustomer?.id ?? null,
           selfOrderIds: cartOrderIds,
           orderLabel: activeBill?.label || bonLabel || null,
-          customerName: selectedCustomer?.name || null,
+          customerName: selectedCustomer?.name || bonCustomerName || null,
           orderDiscName: selectedPromo?.name ?? null,
           orderType: orderType ?? null,
           billId: activeBill?.id ?? null,
@@ -1551,6 +1572,8 @@ export default function PosScreen({
       setCart([]);
       setCartOrderIds([]);
       setActiveBill(null);
+      setBonLabel("");
+      setBonCustomerName("");
       setPaying(false);
       setTenders([]);
       setEditingNoteId(null);
@@ -1595,6 +1618,8 @@ export default function PosScreen({
     setSuccessTransactionId(result.transactionId);
     setCart([]);
     setCartOrderIds([]);
+    setBonLabel("");
+    setBonCustomerName("");
     setPaying(false);
     setTenders([]);
     setEditingNoteId(null);
@@ -2412,6 +2437,40 @@ export default function PosScreen({
             )}
           </div>
 
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="cartTableLabel" className="block text-[11px] font-medium text-zinc-600">
+                No Meja <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="cartTableLabel"
+                type="text"
+                value={bonLabel}
+                onChange={(e) => setBonLabel(e.target.value)}
+                placeholder="mis. Meja 5"
+                className="mt-1 w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div>
+              <label htmlFor="cartCustomerName" className="block text-[11px] font-medium text-zinc-600">
+                Nama <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="cartCustomerName"
+                type="text"
+                value={bonCustomerName}
+                onChange={(e) => setBonCustomerName(e.target.value)}
+                placeholder="mis. Pak Budi"
+                className="mt-1 w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          </div>
+          {cart.length > 0 && (!bonLabel.trim() || !bonCustomerName.trim()) && (
+            <p className="-mt-2 mb-3 text-[11px] text-red-500">
+              Isi No Meja & Nama dulu untuk bisa Simpan Bon / Bayar.
+            </p>
+          )}
+
           {isFnb && (
             <div className="mb-3 flex gap-1.5">
               {(["DINE IN", "TAKEAWAY"] as const).map((t) => (
@@ -3011,15 +3070,10 @@ export default function PosScreen({
                 <div className={`grid gap-2 ${cashierRole === "pelayan" ? "grid-cols-1" : "grid-cols-2"}`}>
                   <button
                     onClick={() => {
-                      const activeBillFull = activeBill?.id
-                        ? openBills.find((b) => b.id === activeBill.id)
-                        : null;
-                      setBonLabel(activeBill?.label ?? `Bon ${openBills.length + 1}`);
-                      setBonCustomerName(activeBillFull?.customer_name ?? "");
                       setBonError(null);
                       setSaveBonOpen(true);
                     }}
-                    disabled={cart.length === 0}
+                    disabled={cart.length === 0 || !bonLabel.trim() || !bonCustomerName.trim()}
                     className="rounded-xl border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     🧾 Simpan Bon
@@ -3027,7 +3081,7 @@ export default function PosScreen({
                   {cashierRole !== "pelayan" && (
                     <button
                       onClick={handleOpenPayment}
-                      disabled={cart.length === 0}
+                      disabled={cart.length === 0 || !bonLabel.trim() || !bonCustomerName.trim()}
                       className="rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Bayar
@@ -3037,7 +3091,8 @@ export default function PosScreen({
                 {cashierRole !== "pelayan" && cart.length >= 2 && (
                   <button
                     onClick={handleEnterPisahBill}
-                    className="w-full rounded-xl border border-zinc-200 py-2 text-xs font-semibold text-zinc-500 hover:border-brand-300 hover:text-brand-600 transition-colors"
+                    disabled={!bonLabel.trim() || !bonCustomerName.trim()}
+                    className="w-full rounded-xl border border-zinc-200 py-2 text-xs font-semibold text-zinc-500 hover:border-brand-300 hover:text-brand-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     ✂️ Pisah Bill
                   </button>
@@ -3060,7 +3115,7 @@ export default function PosScreen({
                 </div>
                 <div>
                   <label htmlFor="bonCustomerName" className="block text-xs font-medium text-zinc-600">
-                    Nama Pelanggan <span className="text-zinc-400">(opsional)</span>
+                    Nama Pelanggan <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="bonCustomerName"
@@ -3076,15 +3131,15 @@ export default function PosScreen({
                 )}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setSaveBonOpen(false); setBonCustomerName(""); }}
+                    onClick={() => setSaveBonOpen(false)}
                     className="flex-1 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
                   >
                     Batal
                   </button>
                   <button
                     onClick={handleSaveBon}
-                    disabled={bonSaving}
-                    className="flex-1 rounded-xl bg-brand-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+                    disabled={bonSaving || !bonLabel.trim() || !bonCustomerName.trim()}
+                    className="flex-1 rounded-xl bg-brand-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {bonSaving ? "Menyimpan…" : "Simpan"}
                   </button>
