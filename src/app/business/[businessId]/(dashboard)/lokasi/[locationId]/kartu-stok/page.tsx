@@ -52,12 +52,268 @@ export default async function LocationKartuStokPage({
 
   const { data: location } = await supabase
     .from("stock_locations")
-    .select("id, name")
+    .select("id, name, is_default_purchase, is_production, warehouse_mode")
     .eq("id", locationId)
     .eq("business_id", businessId)
     .maybeSingle();
   if (!location) {
     notFound();
+  }
+
+  // Gudang standalone (lihat migrasi warehouse_stock_opname) -- barangnya
+  // warehouse_items, bukan ingredients/semi_finished_items, jadi Kartu
+  // Stok-nya sumber datanya beda total, tanpa Bagian (khusus ingredients)
+  // dan tanpa komponen konsumsi penjualan di Rekonsil (Gudang tidak pernah
+  // langsung terjual/terpakai resep).
+  const isStandaloneWarehouse =
+    location.is_default_purchase && !location.is_production && location.warehouse_mode === "standalone";
+
+  if (isStandaloneWarehouse) {
+    const { data: warehouseItemRows } = await supabase
+      .from("warehouse_items")
+      .select("id, name, unit, stock")
+      .eq("business_id", businessId)
+      .eq("location_id", locationId);
+    const warehouseItems = warehouseItemRows ?? [];
+
+    const adjustments = await fetchAllRows<{ warehouse_item_id: string | null; item_name: string; unit: string | null; diff: number; entry_date: string }>(
+      (rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("stock_adjustments")
+          .select("warehouse_item_id, item_name, unit, diff, entry_date")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .not("warehouse_item_id", "is", null);
+        if (fromIso) q = q.gte("entry_date", fromIso.slice(0, 10));
+        if (toIsoExclusive) q = q.lt("entry_date", toIsoExclusive.slice(0, 10));
+        return q.range(rangeFrom, rangeTo);
+      },
+    );
+    const opnameEntries = await fetchAllRows<{ warehouse_item_id: string | null; reported_stock: number; status: string; entry_date: string }>(
+      (rangeFrom, rangeTo) =>
+        supabase
+          .from("stock_opname_entries")
+          .select("warehouse_item_id, reported_stock, status, entry_date")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .not("warehouse_item_id", "is", null)
+          .order("created_at", { ascending: false })
+          .range(rangeFrom, rangeTo),
+    );
+
+    const rows = new Map<string, KartuStokRow>();
+    for (const item of warehouseItems) {
+      rows.set(`wh:${item.id}`, {
+        key: `wh:${item.id}`,
+        id: item.id,
+        componentType: "warehouse_item",
+        name: item.name,
+        unit: item.unit,
+        stokData: Number(item.stock),
+        stockMasuk: 0,
+        stockKeluar: 0,
+        lastOpname: null,
+      });
+    }
+    for (const a of adjustments) {
+      if (!a.warehouse_item_id) continue;
+      const row = rows.get(`wh:${a.warehouse_item_id}`);
+      if (!row) continue;
+      const diff = Number(a.diff);
+      if (diff > 0) row.stockMasuk += diff;
+      else row.stockKeluar += Math.abs(diff);
+    }
+    for (const o of opnameEntries) {
+      if (!o.warehouse_item_id) continue;
+      const row = rows.get(`wh:${o.warehouse_item_id}`);
+      if (row && !row.lastOpname) {
+        row.lastOpname = {
+          reportedStock: Number(o.reported_stock),
+          status: o.status as "pending" | "verified" | "rejected",
+          entryDate: o.entry_date,
+        };
+      }
+    }
+    const list = [...rows.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+    let rekonsilRows: KartuStokRow[] = [];
+    if (activeTab === "rekonsil") {
+      const adjFromDate = await fetchAllRows<{ warehouse_item_id: string | null; entry_date: string; diff: number }>(
+        (rf, rt) =>
+          supabase
+            .from("stock_adjustments")
+            .select("warehouse_item_id, entry_date, diff")
+            .eq("business_id", businessId)
+            .eq("location_id", locationId)
+            .not("warehouse_item_id", "is", null)
+            .gte("entry_date", rekonsilDate)
+            .range(rf, rt),
+      );
+      const { data: opnameOnDate } = await supabase
+        .from("stock_opname_entries")
+        .select("warehouse_item_id, reported_stock, status, entry_date")
+        .eq("business_id", businessId)
+        .eq("location_id", locationId)
+        .eq("entry_date", rekonsilDate)
+        .not("warehouse_item_id", "is", null)
+        .order("created_at", { ascending: false });
+
+      const rekonsilMap = new Map<string, KartuStokRow & { afterDate: number }>();
+      for (const item of warehouseItems) {
+        rekonsilMap.set(item.id, {
+          key: `wh:${item.id}`,
+          id: item.id,
+          componentType: "warehouse_item",
+          name: item.name,
+          unit: item.unit,
+          stokData: Number(item.stock),
+          stockMasuk: 0,
+          stockKeluar: 0,
+          lastOpname: null,
+          afterDate: 0,
+        });
+      }
+      for (const a of adjFromDate) {
+        if (!a.warehouse_item_id) continue;
+        const row = rekonsilMap.get(a.warehouse_item_id);
+        if (!row) continue;
+        const diff = Number(a.diff);
+        if (a.entry_date === rekonsilDate) {
+          if (diff > 0) row.stockMasuk += diff;
+          else row.stockKeluar += Math.abs(diff);
+        } else {
+          row.afterDate += diff;
+        }
+      }
+      for (const o of opnameOnDate ?? []) {
+        if (!o.warehouse_item_id) continue;
+        const row = rekonsilMap.get(o.warehouse_item_id);
+        if (row && !row.lastOpname) {
+          row.lastOpname = {
+            reportedStock: Number(o.reported_stock),
+            status: o.status as "pending" | "verified" | "rejected",
+            entryDate: o.entry_date,
+          };
+        }
+      }
+      rekonsilRows = [...rekonsilMap.values()]
+        .map((r) => ({ ...r, stokData: r.stokData - r.afterDate }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return (
+      <div className="w-full max-w-3xl">
+        <Link
+          href={`/business/${businessId}/lokasi/${locationId}/bahan-baku`}
+          className="text-xs text-zinc-400 hover:text-brand-600"
+        >
+          ← {location.name}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-zinc-900">Kartu Stok — {location.name}</h1>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              {activeTab === "kartu-stok"
+                ? `Stock Masuk/Keluar: ${PERIOD_DESCRIPTIONS[period]}`
+                : "Saldo barang Gudang persis di akhir tanggal yang dipilih, dihitung mundur dari saldo sekarang."}
+            </p>
+          </div>
+          <div className="flex shrink-0 rounded-xl bg-zinc-100 p-1 text-xs font-semibold">
+            <Link
+              href={base}
+              className={`rounded-lg px-3 py-1.5 transition-colors ${
+                activeTab === "kartu-stok" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              }`}
+            >
+              Kartu Stok
+            </Link>
+            <Link
+              href={`${base}?tab=rekonsil`}
+              className={`rounded-lg px-3 py-1.5 transition-colors ${
+                activeTab === "rekonsil" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              }`}
+            >
+              Rekonsil Stok Harian
+            </Link>
+          </div>
+        </div>
+
+        {activeTab === "kartu-stok" ? (
+          <>
+            <p className="mt-2 text-xs text-zinc-400">
+              Stok Data (sistem) & Stok Riil (opname terakhir) selalu saldo terkini. Stock Masuk/Keluar
+              mengikuti periode yang dipilih.
+            </p>
+            <div className="mt-2">
+              <PeriodTabs basePath={base} period={period} />
+            </div>
+
+            {period === "custom" && (
+              <form method="get" className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4">
+                <input type="hidden" name="period" value="custom" />
+                <label className="text-xs font-medium text-zinc-600">
+                  Dari
+                  <input
+                    type="date"
+                    name="from"
+                    defaultValue={from}
+                    className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-medium text-zinc-600">
+                  Sampai
+                  <input
+                    type="date"
+                    name="to"
+                    defaultValue={to}
+                    className="mt-1 block rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+                >
+                  Terapkan
+                </button>
+              </form>
+            )}
+
+            <div className="mt-4">
+              <KartuStokList items={list} />
+            </div>
+          </>
+        ) : (
+          <>
+            <form method="get" className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4">
+              <input type="hidden" name="tab" value="rekonsil" />
+              <label className="text-xs font-medium text-zinc-600">
+                Tanggal
+                <input
+                  type="date"
+                  name="date"
+                  defaultValue={rekonsilDate}
+                  max={todayWibDateString()}
+                  className="mt-1 block rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+              >
+                Tampilkan
+              </button>
+            </form>
+            <p className="mt-2 text-[11px] text-zinc-400">
+              Stok Data dihitung persis di akhir tanggal {formatDate(rekonsilDate)} (bukan saldo hari ini). Stok
+              Riil & Selisih diambil dari hasil opname yang tercatat di tanggal itu juga di lokasi ini.
+            </p>
+            <div className="mt-4">
+              <KartuStokList items={rekonsilRows} />
+            </div>
+          </>
+        )}
+      </div>
+    );
   }
 
   const [

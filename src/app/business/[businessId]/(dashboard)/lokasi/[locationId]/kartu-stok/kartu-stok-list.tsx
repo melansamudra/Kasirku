@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
 export type KartuStokRow = {
   key: string;
   id: string;
-  componentType: "ingredient" | "semi_finished";
+  componentType: "ingredient" | "semi_finished" | "warehouse_item";
   name: string;
   unit: string;
   stokData: number;
