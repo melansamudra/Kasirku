@@ -143,8 +143,10 @@ export async function submitLocationStockOpnameDirect(
   businessId: string,
   locationId: string,
   counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[],
+  entryDate: string,
 ): Promise<OpnameActionState> {
   if (counts.length === 0) return { error: "Belum ada bahan yang diisi." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return { error: "Tanggal opname tidak valid." };
 
   const supabase = await createClient();
   const actor = await getCurrentActor(supabase, businessId);
@@ -159,7 +161,6 @@ export async function submitLocationStockOpnameDirect(
     .in("ingredient_id", ingredientIds);
   const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
 
-  const entryDate = new Date().toISOString().slice(0, 10);
   const rows = counts.map((c) => ({
     business_id: businessId,
     location_id: locationId,
@@ -196,8 +197,10 @@ export async function submitWarehouseStockOpnameDirect(
   businessId: string,
   locationId: string,
   counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[],
+  entryDate: string,
 ): Promise<OpnameActionState> {
   if (counts.length === 0) return { error: "Belum ada barang yang diisi." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return { error: "Tanggal opname tidak valid." };
 
   const supabase = await createClient();
   const actor = await getCurrentActor(supabase, businessId);
@@ -212,7 +215,6 @@ export async function submitWarehouseStockOpnameDirect(
     .in("id", itemIds);
   const stockByItem = new Map((itemRows ?? []).map((r) => [r.id, Number(r.stock)]));
 
-  const entryDate = new Date().toISOString().slice(0, 10);
   const rows = counts.map((c) => ({
     business_id: businessId,
     location_id: locationId,

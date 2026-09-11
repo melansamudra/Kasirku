@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { todayWibDateString } from "@/lib/wib";
 import type { OpnameActionState } from "./actions";
 
 type ItemRow = { id: string; name: string; unit: string; currentStock: number };
@@ -12,11 +13,15 @@ export default function DirectOpnameForm({
   label = "bahan",
 }: {
   ingredients: ItemRow[];
-  action: (counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[]) => Promise<OpnameActionState>;
+  action: (
+    counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[],
+    entryDate: string,
+  ) => Promise<OpnameActionState>;
   label?: string;
 }) {
   const router = useRouter();
   const [counts, setCounts] = useState<Record<string, string>>({});
+  const [entryDate, setEntryDate] = useState(todayWibDateString());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,7 +48,7 @@ export default function DirectOpnameForm({
 
     setError(null);
     setSubmitting(true);
-    const result = await action(filled);
+    const result = await action(filled, entryDate);
     setSubmitting(false);
 
     if (result.error) {
@@ -63,6 +68,17 @@ export default function DirectOpnameForm({
         Isi stok fisik hasil hitung — cuma {label} yang diisi yang diajukan. Perubahan stok baru
         berlaku setelah diverifikasi.
       </p>
+
+      <label className="mt-3 block text-xs font-medium text-zinc-600">
+        Tanggal opname (fisik dihitung)
+        <input
+          type="date"
+          value={entryDate}
+          max={todayWibDateString()}
+          onChange={(e) => setEntryDate(e.target.value)}
+          className="mt-1 block rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </label>
 
       <div className="mt-3 max-h-96 space-y-1.5 overflow-y-auto">
         {ingredients.map((i) => (
