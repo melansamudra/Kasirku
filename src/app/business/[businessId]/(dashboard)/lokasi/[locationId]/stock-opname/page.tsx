@@ -82,11 +82,46 @@ export default async function LocationStockOpnamePage({
 
   // Tab "Nilai Persediaan": stok per bahan MUNDUR ke tanggal yang dipilih
   // (sama konsep hitung mundur dengan Rekonsil Stok Harian di Kartu Stok),
-  // dikali unit_cost -- belum didukung buat Gudang standalone (warehouse_items
-  // belum punya kolom harga).
+  // dikali unit_cost. Gudang standalone pakai warehouse_items.unit_cost --
+  // lebih sederhana dari versi ingredients (tidak ada komponen konsumsi
+  // penjualan, Gudang tidak pernah langsung kepotong resep).
   type NilaiRow = { id: string; name: string; unit: string; stock: number; unitCost: number; value: number };
   let nilaiRows: NilaiRow[] = [];
-  if (activeTab === "nilai" && !isStandaloneWarehouse) {
+  if (activeTab === "nilai" && isStandaloneWarehouse) {
+    const [{ data: warehouseItemRows }, adjAfterDate] = await Promise.all([
+      supabase
+        .from("warehouse_items")
+        .select("id, name, unit, stock, unit_cost")
+        .eq("business_id", businessId)
+        .eq("location_id", locationId),
+      fetchAllRows<{ warehouse_item_id: string | null; diff: number }>((rf, rt) =>
+        supabase
+          .from("stock_adjustments")
+          .select("warehouse_item_id, diff")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .not("warehouse_item_id", "is", null)
+          .gt("entry_date", nilaiDate)
+          .range(rf, rt),
+      ),
+    ]);
+
+    const afterDateByItem = new Map<string, number>();
+    for (const a of adjAfterDate) {
+      if (!a.warehouse_item_id) continue;
+      afterDateByItem.set(a.warehouse_item_id, (afterDateByItem.get(a.warehouse_item_id) ?? 0) + Number(a.diff));
+    }
+
+    nilaiRows = (warehouseItemRows ?? [])
+      .map((i) => {
+        const current = Number(i.stock);
+        const stock = current - (afterDateByItem.get(i.id) ?? 0);
+        const unitCost = Number(i.unit_cost) || 0;
+        return { id: i.id, name: i.name, unit: i.unit, stock, unitCost, value: stock * unitCost };
+      })
+      .filter((r) => Math.abs(r.stock) > 0.001)
+      .sort((a, b) => b.value - a.value);
+  } else if (activeTab === "nilai" && !isStandaloneWarehouse) {
     const dayStartIso = new Date(`${nilaiDate}T00:00:00+07:00`).toISOString();
     const nextDay = new Date(`${nilaiDate}T00:00:00+07:00`);
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
@@ -295,13 +330,7 @@ export default async function LocationStockOpnamePage({
       </div>
 
       {activeTab === "nilai" ? (
-        isStandaloneWarehouse ? (
-          <p className="mt-4 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
-            Nilai Persediaan belum didukung untuk Gudang mode &quot;Berdiri Sendiri&quot; -- barang Gudang di sini
-            belum punya kolom harga.
-          </p>
-        ) : (
-          <div className="mt-4">
+        <div className="mt-4">
             <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl bg-white shadow-sm p-4">
               <input type="hidden" name="tab" value="nilai" />
               <label className="text-xs font-medium text-zinc-600">
@@ -346,12 +375,11 @@ export default async function LocationStockOpnamePage({
                 </div>
               ) : (
                 <p className="px-4 py-8 text-center text-xs text-zinc-400">
-                  Tidak ada stok bahan baku di lokasi ini pada tanggal tersebut.
+                  Tidak ada stok barang di lokasi ini pada tanggal tersebut.
                 </p>
               )}
             </div>
           </div>
-        )
       ) : isStandaloneWarehouse ? (
         <DirectOpnameForm
           ingredients={directWarehouseItems}

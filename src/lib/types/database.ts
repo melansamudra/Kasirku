@@ -4528,6 +4528,7 @@ export type Database = {
           name: string;
           unit: string;
           stock: number;
+          unit_cost: number;
           created_at: string;
           updated_at: string;
         };
@@ -4538,6 +4539,7 @@ export type Database = {
           name: string;
           unit: string;
           stock?: number;
+          unit_cost?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -4548,6 +4550,7 @@ export type Database = {
           name?: string;
           unit?: string;
           stock?: number;
+          unit_cost?: number;
           created_at?: string;
           updated_at?: string;
         };
