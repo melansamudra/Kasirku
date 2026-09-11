@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AuthShell from "@/components/auth-shell";
+import { notifyNewSignup } from "./actions";
 
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +21,11 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
 
+    const whatsappDigits = whatsapp.replace(/[^0-9]/g, "");
+    if (whatsappDigits.length < 9) {
+      setError("Nomor WhatsApp tidak valid.");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Password dan konfirmasi tidak sama.");
       return;
@@ -31,13 +38,19 @@ export default function SignupPage() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { whatsapp: whatsappDigits } },
+      });
       setLoading(false);
 
       if (error) {
         setError(error.message);
         return;
       }
+
+      void notifyNewSignup(email, whatsappDigits);
 
       // If email confirmation is disabled (or already confirmed), signUp
       // returns an active session right away — no need to wait for email.
@@ -101,6 +114,21 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm transition-shadow focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             placeholder="kamu@toko.com"
+          />
+        </div>
+        <div>
+          <label htmlFor="whatsapp" className="mb-1 block text-xs font-medium text-zinc-600">
+            Nomor WhatsApp
+          </label>
+          <input
+            id="whatsapp"
+            type="tel"
+            autoComplete="tel"
+            required
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm transition-shadow focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            placeholder="08123456789"
           />
         </div>
         <div>

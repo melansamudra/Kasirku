@@ -130,12 +130,15 @@ export async function createBusiness(
     return { error: "Pilih jenis bisnis dulu." };
   }
 
+  const whatsapp = (user.user_metadata as { whatsapp?: string } | null)?.whatsapp ?? null;
+
   const { data: business, error } = await supabase
     .from("businesses")
     .insert({
       owner_id: user.id,
       name,
       business_type: businessType,
+      phone: whatsapp,
       // PO (approval berjenjang + GRN) sekarang berdiri sendiri lepas dari
       // stock_locations_enabled (lihat has-stock-access.ts#hasPoAccess) --
       // jadi bisa langsung dinyalakan default tanpa ikut membuka paket
@@ -195,5 +198,5 @@ export async function createBusiness(
     }
   }
 
-  redirect(`/business/${business.id}/billing`);
+  redirect("/login");
 }
