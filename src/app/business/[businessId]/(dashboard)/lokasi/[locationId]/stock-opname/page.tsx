@@ -131,12 +131,14 @@ export default async function LocationStockOpnamePage({
       .filter((r) => Math.abs(r.stock) > 0.001)
       .sort((a, b) => b.value - a.value);
   } else if (activeTab === "nilai" && !isStandaloneWarehouse) {
-    const dayStartIso = new Date(`${nilaiDate}T00:00:00+07:00`).toISOString();
-    const nextDay = new Date(`${nilaiDate}T00:00:00+07:00`);
-    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-    const nextDayStartIso = nextDay.toISOString();
-
-    const [ingredientRows, { data: stockRows }, adjAfterDate, consAfterDate] = await Promise.all([
+    // stock_adjustments SUDAH mencakup deduksi penjualan (reason='Penjualan',
+    // ditulis bareng saat checkout kalau location_scoped_sales_enabled --
+    // lihat migration location_scoped_sales_consumption). Dulu di sini JUGA
+    // dikurangi dari transaction_ingredient_consumption secara terpisah,
+    // padahal itu cuma log paralel buat COGS -- hasilnya dobel-hitung
+    // penjualan tiap mundur ke tanggal lampau (ketahuan pas audit stok Kota
+    // Baru). Sekarang cukup pakai stock_adjustments saja.
+    const [ingredientRows, { data: stockRows }, adjAfterDate] = await Promise.all([
       fetchAllRows<{ id: string; name: string; unit: string; unit_cost: number }>((from, to) =>
         supabase
           .from("ingredients")
@@ -160,27 +162,12 @@ export default async function LocationStockOpnamePage({
           .gt("entry_date", nilaiDate)
           .range(rf, rt),
       ),
-      business.location_scoped_sales_enabled
-        ? fetchAllRows<{ ingredient_id: string; qty: number }>((rf, rt) =>
-            supabase
-              .from("transaction_ingredient_consumption")
-              .select("ingredient_id, qty, transactions!inner(business_id, date, voided)")
-              .eq("transactions.business_id", businessId)
-              .eq("location_id", locationId)
-              .eq("transactions.voided", false)
-              .gte("transactions.date", nextDayStartIso)
-              .range(rf, rt),
-          )
-        : Promise.resolve([]),
     ]);
 
     const afterDateByIngredient = new Map<string, number>();
     for (const a of adjAfterDate) {
       if (!a.ingredient_id) continue;
       afterDateByIngredient.set(a.ingredient_id, (afterDateByIngredient.get(a.ingredient_id) ?? 0) + Number(a.diff));
-    }
-    for (const c of consAfterDate) {
-      afterDateByIngredient.set(c.ingredient_id, (afterDateByIngredient.get(c.ingredient_id) ?? 0) - Number(c.qty));
     }
 
     const currentStockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
@@ -210,7 +197,7 @@ export default async function LocationStockOpnamePage({
   let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
   let locationSections: { id: string; name: string }[] = [];
   let selectedSectionId: string | null = null;
-  if (!costControlUiEnabled && !isStandaloneWarehouse) {
+  if (!isStandaloneWarehouse) {
     const [ingredientRows, { data: stockRows }, { data: locationSectionRows }, { data: sectionItemRows }] =
       await Promise.all([
         fetchAllRows((from, to) =>
@@ -405,19 +392,20 @@ export default async function LocationStockOpnamePage({
           action={submitWarehouseStockOpnameDirect.bind(null, businessId, locationId)}
           label="barang"
         />
-      ) : costControlUiEnabled ? (
-        <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
-          <div className="mt-3">
-            <StockOpnameLinkBox
-              businessId={businessId}
-              locationId={locationId}
-              initialSlug={business.stock_opname_slug ?? ""}
-            />
-          </div>
-        </div>
       ) : (
         <>
+          {costControlUiEnabled && (
+            <div className="mt-4 rounded-xl bg-white shadow-sm p-5">
+              <h2 className="text-sm font-semibold text-zinc-900">Link Stok Opname</h2>
+              <div className="mt-3">
+                <StockOpnameLinkBox
+                  businessId={businessId}
+                  locationId={locationId}
+                  initialSlug={business.stock_opname_slug ?? ""}
+                />
+              </div>
+            </div>
+          )}
           {locationSections.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               <a

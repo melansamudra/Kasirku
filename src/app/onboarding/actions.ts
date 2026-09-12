@@ -144,6 +144,17 @@ export async function createBusiness(
       // jadi bisa langsung dinyalakan default tanpa ikut membuka paket
       // Kitchen/Bar/Kartu Stok/Transfer per-lokasi.
       po_enabled: true,
+      // Link Stok Opname (staf isi tanpa login) dibuat langsung aktif sejak
+      // daftar, bukan menunggu diaktifkan manual -- sebelumnya slug kosong
+      // bikin link di halaman Stok Opname tampil rusak sampai pemilik sadar
+      // harus klik "Ganti link" sendiri dulu.
+      stock_opname_slug: crypto.randomUUID().replace(/-/g, ""),
+      // Supaya kalau toko ini nanti di-upgrade ke stok multi-lokasi
+      // (Gudang/Kitchen/Bar, lihat starter kit di bawah), link+form Stok
+      // Opname per-lokasi otomatis langsung muncul juga tanpa perlu admin
+      // nyalain rich_stock_ops_enabled manual lagi tiap kali (kasus Kota
+      // Baru sebelum ini).
+      rich_stock_ops_enabled: true,
     })
     .select("id")
     .single();
