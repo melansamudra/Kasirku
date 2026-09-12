@@ -3438,7 +3438,7 @@ export default function PosScreen({
                             )}
                           </p>
                           {bill.customer_name && (
-                            <p className="text-[11px] font-medium text-brand-700">
+                            <p className="text-sm font-bold text-brand-700">
                               👤 {bill.customer_name}
                             </p>
                           )}
