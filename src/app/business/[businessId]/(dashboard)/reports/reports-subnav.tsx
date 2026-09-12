@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/metode-bayar", label: "Metode Bayar" },
   { href: "/kategori", label: "Kategori Menu" },
   { href: "/hpp-menu", label: "HPP Menu" },
+  { href: "/persediaan", label: "Persediaan" },
 ];
 
 export default function ReportsSubnav({ businessId }: { businessId: string }) {
