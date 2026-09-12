@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
+
 // Preview + cetak dokumen manual INLINE (modal), bukan navigasi ke halaman
 // [docId] terpisah -- rute itu sempat 404 terus-menerus di production
 // walau data & kode sudah dicek benar dan deploy sukses (sebab pastinya
@@ -7,6 +10,13 @@
 // dirender langsung dari data yang sudah ada di tangan (baru disimpan,
 // atau di-fetch sekali lewat getManualDocDetail) dan dicetak lewat
 // window.print() di komponen ini juga.
+//
+// Di-portal ke document.body (bukan dirender di tempat) + toggle class
+// body.doc-modal-printing (lihat globals.css) supaya pas dicetak, browser
+// tidak ikut mencetak seluruh halaman Dokumen Manual di belakangnya
+// (form/tab/riwayat) -- sebelumnya print preview menampilkan semuanya
+// numpuk jadi 1 halaman panjang karena modal ini cuma overlay biasa,
+// bukan halaman print tersendiri.
 
 export type PreviewDoc = {
   type: "surat-jalan" | "permintaan-barang" | "stock-opname";
@@ -51,8 +61,16 @@ const QTY_LABEL: Record<PreviewDoc["type"], string> = {
 export default function DocPreviewModal({ doc, onClose }: { doc: PreviewDoc; onClose: () => void }) {
   const [signLabel1, signLabel2] = SIGN_LABELS[doc.type];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 print:static print:bg-transparent print:p-0">
+  useEffect(() => {
+    document.body.classList.add("doc-modal-printing");
+    return () => document.body.classList.remove("doc-modal-printing");
+  }, []);
+
+  return createPortal(
+    <div
+      id="doc-modal-print-root"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 print:static print:bg-transparent print:p-0"
+    >
       <div className="w-full max-w-2xl rounded-xl bg-white p-5 shadow-lg print:max-w-none print:rounded-none print:p-0 print:shadow-none">
         <div className="flex items-center justify-between print:hidden">
           <p className="text-xs font-medium text-zinc-400">{doc.businessName}</p>
@@ -149,6 +167,7 @@ export default function DocPreviewModal({ doc, onClose }: { doc: PreviewDoc; onC
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

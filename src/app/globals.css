@@ -30,3 +30,18 @@ body {
   color: #171717;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Modal dokumen manual (dokumen-manual/doc-preview-modal.tsx dkk) di-portal
+   langsung ke <body> supaya pas dicetak, browser TIDAK ikut mencetak
+   seluruh halaman di belakangnya (form/tab/riwayat) -- beda dari halaman
+   cetak biasa di app ini yang memang seluruh isinya adalah dokumen (cukup
+   print:hidden per elemen). Class ini ditambah/dihapus dari <body> lewat
+   JS pas modal buka/tutup (lihat useEffect di kedua komponen itu).
+   Utility print: Tailwind tidak bisa dipakai untuk elemen SEBELUM modal
+   ini dalam urutan DOM (bukan descendant-nya), jadi butuh selector
+   eksplisit ini. */
+@media print {
+  body.doc-modal-printing > *:not(#doc-modal-print-root) {
+    display: none !important;
+  }
+}
