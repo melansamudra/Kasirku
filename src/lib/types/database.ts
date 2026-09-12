@@ -3585,7 +3585,7 @@ export type Database = {
         Row: {
           id: string;
           business_id: string;
-          location_id: string;
+          location_id: string | null;
           dn_number: string;
           destination: string;
           note: string | null;
@@ -3599,7 +3599,7 @@ export type Database = {
         Insert: {
           id?: string;
           business_id: string;
-          location_id: string;
+          location_id?: string | null;
           dn_number: string;
           destination: string;
           note?: string | null;
@@ -3613,7 +3613,7 @@ export type Database = {
         Update: {
           id?: string;
           business_id?: string;
-          location_id?: string;
+          location_id?: string | null;
           dn_number?: string;
           destination?: string;
           note?: string | null;
@@ -3668,7 +3668,7 @@ export type Database = {
         Row: {
           id: string;
           business_id: string;
-          location_id: string;
+          location_id: string | null;
           pr_number: string;
           note: string | null;
           created_by_user_id: string | null;
@@ -3678,7 +3678,7 @@ export type Database = {
         Insert: {
           id?: string;
           business_id: string;
-          location_id: string;
+          location_id?: string | null;
           pr_number: string;
           note?: string | null;
           created_by_user_id?: string | null;
@@ -3688,7 +3688,7 @@ export type Database = {
         Update: {
           id?: string;
           business_id?: string;
-          location_id?: string;
+          location_id?: string | null;
           pr_number?: string;
           note?: string | null;
           created_by_user_id?: string | null;
@@ -3739,7 +3739,7 @@ export type Database = {
         Row: {
           id: string;
           business_id: string;
-          location_id: string;
+          location_id: string | null;
           opname_number: string;
           note: string | null;
           created_by_user_id: string | null;
@@ -3749,7 +3749,7 @@ export type Database = {
         Insert: {
           id?: string;
           business_id: string;
-          location_id: string;
+          location_id?: string | null;
           opname_number: string;
           note?: string | null;
           created_by_user_id?: string | null;
@@ -3759,7 +3759,7 @@ export type Database = {
         Update: {
           id?: string;
           business_id?: string;
-          location_id?: string;
+          location_id?: string | null;
           opname_number?: string;
           note?: string | null;
           created_by_user_id?: string | null;

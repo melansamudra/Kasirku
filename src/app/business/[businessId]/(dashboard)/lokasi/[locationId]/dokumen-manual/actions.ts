@@ -19,13 +19,22 @@ function docNumber(prefix: string) {
   return `${prefix}-${dateCompact}-${Date.now().toString().slice(-6)}`;
 }
 
+// locationId null = versi umum (business-scoped, tidak nyangkut lokasi
+// manapun) -- dipakai toko standar yang tidak punya stock_locations sama
+// sekali, lihat migration manual_docs_optional_location.
+function dokumenManualPath(businessId: string, locationId: string | null) {
+  return locationId
+    ? `/business/${businessId}/lokasi/${locationId}/dokumen-manual`
+    : `/business/${businessId}/dokumen-manual`;
+}
+
 // Surat Jalan MANUAL — bebas ketik tujuan + daftar barang sendiri, TIDAK
 // terhubung ke PR/PO/alokasi sama sekali (beda dari `delivery_notes` yang
 // otomatis dari rantai fulfillment/GRN). Murni dokumen, tidak memindahkan
 // stok apa pun.
 export async function createManualDeliveryNote(
   businessId: string,
-  locationId: string,
+  locationId: string | null,
   destination: string,
   note: string,
   items: ManualDocItemInput[],
@@ -70,7 +79,7 @@ export async function createManualDeliveryNote(
     return { error: itemsError.message };
   }
 
-  revalidatePath(`/business/${businessId}/lokasi/${locationId}/dokumen-manual`);
+  revalidatePath(dokumenManualPath(businessId, locationId));
   return { error: null };
 }
 
@@ -79,7 +88,7 @@ export async function createManualDeliveryNote(
 // berlapis itu belum terbukti jalan mulus.
 export async function createManualPurchaseRequest(
   businessId: string,
-  locationId: string,
+  locationId: string | null,
   note: string,
   items: ManualDocItemInput[],
 ): Promise<ActionState> {
@@ -119,7 +128,7 @@ export async function createManualPurchaseRequest(
     return { error: itemsError.message };
   }
 
-  revalidatePath(`/business/${businessId}/lokasi/${locationId}/dokumen-manual`);
+  revalidatePath(dokumenManualPath(businessId, locationId));
   return { error: null };
 }
 
@@ -129,7 +138,7 @@ export async function createManualPurchaseRequest(
 // belum akurat/lengkap.
 export async function createManualStockOpname(
   businessId: string,
-  locationId: string,
+  locationId: string | null,
   note: string,
   items: ManualDocItemInput[],
 ): Promise<ActionState> {

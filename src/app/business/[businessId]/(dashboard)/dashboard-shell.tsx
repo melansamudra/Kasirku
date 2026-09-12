@@ -77,6 +77,7 @@ const STARTER_ALLOWED_KEYS = new Set([
   // Lainnya
   "notifikasi", "activity",
   "stock-opname", "accounting-rekonsiliasi-metode-bayar",
+  "dokumen-manual-global",
 ]);
 
 // Bisnis dengan cost_control_enabled (dapur pusat semacam Lauk Nusantara)
@@ -416,6 +417,17 @@ function buildNavGroups(
         { key: "transactions", href: `${base}/transactions`, label: "Riwayat Transaksi", icon: Receipt },
         { key: "shifts", href: `${base}/shifts`, label: "Riwayat Shift", icon: Clock },
         { key: "kas-harian", href: `${base}/kas-harian`, label: "Kas & Bank", icon: Wallet },
+        // Versi umum (business-scoped, tidak terikat lokasi manapun) --
+        // beda dari "Dokumen Manual" per-lokasi di buildCostControlNavGroups
+        // (gaya Llauk). Ditaruh di sini (bukan grup lokasi) justru karena
+        // toko standar yang jadi target utamanya TIDAK PUNYA stock_locations
+        // sama sekali -- lihat migration manual_docs_optional_location.
+        {
+          key: "dokumen-manual-global",
+          href: `${base}/dokumen-manual`,
+          label: "Dokumen Manual",
+          icon: Truck,
+        },
         ...(storefrontEnabled
           ? [{ key: "reservasi", href: `${base}/reservasi`, label: "Reservasi", icon: CalendarCheck, ownerOnly: true }]
           : []),

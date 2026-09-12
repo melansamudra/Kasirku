@@ -8,7 +8,7 @@ export default function StockOpnameManualForm({
   locationId,
 }: {
   businessId: string;
-  locationId: string;
+  locationId: string | null;
 }) {
   function handleSubmit(_context: string, note: string, items: ManualDocItemInput[]) {
     return createManualStockOpname(businessId, locationId, note, items);

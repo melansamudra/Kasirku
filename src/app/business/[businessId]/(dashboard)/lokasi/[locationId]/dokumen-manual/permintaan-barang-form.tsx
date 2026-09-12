@@ -8,7 +8,7 @@ export default function PermintaanBarangManualForm({
   locationId,
 }: {
   businessId: string;
-  locationId: string;
+  locationId: string | null;
 }) {
   function handleSubmit(_context: string, note: string, items: ManualDocItemInput[]) {
     return createManualPurchaseRequest(businessId, locationId, note, items);

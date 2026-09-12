@@ -3,7 +3,13 @@
 import ManualDocForm from "./manual-doc-form";
 import { createManualDeliveryNote, type ManualDocItemInput } from "./actions";
 
-export default function SuratJalanManualForm({ businessId, locationId }: { businessId: string; locationId: string }) {
+export default function SuratJalanManualForm({
+  businessId,
+  locationId,
+}: {
+  businessId: string;
+  locationId: string | null;
+}) {
   function handleSubmit(destination: string, note: string, items: ManualDocItemInput[]) {
     return createManualDeliveryNote(businessId, locationId, destination, note, items);
   }
