@@ -4,7 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentActor } from "@/lib/current-actor";
 
-export type ActionState = { error: string | null };
+export type ActionState = {
+  error: string | null;
+  // Dikembalikan pas sukses supaya caller (versi umum/global, lihat
+  // dokumen-manual/doc-preview-modal.tsx) bisa langsung tampilkan
+  // preview+cetak inline tanpa navigasi ke halaman detail terpisah --
+  // rute [docId] baru sempat 404 di production karena sebab yang belum
+  // jelas (data & kode sudah dicek benar, deploy sukses), jadi alur
+  // preview-cetak dipindah jadi inline, bukan page navigation.
+  docNumber?: string;
+  createdAt?: string;
+  receiveCode?: string;
+};
 
 export type ManualDocItemInput = { itemName: string; unit: string; qty: number };
 
@@ -58,7 +69,7 @@ export async function createManualDeliveryNote(
       created_by_user_id: actor.userId,
       created_by_name: actor.name,
     })
-    .select("id")
+    .select("id, dn_number, created_at, receive_code")
     .single();
   if (dnError || !dn) return { error: dnError?.message ?? "Gagal membuat Surat Jalan." };
 
@@ -80,7 +91,7 @@ export async function createManualDeliveryNote(
   }
 
   revalidatePath(dokumenManualPath(businessId, locationId));
-  return { error: null };
+  return { error: null, docNumber: dn.dn_number, createdAt: dn.created_at, receiveCode: dn.receive_code };
 }
 
 // Permintaan Barang MANUAL — bebas ketik daftar barang, TIDAK terhubung ke
@@ -109,7 +120,7 @@ export async function createManualPurchaseRequest(
       created_by_user_id: actor.userId,
       created_by_name: actor.name,
     })
-    .select("id")
+    .select("id, pr_number, created_at")
     .single();
   if (prError || !pr) return { error: prError?.message ?? "Gagal membuat Permintaan Barang." };
 
@@ -129,7 +140,7 @@ export async function createManualPurchaseRequest(
   }
 
   revalidatePath(dokumenManualPath(businessId, locationId));
-  return { error: null };
+  return { error: null, docNumber: pr.pr_number, createdAt: pr.created_at };
 }
 
 // Stock Opname MANUAL — catat hasil hitung fisik apa adanya, TIDAK
@@ -159,7 +170,7 @@ export async function createManualStockOpname(
       created_by_user_id: actor.userId,
       created_by_name: actor.name,
     })
-    .select("id")
+    .select("id, opname_number, created_at")
     .single();
   if (opError || !op) return { error: opError?.message ?? "Gagal membuat Stock Opname." };
 
@@ -178,6 +189,6 @@ export async function createManualStockOpname(
     return { error: itemsError.message };
   }
 
-  revalidatePath(`/business/${businessId}/lokasi/${locationId}/dokumen-manual`);
-  return { error: null };
+  revalidatePath(dokumenManualPath(businessId, locationId));
+  return { error: null, docNumber: op.opname_number, createdAt: op.created_at };
 }

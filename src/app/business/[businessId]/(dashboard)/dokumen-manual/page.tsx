@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import SuratJalanManualForm from "../lokasi/[locationId]/dokumen-manual/surat-jalan-form";
-import PermintaanBarangManualForm from "../lokasi/[locationId]/dokumen-manual/permintaan-barang-form";
-import StockOpnameManualForm from "../lokasi/[locationId]/dokumen-manual/stock-opname-form";
-import ManualDocHistory, { type ManualDocHistoryEntry } from "../lokasi/[locationId]/dokumen-manual/manual-doc-history";
+import SuratJalanTabClient, { type HistoryEntry } from "./surat-jalan-tab-client";
+import PermintaanBarangTabClient from "./permintaan-barang-tab-client";
+import StockOpnameTabClient from "./stock-opname-tab-client";
 
 // Versi UMUM (business-scoped, location_id kosong) dari Dokumen Manual --
 // dibuat supaya toko standar yang TIDAK punya stock_locations sama sekali
@@ -12,8 +11,14 @@ import ManualDocHistory, { type ManualDocHistoryEntry } from "../lokasi/[locatio
 // cetak/catat Surat Jalan, Permintaan Barang, dan Stock Opname manual,
 // tanpa perlu setup lokasi dulu. Versi per-lokasi (untuk bisnis
 // cost-control/rich_stock_ops gaya Llauk) tetap ada terpisah di
-// /lokasi/[locationId]/dokumen-manual -- lihat migration
-// manual_docs_optional_location untuk alasan location_id jadi nullable.
+// /lokasi/[locationId]/dokumen-manual.
+//
+// Preview & cetak dokumen (baru disimpan maupun dari riwayat) dirender
+// INLINE lewat modal (lihat doc-preview-modal.tsx), bukan navigasi ke
+// halaman /surat-jalan/[docId] dst -- itu sempat 404 terus-menerus di
+// production tanpa sebab yang jelas (data & kode sudah dicek benar,
+// deploy juga sukses), jadi alurnya dipindah supaya tidak bergantung ke
+// routing yang bermasalah itu sama sekali.
 
 type Tab = "surat-jalan" | "permintaan-barang" | "stock-opname";
 
@@ -63,15 +68,29 @@ export default async function DokumenManualGlobalPage({
       </div>
 
       <div className="mt-4">
-        {tab === "surat-jalan" && <SuratJalanTab businessId={businessId} base={base} />}
-        {tab === "permintaan-barang" && <PermintaanBarangTab businessId={businessId} base={base} />}
-        {tab === "stock-opname" && <StockOpnameTab businessId={businessId} base={base} />}
+        {tab === "surat-jalan" && (
+          <SuratJalanTabClient businessId={businessId} businessName={business.name} history={await getSuratJalanHistory(businessId)} />
+        )}
+        {tab === "permintaan-barang" && (
+          <PermintaanBarangTabClient
+            businessId={businessId}
+            businessName={business.name}
+            history={await getPermintaanBarangHistory(businessId)}
+          />
+        )}
+        {tab === "stock-opname" && (
+          <StockOpnameTabClient
+            businessId={businessId}
+            businessName={business.name}
+            history={await getStockOpnameHistory(businessId)}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-async function SuratJalanTab({ businessId, base }: { businessId: string; base: string }) {
+async function getSuratJalanHistory(businessId: string): Promise<HistoryEntry[]> {
   const supabase = await createClient();
   const { data: docs } = await supabase
     .from("manual_delivery_notes")
@@ -93,25 +112,16 @@ async function SuratJalanTab({ businessId, base }: { businessId: string; base: s
     }
   }
 
-  const entries: ManualDocHistoryEntry[] = (docs ?? []).map((d) => ({
+  return (docs ?? []).map((d) => ({
     id: d.id,
     docNumber: d.dn_number,
     contextLine: `Ke ${d.destination} — ${itemCountById.get(d.id) ?? 0} barang`,
     createdByName: d.created_by_name,
     createdAt: d.created_at,
-    href: `${base}/surat-jalan/${d.id}`,
   }));
-
-  return (
-    <>
-      <SuratJalanManualForm businessId={businessId} locationId={null} />
-      <TabFooter cetakHref={`${base}/kosong/surat-jalan`} />
-      <HistorySection title="Riwayat Surat Jalan" entries={entries} emptyText="Belum ada Surat Jalan manual yang dibuat." />
-    </>
-  );
 }
 
-async function PermintaanBarangTab({ businessId, base }: { businessId: string; base: string }) {
+async function getPermintaanBarangHistory(businessId: string): Promise<HistoryEntry[]> {
   const supabase = await createClient();
   const { data: docs } = await supabase
     .from("manual_purchase_requests")
@@ -133,29 +143,16 @@ async function PermintaanBarangTab({ businessId, base }: { businessId: string; b
     }
   }
 
-  const entries: ManualDocHistoryEntry[] = (docs ?? []).map((d) => ({
+  return (docs ?? []).map((d) => ({
     id: d.id,
     docNumber: d.pr_number,
     contextLine: `${itemCountById.get(d.id) ?? 0} barang diminta`,
     createdByName: d.created_by_name,
     createdAt: d.created_at,
-    href: `${base}/permintaan-barang/${d.id}`,
   }));
-
-  return (
-    <>
-      <PermintaanBarangManualForm businessId={businessId} locationId={null} />
-      <TabFooter cetakHref={`${base}/kosong/permintaan-barang`} />
-      <HistorySection
-        title="Riwayat Permintaan Barang"
-        entries={entries}
-        emptyText="Belum ada Permintaan Barang manual yang dibuat."
-      />
-    </>
-  );
 }
 
-async function StockOpnameTab({ businessId, base }: { businessId: string; base: string }) {
+async function getStockOpnameHistory(businessId: string): Promise<HistoryEntry[]> {
   const supabase = await createClient();
   const { data: docs } = await supabase
     .from("manual_stock_opnames")
@@ -177,47 +174,11 @@ async function StockOpnameTab({ businessId, base }: { businessId: string; base: 
     }
   }
 
-  const entries: ManualDocHistoryEntry[] = (docs ?? []).map((d) => ({
+  return (docs ?? []).map((d) => ({
     id: d.id,
     docNumber: d.opname_number,
     contextLine: `${itemCountById.get(d.id) ?? 0} barang dihitung`,
     createdByName: d.created_by_name,
     createdAt: d.created_at,
-    href: `${base}/stock-opname/${d.id}`,
   }));
-
-  return (
-    <>
-      <StockOpnameManualForm businessId={businessId} locationId={null} />
-      <TabFooter cetakHref={`${base}/kosong/stock-opname`} />
-      <HistorySection title="Riwayat Stock Opname" entries={entries} emptyText="Belum ada Stock Opname manual yang dicatat." />
-    </>
-  );
-}
-
-function TabFooter({ cetakHref }: { cetakHref: string }) {
-  return (
-    <div className="mt-3 text-right">
-      <Link href={cetakHref} className="text-xs font-medium text-brand-600 hover:underline">
-        🖨️ Cetak Formulir Kosong (isi tangan)
-      </Link>
-    </div>
-  );
-}
-
-function HistorySection({
-  title,
-  entries,
-  emptyText,
-}: {
-  title: string;
-  entries: ManualDocHistoryEntry[];
-  emptyText: string;
-}) {
-  return (
-    <div className="mt-6">
-      <h2 className="mb-2 text-sm font-semibold text-zinc-900">{title}</h2>
-      <ManualDocHistory entries={entries} emptyText={emptyText} />
-    </div>
-  );
 }

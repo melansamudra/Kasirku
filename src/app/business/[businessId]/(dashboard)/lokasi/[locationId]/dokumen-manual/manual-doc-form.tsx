@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ManualDocItemInput } from "./actions";
+import type { ActionState, ManualDocItemInput } from "./actions";
 
 type Row = { itemName: string; unit: string; qty: string };
 
@@ -14,13 +14,23 @@ export type ManualDocSubmit = (
   context: string,
   note: string,
   items: ManualDocItemInput[],
-) => Promise<{ error: string | null }>;
+) => Promise<ActionState>;
+
+export type ManualDocOnSuccess = (doc: {
+  context: string;
+  note: string;
+  items: { itemName: string; unit: string; qty: number }[];
+  docNumber?: string;
+  createdAt?: string;
+  receiveCode?: string;
+}) => void;
 
 // Form generik dipakai ke-3 jenis dokumen manual (Surat Jalan/Permintaan
 // Barang/Stock Opname) -- bentuknya identik (barang+qty+satuan berulang),
 // bedanya cuma ada/tidaknya field konteks (Tujuan) dan label-labelnya.
 export default function ManualDocForm({
   onSubmit,
+  onSuccess,
   title,
   helperText,
   contextLabel,
@@ -30,6 +40,12 @@ export default function ManualDocForm({
   submitPendingLabel,
 }: {
   onSubmit: ManualDocSubmit;
+  // Dipanggil sukses simpan, dikasih persis apa yang barusan diketik (biar
+  // preview tidak perlu fetch ulang) + field yang di-generate server
+  // (nomor dokumen/tanggal/kode terima). Dipakai versi global (lihat
+  // dokumen-manual/doc-preview-modal.tsx) buat preview+cetak inline --
+  // opsional supaya versi per-lokasi lama tidak perlu berubah sama sekali.
+  onSuccess?: ManualDocOnSuccess;
   title: string;
   helperText: string;
   contextLabel?: string;
@@ -64,17 +80,22 @@ export default function ManualDocForm({
     }
     setError(null);
     setPending(true);
-    onSubmit(
-      context,
-      note,
-      rows.map((r) => ({ itemName: r.itemName, unit: r.unit, qty: Number(r.qty) })),
-    )
+    const cleanItems = rows.map((r) => ({ itemName: r.itemName, unit: r.unit, qty: Number(r.qty) }));
+    onSubmit(context, note, cleanItems)
       .then((res) => {
         setPending(false);
         if (res.error) {
           setError(res.error);
           return;
         }
+        onSuccess?.({
+          context,
+          note,
+          items: cleanItems,
+          docNumber: res.docNumber,
+          createdAt: res.createdAt,
+          receiveCode: res.receiveCode,
+        });
         setContext("");
         setNote("");
         setRows([emptyRow()]);
