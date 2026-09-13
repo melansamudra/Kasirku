@@ -802,7 +802,7 @@ export async function saveOpenBill(
     const printJobs = await buildKitchenPrintJobsForItems(
       supabase, businessId, trimmed, "Tambahan Order",
       addedItems.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })),
-      undefined, cashierId, "ADDITIONAL ORDER",
+      undefined, cashierId, "ADDITIONAL ORDER", trimmedCustomer,
     ).catch(() => []);
     return { success: true, billId, printJobs };
   }
@@ -821,7 +821,7 @@ export async function saveOpenBill(
   // logActivity and print-job building are independent — run in parallel
   const [printJobs] = await Promise.all([
     buildKitchenPrintJobsForItems(
-      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })), undefined, cashierId, "NEW ORDER",
+      supabase, businessId, trimmed, "New Order", items.map((i) => ({ productId: i.product_id, qty: i.qty, note: i.note ?? null })), undefined, cashierId, "NEW ORDER", trimmedCustomer,
     ).catch(() => []),
     logActivity(supabase, businessId, "transaksi", "info", `Open Bill dibuat: ${trimmed}`, `${items.length} jenis item`),
   ]);
