@@ -6,6 +6,7 @@ import { checkoutTicket } from "@/app/business/[businessId]/pos/ticket-actions";
 import {
   discardPending,
   enqueueSale,
+  isTransientSyncError,
   listPending,
   markError,
   markSynced,
@@ -98,6 +99,13 @@ export function useOfflineSync(businessId: string) {
                 void deleteOpenBillAfterPayment(sale.businessId, sale.payload.billId);
               }
             }
+          } else if (isTransientSyncError(result.error)) {
+            // Server sempat balas (bukan network exception yang ketangkep di
+            // catch), tapi isinya kegagalan infra Supabase sesaat — perlakukan
+            // sama seperti gagal jaringan: balik ke "pending", coba lagi
+            // otomatis siklus berikutnya, jangan diam di status "error" yang
+            // minta tinjauan manual & bisa digoda tombol "Hapus".
+            await enqueueSale({ ...sale, status: "pending" });
           } else {
             await markError(sale, result.error);
           }

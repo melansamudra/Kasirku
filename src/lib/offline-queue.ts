@@ -66,6 +66,33 @@ export async function markError(sale: PendingSale, message: string): Promise<voi
   await idbPut({ ...sale, status: "error", errorMessage: message });
 }
 
+// Pesan error dari kegagalan infrastruktur Supabase (API gateway/JWT
+// bermasalah, dll) — bukan penolakan bisnis (stok habis, shift belum
+// dibuka, dll). Yang terakhir itu memang harus berhenti di-retry otomatis
+// dan minta tinjauan kasir; yang pertama harus tetap dicoba ulang otomatis
+// sampai Supabase pulih, supaya kasir tidak digoda tombol "Hapus" saat
+// Supabase lagi bermasalah (lihat insiden 401/JWT rejections & API Gateway
+// degraded 14 Sept 2026).
+const TRANSIENT_ERROR_PATTERNS = [
+  /api key/i,
+  /jwt/i,
+  /failed to fetch/i,
+  /fetch failed/i,
+  /network/i,
+  /timeout/i,
+  /timed out/i,
+  /econnreset|etimedout|enotfound|econnrefused/i,
+  /upstream connect error/i,
+  /gateway/i,
+  /\b502\b|\b503\b|\b504\b/,
+  /service unavailable/i,
+];
+
+export function isTransientSyncError(message: string | undefined | null): boolean {
+  if (!message) return false;
+  return TRANSIENT_ERROR_PATTERNS.some((p) => p.test(message));
+}
+
 export async function discardPending(clientRef: string): Promise<void> {
   await idbDelete(clientRef);
 }
