@@ -7,6 +7,7 @@ import {
   setAttendanceLate,
   setAttendanceTime,
   setAttendanceOvertime,
+  setAttendanceNote,
   type AttendanceStatus,
 } from "../../actions";
 import AttendanceRow from "../../attendance-row";
@@ -340,8 +341,10 @@ export default async function EmployeeAttendanceRekapPage({
               employeeName={formatDayLabel(dateStr)}
               currentStatus={(row?.status as AttendanceStatus) ?? null}
               late={row?.late ?? false}
+              note={row?.note ?? null}
               action={setAttendance.bind(null, businessId, employeeId, dateStr)}
               lateAction={setAttendanceLate.bind(null, businessId, employeeId, dateStr)}
+              noteAction={setAttendanceNote.bind(null, businessId, employeeId, dateStr)}
               timeAction={setAttendanceTime.bind(null, businessId, employeeId, dateStr)}
               overtimeHours={Number(row?.overtime_hours ?? 0)}
               overtimeAction={setAttendanceOvertime.bind(null, businessId, employeeId, dateStr)}
