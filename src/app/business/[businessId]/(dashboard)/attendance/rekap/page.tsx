@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff } from "lucide-react";
+import { CalendarCheck, Clock, Thermometer, UserX, CalendarOff, Timer } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import type { AttendanceStatus } from "../actions";
@@ -67,27 +67,31 @@ export default async function AttendanceRekapPage({
 
   const { data: monthRows } = await supabase
     .from("attendance")
-    .select("employee_id, status")
+    .select("employee_id, status, late")
     .eq("business_id", businessId)
     .gte("date", monthStart)
     .lte("date", monthEnd);
 
-  const recap = new Map<string, Record<AttendanceStatus, number>>();
+  const recap = new Map<string, Record<AttendanceStatus, number> & { telat: number }>();
   for (const e of employees ?? []) {
-    recap.set(e.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 });
+    recap.set(e.id, { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0, telat: 0 });
   }
   for (const r of monthRows ?? []) {
     const entry = recap.get(r.employee_id);
-    if (entry) entry[r.status as AttendanceStatus] += 1;
+    if (entry) {
+      entry[r.status as AttendanceStatus] += 1;
+      if (r.late) entry.telat += 1;
+    }
   }
 
-  const totals = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0 };
+  const totals = { hadir: 0, izin: 0, sakit: 0, alpa: 0, off: 0, telat: 0 };
   for (const entry of recap.values()) {
     totals.hadir += entry.hadir;
     totals.izin += entry.izin;
     totals.sakit += entry.sakit;
     totals.alpa += entry.alpa;
     totals.off += entry.off;
+    totals.telat += entry.telat;
   }
 
   return (
@@ -125,12 +129,13 @@ export default async function AttendanceRekapPage({
       <p className="mt-1 hidden text-[11px] text-zinc-400 print:block">{monthLabel(month)}</p>
 
       {employees && employees.length > 0 && (
-        <div className="mt-4 grid grid-cols-5 gap-2 print:hidden">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 print:hidden">
           <StatCard label="Hadir" value={String(totals.hadir)} icon={CalendarCheck} tone="brand" />
           <StatCard label="Izin" value={String(totals.izin)} icon={Clock} tone="amber" />
           <StatCard label="Sakit" value={String(totals.sakit)} icon={Thermometer} tone="blue" />
           <StatCard label="Alpa" value={String(totals.alpa)} icon={UserX} tone="red" />
           <StatCard label="Off" value={String(totals.off)} icon={CalendarOff} tone="zinc" />
+          <StatCard label="Telat" value={String(totals.telat)} icon={Timer} tone="red" />
         </div>
       )}
 
@@ -155,6 +160,12 @@ export default async function AttendanceRekapPage({
                     <span className="text-blue-600">{r.sakit} sakit</span> ·{" "}
                     <span className="text-red-600">{r.alpa} alpa</span> ·{" "}
                     <span className="text-zinc-500">{r.off} off</span>
+                    {r.telat > 0 && (
+                      <>
+                        {" "}
+                        · <span className="font-semibold text-red-600">⏰ {r.telat} telat</span>
+                      </>
+                    )}
                     <span className="text-brand-600 print:hidden">→</span>
                   </span>
                 </Link>

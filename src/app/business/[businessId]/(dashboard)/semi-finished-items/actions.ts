@@ -474,6 +474,106 @@ export async function removeRecipeComponent(businessId: string, semiFinishedItem
   revalidatePath(`/business/${businessId}/finished-products`);
 }
 
+export type BulkComponentInput = {
+  componentType: "ingredient" | "semi_finished";
+  componentId: string;
+  qty: number;
+};
+
+export type BulkAddState = {
+  error: string | null;
+  added?: number;
+  skipped?: string[]; // nama komponen yang dilewati (siklus BOM), buat ditampilkan ke user
+};
+
+// Tempel banyak baris sekaligus (nama sudah di-resolve ke id di client, lihat
+// RecipeBulkAdd) -- satu round-trip buat semua baris, bukan submit satu-satu
+// kayak RecipeEditor. Deteksi siklus BOM tetap per-baris (semi_finished bisa
+// saling menunjuk), baris yang bikin siklus dilewati & dilaporkan, bukan
+// menggagalkan seluruh batch.
+export async function addRecipeComponentsBulk(
+  businessId: string,
+  semiFinishedItemId: string,
+  _prevState: BulkAddState,
+  formData: FormData,
+): Promise<BulkAddState> {
+  const itemsRaw = formData.get("items") as string | null;
+  if (!itemsRaw) return { error: "Tidak ada baris untuk ditambahkan." };
+
+  let items: BulkComponentInput[];
+  try {
+    items = JSON.parse(itemsRaw);
+  } catch {
+    return { error: "Data tidak valid." };
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return { error: "Tidak ada baris untuk ditambahkan." };
+  }
+
+  const supabase = await createClient();
+
+  const ingredientIds = items.filter((i) => i.componentType === "ingredient").map((i) => i.componentId);
+  const semiIds = items.filter((i) => i.componentType === "semi_finished").map((i) => i.componentId);
+
+  const [{ data: ingredientRows }, { data: semiRows }] = await Promise.all([
+    ingredientIds.length > 0
+      ? supabase.from("ingredients").select("id, unit, name").eq("business_id", businessId).in("id", ingredientIds)
+      : Promise.resolve({ data: [] as { id: string; unit: string; name: string }[] }),
+    semiIds.length > 0
+      ? supabase.from("semi_finished_items").select("id, unit, name").eq("business_id", businessId).in("id", semiIds)
+      : Promise.resolve({ data: [] as { id: string; unit: string; name: string }[] }),
+  ]);
+  const unitById = new Map<string, { unit: string; name: string }>();
+  for (const r of ingredientRows ?? []) unitById.set(r.id, { unit: r.unit, name: r.name });
+  for (const r of semiRows ?? []) unitById.set(r.id, { unit: r.unit, name: r.name });
+
+  const skipped: string[] = [];
+  const rows: {
+    business_id: string;
+    semi_finished_item_id: string;
+    component_type: "ingredient" | "semi_finished";
+    ingredient_id: string | null;
+    component_semi_finished_id: string | null;
+    qty: number;
+    unit: string;
+  }[] = [];
+
+  for (const item of items) {
+    const meta = unitById.get(item.componentId);
+    if (!meta || !(item.qty > 0)) continue;
+
+    if (item.componentType === "semi_finished") {
+      const isCycle = await wouldCreateCycle(supabase, businessId, semiFinishedItemId, item.componentId);
+      if (isCycle) {
+        skipped.push(meta.name);
+        continue;
+      }
+    }
+
+    rows.push({
+      business_id: businessId,
+      semi_finished_item_id: semiFinishedItemId,
+      component_type: item.componentType,
+      ingredient_id: item.componentType === "ingredient" ? item.componentId : null,
+      component_semi_finished_id: item.componentType === "semi_finished" ? item.componentId : null,
+      qty: item.qty,
+      unit: meta.unit,
+    });
+  }
+
+  if (rows.length === 0) {
+    return { error: skipped.length > 0 ? `Semua baris dilewati (siklus BOM): ${skipped.join(", ")}` : "Tidak ada baris valid untuk ditambahkan." };
+  }
+
+  const { error } = await supabase.from("semi_finished_recipes").insert(rows);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/semi-finished-items/${semiFinishedItemId}`);
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/finished-products`);
+  return { error: null, added: rows.length, skipped };
+}
+
 export type ProduceResult = { error: string | null };
 
 // Produksi BSJ: potong bahan mentah di 1 lokasi sesuai resep tersimpan,

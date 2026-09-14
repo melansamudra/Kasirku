@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
-import { addRecipeComponent, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
+import { addRecipeComponent, addRecipeComponentsBulk, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
 import ItemForm from "../item-form";
 import RecipeEditor from "../recipe-editor";
+import RecipeBulkAdd from "../recipe-bulk-add";
 import RecipeYieldForm from "../recipe-yield-form";
 import ProduceForm from "../produce-form";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
@@ -113,6 +114,7 @@ export default async function SemiFinishedItemDetailPage({
 
   const boundUpdate = updateSemiFinishedItem.bind(null, businessId, id);
   const boundAddComponent = addRecipeComponent.bind(null, businessId, id);
+  const boundAddComponentsBulk = addRecipeComponentsBulk.bind(null, businessId, id);
   const boundUpdateYield = updateRecipeYield.bind(null, businessId, id);
   const batchYieldQty = item.batch_yield_qty !== null ? Number(item.batch_yield_qty) : null;
 
@@ -244,6 +246,15 @@ export default async function SemiFinishedItemDetailPage({
             batchYieldQty={batchYieldQty}
             resultUnit={item.unit}
           />
+          <div className="mt-3">
+            <RecipeBulkAdd
+              action={boundAddComponentsBulk}
+              ingredients={ingredients ?? []}
+              semiFinishedOptions={otherItems ?? []}
+              batchYieldQty={batchYieldQty}
+              resultUnit={item.unit}
+            />
+          </div>
         </div>
       </div>
 

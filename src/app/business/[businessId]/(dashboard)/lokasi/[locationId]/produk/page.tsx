@@ -4,10 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 import { departmentForLocationName } from "@/lib/product-department";
-
-function formatRupiah(value: number) {
-  return `Rp${Math.round(value).toLocaleString("id-ID")}`;
-}
+import ProdukSearchList from "./produk-search-list";
 
 const DEPARTMENT_LABELS: Record<string, string> = { dapur: "🍳 Dapur", bar: "🍹 Bar", front: "🛎️ Front" };
 
@@ -116,78 +113,18 @@ export default async function LocationProdukPage({
           Lokasi ini tidak terhubung ke divisi produk tertentu.
         </p>
       ) : (products ?? []).length > 0 ? (
-        <div className="mt-6 space-y-2">
-          {(products ?? []).map((p) => {
-            const price = Number(p.price);
-            const cost = Number(p.cost);
-            const margin = price - cost;
-            const marginPct = price > 0 ? (margin / price) * 100 : 0;
-            const ingredients = recipesByProduct.get(p.id) ?? [];
-            return (
-            <details key={p.id} className="group rounded-xl border border-zinc-200 bg-white">
-              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 select-none">
-                <div className="min-w-0 flex items-center gap-2">
-                  <span className="shrink-0 text-zinc-300 transition-transform group-open:rotate-90">▶</span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-900">
-                      {p.name}
-                      {p.variant_label ? ` (${p.variant_label})` : ""}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {p.category || "Tanpa kategori"}
-                      {ingredients.length > 0 ? ` · ${ingredients.length} bahan` : " · belum ada resep"}
-                    </p>
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-zinc-900">{formatRupiah(price)}</p>
-                  <p className="text-[11px] text-zinc-400">HPP {formatRupiah(cost)}</p>
-                  <p className={`text-[11px] font-medium ${margin >= 0 ? "text-brand-600" : "text-red-600"}`}>
-                    Margin {formatRupiah(margin)} ({marginPct.toFixed(1)}%)
-                  </p>
-                </div>
-              </summary>
-
-              <div className="border-t border-zinc-100 px-4 pb-3 pt-2">
-                {ingredients.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="text-zinc-400">
-                        <tr>
-                          <th className="py-1 text-left font-medium">Bahan</th>
-                          <th className="py-1 text-right font-medium">Jumlah</th>
-                          <th className="py-1 text-right font-medium">Harga Satuan</th>
-                          <th className="py-1 text-right font-medium">Biaya</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-50">
-                        {ingredients.map((ing, idx) => (
-                          <tr key={idx}>
-                            <td className="py-1.5 text-zinc-700">{ing.name}</td>
-                            <td className="py-1.5 text-right text-zinc-500">
-                              {Number(ing.qty.toFixed(4)).toLocaleString("id-ID")} {ing.unit}
-                            </td>
-                            <td className="py-1.5 text-right text-zinc-500">{formatRupiah(ing.unitCost)}</td>
-                            <td className="py-1.5 text-right font-medium text-zinc-800">{formatRupiah(ing.lineCost)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="py-2 text-xs text-zinc-400">Belum ada resep untuk produk ini.</p>
-                )}
-                <Link
-                  href={`/business/${businessId}/products/${p.id}/recipe`}
-                  className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline"
-                >
-                  Edit Resep / HPP →
-                </Link>
-              </div>
-            </details>
-            );
-          })}
-        </div>
+        <ProdukSearchList
+          businessId={businessId}
+          products={(products ?? []).map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            price: Number(p.price),
+            cost: Number(p.cost),
+            variant_label: p.variant_label,
+          }))}
+          recipesByProduct={Object.fromEntries(recipesByProduct)}
+        />
       ) : (
         <p className="mt-6 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
           Belum ada produk yang ditandai divisi ini — tandai dulu di halaman Kelola Produk.
