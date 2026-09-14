@@ -17,7 +17,7 @@ const STATUS_STYLES: Record<AttendanceStatus, string> = {
   izin: "border-amber-500 bg-amber-50 text-amber-700",
   sakit: "border-blue-500 bg-blue-50 text-blue-700",
   alpa: "border-red-500 bg-red-50 text-red-700",
-  off: "border-zinc-400 bg-zinc-100 text-zinc-600",
+  off: "border-zinc-700 bg-zinc-700 text-white",
 };
 
 function formatTime(iso: string) {
