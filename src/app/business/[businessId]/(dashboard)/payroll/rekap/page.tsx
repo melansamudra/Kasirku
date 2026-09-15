@@ -103,7 +103,7 @@ export default async function PayrollRekapPage({
 
   const holidayDates = new Set((holidayRows ?? []).map((h) => h.holiday_date));
 
-  const [{ data: attendanceRows }, { data: existingSlips }] = await Promise.all([
+  const [{ data: attendanceRows }, { data: existingSlips }, { data: recurringAllowances }] = await Promise.all([
     supabase
       .from("attendance")
       .select("employee_id, date, status, late, late_minutes, overtime_hours, note")
@@ -118,7 +118,23 @@ export default async function PayrollRekapPage({
       .eq("business_id", businessId)
       .eq("period_start", monthStart)
       .eq("period_end", monthEnd),
+    // Tunjangan Tetap aktif -- dipakai buat preview slip sebelum dibuat
+    // beneran (createPayslip baru menyalinnya jadi payslip_adjustments
+    // setelah tombol "Buat Slip" diklik), jadi di sini disimulasikan dulu.
+    supabase
+      .from("employee_recurring_allowances")
+      .select("employee_id, label, amount")
+      .eq("business_id", businessId)
+      .eq("active", true)
+      .gt("amount", 0),
   ]);
+
+  const recurringAllowancesByEmployee = new Map<string, { label: string; amount: number }[]>();
+  for (const a of recurringAllowances ?? []) {
+    const list = recurringAllowancesByEmployee.get(a.employee_id) ?? [];
+    list.push({ label: a.label, amount: Number(a.amount) });
+    recurringAllowancesByEmployee.set(a.employee_id, list);
+  }
 
   const attendanceByEmployee = new Map<
     string,
@@ -217,15 +233,22 @@ export default async function PayrollRekapPage({
       weekendDaysForBusiness(businessId),
       holidayDates,
     );
+    const tunjanganTetap = recurringAllowancesByEmployee.get(e.id) ?? [];
+    const tunjanganTetapTotal = tunjanganTetap.reduce((s, a) => s + a.amount, 0);
     return {
       employee: e,
       calc,
+      tunjanganTetap,
+      // Estimasi sebelum slip dibuat = calc dari absensi + Tunjangan Tetap
+      // (yang baru beneran masuk ke slip begitu "Buat Slip" diklik) --
+      // supaya preview & Total Gaji di atas konsisten dengan slip final nanti.
+      estimasiTotal: calc.estimatedTotal + tunjanganTetapTotal,
       existingSlipId: existingSlipByEmployee.get(e.id) ?? null,
       final: finalByEmployee.get(e.id) ?? null,
     };
   });
 
-  const totalEstimasi = rows.reduce((s, r) => s + (r.final?.totalDiterima ?? r.calc.estimatedTotal), 0);
+  const totalEstimasi = rows.reduce((s, r) => s + (r.final?.totalDiterima ?? r.estimasiTotal), 0);
 
   return (
     <div className="w-full max-w-2xl print:max-w-none">
@@ -307,12 +330,12 @@ export default async function PayrollRekapPage({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ employee: e, calc, final }) => {
+            {rows.map(({ employee: e, calc, estimasiTotal, final }) => {
               const izinDeduction = final?.izinDeduction ?? calc.izinDeduction;
               const lateDeduction = final?.lateDeduction ?? calc.lateDeduction;
               const extras = final ? final.lemburAmount + final.thrAmount + final.tunjanganTotal - final.potonganLainTotal : 0;
               const kasbonDeduction = final?.kasbonDeduction ?? 0;
-              const total = final?.totalDiterima ?? calc.estimatedTotal;
+              const total = final?.totalDiterima ?? estimasiTotal;
               return (
                 <tr key={e.id} className="border-b border-zinc-100 last:border-0">
                   <td className="px-2.5 py-1">
@@ -354,7 +377,7 @@ export default async function PayrollRekapPage({
 
       <div className="mt-4 space-y-2 print:hidden">
         {rows.length > 0 ? (
-          rows.map(({ employee: e, calc, existingSlipId, final }) => (
+          rows.map(({ employee: e, calc, tunjanganTetap, estimasiTotal, existingSlipId, final }) => (
             <div key={e.id} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -394,9 +417,9 @@ export default async function PayrollRekapPage({
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-bold text-zinc-900">
-                    {formatRupiah(final?.totalDiterima ?? calc.estimatedTotal)}
+                    {formatRupiah(final?.totalDiterima ?? estimasiTotal)}
                   </p>
-                  <p className="text-[10px] text-zinc-400">{final ? "total diterima (final)" : "estimasi gaji pokok"}</p>
+                  <p className="text-[10px] text-zinc-400">{final ? "total diterima (final)" : "estimasi total"}</p>
                 </div>
               </div>
               <div className="mt-2 border-t border-zinc-100 pt-2 text-right">
@@ -416,6 +439,26 @@ export default async function PayrollRekapPage({
                     )}
                     defaultHours={overtimeByEmployee.get(e.id) ?? 0}
                     action={createPayslip.bind(null, businessId, e.id, monthStart, monthEnd)}
+                    preview={{
+                      salaryType: e.salary_type === "bulanan" ? "bulanan" : "harian",
+                      monthlyRate: Number(e.monthly_rate),
+                      dailyRate: Number(e.daily_rate),
+                      hariKerjaEfektif: calc.hariKerjaEfektif,
+                      hadirCount: calc.hadirCount,
+                      sakitCount: calc.sakitCount,
+                      izinCount: calc.izinCount,
+                      izinUnnotedCount: calc.izinUnnotedCount,
+                      izinUnnotedWeekendCount: calc.izinUnnotedWeekendCount,
+                      lateCount: calc.lateCount,
+                      basePay: calc.basePay,
+                      mealAllowance: calc.mealAllowance,
+                      attendanceAllowance: calc.attendanceAllowance,
+                      transportAllowance: calc.transportAllowance,
+                      izinDeduction: calc.izinDeduction,
+                      izinWeekendPenalty: calc.izinWeekendPenalty,
+                      lateDeduction: calc.lateDeduction,
+                      tunjanganTetap,
+                    }}
                   />
                 )}
               </div>
