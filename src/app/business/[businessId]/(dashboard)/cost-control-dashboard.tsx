@@ -111,7 +111,7 @@ export default async function CostControlDashboard({ businessId }: { businessId:
     supabase
       .from("payslips")
       .select(
-        "base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount)",
+        "base_pay, meal_allowance, attendance_allowance, transport_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount)",
       )
       .eq("business_id", businessId)
       .gte("period_start", monthFromDate),

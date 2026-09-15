@@ -71,9 +71,10 @@ export type EmployeeForCalc = {
   monthlyRate: number;
   // Komponen tambahan opsional (0 = tidak dipakai, gaji tetap cuma Gaji
   // Pokok seperti sebelumnya) -- nominal tetap x jumlah hari HADIR saja
-  // (bukan izin), karena keduanya cuma berlaku kalau fisik masuk kerja.
+  // (bukan izin), karena ketiganya cuma berlaku kalau fisik masuk kerja.
   dailyMealAllowance: number;
   dailyAttendanceAllowance: number;
+  dailyTransportAllowance: number;
 };
 
 export type PayslipCalcResult = {
@@ -99,6 +100,7 @@ export type PayslipCalcResult = {
   basePay: number;
   mealAllowance: number;
   attendanceAllowance: number;
+  transportAllowance: number;
   izinDeduction: number;
   izinWeekendPenalty: number;
   lateDeduction: number;
@@ -202,6 +204,7 @@ export function calcPayslip(
   const basePay = dailyEquivalent * (counts.hadir + counts.sakit + izinNotedCount + izinUnnotedCount);
   const mealAllowance = counts.hadir * employee.dailyMealAllowance;
   const attendanceAllowance = counts.hadir * employee.dailyAttendanceAllowance;
+  const transportAllowance = counts.hadir * employee.dailyTransportAllowance;
 
   // izinUnnotedWeekdayCount: sisa unnoted yang BUKAN weekend/tanggal merah.
   const izinUnnotedWeekdayCount = izinUnnotedCount - izinUnnotedWeekendCount;
@@ -238,10 +241,17 @@ export function calcPayslip(
     basePay,
     mealAllowance,
     attendanceAllowance,
+    transportAllowance,
     izinDeduction,
     izinWeekendPenalty,
     lateDeduction,
     estimatedTotal:
-      basePay + mealAllowance + attendanceAllowance - izinDeduction - izinWeekendPenalty - lateDeduction,
+      basePay +
+      mealAllowance +
+      attendanceAllowance +
+      transportAllowance -
+      izinDeduction -
+      izinWeekendPenalty -
+      lateDeduction,
   };
 }

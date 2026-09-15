@@ -47,7 +47,7 @@ export default async function PayslipDetailPage({
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_noted_count, izin_unnoted_count, izin_unnoted_weekend_count, izin_deduction, izin_weekend_penalty, late_count, late_deduction, hari_kerja_efektif, base_pay, meal_allowance, attendance_allowance, lembur_amount, lembur_hours, lembur_rate, thr_amount, kasbon_deduction, personal_loan_deduction, created_at, paid_at, employees(name)",
+      "id, employee_id, period_start, period_end, salary_type, daily_rate, monthly_rate, hadir_count, izin_count, sakit_count, alpa_count, off_count, izin_noted_count, izin_unnoted_count, izin_unnoted_weekend_count, izin_deduction, izin_weekend_penalty, late_count, late_deduction, hari_kerja_efektif, base_pay, meal_allowance, attendance_allowance, transport_allowance, lembur_amount, lembur_hours, lembur_rate, thr_amount, kasbon_deduction, personal_loan_deduction, created_at, paid_at, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -104,6 +104,7 @@ export default async function PayslipDetailPage({
   const basePay = Number(payslip.base_pay);
   const mealAllowance = Number(payslip.meal_allowance);
   const attendanceAllowance = Number(payslip.attendance_allowance);
+  const transportAllowance = Number(payslip.transport_allowance);
   const lemburAmount = Number(payslip.lembur_amount);
   const thrAmount = Number(payslip.thr_amount);
   const izinDeduction = Number(payslip.izin_deduction);
@@ -111,7 +112,8 @@ export default async function PayslipDetailPage({
   const lateDeduction = Number(payslip.late_deduction);
   const kasbonDeduction = Number(payslip.kasbon_deduction);
   const personalLoanDeduction = Number(payslip.personal_loan_deduction);
-  const totalPendapatan = basePay + mealAllowance + attendanceAllowance + lemburAmount + thrAmount + totalTunjangan;
+  const totalPendapatan =
+    basePay + mealAllowance + attendanceAllowance + transportAllowance + lemburAmount + thrAmount + totalTunjangan;
   const totalSemuaPotongan =
     totalPotongan +
     izinDeduction +
@@ -211,6 +213,15 @@ export default async function PayslipDetailPage({
                   {formatRupiah(attendanceAllowance / payslip.hadir_count)})
                 </span>
                 <span>{formatRupiah(attendanceAllowance)}</span>
+              </div>
+            )}
+            {transportAllowance > 0 && (
+              <div className="flex justify-between text-brand-700">
+                <span>
+                  + Transport ({payslip.hadir_count} hari x{" "}
+                  {formatRupiah(transportAllowance / payslip.hadir_count)})
+                </span>
+                <span>{formatRupiah(transportAllowance)}</span>
               </div>
             )}
             {lemburAmount > 0 && (

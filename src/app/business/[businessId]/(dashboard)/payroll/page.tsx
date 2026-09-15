@@ -63,6 +63,7 @@ type PayslipAgg = {
   base_pay: number;
   meal_allowance: number;
   attendance_allowance: number;
+  transport_allowance: number;
   lembur_amount: number;
   thr_amount: number;
   izin_deduction: number;
@@ -126,7 +127,7 @@ export default async function PayrollPage({
       supabase
         .from("payslips")
         .select(
-          "id, employee_id, period_start, period_end, base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
+          "id, employee_id, period_start, period_end, base_pay, meal_allowance, attendance_allowance, transport_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, hadir_count, created_at, paid_at, employees(name), payslip_adjustments(type, amount)",
         )
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })

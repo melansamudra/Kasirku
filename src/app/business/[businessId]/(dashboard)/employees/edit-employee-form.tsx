@@ -12,6 +12,7 @@ export default function EditEmployeeForm({
   lemburRatePerHour,
   dailyMealAllowance,
   dailyAttendanceAllowance,
+  dailyTransportAllowance,
   note,
   cashierId,
   contractEnd,
@@ -26,6 +27,7 @@ export default function EditEmployeeForm({
   lemburRatePerHour: number | null;
   dailyMealAllowance: number;
   dailyAttendanceAllowance: number;
+  dailyTransportAllowance: number;
   note: string | null;
   cashierId: string | null;
   contractEnd: string | null;
@@ -43,6 +45,7 @@ export default function EditEmployeeForm({
     lemburRatePerHour: lemburRatePerHour !== null ? String(lemburRatePerHour) : "",
     dailyMealAllowance: String(dailyMealAllowance),
     dailyAttendanceAllowance: String(dailyAttendanceAllowance),
+    dailyTransportAllowance: String(dailyTransportAllowance),
     note: note ?? "",
     cashierId: cashierId ?? "",
     contractEnd: contractEnd ?? "",
@@ -72,6 +75,7 @@ export default function EditEmployeeForm({
     formData.set("lemburRatePerHour", values.lemburRatePerHour);
     formData.set("dailyMealAllowance", values.dailyMealAllowance);
     formData.set("dailyAttendanceAllowance", values.dailyAttendanceAllowance);
+    formData.set("dailyTransportAllowance", values.dailyTransportAllowance);
     formData.set("note", values.note);
     formData.set("cashierId", values.cashierId);
     formData.set("contractEnd", values.contractEnd);
@@ -151,7 +155,7 @@ export default function EditEmployeeForm({
           />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-600">Uang Makan Harian (Rp)</label>
           <input
@@ -174,9 +178,20 @@ export default function EditEmployeeForm({
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-600">Transport Harian (Rp)</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={values.dailyTransportAllowance}
+            onChange={(e) => setValues((v) => ({ ...v, dailyTransportAllowance: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
       </div>
       <p className="-mt-1 text-[11px] text-zinc-400">
-        Keduanya dikali jumlah hari HADIR (bukan izin) tiap dibuatkan slip gaji, di luar Gaji Pokok.
+        Ketiganya dikali jumlah hari HADIR (bukan izin) tiap dibuatkan slip gaji, di luar Gaji Pokok.
       </p>
 
       <div>

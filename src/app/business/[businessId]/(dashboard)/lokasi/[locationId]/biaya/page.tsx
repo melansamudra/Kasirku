@@ -116,7 +116,7 @@ export default async function LocationBiayaPage({
         let q = supabase
           .from("payslips")
           .select(
-            "base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount), employees!inner(location_id)",
+            "base_pay, meal_allowance, attendance_allowance, transport_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount), employees!inner(location_id)",
           )
           .eq("business_id", businessId)
           .eq("employees.location_id", locationId);

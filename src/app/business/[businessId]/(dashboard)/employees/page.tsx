@@ -32,7 +32,7 @@ export default async function EmployeesPage({
   const { data: employees } = await supabase
     .from("employees")
     .select(
-      "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, active, note, cashier_id, contract_end, location_id, cashiers(name)",
+      "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, daily_transport_allowance, active, note, cashier_id, contract_end, location_id, cashiers(name)",
     )
     .eq("business_id", businessId)
     .is("deleted_at", null)
@@ -144,6 +144,8 @@ export default async function EmployeesPage({
                       ` · Uang makan Rp${Number(e.daily_meal_allowance).toLocaleString("id-ID")}/hari`}
                     {Number(e.daily_attendance_allowance) > 0 &&
                       ` · Tunj. kehadiran Rp${Number(e.daily_attendance_allowance).toLocaleString("id-ID")}/hari`}
+                    {Number(e.daily_transport_allowance) > 0 &&
+                      ` · Transport Rp${Number(e.daily_transport_allowance).toLocaleString("id-ID")}/hari`}
                     {linkedCashierName && <> · akun kasir: {linkedCashierName}</>}
                   </p>
                   {e.note && <p className="text-xs text-zinc-400">{e.note}</p>}
@@ -190,6 +192,7 @@ export default async function EmployeesPage({
                   lemburRatePerHour={e.lembur_rate_per_hour === null ? null : Number(e.lembur_rate_per_hour)}
                   dailyMealAllowance={Number(e.daily_meal_allowance)}
                   dailyAttendanceAllowance={Number(e.daily_attendance_allowance)}
+                  dailyTransportAllowance={Number(e.daily_transport_allowance)}
                   note={e.note}
                   cashierId={e.cashier_id}
                   contractEnd={e.contract_end}

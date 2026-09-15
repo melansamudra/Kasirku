@@ -84,7 +84,7 @@ export default async function PayrollRekapPage({
     supabase
       .from("employees")
       .select(
-        "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, active",
+        "id, name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, daily_transport_allowance, active",
       )
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
@@ -113,7 +113,7 @@ export default async function PayrollRekapPage({
     supabase
       .from("payslips")
       .select(
-        "id, employee_id, base_pay, meal_allowance, attendance_allowance, izin_deduction, izin_weekend_penalty, late_deduction, lembur_amount, thr_amount, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount)",
+        "id, employee_id, base_pay, meal_allowance, attendance_allowance, transport_allowance, izin_deduction, izin_weekend_penalty, late_deduction, lembur_amount, thr_amount, kasbon_deduction, personal_loan_deduction, payslip_adjustments(type, amount)",
       )
       .eq("business_id", businessId)
       .eq("period_start", monthStart)
@@ -161,6 +161,7 @@ export default async function PayrollRekapPage({
         Number(s.base_pay) +
         Number(s.meal_allowance) +
         Number(s.attendance_allowance) +
+        Number(s.transport_allowance) +
         lemburAmount +
         thrAmount +
         tunjanganTotal -
@@ -210,6 +211,7 @@ export default async function PayrollRekapPage({
         monthlyRate: Number(e.monthly_rate),
         dailyMealAllowance: Number(e.daily_meal_allowance),
         dailyAttendanceAllowance: Number(e.daily_attendance_allowance),
+        dailyTransportAllowance: Number(e.daily_transport_allowance),
       },
       settings,
       weekendDaysForBusiness(businessId),

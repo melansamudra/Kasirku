@@ -160,7 +160,7 @@ export default async function ReportsHarianPage({
       }),
       supabase
         .from("employees")
-        .select("id, salary_type, daily_rate, monthly_rate, daily_meal_allowance, daily_attendance_allowance")
+        .select("id, salary_type, daily_rate, monthly_rate, daily_meal_allowance, daily_attendance_allowance, daily_transport_allowance")
         .eq("business_id", businessId),
       // Estimasi Gaji Harian -- cuma butuh baris status "hadir" (izin/sakit/
       // alpa/off tidak masuk hitungan di sini, beda dari Slip Gaji beneran
@@ -278,7 +278,10 @@ export default async function ReportsHarianPage({
     const dailyEquivalent =
       emp.salary_type === "bulanan" ? Number(emp.monthly_rate) / daysInMonth(r.date) : Number(emp.daily_rate);
     ensure(r.date).estimasiGaji +=
-      dailyEquivalent + Number(emp.daily_meal_allowance ?? 0) + Number(emp.daily_attendance_allowance ?? 0);
+      dailyEquivalent +
+      Number(emp.daily_meal_allowance ?? 0) +
+      Number(emp.daily_attendance_allowance ?? 0) +
+      Number(emp.daily_transport_allowance ?? 0);
   }
   // `from`/`to` (searchParams mentah) cuma keisi kalau period === "custom" --
   // untuk Hari Ini/7 Hari/Bulan Ini/Semua dulu selalu undefined, jadi filter

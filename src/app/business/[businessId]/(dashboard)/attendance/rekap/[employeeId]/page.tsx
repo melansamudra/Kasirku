@@ -113,7 +113,7 @@ export default async function EmployeeAttendanceRekapPage({
   ] = await Promise.all([
     supabase
       .from("employees")
-      .select("id, name, salary_type, daily_rate, monthly_rate, daily_meal_allowance, daily_attendance_allowance")
+      .select("id, name, salary_type, daily_rate, monthly_rate, daily_meal_allowance, daily_attendance_allowance, daily_transport_allowance")
       .eq("id", employeeId)
       .eq("business_id", businessId)
       .maybeSingle(),
@@ -193,6 +193,7 @@ export default async function EmployeeAttendanceRekapPage({
       monthlyRate: Number(employee.monthly_rate),
       dailyMealAllowance: Number(employee.daily_meal_allowance),
       dailyAttendanceAllowance: Number(employee.daily_attendance_allowance),
+      dailyTransportAllowance: Number(employee.daily_transport_allowance),
     },
     {
       izinDeductionMode: business.izin_deduction_mode === "full_day" ? "full_day" : "flat",

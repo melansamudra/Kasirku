@@ -12,6 +12,7 @@ function parseEmployeeFields(formData: FormData) {
   const lemburRateRaw = formData.get("lemburRatePerHour") as string;
   const dailyMealAllowanceRaw = formData.get("dailyMealAllowance") as string;
   const dailyAttendanceAllowanceRaw = formData.get("dailyAttendanceAllowance") as string;
+  const dailyTransportAllowanceRaw = formData.get("dailyTransportAllowance") as string;
   const note = (formData.get("note") as string)?.trim();
   const cashierId = (formData.get("cashierId") as string) || null;
   const contractEnd = (formData.get("contractEnd") as string) || null;
@@ -51,6 +52,11 @@ function parseEmployeeFields(formData: FormData) {
     return { error: "Tunjangan kehadiran harian harus angka dan tidak boleh negatif." } as const;
   }
 
+  const dailyTransportAllowance = dailyTransportAllowanceRaw ? Number(dailyTransportAllowanceRaw) : 0;
+  if (Number.isNaN(dailyTransportAllowance) || dailyTransportAllowance < 0) {
+    return { error: "Tunjangan transport harian harus angka dan tidak boleh negatif." } as const;
+  }
+
   return {
     error: null,
     name,
@@ -60,6 +66,7 @@ function parseEmployeeFields(formData: FormData) {
     lemburRatePerHour,
     dailyMealAllowance,
     dailyAttendanceAllowance,
+    dailyTransportAllowance,
     note: note || null,
     cashierId,
     contractEnd,
@@ -87,6 +94,7 @@ export async function addEmployee(
     lembur_rate_per_hour: parsed.lemburRatePerHour,
     daily_meal_allowance: parsed.dailyMealAllowance,
     daily_attendance_allowance: parsed.dailyAttendanceAllowance,
+    daily_transport_allowance: parsed.dailyTransportAllowance,
     note: parsed.note,
     cashier_id: parsed.cashierId,
     contract_end: parsed.contractEnd,
@@ -130,6 +138,7 @@ export async function editEmployee(
       lembur_rate_per_hour: parsed.lemburRatePerHour,
       daily_meal_allowance: parsed.dailyMealAllowance,
       daily_attendance_allowance: parsed.dailyAttendanceAllowance,
+      daily_transport_allowance: parsed.dailyTransportAllowance,
       note: parsed.note,
       cashier_id: parsed.cashierId,
       contract_end: parsed.contractEnd,

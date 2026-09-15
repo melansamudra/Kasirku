@@ -5,6 +5,7 @@ export type PayslipAgg = {
   base_pay: number;
   meal_allowance: number;
   attendance_allowance: number;
+  transport_allowance: number;
   lembur_amount: number;
   thr_amount: number;
   izin_deduction: number;
@@ -26,6 +27,7 @@ export function payslipTotal(p: PayslipAgg): number {
     Number(p.base_pay) +
     Number(p.meal_allowance) +
     Number(p.attendance_allowance) +
+    Number(p.transport_allowance) +
     Number(p.lembur_amount) +
     Number(p.thr_amount) +
     tunjangan -

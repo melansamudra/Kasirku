@@ -914,6 +914,7 @@ export type Database = {
           lembur_rate_per_hour: number | null;
           daily_meal_allowance: number;
           daily_attendance_allowance: number;
+          daily_transport_allowance: number;
           location_id: string | null;
           pin_hash: string | null;
           has_pin: boolean | null;
@@ -934,6 +935,7 @@ export type Database = {
           lembur_rate_per_hour?: number | null;
           daily_meal_allowance?: number;
           daily_attendance_allowance?: number;
+          daily_transport_allowance?: number;
           location_id?: string | null;
           pin_hash?: string | null;
           deleted_at?: string | null;
@@ -953,6 +955,7 @@ export type Database = {
           lembur_rate_per_hour?: number | null;
           daily_meal_allowance?: number;
           daily_attendance_allowance?: number;
+          daily_transport_allowance?: number;
           location_id?: string | null;
           pin_hash?: string | null;
           deleted_at?: string | null;
@@ -1909,6 +1912,7 @@ export type Database = {
           base_pay: number;
           meal_allowance: number;
           attendance_allowance: number;
+          transport_allowance: number;
           created_at: string;
           paid_at: string | null;
           lembur_amount: number;
@@ -1947,6 +1951,7 @@ export type Database = {
           base_pay?: number;
           meal_allowance?: number;
           attendance_allowance?: number;
+          transport_allowance?: number;
           created_at?: string;
           paid_at?: string | null;
           lembur_amount?: number;
@@ -1985,6 +1990,7 @@ export type Database = {
           base_pay?: number;
           meal_allowance?: number;
           attendance_allowance?: number;
+          transport_allowance?: number;
           created_at?: string;
           paid_at?: string | null;
           lembur_amount?: number;

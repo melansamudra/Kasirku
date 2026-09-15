@@ -233,7 +233,7 @@ export async function createPayslip(
     supabase
       .from("employees")
       .select(
-        "name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance",
+        "name, salary_type, daily_rate, monthly_rate, lembur_rate_per_hour, daily_meal_allowance, daily_attendance_allowance, daily_transport_allowance",
       )
       .eq("id", employeeId)
       .eq("business_id", businessId)
@@ -286,12 +286,20 @@ export async function createPayslip(
   const monthlyRate = Number(employee.monthly_rate);
   const dailyMealAllowance = Number(employee.daily_meal_allowance);
   const dailyAttendanceAllowance = Number(employee.daily_attendance_allowance);
+  const dailyTransportAllowance = Number(employee.daily_transport_allowance);
 
   const calc = calcPayslip(
     periodStart,
     periodEnd,
     (attendanceRows ?? []).map((r) => ({ ...r, lateMinutes: r.late_minutes })),
-    { salaryType, dailyRate, monthlyRate, dailyMealAllowance, dailyAttendanceAllowance },
+    {
+      salaryType,
+      dailyRate,
+      monthlyRate,
+      dailyMealAllowance,
+      dailyAttendanceAllowance,
+      dailyTransportAllowance,
+    },
     {
       izinDeductionMode: business.izin_deduction_mode === "full_day" ? "full_day" : "flat",
       izinDeductionWeekday: Number(business.izin_deduction_weekday),
@@ -343,6 +351,7 @@ export async function createPayslip(
       base_pay: calc.basePay,
       meal_allowance: calc.mealAllowance,
       attendance_allowance: calc.attendanceAllowance,
+      transport_allowance: calc.transportAllowance,
     })
     .select("id")
     .single();
@@ -413,7 +422,7 @@ export async function markPayslipPaid(
   const { data: payslip } = await supabase
     .from("payslips")
     .select(
-      "id, base_pay, meal_allowance, attendance_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, paid_at, period_end, employees(name)",
+      "id, base_pay, meal_allowance, attendance_allowance, transport_allowance, lembur_amount, thr_amount, izin_deduction, izin_weekend_penalty, late_deduction, kasbon_deduction, personal_loan_deduction, paid_at, period_end, employees(name)",
     )
     .eq("id", payslipId)
     .eq("business_id", businessId)
@@ -441,6 +450,7 @@ export async function markPayslipPaid(
     Number(payslip.base_pay) +
     Number(payslip.meal_allowance) +
     Number(payslip.attendance_allowance) +
+    Number(payslip.transport_allowance) +
     Number(payslip.lembur_amount) +
     Number(payslip.thr_amount) +
     tunjangan -
