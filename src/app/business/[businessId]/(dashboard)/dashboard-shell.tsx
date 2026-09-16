@@ -1097,7 +1097,7 @@ export default function DashboardShell({
         </div>
       )}
 
-      <div className="min-w-0 flex-1 overflow-y-auto h-dvh">
+      <div className="min-w-0 flex-1 overflow-y-auto h-dvh print:h-auto print:overflow-visible">
         <Topbar businessName={businessName} userEmail={userEmail} costControlEnabled={costControlEnabled} />
 
         <div className="flex items-center gap-3 bg-white px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] md:hidden print:hidden">
