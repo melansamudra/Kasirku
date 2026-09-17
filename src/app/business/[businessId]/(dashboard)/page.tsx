@@ -66,12 +66,17 @@ export default async function BusinessDashboardPage({
   // Dashboard SELALU bisa diakses staf manapun (lihat isItemAllowed di
   // dashboard-shell.tsx -- dianggap landing page wajib), tapi itu cuma
   // soal MUNCUL DI SIDEBAR, bukan berarti angka Pendapatan/Laba/Beban
-  // aman ditampilkan ke semua admin. Staf tanpa permission "reports"
-  // (Laporan) cuma lihat status setup toko, bukan ringkasan keuangan --
-  // awalnya cuma diberlakukan untuk Llauk Nusantara (arahan user
-  // 2026-09-03), sekarang berlaku untuk SEMUA bisnis (arahan user
-  // 2026-09-17, dipicu akun kasir Adi's Culinary Pleburan yang masih
-  // lihat omset/laba penuh di Dashboard).
+  // aman ditampilkan ke semua staf. Awalnya dicoba gating pakai permission
+  // "reports" (2026-09-17 pagi), TAPI preset KASIR_DEFAULT_PERMISSIONS di
+  // invite-admin-form.tsx sudah mencentang "reports" secara default untuk
+  // role kasir -- jadi kasir tetap lolos lihat dashboard keuangan walau
+  // niatnya justru mereka yang mau disembunyikan. Gating final: murni pakai
+  // ROLE (business_staff.role), bukan permission -- role "kasir" tidak
+  // pernah lihat ringkasan keuangan di Dashboard sama sekali, walau
+  // permission "reports"-nya dicentang (Laporan tetap bisa diakses kalau
+  // permission itu ada, cuma landing page Dashboard-nya yang disembunyikan).
+  // Berlaku untuk SEMUA bisnis (arahan user 2026-09-17, dipicu akun kasir
+  // Adi's Culinary Pleburan yang masih lihat omset/laba penuh).
   const { data: userData } = await supabase.auth.getUser();
   const { data: ownerRow } = await supabase.from("businesses").select("owner_id").eq("id", businessId).single();
   const isOwner = ownerRow?.owner_id === userData.user?.id;
@@ -79,11 +84,11 @@ export default async function BusinessDashboardPage({
   if (!isOwner) {
     const { data: staff } = await supabase
       .from("business_staff")
-      .select("permissions")
+      .select("role")
       .eq("business_id", businessId)
       .eq("user_id", userData.user?.id ?? "")
       .maybeSingle();
-    canSeeFinance = (staff?.permissions ?? []).includes("reports");
+    canSeeFinance = staff?.role === "admin";
   }
 
   const today = todayStr();
