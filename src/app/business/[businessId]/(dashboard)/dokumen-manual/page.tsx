@@ -197,7 +197,7 @@ async function getPoSupplierHistory(businessId: string): Promise<HistoryEntry[]>
   const supabase = await createClient();
   const { data: docs } = await supabase
     .from("manual_purchase_orders")
-    .select("id, po_number, supplier_name, created_by_name, created_at")
+    .select("id, po_number, supplier_name, allocation, created_by_name, created_at")
     .eq("business_id", businessId)
     .is("location_id", null)
     .order("created_at", { ascending: false })
@@ -218,7 +218,7 @@ async function getPoSupplierHistory(businessId: string): Promise<HistoryEntry[]>
   return (docs ?? []).map((d) => ({
     id: d.id,
     docNumber: d.po_number,
-    contextLine: `Ke ${d.supplier_name} — ${itemCountById.get(d.id) ?? 0} barang`,
+    contextLine: `Ke ${d.supplier_name}${d.allocation ? ` (${d.allocation})` : ""} — ${itemCountById.get(d.id) ?? 0} barang`,
     createdByName: d.created_by_name,
     createdAt: d.created_at,
   }));

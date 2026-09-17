@@ -12,8 +12,8 @@ export default function PoSupplierManualForm({
   locationId: string | null;
   onSuccess?: ManualDocOnSuccess;
 }) {
-  function handleSubmit(supplierName: string, note: string, items: ManualDocItemInput[]) {
-    return createManualPurchaseOrder(businessId, locationId, supplierName, note, items);
+  function handleSubmit(supplierName: string, note: string, items: ManualDocItemInput[], allocation: string) {
+    return createManualPurchaseOrder(businessId, locationId, supplierName, allocation, note, items);
   }
 
   return (
@@ -24,6 +24,8 @@ export default function PoSupplierManualForm({
       helperText="Isi bebas — tidak terhubung ke Purchase Order digital manapun. Perlu disetujui Owner/Finance sebelum dikirim ke supplier."
       contextLabel="Nama Supplier"
       contextPlaceholder="mis. CV Sumber Rejeki"
+      context2Label="Peruntukan"
+      context2Placeholder="mis. Dapur Produksi / Outlet Pleburan"
       qtyColumnLabel="Qty"
       submitLabel="Simpan & Buat PO Supplier"
       submitPendingLabel="Menyimpan…"

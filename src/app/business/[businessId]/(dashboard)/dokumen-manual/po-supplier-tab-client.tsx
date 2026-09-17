@@ -39,6 +39,7 @@ export default function PoSupplierTabClient({
       createdAt: doc.createdAt ?? new Date().toISOString(),
       businessName,
       context: doc.context,
+      context2: doc.context2,
       note: doc.note,
       items: doc.items,
     });
@@ -95,7 +96,7 @@ export default function PoSupplierTabClient({
         <BlankFormModal
           businessName={businessName}
           title="PO Supplier"
-          fields={["Tanggal", "Nama Supplier"]}
+          fields={["Tanggal", "Nama Supplier", "Peruntukan"]}
           signLabels={["Diajukan oleh", "Disetujui Owner/Finance"]}
           onClose={() => setBlankOpen(false)}
         />

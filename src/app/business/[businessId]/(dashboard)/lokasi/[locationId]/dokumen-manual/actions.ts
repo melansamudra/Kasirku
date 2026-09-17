@@ -201,10 +201,12 @@ export async function createManualPurchaseOrder(
   businessId: string,
   locationId: string | null,
   supplierName: string,
+  allocation: string,
   note: string,
   items: ManualDocItemInput[],
 ): Promise<ActionState> {
   if (!supplierName.trim()) return { error: "Nama supplier wajib diisi." };
+  if (!allocation.trim()) return { error: "Peruntukan wajib diisi." };
   const cleanRows = cleanItems(items);
   if (cleanRows.length === 0) return { error: "Isi minimal 1 barang dengan qty > 0." };
 
@@ -219,6 +221,7 @@ export async function createManualPurchaseOrder(
       location_id: locationId,
       po_number: docNumber("PO"),
       supplier_name: supplierName.trim(),
+      allocation: allocation.trim(),
       note: note.trim() || null,
       created_by_user_id: actor.userId,
       created_by_name: actor.name,

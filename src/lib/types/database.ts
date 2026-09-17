@@ -3819,6 +3819,7 @@ export type Database = {
           location_id: string | null;
           po_number: string;
           supplier_name: string;
+          allocation: string | null;
           note: string | null;
           created_by_user_id: string | null;
           created_by_name: string | null;
@@ -3830,6 +3831,7 @@ export type Database = {
           location_id?: string | null;
           po_number: string;
           supplier_name: string;
+          allocation?: string | null;
           note?: string | null;
           created_by_user_id?: string | null;
           created_by_name?: string | null;
@@ -3841,6 +3843,7 @@ export type Database = {
           location_id?: string | null;
           po_number?: string;
           supplier_name?: string;
+          allocation?: string | null;
           note?: string | null;
           created_by_user_id?: string | null;
           created_by_name?: string | null;

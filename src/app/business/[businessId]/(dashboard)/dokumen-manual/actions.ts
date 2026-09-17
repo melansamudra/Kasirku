@@ -121,7 +121,7 @@ export async function getManualPurchaseOrderDetail(
 
   const { data: doc } = await supabase
     .from("manual_purchase_orders")
-    .select("po_number, supplier_name, note, created_at")
+    .select("po_number, supplier_name, allocation, note, created_at")
     .eq("id", docId)
     .eq("business_id", businessId)
     .is("location_id", null)
@@ -140,6 +140,7 @@ export async function getManualPurchaseOrderDetail(
     createdAt: doc.created_at,
     businessName: business.name,
     context: doc.supplier_name,
+    context2: doc.allocation ?? "",
     note: doc.note ?? "",
     items: (items ?? []).map((i) => ({ itemName: i.item_name, unit: i.unit ?? "", qty: Number(i.qty) })),
   };

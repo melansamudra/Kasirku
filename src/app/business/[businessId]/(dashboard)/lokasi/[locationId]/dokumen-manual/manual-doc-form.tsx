@@ -14,10 +14,12 @@ export type ManualDocSubmit = (
   context: string,
   note: string,
   items: ManualDocItemInput[],
+  context2: string,
 ) => Promise<ActionState>;
 
 export type ManualDocOnSuccess = (doc: {
   context: string;
+  context2?: string;
   note: string;
   items: { itemName: string; unit: string; qty: number }[];
   docNumber?: string;
@@ -25,9 +27,12 @@ export type ManualDocOnSuccess = (doc: {
   receiveCode?: string;
 }) => void;
 
-// Form generik dipakai ke-3 jenis dokumen manual (Surat Jalan/Permintaan
-// Barang/Stock Opname) -- bentuknya identik (barang+qty+satuan berulang),
-// bedanya cuma ada/tidaknya field konteks (Tujuan) dan label-labelnya.
+// Form generik dipakai ke-4 jenis dokumen manual (Surat Jalan/Permintaan
+// Barang/Stock Opname/PO Supplier) -- bentuknya identik (barang+qty+satuan
+// berulang), bedanya cuma ada/tidaknya field konteks (Tujuan/Peruntukan)
+// dan label-labelnya. context2 dipakai PO Supplier (field "Peruntukan"
+// terpisah dari "Nama Supplier") -- opsional, dokumen lain cukup tidak
+// mengisi context2Label supaya field itu tidak dirender sama sekali.
 export default function ManualDocForm({
   onSubmit,
   onSuccess,
@@ -35,6 +40,8 @@ export default function ManualDocForm({
   helperText,
   contextLabel,
   contextPlaceholder,
+  context2Label,
+  context2Placeholder,
   qtyColumnLabel = "Qty",
   submitLabel,
   submitPendingLabel,
@@ -50,12 +57,15 @@ export default function ManualDocForm({
   helperText: string;
   contextLabel?: string;
   contextPlaceholder?: string;
+  context2Label?: string;
+  context2Placeholder?: string;
   qtyColumnLabel?: string;
   submitLabel: string;
   submitPendingLabel: string;
 }) {
   const router = useRouter();
   const [context, setContext] = useState("");
+  const [context2, setContext2] = useState("");
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [pending, setPending] = useState(false);
@@ -78,10 +88,14 @@ export default function ManualDocForm({
       setError(`${contextLabel} wajib diisi.`);
       return;
     }
+    if (context2Label && !context2.trim()) {
+      setError(`${context2Label} wajib diisi.`);
+      return;
+    }
     setError(null);
     setPending(true);
     const cleanItems = rows.map((r) => ({ itemName: r.itemName, unit: r.unit, qty: Number(r.qty) }));
-    onSubmit(context, note, cleanItems)
+    onSubmit(context, note, cleanItems, context2)
       .then((res) => {
         setPending(false);
         if (res.error) {
@@ -90,6 +104,7 @@ export default function ManualDocForm({
         }
         onSuccess?.({
           context,
+          context2,
           note,
           items: cleanItems,
           docNumber: res.docNumber,
@@ -97,6 +112,7 @@ export default function ManualDocForm({
           receiveCode: res.receiveCode,
         });
         setContext("");
+        setContext2("");
         setNote("");
         setRows([emptyRow()]);
         router.refresh();
@@ -121,6 +137,19 @@ export default function ManualDocForm({
               value={context}
               onChange={(e) => setContext(e.target.value)}
               placeholder={contextPlaceholder}
+              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+          </div>
+        )}
+
+        {context2Label && (
+          <div>
+            <label className="text-xs font-medium text-zinc-600">{context2Label}</label>
+            <input
+              type="text"
+              value={context2}
+              onChange={(e) => setContext2(e.target.value)}
+              placeholder={context2Placeholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
             />
           </div>

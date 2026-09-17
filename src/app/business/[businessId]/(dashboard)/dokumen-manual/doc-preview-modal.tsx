@@ -24,6 +24,7 @@ export type PreviewDoc = {
   createdAt: string;
   businessName: string;
   context: string;
+  context2?: string;
   note: string;
   items: { itemName: string; unit: string; qty: number }[];
   receiveCode?: string;
@@ -105,6 +106,13 @@ export default function DocPreviewModal({ doc, onClose }: { doc: PreviewDoc; onC
             <div className="mt-3 text-xs">
               <p className="text-zinc-400">{doc.type === "surat-jalan" ? "Tujuan Pengiriman" : "Nama Supplier"}</p>
               <p className="mt-0.5 font-semibold text-zinc-900">{doc.context}</p>
+            </div>
+          )}
+
+          {doc.type === "po-supplier" && doc.context2 && (
+            <div className="mt-3 text-xs">
+              <p className="text-zinc-400">Peruntukan</p>
+              <p className="mt-0.5 font-semibold text-zinc-900">{doc.context2}</p>
             </div>
           )}
 
