@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import SuratJalanTabClient, { type HistoryEntry } from "./surat-jalan-tab-client";
 import PermintaanBarangTabClient from "./permintaan-barang-tab-client";
 import StockOpnameTabClient from "./stock-opname-tab-client";
+import PoSupplierTabClient from "./po-supplier-tab-client";
 
 // Versi UMUM (business-scoped, location_id kosong) dari Dokumen Manual --
 // dibuat supaya toko standar yang TIDAK punya stock_locations sama sekali
@@ -20,12 +21,13 @@ import StockOpnameTabClient from "./stock-opname-tab-client";
 // deploy juga sukses), jadi alurnya dipindah supaya tidak bergantung ke
 // routing yang bermasalah itu sama sekali.
 
-type Tab = "surat-jalan" | "permintaan-barang" | "stock-opname";
+type Tab = "surat-jalan" | "permintaan-barang" | "stock-opname" | "po-supplier";
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: "surat-jalan", label: "Surat Jalan", icon: "🚚" },
   { key: "permintaan-barang", label: "Permintaan Barang", icon: "📝" },
   { key: "stock-opname", label: "Stock Opname", icon: "📋" },
+  { key: "po-supplier", label: "PO Supplier", icon: "🧾" },
 ];
 
 export default async function DokumenManualGlobalPage({
@@ -37,7 +39,8 @@ export default async function DokumenManualGlobalPage({
 }) {
   const { businessId } = await params;
   const { tab: rawTab } = await searchParams;
-  const tab: Tab = rawTab === "permintaan-barang" || rawTab === "stock-opname" ? rawTab : "surat-jalan";
+  const tab: Tab =
+    rawTab === "permintaan-barang" || rawTab === "stock-opname" || rawTab === "po-supplier" ? rawTab : "surat-jalan";
 
   const supabase = await createClient();
   const { data: business } = await supabase.from("businesses").select("id, name").eq("id", businessId).maybeSingle();
@@ -49,8 +52,8 @@ export default async function DokumenManualGlobalPage({
     <div className="w-full max-w-2xl">
       <h1 className="text-lg font-bold text-zinc-900">Dokumen Manual</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Surat Jalan, Permintaan Barang, dan Stock Opname versi bebas isi sendiri — jalur cadangan
-        selama alur digitalnya belum terbukti jalan mulus untuk operasional harian.
+        Surat Jalan, Permintaan Barang, Stock Opname, dan PO Supplier versi bebas isi sendiri —
+        jalur cadangan selama alur digitalnya belum terbukti jalan mulus untuk operasional harian.
       </p>
 
       <div className="mt-3 flex gap-1.5 rounded-xl border border-zinc-200 bg-white p-1">
@@ -83,6 +86,13 @@ export default async function DokumenManualGlobalPage({
             businessId={businessId}
             businessName={business.name}
             history={await getStockOpnameHistory(businessId)}
+          />
+        )}
+        {tab === "po-supplier" && (
+          <PoSupplierTabClient
+            businessId={businessId}
+            businessName={business.name}
+            history={await getPoSupplierHistory(businessId)}
           />
         )}
       </div>
@@ -178,6 +188,37 @@ async function getStockOpnameHistory(businessId: string): Promise<HistoryEntry[]
     id: d.id,
     docNumber: d.opname_number,
     contextLine: `${itemCountById.get(d.id) ?? 0} barang dihitung`,
+    createdByName: d.created_by_name,
+    createdAt: d.created_at,
+  }));
+}
+
+async function getPoSupplierHistory(businessId: string): Promise<HistoryEntry[]> {
+  const supabase = await createClient();
+  const { data: docs } = await supabase
+    .from("manual_purchase_orders")
+    .select("id, po_number, supplier_name, created_by_name, created_at")
+    .eq("business_id", businessId)
+    .is("location_id", null)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  const docIds = (docs ?? []).map((d) => d.id);
+  const itemCountById = new Map<string, number>();
+  if (docIds.length > 0) {
+    const { data: items } = await supabase
+      .from("manual_purchase_order_items")
+      .select("manual_purchase_order_id")
+      .in("manual_purchase_order_id", docIds);
+    for (const it of items ?? []) {
+      itemCountById.set(it.manual_purchase_order_id, (itemCountById.get(it.manual_purchase_order_id) ?? 0) + 1);
+    }
+  }
+
+  return (docs ?? []).map((d) => ({
+    id: d.id,
+    docNumber: d.po_number,
+    contextLine: `Ke ${d.supplier_name} — ${itemCountById.get(d.id) ?? 0} barang`,
     createdByName: d.created_by_name,
     createdAt: d.created_at,
   }));

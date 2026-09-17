@@ -192,3 +192,56 @@ export async function createManualStockOpname(
   revalidatePath(dokumenManualPath(businessId, locationId));
   return { error: null, docNumber: op.opname_number, createdAt: op.created_at };
 }
+
+// PO Supplier MANUAL — bebas ketik nama supplier + daftar barang, TIDAK
+// terhubung ke purchase_orders/PR/alokasi digital sama sekali. Beda dari
+// 3 dokumen lain: butuh tanda tangan persetujuan Owner/Finance karena ini
+// dokumen order resmi ke pihak luar (arahan user 2026-09-17).
+export async function createManualPurchaseOrder(
+  businessId: string,
+  locationId: string | null,
+  supplierName: string,
+  note: string,
+  items: ManualDocItemInput[],
+): Promise<ActionState> {
+  if (!supplierName.trim()) return { error: "Nama supplier wajib diisi." };
+  const cleanRows = cleanItems(items);
+  if (cleanRows.length === 0) return { error: "Isi minimal 1 barang dengan qty > 0." };
+
+  const supabase = await createClient();
+  const actor = await getCurrentActor(supabase, businessId);
+  if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
+
+  const { data: po, error: poError } = await supabase
+    .from("manual_purchase_orders")
+    .insert({
+      business_id: businessId,
+      location_id: locationId,
+      po_number: docNumber("PO"),
+      supplier_name: supplierName.trim(),
+      note: note.trim() || null,
+      created_by_user_id: actor.userId,
+      created_by_name: actor.name,
+    })
+    .select("id, po_number, created_at")
+    .single();
+  if (poError || !po) return { error: poError?.message ?? "Gagal membuat PO Supplier." };
+
+  const { error: itemsError } = await supabase.from("manual_purchase_order_items").insert(
+    cleanRows.map((i, idx) => ({
+      business_id: businessId,
+      manual_purchase_order_id: po.id,
+      item_name: i.itemName,
+      unit: i.unit || null,
+      qty: i.qty,
+      sort_order: idx,
+    })),
+  );
+  if (itemsError) {
+    await supabase.from("manual_purchase_orders").delete().eq("id", po.id).eq("business_id", businessId);
+    return { error: itemsError.message };
+  }
+
+  revalidatePath(dokumenManualPath(businessId, locationId));
+  return { error: null, docNumber: po.po_number, createdAt: po.created_at };
+}

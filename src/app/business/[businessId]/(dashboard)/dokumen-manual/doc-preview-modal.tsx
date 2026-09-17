@@ -19,7 +19,7 @@ import { createPortal } from "react-dom";
 // bukan halaman print tersendiri.
 
 export type PreviewDoc = {
-  type: "surat-jalan" | "permintaan-barang" | "stock-opname";
+  type: "surat-jalan" | "permintaan-barang" | "stock-opname" | "po-supplier";
   docNumber: string;
   createdAt: string;
   businessName: string;
@@ -44,18 +44,21 @@ const TITLES: Record<PreviewDoc["type"], string> = {
   "surat-jalan": "SURAT JALAN",
   "permintaan-barang": "PERMINTAAN BARANG",
   "stock-opname": "STOCK OPNAME",
+  "po-supplier": "PO SUPPLIER",
 };
 
 const SIGN_LABELS: Record<PreviewDoc["type"], [string, string]> = {
   "surat-jalan": ["Dikirim oleh", "Diterima oleh"],
   "permintaan-barang": ["Diminta oleh", "Diterima Purchasing"],
   "stock-opname": ["Dihitung oleh", "Diperiksa oleh"],
+  "po-supplier": ["Diajukan oleh", "Disetujui Owner/Finance"],
 };
 
 const QTY_LABEL: Record<PreviewDoc["type"], string> = {
   "surat-jalan": "Qty",
   "permintaan-barang": "Qty",
   "stock-opname": "Qty Fisik",
+  "po-supplier": "Qty",
 };
 
 export default function DocPreviewModal({ doc, onClose }: { doc: PreviewDoc; onClose: () => void }) {
@@ -98,9 +101,9 @@ export default function DocPreviewModal({ doc, onClose }: { doc: PreviewDoc; onC
             </div>
           </div>
 
-          {doc.type === "surat-jalan" && (
+          {(doc.type === "surat-jalan" || doc.type === "po-supplier") && (
             <div className="mt-3 text-xs">
-              <p className="text-zinc-400">Tujuan Pengiriman</p>
+              <p className="text-zinc-400">{doc.type === "surat-jalan" ? "Tujuan Pengiriman" : "Nama Supplier"}</p>
               <p className="mt-0.5 font-semibold text-zinc-900">{doc.context}</p>
             </div>
           )}

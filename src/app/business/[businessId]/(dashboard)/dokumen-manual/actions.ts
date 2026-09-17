@@ -110,3 +110,37 @@ export async function getManualStockOpnameDetail(
     items: (items ?? []).map((i) => ({ itemName: i.item_name, unit: i.unit ?? "", qty: Number(i.qty) })),
   };
 }
+
+export async function getManualPurchaseOrderDetail(
+  businessId: string,
+  docId: string,
+): Promise<PreviewDoc | null> {
+  const supabase = await createClient();
+  const { data: business } = await supabase.from("businesses").select("name").eq("id", businessId).single();
+  if (!business) return null;
+
+  const { data: doc } = await supabase
+    .from("manual_purchase_orders")
+    .select("po_number, supplier_name, note, created_at")
+    .eq("id", docId)
+    .eq("business_id", businessId)
+    .is("location_id", null)
+    .single();
+  if (!doc) return null;
+
+  const { data: items } = await supabase
+    .from("manual_purchase_order_items")
+    .select("item_name, unit, qty")
+    .eq("manual_purchase_order_id", docId)
+    .order("sort_order", { ascending: true });
+
+  return {
+    type: "po-supplier",
+    docNumber: doc.po_number,
+    createdAt: doc.created_at,
+    businessName: business.name,
+    context: doc.supplier_name,
+    note: doc.note ?? "",
+    items: (items ?? []).map((i) => ({ itemName: i.item_name, unit: i.unit ?? "", qty: Number(i.qty) })),
+  };
+}
