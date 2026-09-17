@@ -293,14 +293,15 @@ export default async function BusinessDashboardPage({
         </div>
       )}
 
-      {/* Staf tanpa permission "reports" (khusus Llauk Nusantara, lihat
-          canSeeFinance di atas) tidak lihat ringkasan keuangan apapun --
-          cuma checklist setup toko di atas. */}
+      {/* Staf role "kasir" (lihat canSeeFinance di atas) tidak lihat
+          ringkasan keuangan apapun -- cuma checklist setup toko di atas.
+          Copy-nya sengaja dibuat seperti sapaan kerja biasa, bukan pesan
+          "akses ditolak" (arahan user 2026-09-17). */}
       {!canSeeFinance && (
         <div className="mt-6 rounded-xl bg-white shadow-sm p-5 text-center">
-          <p className="text-sm font-semibold text-zinc-700">Ringkasan keuangan disembunyikan</p>
+          <p className="text-sm font-semibold text-zinc-700">Selamat bertugas! 👋</p>
           <p className="mt-1 text-xs text-zinc-400">
-            Akun Anda tidak punya akses ke Laporan. Hubungi pemilik toko kalau butuh akses ini.
+            Mulai dari menu di samping — Buka Kasir untuk transaksi baru, atau Riwayat Transaksi untuk cek penjualan sebelumnya.
           </p>
         </div>
       )}
