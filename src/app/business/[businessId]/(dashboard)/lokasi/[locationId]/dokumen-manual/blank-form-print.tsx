@@ -38,7 +38,7 @@ export default function BlankFormPrint({
           <p className="text-xs text-zinc-400">No: ________________</p>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+        <div className={`mt-4 grid gap-3 text-xs ${fields.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
           {fields.map((f) => (
             <div key={f}>
               <p className="text-zinc-400">{f}</p>
