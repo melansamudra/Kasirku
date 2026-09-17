@@ -140,7 +140,7 @@ export default async function PdoPage({
   const cancelHref = `/business/${businessId}/kas-kecil/pdo${periodQuery}`;
 
   return (
-    <div className="w-full max-w-xl">
+    <div className="w-full max-w-xl print:mx-auto">
       <div className="print:hidden">
         <h1 className="text-lg font-bold text-zinc-900">Petty Cash</h1>
         <p className="mt-1 text-sm text-zinc-500">
