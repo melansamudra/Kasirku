@@ -68,25 +68,22 @@ export default async function BusinessDashboardPage({
   // soal MUNCUL DI SIDEBAR, bukan berarti angka Pendapatan/Laba/Beban
   // aman ditampilkan ke semua admin. Staf tanpa permission "reports"
   // (Laporan) cuma lihat status setup toko, bukan ringkasan keuangan --
-  // SENGAJA cuma diberlakukan untuk Llauk Nusantara dulu (arahan user
-  // 2026-09-03), bisnis lain (mis. Adi's Culinary) TETAP tampilkan
-  // dashboard keuangan penuh ke semua admin seperti sebelumnya.
-  const LLAUK_BUSINESS_ID = "f7c0509b-d708-45d5-9245-592e50f7cbbe";
-  let canSeeFinance = true;
-  if (businessId === LLAUK_BUSINESS_ID) {
-    const { data: userData } = await supabase.auth.getUser();
-    const { data: ownerRow } = await supabase.from("businesses").select("owner_id").eq("id", businessId).single();
-    const isOwner = ownerRow?.owner_id === userData.user?.id;
-    canSeeFinance = isOwner;
-    if (!isOwner) {
-      const { data: staff } = await supabase
-        .from("business_staff")
-        .select("permissions")
-        .eq("business_id", businessId)
-        .eq("user_id", userData.user?.id ?? "")
-        .maybeSingle();
-      canSeeFinance = (staff?.permissions ?? []).includes("reports");
-    }
+  // awalnya cuma diberlakukan untuk Llauk Nusantara (arahan user
+  // 2026-09-03), sekarang berlaku untuk SEMUA bisnis (arahan user
+  // 2026-09-17, dipicu akun kasir Adi's Culinary Pleburan yang masih
+  // lihat omset/laba penuh di Dashboard).
+  const { data: userData } = await supabase.auth.getUser();
+  const { data: ownerRow } = await supabase.from("businesses").select("owner_id").eq("id", businessId).single();
+  const isOwner = ownerRow?.owner_id === userData.user?.id;
+  let canSeeFinance = isOwner;
+  if (!isOwner) {
+    const { data: staff } = await supabase
+      .from("business_staff")
+      .select("permissions")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user?.id ?? "")
+      .maybeSingle();
+    canSeeFinance = (staff?.permissions ?? []).includes("reports");
   }
 
   const today = todayStr();
