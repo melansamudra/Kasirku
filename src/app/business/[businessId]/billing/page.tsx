@@ -26,6 +26,25 @@ const STATUS_BADGE: Record<string, string> = {
   expired: "bg-red-50 text-red-600",
 };
 
+// Judul tab browser pakai nama bisnis, bukan judul default aplikasi -- sama
+// seperti (dashboard)/layout.tsx, tapi halaman ini di luar folder itu jadi
+// perlu generateMetadata sendiri.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ businessId: string }>;
+}) {
+  const { businessId } = await params;
+  const supabase = await createClient();
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name")
+    .eq("id", businessId)
+    .single();
+
+  return { title: business?.name ?? "KasirKu" };
+}
+
 export default async function BillingPage({
   params,
   searchParams,

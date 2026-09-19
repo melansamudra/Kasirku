@@ -49,7 +49,6 @@ function formatRupiah(value: number) {
 
 export default function PerbandinganPage() {
   const year = new Date().getFullYear();
-  const monthly = PLANS.find((p) => p.code === "monthly")!;
   const yearly = PLANS.find((p) => p.code === "yearly")!;
   const lifetime = PLANS.find((p) => p.code === "lifetime")!;
   const yearlyPerMonth = Math.round(yearly.price / 12);
@@ -91,13 +90,13 @@ export default function PerbandinganPage() {
                 <tr className="border-b border-brand-100 bg-brand-50/60">
                   <td className="px-4 py-4 font-bold text-brand-700">KasirKu</td>
                   <td className="px-4 py-4 font-bold text-brand-700">
-                    {formatRupiah(monthly.price)}/bulan
+                    ~{formatRupiah(yearlyPerMonth)}/bulan
                   </td>
                   <td className="px-4 py-4 text-zinc-600">
                     Kasir, stok/resep, laporan, akuntansi &amp; SDM sudah termasuk dalam satu
                     harga — tidak ada modul tambahan berbayar terpisah. Bayar tahunan{" "}
-                    {formatRupiah(yearly.price)} (~{formatRupiah(yearlyPerMonth)}/bulan) atau
-                    sekali bayar {formatRupiah(lifetime.price)} seterusnya.
+                    {formatRupiah(yearly.price)} atau sekali bayar {formatRupiah(lifetime.price)}{" "}
+                    seterusnya.
                   </td>
                 </tr>
                 {COMPETITORS.map((c) => (
