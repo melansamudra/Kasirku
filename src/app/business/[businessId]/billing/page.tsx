@@ -127,7 +127,7 @@ export default async function BillingPage({
           bahan baku, dan laporan penjualan dasar.
         </p>
         <PlanGrid
-          plans={PLANS.filter((p) => p.family === "full" || p.family === "starter")}
+          plans={PLANS.filter((p) => (p.family === "full" || p.family === "starter") && p.kind !== "lifetime")}
           businessId={businessId}
           business={business}
         />

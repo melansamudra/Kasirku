@@ -50,7 +50,6 @@ function formatRupiah(value: number) {
 export default function PerbandinganPage() {
   const year = new Date().getFullYear();
   const yearly = PLANS.find((p) => p.code === "yearly")!;
-  const lifetime = PLANS.find((p) => p.code === "lifetime")!;
   const yearlyPerMonth = Math.round(yearly.price / 12);
 
   return (
@@ -95,8 +94,7 @@ export default function PerbandinganPage() {
                   <td className="px-4 py-4 text-zinc-600">
                     Kasir, stok/resep, laporan, akuntansi &amp; SDM sudah termasuk dalam satu
                     harga — tidak ada modul tambahan berbayar terpisah. Bayar tahunan{" "}
-                    {formatRupiah(yearly.price)} atau sekali bayar {formatRupiah(lifetime.price)}{" "}
-                    seterusnya.
+                    {formatRupiah(yearly.price)}.
                   </td>
                 </tr>
                 {COMPETITORS.map((c) => (
@@ -134,13 +132,6 @@ export default function PerbandinganPage() {
               <p className="mt-2 text-sm leading-relaxed text-zinc-600">
                 Tiket bernomor, harga hari libur, member, dan check-in gate — kebutuhan kolam
                 renang/wahana/event yang jarang jadi fokus utama aplikasi kasir F&amp;B/retail.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-              <p className="text-sm font-bold text-zinc-900">Opsi Sekali Bayar</p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Selain langganan, ada paket {formatRupiah(lifetime.price)} sekali bayar untuk
-                seterusnya — tanpa perlu bayar bulanan/tahunan terus-menerus.
               </p>
             </div>
             <div className="rounded-2xl bg-white p-6 shadow-sm">
