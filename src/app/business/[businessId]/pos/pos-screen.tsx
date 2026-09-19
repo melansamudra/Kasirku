@@ -297,6 +297,11 @@ export default function PosScreen({
   const [billDeleteError, setBillDeleteError] = useState<string | null>(null);
   const [billDeleteSubmitting, setBillDeleteSubmitting] = useState(false);
   const [activeBill, setActiveBill] = useState<{ id: string; label: string; customer_id?: string | null } | null>(null);
+  // Semua ID open bill yang sudah dimuat ke keranjang aktif ini (bisa lebih
+  // dari satu kalau kasir gabung beberapa bon). activeBill cuma menyimpan
+  // bon TERAKHIR yang dimuat (dipakai untuk label/simpan ulang) — tanpa daftar
+  // ini, bon-bon yang digabung sebelumnya kelupaan dihapus setelah dibayar.
+  const [mergedBillIds, setMergedBillIds] = useState<string[]>([]);
   const [saveBonOpen, setSaveBonOpen] = useState(false);
   const [bonLabel, setBonLabel] = useState("");
   const [bonCustomerName, setBonCustomerName] = useState("");
@@ -678,6 +683,26 @@ export default function PosScreen({
     return s + Math.max(0, rcv - t.amount);
   }, 0);
 
+  // Gabungkan item tambahan (dari self-order) ke bon yang sudah tersimpan —
+  // selalu masuk ke batch "Tambahan" (batch 1), sama seperti alur addToCart
+  // di layar POS saat ada bon aktif. Item di batch 0 (bagian yang sudah
+  // diorder) tidak boleh ikut ke-increment oleh produk yang sama.
+  function mergeAsTambahan(
+    existingItems: OpenBillItemInput[],
+    newItems: OpenBillItemInput[],
+  ): OpenBillItemInput[] {
+    const merged = existingItems.map((i) => ({ ...i }));
+    for (const ni of newItems) {
+      const found = merged.find((i) => i.product_id === ni.product_id && (i.batch ?? 0) === 1);
+      if (found) {
+        found.qty += ni.qty;
+      } else {
+        merged.push({ ...ni, batch: 1 });
+      }
+    }
+    return merged;
+  }
+
   function addToCart(product: Product, selectedOptions: SelectedOption[] = []) {
     const optionPriceAdj = selectedOptions.reduce((s, o) => s + o.priceAdj, 0);
     const unitPrice = product.price + optionPriceAdj;
@@ -824,6 +849,14 @@ export default function PosScreen({
       return;
     }
 
+    // Kalau keranjang ini hasil gabungan beberapa bon, sisanya (selain bon
+    // yang baru saja disimpan) sudah ikut tersimpan di dalamnya — hapus
+    // supaya tidak nyangkut dobel di daftar Open Bill.
+    const leftoverBillIds = mergedBillIds.filter((id) => id !== result.billId);
+    for (const id of leftoverBillIds) {
+      void deleteOpenBillAfterPayment(businessId, id);
+    }
+
     if (result.printJobs.length > 0) {
       dispatchPrintJobs(businessId, result.printJobs).then((results) => {
         const failed = results.filter((r) => !r.result.ok);
@@ -841,6 +874,7 @@ export default function PosScreen({
     setOrderDiscType("pct");
     setSelectedPromoId(null);
     setActiveBill(null);
+    setMergedBillIds([]);
     setSaveBonOpen(false);
     setBonLabel("");
     setBonCustomerName("");
@@ -889,6 +923,7 @@ export default function PosScreen({
 
     setCart(next);
     setActiveBill({ id: bill.id, label: bill.label, customer_id: bill.customer_id ?? null });
+    setMergedBillIds((prev) => (prev.includes(bill.id) ? prev : [...prev, bill.id]));
     setBonLabel(bill.label);
     setBonCustomerName(bill.customer_name ?? "");
 
@@ -929,6 +964,7 @@ export default function PosScreen({
     setOrderDiscType("pct");
     setSelectedPromoId(null);
     setActiveBill(null);
+    setMergedBillIds([]);
     setBonLabel("");
     setBonCustomerName("");
     setSelectedCustomer(null);
@@ -958,6 +994,7 @@ export default function PosScreen({
       setBillDeleteTarget(null);
       setBillDeletePin("");
       if (activeBill?.id === bill.id) setActiveBill(null);
+      setMergedBillIds((prev) => prev.filter((id) => id !== bill.id));
       void refreshCatalog();
     } catch {
       setBillDeleteSubmitting(false);
@@ -1019,6 +1056,10 @@ export default function PosScreen({
   async function handleAddOrderToCart(order: SelfOrder) {
     const next = cart.map((c) => ({ ...c }));
     const skipped: string[] = [];
+    // Kalau ada bon aktif, order self-order yang diterima masuk sebagai
+    // "Tambahan" (batch 1) — tidak boleh ikut nambah qty item batch 0
+    // (bagian yang sudah diorder/tersimpan).
+    const mergeBatch = activeBill ? 1 : 0;
 
     for (const item of order.items) {
       const product = item.productId
@@ -1028,7 +1069,7 @@ export default function PosScreen({
         skipped.push(item.name);
         continue;
       }
-      const existing = next.find((c) => c.productId === product.id);
+      const existing = next.find((c) => c.productId === product.id && c.batch === mergeBatch);
       const addQty = item.qty;
       if (existing) {
         existing.qty += addQty;
@@ -1048,7 +1089,7 @@ export default function PosScreen({
           discType: rule ? rule.value_type : ("pct" as DiscountType),
           note: item.note,
           selectedOptions: [],
-          batch: 0,
+          batch: mergeBatch,
         });
       }
     }
@@ -1069,6 +1110,10 @@ export default function PosScreen({
     const next = cart.map((c) => ({ ...c }));
     const skipped: string[] = [];
     const orderIds: string[] = [];
+    // Kalau ada bon aktif, order self-order yang diterima masuk sebagai
+    // "Tambahan" (batch 1) — tidak boleh ikut nambah qty item batch 0
+    // (bagian yang sudah diorder/tersimpan).
+    const mergeBatch = activeBill ? 1 : 0;
 
     for (const order of tableOrders) {
       for (const item of order.items) {
@@ -1076,7 +1121,7 @@ export default function PosScreen({
           ? effectiveProducts.find((p) => p.id === item.productId)
           : undefined;
         if (!product) { skipped.push(item.name); continue; }
-        const existing = next.find((c) => c.productId === product.id);
+        const existing = next.find((c) => c.productId === product.id && c.batch === mergeBatch);
         const addQty = item.qty;
         if (existing) {
           existing.qty += addQty;
@@ -1096,7 +1141,7 @@ export default function PosScreen({
             discType: rule ? rule.value_type : ("pct" as DiscountType),
             note: item.note,
             selectedOptions: [],
-            batch: 0,
+            batch: mergeBatch,
           });
         }
       }
@@ -1154,11 +1199,7 @@ export default function PosScreen({
           (b) => b.label === label || b.label === order.tableName || b.label.startsWith(order.tableName + " - "),
         );
         if (existingBon) {
-          const merged = existingBon.items.map((i) => ({ ...i }));
-          for (const ni of newItems) {
-            const found = merged.find((i) => i.product_id === ni.product_id);
-            if (found) { found.qty += ni.qty; } else { merged.push(ni); }
-          }
+          const merged = mergeAsTambahan(existingBon.items, newItems);
           await saveOpenBill(businessId, existingBon.id, existingBon.label, merged);
         } else {
           await saveOpenBill(businessId, null, label, newItems);
@@ -1216,11 +1257,7 @@ export default function PosScreen({
         (b) => b.label === label || b.label === tableName || b.label.startsWith(tableName + " - "),
       );
       if (existingBon) {
-        const merged = existingBon.items.map((i) => ({ ...i }));
-        for (const ni of newItems) {
-          const found = merged.find((i) => i.product_id === ni.product_id);
-          if (found) { found.qty += ni.qty; } else { merged.push(ni); }
-        }
+        const merged = mergeAsTambahan(existingBon.items, newItems);
         await saveOpenBill(businessId, existingBon.id, existingBon.label, merged);
       } else {
         await saveOpenBill(businessId, null, label, newItems);
@@ -1403,7 +1440,8 @@ export default function PosScreen({
           // Bill (tagihan) cuma boleh dianggap lunas & dihapus kalau semua
           // item di dalamnya sudah terbayar — kalau masih ada sisa (bayar
           // sebagian/pisah), bill tetap harus nyangkut sampai sisanya lunas.
-          billId: activeBill && newCart.length === 0 ? activeBill.id : null,
+          // Bisa lebih dari satu ID kalau kasir gabung beberapa bon.
+          billIds: newCart.length === 0 ? mergedBillIds : null,
         },
       });
       setSubmitting(false);
@@ -1418,6 +1456,7 @@ export default function PosScreen({
         setSuccessInvoice(`OFFLINE-${clientRef.slice(0, 8).toUpperCase()}`);
         setSuccessTransactionId(null);
         setActiveBill(null);
+        setMergedBillIds([]);
         setBonLabel("");
         setBonCustomerName("");
       }
@@ -1460,10 +1499,13 @@ export default function PosScreen({
       setSuccessOffline(false);
       setSuccessInvoice(result.invoiceNumber);
       setSuccessTransactionId(result.transactionId);
-      if (activeBill && isOnline) {
-        void deleteOpenBillAfterPayment(businessId, activeBill.id);
-        setActiveBill(null);
+      if (isOnline) {
+        for (const id of mergedBillIds) {
+          void deleteOpenBillAfterPayment(businessId, id);
+        }
       }
+      setActiveBill(null);
+      setMergedBillIds([]);
       setBonLabel("");
       setBonCustomerName("");
       setSelectedCustomer(null);
@@ -1561,7 +1603,8 @@ export default function PosScreen({
           customerName: selectedCustomer?.name || bonCustomerName || null,
           orderDiscName: selectedPromo?.name ?? null,
           orderType: orderType ?? null,
-          billId: activeBill?.id ?? null,
+          // Bisa lebih dari satu ID kalau kasir gabung beberapa bon.
+          billIds: mergedBillIds,
         },
       });
 
@@ -1572,6 +1615,7 @@ export default function PosScreen({
       setCart([]);
       setCartOrderIds([]);
       setActiveBill(null);
+      setMergedBillIds([]);
       setBonLabel("");
       setBonCustomerName("");
       setPaying(false);
@@ -1605,13 +1649,19 @@ export default function PosScreen({
     }
     void dispatchPrintJobs(businessId, result.printJobs);
 
-    // Bon yang dimuat sudah dibayar — bereskan dari daftar. Fire-and-forget
-    // supaya tidak menahan layar sukses; bon hilang saat refreshCatalog
-    // berikutnya kalau delete gagal karena jaringan.
-    if (activeBill && isOnline) {
-      void deleteOpenBillAfterPayment(businessId, activeBill.id);
-      setActiveBill(null);
+    // Bon yang dimuat sudah dibayar — bereskan dari daftar. Kalau kasir gabung
+    // beberapa bon ke satu keranjang, SEMUANYA harus dihapus, bukan cuma bon
+    // terakhir (activeBill) — kalau tidak, bon lain yang sudah lunas masih
+    // nyangkut di daftar Open Bill. Fire-and-forget supaya tidak menahan layar
+    // sukses; bon hilang saat refreshCatalog berikutnya kalau delete gagal
+    // karena jaringan.
+    if (isOnline) {
+      for (const id of mergedBillIds) {
+        void deleteOpenBillAfterPayment(businessId, id);
+      }
     }
+    setActiveBill(null);
+    setMergedBillIds([]);
 
     setSuccessOffline(false);
     setSuccessInvoice(result.invoiceNumber);
@@ -3419,7 +3469,7 @@ export default function PosScreen({
                       .join(", ") +
                     (bill.items.length > 2 ? ` +${bill.items.length - 2}` : "");
                   const busy = billBusyId === bill.id;
-                  const isLoaded = activeBill?.id === bill.id;
+                  const isLoaded = mergedBillIds.includes(bill.id);
                   return (
                     <div
                       key={bill.id}

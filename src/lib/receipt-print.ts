@@ -21,7 +21,7 @@ export async function buildReceiptBuffer(
       supabase
         .from("transactions")
         .select(
-          "invoice_number, receipt_code, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, cashiers!transactions_cashier_id_fkey(name)",
+          "invoice_number, receipt_code, date, subtotal_raw, service, tax, total_item_disc, order_disc_amt, order_disc_name, total, voided, order_label, customer_name, order_type, cashiers!transactions_cashier_id_fkey(name)",
         )
         .eq("id", transactionId)
         .eq("business_id", businessId)
@@ -50,6 +50,9 @@ export async function buildReceiptBuffer(
     receiptCode: (transaction as unknown as { receipt_code?: string | null }).receipt_code,
     date: new Date(transaction.date).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }),
     cashierName: (transaction.cashiers as unknown as { name: string } | null)?.name ?? "—",
+    orderLabel: (transaction as unknown as { order_label?: string | null }).order_label,
+    orderType: (transaction as unknown as { order_type?: string | null }).order_type ?? null,
+    customerName: (transaction as unknown as { customer_name?: string | null }).customer_name,
     voided: transaction.voided,
     items: (items ?? []).map((i) => ({ name: i.name, qty: Number(i.qty), price: Number(i.price), note: (i as unknown as { note?: string | null }).note, voided: (i as unknown as { voided?: boolean }).voided, batch: (i as unknown as { batch?: number }).batch ?? 0 })),
     subtotal: Number(transaction.subtotal_raw),

@@ -23,7 +23,8 @@ export type PendingRetailSale = {
     customerName: string | null;
     orderDiscName: string | null;
     orderType?: string | null;
-    billId?: string | null;
+    // Bisa lebih dari satu kalau kasir gabung beberapa bon jadi satu keranjang.
+    billIds?: string[] | null;
   };
 };
 

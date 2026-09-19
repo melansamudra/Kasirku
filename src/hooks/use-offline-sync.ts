@@ -91,12 +91,14 @@ export function useOfflineSync(businessId: string) {
                 receiptPrintJobs: KitchenPrintJobPayload[];
               };
               void dispatchReceiptThenKitchenJobs(sale.businessId, receiptPrintJobs, printJobs);
-              // Penjualan ini tadinya dibuat offline dari sebuah bill yang
-              // disimpan (open_bills) — sekarang sudah lunas & tersinkron,
-              // jadi bill-nya harus dihapus dari server. Kalau tidak, bill
-              // tetap nyangkut di daftar walau sudah terbayar.
-              if (sale.payload.billId) {
-                void deleteOpenBillAfterPayment(sale.businessId, sale.payload.billId);
+              // Penjualan ini tadinya dibuat offline dari satu atau lebih bill
+              // yang disimpan (open_bills) — kalau kasir gabung beberapa bon
+              // jadi satu keranjang, semuanya perlu dihapus di sini. Sekarang
+              // sudah lunas & tersinkron, jadi bill-nya harus dihapus dari
+              // server. Kalau tidak, bill tetap nyangkut di daftar walau sudah
+              // terbayar.
+              for (const billId of sale.payload.billIds ?? []) {
+                void deleteOpenBillAfterPayment(sale.businessId, billId);
               }
             }
           } else if (isTransientSyncError(result.error)) {
