@@ -100,6 +100,12 @@ export default async function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <a
+              href="/admin/invoices"
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-800"
+            >
+              🧾 Invoice Langganan
+            </a>
+            <a
               href="/dashboard"
               className="rounded-lg px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-800"
             >

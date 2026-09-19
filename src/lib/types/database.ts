@@ -1378,6 +1378,72 @@ export type Database = {
         };
         Relationships: [];
       };
+      admin_invoice_lines: {
+        Row: {
+          id: string;
+          invoice_id: string;
+          description: string;
+          qty: number;
+          unit_price: number;
+        };
+        Insert: {
+          id?: string;
+          invoice_id: string;
+          description: string;
+          qty: number;
+          unit_price: number;
+        };
+        Update: {
+          id?: string;
+          invoice_id?: string;
+          description?: string;
+          qty?: number;
+          unit_price?: number;
+        };
+        Relationships: [];
+      };
+      admin_invoices: {
+        Row: {
+          id: string;
+          business_id: string;
+          invoice_number: string;
+          date: string;
+          due_date: string | null;
+          subtotal: number;
+          dp_amount: number;
+          status: string;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          invoice_number: string;
+          date?: string;
+          due_date?: string | null;
+          subtotal?: number;
+          dp_amount?: number;
+          status?: string;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          invoice_number?: string;
+          date?: string;
+          due_date?: string | null;
+          subtotal?: number;
+          dp_amount?: number;
+          status?: string;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       invoice_lines: {
         Row: {
           id: string;

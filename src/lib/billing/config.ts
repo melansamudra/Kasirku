@@ -6,3 +6,11 @@ export const BILLING_CONTACT = {
   whatsapp: "6281234556757",
   email: "create2impact.id@gmail.com",
 };
+
+// Dicantumkan di Invoice Langganan (panel admin) selama belum ada VA
+// otomatis -- GANTI dengan rekening asli sebelum invoice pertama dikirim.
+export const BANK_TRANSFER = {
+  bankName: "GANTI_NAMA_BANK",
+  accountNumber: "GANTI_NOMOR_REKENING",
+  accountHolder: "GANTI_ATAS_NAMA",
+};
