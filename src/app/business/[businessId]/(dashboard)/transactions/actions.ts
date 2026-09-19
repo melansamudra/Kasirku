@@ -87,7 +87,7 @@ export async function buildKitchenReprintJobs(
       .single(),
     supabase
       .from("transaction_items")
-      .select("name, category, qty")
+      .select("name, category, qty, note")
       .eq("transaction_id", transactionId)
       .order("id", { ascending: true }),
   ]);
@@ -99,7 +99,7 @@ export async function buildKitchenReprintJobs(
   const jobs = await buildKitchenPrintJobs(supabase, businessId, {
     source: "Cetak Ulang",
     label: transaction.invoice_number,
-    items: (items ?? []).map((i) => ({ name: i.name, category: i.category, qty: Number(i.qty) })),
+    items: (items ?? []).map((i) => ({ name: i.name, category: i.category, qty: Number(i.qty), note: i.note })),
   });
 
   return { success: true, jobs };
