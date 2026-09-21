@@ -561,18 +561,36 @@ export default function PosScreen({
 
   // Variants are just extra product rows sharing the same name — group them
   // here purely for display, no schema relationship involved.
+  // Pakai Map (bukan groups.find() di dalam loop) supaya O(n), bukan O(n²)
+  // -- filteredProducts berubah tiap keystroke di search box, jadi grouping
+  // ini ikut jalan tiap keystroke juga.
   const productGroups = useMemo(() => {
-    const groups: { name: string; variants: Product[] }[] = [];
+    const byName = new Map<string, { name: string; variants: Product[] }>();
     for (const p of filteredProducts) {
-      const existing = groups.find((g) => g.name === p.name);
+      const existing = byName.get(p.name);
       if (existing) {
         existing.variants.push(p);
       } else {
-        groups.push({ name: p.name, variants: [p] });
+        byName.set(p.name, { name: p.name, variants: [p] });
       }
     }
-    return groups;
+    return [...byName.values()];
   }, [filteredProducts]);
+
+  // Dulu badge "jumlah di keranjang" tiap produk dihitung lewat cart.find()
+  // di dalam .map() grid produk -- dijalankan ulang utk SETIAP produk di
+  // SETIAP render (termasuk saat mengetik di search box), meski cart-nya
+  // sendiri tidak berubah. Map ini dibangun sekali per perubahan cart;
+  // .get() sesudahnya O(1). Kalau kebetulan ada >1 baris cart utk productId
+  // yang sama, dipertahankan match PERTAMA -- sama seperti cart.find()
+  // sebelumnya -- supaya perilakunya identik, cuma lebih cepat.
+  const cartQtyByProductId = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const item of cart) {
+      if (!m.has(item.productId)) m.set(item.productId, item.qty);
+    }
+    return m;
+  }, [cart]);
 
   const [variantPickerGroup, setVariantPickerGroup] = useState<{
     name: string;
@@ -2178,14 +2196,14 @@ export default function PosScreen({
                 const isVariantGroup = g.variants.length > 1;
                 const single = g.variants[0];
                 const inCart = g.variants.reduce(
-                  (sum, v) => sum + (cart.find((i) => i.productId === v.id)?.qty ?? 0),
+                  (sum, v) => sum + (cartQtyByProductId.get(v.id) ?? 0),
                   0,
                 );
                 const price = isVariantGroup
                   ? `${formatRupiah(Math.min(...g.variants.map((v) => v.price)))}${new Set(g.variants.map((v) => v.price)).size > 1 ? "+" : ""}`
                   : formatRupiah(single.price);
                 const thumb = single.image_url ? (
-                  <img src={single.image_url} alt={g.name} className="h-full w-full object-cover" />
+                  <img src={single.image_url} alt={g.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ) : (
                   <span className={viewMode === "kecil" ? "text-base" : "text-lg"}>{single.emoji || "📦"}</span>
                 );

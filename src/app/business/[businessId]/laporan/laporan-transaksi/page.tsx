@@ -84,8 +84,15 @@ export default async function MirrorLaporanTransaksiPage({
     } | null;
   };
 
-  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
-    service
+  // Filter tanggal di level query sama seperti laporan-menu/page.tsx --
+  // best-effort (nested filter Supabase ke embedded resource tidak selalu
+  // reliable mengurangi jumlah baris dari mirror_visible_transactions),
+  // filter JS di bawah (baris ~120) tetap jadi sumber kebenaran. Tapi kalau
+  // ini berhasil mengurangi baris yang di-page lewat fetchAllRows, laporan
+  // periode "Hari Ini"/"7 Hari"/"Bulan Ini" tidak perlu lagi menarik SELURUH
+  // riwayat transaksi bisnis dari awal berdiri.
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) => {
+    let q = service
       .from("mirror_visible_transactions")
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
@@ -94,9 +101,11 @@ export default async function MirrorLaporanTransaksiPage({
           transaction_items(qty)
         )`,
       )
-      .eq("business_id", businessId)
-      .range(from2, to2),
-  );
+      .eq("business_id", businessId);
+    if (fromIso) q = q.gte("transactions.date", fromIso);
+    if (toIsoExclusive) q = q.lt("transactions.date", toIsoExclusive);
+    return q.range(from2, to2);
+  });
 
   type TxRow = {
     id: string;

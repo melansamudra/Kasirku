@@ -82,17 +82,22 @@ export default async function MirrorLaporanTrenPage({
 
   type MirrorRow = { transactions: { date: string; total: number; voided: boolean } | null };
 
-  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
-    service
+  // Filter tanggal di level query (best-effort, sama seperti
+  // laporan-menu/page.tsx) -- fromIso/toIsoExclusive tadinya cuma dipakai di
+  // filter JS bawah, tidak pernah dipasang ke query itu sendiri.
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) => {
+    let q = service
       .from("mirror_visible_transactions")
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
           date, total, voided
         )`,
       )
-      .eq("business_id", businessId)
-      .range(from2, to2),
-  );
+      .eq("business_id", businessId);
+    if (fromIso) q = q.gte("transactions.date", fromIso);
+    if (toIsoExclusive) q = q.lt("transactions.date", toIsoExclusive);
+    return q.range(from2, to2);
+  });
 
   const dayMap = new Map<string, { count: number; revenue: number }>();
 

@@ -60,74 +60,71 @@ export async function fulfillLocationTransfer(
     supabase.from("stock_locations").select("name").eq("id", transfer.to_location_id).single(),
   ]);
 
-  let anySent = false;
-  for (const item of items ?? []) {
-    const qty = Number(qtySentByItemId[item.id] ?? 0);
-    if (!(qty > 0)) continue;
+  const sentItems = (items ?? []).filter((item) => Number(qtySentByItemId[item.id] ?? 0) > 0);
+  if (sentItems.length === 0) {
+    return { error: "Isi jumlah yang dikirim untuk minimal 1 bahan." };
+  }
 
-    const { data: sourceRow } = await supabase
+  // Dulu ini 5 round-trip serial PER ITEM (2 select stok + 2 upsert stok +
+  // 1 insert riwayat). Untuk transfer berisi banyak bahan itu jadi puluhan
+  // round-trip berurutan. Sekarang: 2 select batch (stok asal & tujuan utk
+  // SEMUA item sekaligus), lalu semua penulisan dijalankan paralel.
+  const semiIds = [...new Set(sentItems.map((item) => item.semi_finished_item_id))];
+  const [{ data: sourceRows }, { data: destRows }] = await Promise.all([
+    supabase
       .from("semi_finished_item_location_stock")
-      .select("stock")
+      .select("semi_finished_item_id, stock")
       .eq("business_id", businessId)
       .eq("location_id", transfer.from_location_id)
-      .eq("semi_finished_item_id", item.semi_finished_item_id)
-      .maybeSingle();
-    const sourceStock = Number(sourceRow?.stock ?? 0);
-    // SEMENTARA (buat uji coba, 2026-08-29): cek "stok tidak cukup"
-    // dimatikan -- stok sumber bisa jadi minus selama ini aktif. WAJIB
-    // dikembalikan (uncomment blok di bawah) setelah uji coba selesai.
-    // if (sourceStock < qty) {
-    //   return {
-    //     error: `Stok "${item.item_name}" di ${fromLoc?.name ?? "lokasi asal"} cuma ${sourceStock} ${item.unit}, tidak cukup untuk kirim ${qty} ${item.unit}.`,
-    //   };
-    // }
-
-    const { data: destRow } = await supabase
+      .in("semi_finished_item_id", semiIds),
+    supabase
       .from("semi_finished_item_location_stock")
-      .select("stock")
+      .select("semi_finished_item_id, stock")
       .eq("business_id", businessId)
       .eq("location_id", transfer.to_location_id)
-      .eq("semi_finished_item_id", item.semi_finished_item_id)
-      .maybeSingle();
-    const destStock = Number(destRow?.stock ?? 0);
+      .in("semi_finished_item_id", semiIds),
+  ]);
 
-    const { error: sourceErr } = await supabase
-      .from("semi_finished_item_location_stock")
-      .upsert(
-        {
-          business_id: businessId,
-          location_id: transfer.from_location_id,
-          semi_finished_item_id: item.semi_finished_item_id,
-          stock: sourceStock - qty,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "location_id,semi_finished_item_id" },
-      );
-    if (sourceErr) return { error: sourceErr.message };
+  const sourceStockMap = new Map((sourceRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
+  const destStockMap = new Map((destRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
 
-    const { error: destErr } = await supabase
-      .from("semi_finished_item_location_stock")
-      .upsert(
-        {
-          business_id: businessId,
-          location_id: transfer.to_location_id,
-          semi_finished_item_id: item.semi_finished_item_id,
-          stock: destStock + qty,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "location_id,semi_finished_item_id" },
-      );
-    if (destErr) return { error: destErr.message };
+  // SEMENTARA (buat uji coba, 2026-08-29): cek "stok tidak cukup" dimatikan
+  // -- stok sumber bisa jadi minus selama ini aktif. WAJIB dikembalikan
+  // setelah uji coba selesai (lihat riwayat versi loop-per-item sebelumnya
+  // untuk contoh pesan errornya).
 
-    await supabase.from("stock_adjustments").insert([
+  type AdjustmentRow = {
+    business_id: string; semi_finished_item_id: string; location_id: string;
+    item_name: string; unit: string; stock_before: number; stock_after: number;
+    diff: number; reason: string;
+  };
+  const adjustmentRows: AdjustmentRow[] = [];
+  // Map kumulatif -- kalau kebetulan ada >1 baris item dengan
+  // semi_finished_item_id yang sama dalam satu transfer, koreksinya
+  // dijumlahkan berurutan (bukan saling menimpa / bikin upsert konflik).
+  const sourceNext = new Map<string, number>();
+  const destNext = new Map<string, number>();
+
+  for (const item of sentItems) {
+    const qty = Number(qtySentByItemId[item.id] ?? 0);
+
+    const sourceBefore = sourceNext.get(item.semi_finished_item_id) ?? sourceStockMap.get(item.semi_finished_item_id) ?? 0;
+    const sourceAfter = sourceBefore - qty;
+    sourceNext.set(item.semi_finished_item_id, sourceAfter);
+
+    const destBefore = destNext.get(item.semi_finished_item_id) ?? destStockMap.get(item.semi_finished_item_id) ?? 0;
+    const destAfter = destBefore + qty;
+    destNext.set(item.semi_finished_item_id, destAfter);
+
+    adjustmentRows.push(
       {
         business_id: businessId,
         semi_finished_item_id: item.semi_finished_item_id,
         location_id: transfer.from_location_id,
         item_name: item.item_name,
         unit: item.unit,
-        stock_before: sourceStock,
-        stock_after: sourceStock - qty,
+        stock_before: sourceBefore,
+        stock_after: sourceAfter,
         diff: -qty,
         reason: `Transfer keluar (ke ${toLoc?.name ?? "lokasi lain"})`,
       },
@@ -137,20 +134,50 @@ export async function fulfillLocationTransfer(
         location_id: transfer.to_location_id,
         item_name: item.item_name,
         unit: item.unit,
-        stock_before: destStock,
-        stock_after: destStock + qty,
+        stock_before: destBefore,
+        stock_after: destAfter,
         diff: qty,
         reason: `Transfer masuk (dari ${fromLoc?.name ?? "lokasi lain"})`,
       },
-    ]);
-
-    await supabase.from("location_transfer_items").update({ qty_sent: qty }).eq("id", item.id);
-    anySent = true;
+    );
   }
 
-  if (!anySent) {
-    return { error: "Isi jumlah yang dikirim untuk minimal 1 bahan." };
-  }
+  const nowIso = new Date().toISOString();
+  const [sourceRes, destRes, adjRes] = await Promise.all([
+    supabase.from("semi_finished_item_location_stock").upsert(
+      [...sourceNext.entries()].map(([semi_finished_item_id, stock]) => ({
+        business_id: businessId,
+        location_id: transfer.from_location_id,
+        semi_finished_item_id,
+        stock,
+        updated_at: nowIso,
+      })),
+      { onConflict: "location_id,semi_finished_item_id" },
+    ),
+    supabase.from("semi_finished_item_location_stock").upsert(
+      [...destNext.entries()].map(([semi_finished_item_id, stock]) => ({
+        business_id: businessId,
+        location_id: transfer.to_location_id,
+        semi_finished_item_id,
+        stock,
+        updated_at: nowIso,
+      })),
+      { onConflict: "location_id,semi_finished_item_id" },
+    ),
+    supabase.from("stock_adjustments").insert(adjustmentRows),
+  ]);
+  if (sourceRes.error) return { error: sourceRes.error.message };
+  if (destRes.error) return { error: destRes.error.message };
+  if (adjRes.error) return { error: adjRes.error.message };
+
+  await Promise.all(
+    sentItems.map((item) =>
+      supabase
+        .from("location_transfer_items")
+        .update({ qty_sent: Number(qtySentByItemId[item.id] ?? 0) })
+        .eq("id", item.id),
+    ),
+  );
 
   // dn_number -- pola sama fulfill_location_transfer_public (RPC Portal),
   // biar Surat Jalan tetap dapat nomor terlepas dari staf kirimnya lewat

@@ -47,17 +47,24 @@ export default async function MirrorLaporanJamPage({
     transactions: { date: string; total: number; voided: boolean } | null;
   };
 
-  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
-    service
+  // Filter tanggal di level query (best-effort, sama seperti
+  // laporan-menu/page.tsx) -- dulu halaman ini sama sekali tidak menerapkan
+  // from/to ke query, jadi SELALU menarik seluruh riwayat transaksi bisnis
+  // lewat fetchAllRows walau DateRangeFilter di bawah sudah pilih rentang
+  // tanggal tertentu. Filter JS di loop bawah tetap jadi sumber kebenaran.
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) => {
+    let q = service
       .from("mirror_visible_transactions")
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
           date, total, voided
         )`,
       )
-      .eq("business_id", businessId)
-      .range(from2, to2),
-  );
+      .eq("business_id", businessId);
+    if (from) q = q.gte("transactions.date", `${from}T00:00:00+07:00`);
+    if (to) q = q.lte("transactions.date", `${to}T23:59:59+07:00`);
+    return q.range(from2, to2);
+  });
 
   // Agregasi per jam (WIB = UTC+7)
   const hourMap = new Map<number, { count: number; revenue: number }>();

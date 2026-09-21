@@ -48,7 +48,7 @@ function ProductCard({
     >
       <div className="relative w-full aspect-square bg-zinc-100 flex items-center justify-center overflow-hidden">
         {p.image_url ? (
-          <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+          <img src={p.image_url} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <span className="text-4xl">{p.emoji || "🍽️"}</span>
         )}

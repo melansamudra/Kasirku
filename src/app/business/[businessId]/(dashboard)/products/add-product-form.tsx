@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useEffect, useState } from "react";
 import type { AddProductState } from "./actions";
+import { resizeImageForUpload } from "@/lib/resize-image-client";
 
 const initialState: AddProductState = { error: null };
 
@@ -60,8 +61,9 @@ export default function AddProductForm({
     setImagePreview(URL.createObjectURL(file));
     setUploading(true);
 
+    const resized = await resizeImageForUpload(file);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", resized);
     fd.append("businessId", businessId);
 
     const res = await fetch("/api/upload-product-image", { method: "POST", body: fd });

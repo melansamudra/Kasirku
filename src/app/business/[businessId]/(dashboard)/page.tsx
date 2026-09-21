@@ -43,17 +43,27 @@ export default async function BusinessDashboardPage({
   const { businessId } = await params;
   const supabase = await createClient();
 
-  // Dicek duluan, terpisah dari Promise.all di bawah — business dengan
-  // cost_control_enabled (dapur pusat, tidak jual lewat POS) dialihkan ke
-  // dashboard sendiri sebelum query-query khusus POS (transaksi/kasir/dst)
-  // di bawah ini sempat dijalankan sama sekali.
-  const { data: businessFlag } = await supabase
-    .from("businesses")
-    .select("cost_control_enabled, rich_stock_ops_enabled, hidden_nav_keys")
-    .eq("id", businessId)
-    .single();
+  // Semua kolom "businesses" yang dashboard butuhkan digabung dalam SATU
+  // query — dulu tabel ini di-query 3x terpisah (cek cost_control_enabled,
+  // cek owner_id, lalu name/business_type lagi di dalam Promise.all bawah).
+  // auth.getUser() tidak bergantung ke ini, jadi dijalankan paralel.
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase
+      .from("businesses")
+      .select("id, name, business_type, owner_id, cost_control_enabled, rich_stock_ops_enabled, hidden_nav_keys")
+      .eq("id", businessId)
+      .single(),
+    supabase.auth.getUser(),
+  ]);
 
-  if (businessFlag?.cost_control_enabled) {
+  if (!business) {
+    notFound();
+  }
+
+  // Business dengan cost_control_enabled (dapur pusat, tidak jual lewat POS)
+  // dialihkan ke dashboard sendiri sebelum query-query khusus POS
+  // (transaksi/kasir/dst) di bawah ini sempat dijalankan sama sekali.
+  if (business.cost_control_enabled) {
     return <CostControlDashboard businessId={businessId} />;
   }
 
@@ -61,7 +71,7 @@ export default async function BusinessDashboardPage({
   // lewat POS) lewat hidden_nav_keys — kalau begitu, langkah checklist "Buka
   // Kasir" di bawah ikut disembunyikan juga supaya tidak menagih sesuatu yang
   // sengaja belum dinyalakan.
-  const posHidden = (businessFlag?.hidden_nav_keys ?? []).includes("pos");
+  const posHidden = (business.hidden_nav_keys ?? []).includes("pos");
 
   // Dashboard SELALU bisa diakses staf manapun (lihat isItemAllowed di
   // dashboard-shell.tsx -- dianggap landing page wajib), tapi itu cuma
@@ -77,9 +87,7 @@ export default async function BusinessDashboardPage({
   // permission itu ada, cuma landing page Dashboard-nya yang disembunyikan).
   // Berlaku untuk SEMUA bisnis (arahan user 2026-09-17, dipicu akun kasir
   // Adi's Culinary Pleburan yang masih lihat omset/laba penuh).
-  const { data: userData } = await supabase.auth.getUser();
-  const { data: ownerRow } = await supabase.from("businesses").select("owner_id").eq("id", businessId).single();
-  const isOwner = ownerRow?.owner_id === userData.user?.id;
+  const isOwner = business.owner_id === userData.user?.id;
   let canSeeFinance = isOwner;
   if (!isOwner) {
     const { data: staff } = await supabase
@@ -95,17 +103,17 @@ export default async function BusinessDashboardPage({
   const monthStart = `${today.slice(0, 7)}-01`;
   const daysSoFar = Number(today.slice(8, 10));
 
-  // business, expenses, openShift, dan setup-checklist counts tidak saling
-  // bergantung — semuanya paralel supaya checklist tidak menambah latency.
+  // expenses, openShift, setup-checklist counts, dan transaksi bulan berjalan
+  // tidak saling bergantung — semuanya paralel (transactions dulu baru
+  // dijalankan SETELAH blok ini selesai, padahal sudah bisa ikut dari awal).
   const [
-    { data: business },
     { data: expenses },
     { data: openShift },
     { count: productCount },
     { count: cashierCount },
     { count: txCount30d },
+    { data: transactions },
   ] = await Promise.all([
-    supabase.from("businesses").select("id, name, business_type").eq("id", businessId).single(),
     supabase
       .from("expenses")
       .select("date, category, amount")
@@ -132,18 +140,13 @@ export default async function BusinessDashboardPage({
       .select("id", { count: "exact", head: true })
       .eq("business_id", businessId)
       .eq("voided", false),
+    supabase
+      .from("transactions")
+      .select("date, total")
+      .eq("business_id", businessId)
+      .eq("voided", false)
+      .gte("date", wibStartOfDay(monthStart)),
   ]);
-
-  if (!business) {
-    notFound();
-  }
-
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("date, total")
-    .eq("business_id", businessId)
-    .eq("voided", false)
-    .gte("date", wibStartOfDay(monthStart));
 
   const revenue = (transactions ?? []).reduce((s, t) => s + Number(t.total), 0);
   const txCount = (transactions ?? []).length;

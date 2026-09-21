@@ -69,8 +69,11 @@ export default async function MirrorLaporanMetodeBayarPage({
     } | null;
   };
 
-  const rows = await fetchAllRows<MirrorRow>((from2, to2) =>
-    service
+  // Filter tanggal di level query (best-effort, sama seperti
+  // laporan-menu/page.tsx) -- fromIso/toIsoExclusive tadinya cuma dipakai di
+  // filter JS bawah, tidak pernah dipasang ke query itu sendiri.
+  const rows = await fetchAllRows<MirrorRow>((from2, to2) => {
+    let q = service
       .from("mirror_visible_transactions")
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
@@ -78,9 +81,11 @@ export default async function MirrorLaporanMetodeBayarPage({
           transaction_payments(method, amount)
         )`,
       )
-      .eq("business_id", businessId)
-      .range(from2, to2),
-  );
+      .eq("business_id", businessId);
+    if (fromIso) q = q.gte("transactions.date", fromIso);
+    if (toIsoExclusive) q = q.lt("transactions.date", toIsoExclusive);
+    return q.range(from2, to2);
+  });
 
   // Agregasi per metode bayar
   const methodMap = new Map<string, { txIds: Set<string>; total: number }>();

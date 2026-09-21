@@ -181,7 +181,7 @@ function ItemRow({
       <span className="text-zinc-300 text-sm shrink-0">☰</span>
       <div className="h-8 w-8 shrink-0 rounded-lg bg-zinc-100 overflow-hidden flex items-center justify-center text-base">
         {item.image_url ? (
-          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+          <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           item.emoji || "📦"
         )}

@@ -94,17 +94,23 @@ export default async function MirrorLaporanPage({
     voided: boolean;
   };
 
-  const rows = await fetchAllRows<{ transactions: TxData | null }>((from2, to2) =>
-    service
+  // Filter tanggal di level query (best-effort, sama seperti
+  // laporan-menu/page.tsx) -- fromIso/toIsoExclusive tadinya cuma dipakai di
+  // filter JS bawah, tidak pernah dipasang ke query itu sendiri. Halaman ini
+  // landing page /laporan yang paling sering dibuka, jadi paling berdampak.
+  const rows = await fetchAllRows<{ transactions: TxData | null }>((from2, to2) => {
+    let q = service
       .from("mirror_visible_transactions")
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
           id, date, total, subtotal_raw, subtotal, total_item_disc, order_disc_amt, service, tax, voided
         )`,
       )
-      .eq("business_id", businessId)
-      .range(from2, to2),
-  );
+      .eq("business_id", businessId);
+    if (fromIso) q = q.gte("transactions.date", fromIso);
+    if (toIsoExclusive) q = q.lt("transactions.date", toIsoExclusive);
+    return q.range(from2, to2);
+  });
 
   const txList: TxData[] = rows
     .map((row) => row.transactions)

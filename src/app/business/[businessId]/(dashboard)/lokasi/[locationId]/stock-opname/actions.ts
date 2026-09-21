@@ -294,6 +294,11 @@ export async function rejectStockOpnameEntry(
 // Verifikasi semua laporan pending sekaligus (1 tanggal) -- staf bisa
 // submit puluhan bahan sekali jalan, admin tidak perlu klik satu-satu
 // kalau memang mau terima semuanya apa adanya.
+// Dulu ini loop applyOpnameEntry() satu-per-satu (3 round-trip serial per
+// entry: select stok, tulis stok, insert riwayat). Untuk puluhan bahan
+// sekali verifikasi, itu bisa ratusan round-trip berurutan. Sekarang:
+// 1 query ambil semua entry pending, 1-3 query paralel ambil stok terkini
+// per tipe komponen, lalu tulis semuanya lewat batch upsert/insert.
 export async function verifyAllPendingForDate(
   businessId: string,
   locationId: string,
@@ -309,14 +314,197 @@ export async function verifyAllPendingForDate(
     .eq("entry_date", entryDate)
     .eq("status", "pending");
 
-  for (const entry of entries ?? []) {
-    const applyError = await applyOpnameEntry(supabase, businessId, entry);
-    if (applyError) return { error: applyError };
-    await supabase
-      .from("stock_opname_entries")
-      .update({ status: "verified", verified_at: new Date().toISOString() })
-      .eq("id", entry.id);
+  const pending = entries ?? [];
+  if (pending.length === 0) {
+    revalidatePath(`/business/${businessId}/lokasi/${locationId}/stock-opname`);
+    revalidatePath(`/business/${businessId}/lokasi/${locationId}/kartu-stok`);
+    return { error: null };
   }
+
+  const ingredientIds = new Set<string>();
+  const semiIds = new Set<string>();
+  const warehouseIds = new Set<string>();
+  for (const e of pending) {
+    if (e.component_type === "ingredient" && e.ingredient_id) ingredientIds.add(e.ingredient_id);
+    else if (e.component_type === "semi_finished" && e.semi_finished_item_id) semiIds.add(e.semi_finished_item_id);
+    else if (e.warehouse_item_id) warehouseIds.add(e.warehouse_item_id);
+  }
+
+  const [{ data: ingredientRows }, { data: semiRows }, { data: warehouseRows }] = await Promise.all([
+    ingredientIds.size > 0
+      ? supabase
+          .from("ingredient_location_stock")
+          .select("ingredient_id, stock")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .in("ingredient_id", [...ingredientIds])
+      : Promise.resolve({ data: [] as { ingredient_id: string; stock: number }[] }),
+    semiIds.size > 0
+      ? supabase
+          .from("semi_finished_item_location_stock")
+          .select("semi_finished_item_id, stock")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .in("semi_finished_item_id", [...semiIds])
+      : Promise.resolve({ data: [] as { semi_finished_item_id: string; stock: number }[] }),
+    warehouseIds.size > 0
+      ? supabase
+          .from("warehouse_items")
+          .select("id, stock, name, unit")
+          .eq("business_id", businessId)
+          .in("id", [...warehouseIds])
+      : Promise.resolve({ data: [] as { id: string; stock: number; name: string; unit: string }[] }),
+  ]);
+
+  const ingredientStock = new Map((ingredientRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+  const semiStock = new Map((semiRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
+  const warehouseInfo = new Map((warehouseRows ?? []).map((r) => [r.id, r]));
+
+  type AdjustmentRow = {
+    ingredient_id: string | null;
+    semi_finished_item_id: string | null;
+    warehouse_item_id: string | null;
+    item_name: string;
+    unit: string;
+    stock_before: number;
+    stock_after: number;
+    diff: number;
+    submitted_by_name: string;
+  };
+  const adjustments: AdjustmentRow[] = [];
+  // Kalau kebetulan ada >1 entry pending utk item yang sama di tanggal yang
+  // sama, koreksinya harus DIJUMLAHKAN berurutan (bukan saling menimpa) --
+  // makanya "before" entry berikutnya diambil dari hasil kumulatif entry
+  // sebelumnya, bukan dibaca ulang dari stok yang sama.
+  const ingredientNext = new Map<string, number>();
+  const semiNext = new Map<string, number>();
+  const warehouseNext = new Map<string, number>();
+
+  for (const e of pending) {
+    const correction = Number(e.reported_stock) - Number(e.system_stock_at_report);
+    if (correction === 0) continue;
+
+    if (e.component_type === "ingredient" && e.ingredient_id) {
+      const before = ingredientNext.get(e.ingredient_id) ?? ingredientStock.get(e.ingredient_id) ?? 0;
+      const after = before + correction;
+      ingredientNext.set(e.ingredient_id, after);
+      adjustments.push({
+        ingredient_id: e.ingredient_id,
+        semi_finished_item_id: null,
+        warehouse_item_id: null,
+        item_name: e.item_name,
+        unit: e.unit,
+        stock_before: before,
+        stock_after: after,
+        diff: correction,
+        submitted_by_name: e.submitted_by_name,
+      });
+    } else if (e.component_type === "semi_finished" && e.semi_finished_item_id) {
+      const before = semiNext.get(e.semi_finished_item_id) ?? semiStock.get(e.semi_finished_item_id) ?? 0;
+      const after = before + correction;
+      semiNext.set(e.semi_finished_item_id, after);
+      adjustments.push({
+        ingredient_id: null,
+        semi_finished_item_id: e.semi_finished_item_id,
+        warehouse_item_id: null,
+        item_name: e.item_name,
+        unit: e.unit,
+        stock_before: before,
+        stock_after: after,
+        diff: correction,
+        submitted_by_name: e.submitted_by_name,
+      });
+    } else if (e.warehouse_item_id) {
+      const before = warehouseNext.get(e.warehouse_item_id) ?? warehouseInfo.get(e.warehouse_item_id)?.stock ?? 0;
+      const after = before + correction;
+      warehouseNext.set(e.warehouse_item_id, after);
+      adjustments.push({
+        ingredient_id: null,
+        semi_finished_item_id: null,
+        warehouse_item_id: e.warehouse_item_id,
+        item_name: e.item_name,
+        unit: e.unit,
+        stock_before: before,
+        stock_after: after,
+        diff: correction,
+        submitted_by_name: e.submitted_by_name,
+      });
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const ingredientWrite =
+    ingredientNext.size > 0
+      ? supabase.from("ingredient_location_stock").upsert(
+          [...ingredientNext.entries()].map(([ingredient_id, stock]) => ({
+            business_id: businessId,
+            location_id: locationId,
+            ingredient_id,
+            stock,
+            updated_at: nowIso,
+          })),
+          { onConflict: "location_id,ingredient_id" },
+        )
+      : null;
+  const semiWrite =
+    semiNext.size > 0
+      ? supabase.from("semi_finished_item_location_stock").upsert(
+          [...semiNext.entries()].map(([semi_finished_item_id, stock]) => ({
+            business_id: businessId,
+            location_id: locationId,
+            semi_finished_item_id,
+            stock,
+            updated_at: nowIso,
+          })),
+          { onConflict: "location_id,semi_finished_item_id" },
+        )
+      : null;
+  const warehouseWrite =
+    warehouseNext.size > 0
+      ? supabase.from("warehouse_items").upsert(
+          [...warehouseNext.entries()].map(([id, stock]) => {
+            const info = warehouseInfo.get(id);
+            return {
+              id,
+              business_id: businessId,
+              location_id: locationId,
+              name: info?.name ?? "",
+              unit: info?.unit ?? "",
+              stock,
+              updated_at: nowIso,
+            };
+          }),
+          { onConflict: "id" },
+        )
+      : null;
+  const adjustmentWrite =
+    adjustments.length > 0
+      ? supabase.from("stock_adjustments").insert(
+          adjustments.map((a) => ({
+            business_id: businessId,
+            location_id: locationId,
+            reason: "Stok opname",
+            ...a,
+          })),
+        )
+      : null;
+
+  const noError = { error: null as { message: string } | null };
+  const [ingredientRes, semiRes, warehouseRes, adjRes] = await Promise.all([
+    ingredientWrite ?? Promise.resolve(noError),
+    semiWrite ?? Promise.resolve(noError),
+    warehouseWrite ?? Promise.resolve(noError),
+    adjustmentWrite ?? Promise.resolve(noError),
+  ]);
+  const failed = [ingredientRes, semiRes, warehouseRes, adjRes].find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
+
+  const { error: statusError } = await supabase
+    .from("stock_opname_entries")
+    .update({ status: "verified", verified_at: nowIso })
+    .in("id", pending.map((e) => e.id));
+  if (statusError) return { error: statusError.message };
 
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/stock-opname`);
   revalidatePath(`/business/${businessId}/lokasi/${locationId}/kartu-stok`);

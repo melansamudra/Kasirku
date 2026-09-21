@@ -44,6 +44,41 @@ async function requiresItemBudgetApproval(
   return null;
 }
 
+// Versi batch dari requiresItemBudgetApproval -- dulu forwardAllocationsToSupplier
+// memanggil versi tunggal di dalam loop per item (query "businesses" yang
+// SAMA diulang tiap iterasi, plus 1 query item per iterasi). Untuk alokasi
+// yang mencakup banyak item sekaligus, ini jadi 2 query total, bukan 2×N.
+async function requiresItemsBudgetApproval(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  businessId: string,
+  itemIds: string[],
+): Promise<string | null> {
+  if (itemIds.length === 0) return null;
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("cost_control_enabled, rich_stock_ops_enabled, procurement_budget_gate_enabled")
+    .eq("id", businessId)
+    .single();
+  if (
+    !(business?.cost_control_enabled || business?.rich_stock_ops_enabled) ||
+    !business?.procurement_budget_gate_enabled
+  )
+    return null;
+
+  const { data: items } = await supabase
+    .from("purchase_request_items")
+    .select("item_name, budget_status")
+    .in("id", itemIds)
+    .eq("business_id", businessId);
+
+  const unapproved = (items ?? []).find((item) => item.budget_status !== "approved_in_budget");
+  if (unapproved) {
+    return `"${unapproved.item_name}" belum disetujui Cost Control (APPROVED IN BUDGET). Setujui dulu sebelum alokasi ke supplier.`;
+  }
+  return null;
+}
+
 // Verifikasi & Otorisasi Anggaran (langkah 2 di memo) -- Cost Control
 // menyetujui/menolak PER ITEM (bukan seluruh PR sekaligus) terhadap sisa
 // kuota RAB bulan berjalan. Dulu approver dipilih bebas dari dropdown nama
@@ -446,10 +481,8 @@ export async function forwardAllocationsToSupplier(
   if (!allocations || allocations.length === 0) return { error: "Alokasi tidak ditemukan." };
 
   const involvedItemIds = [...new Set(allocations.map((a) => a.purchase_request_item_id))];
-  for (const involvedItemId of involvedItemIds) {
-    const gateError = await requiresItemBudgetApproval(supabase, businessId, involvedItemId);
-    if (gateError) return { error: gateError };
-  }
+  const gateError = await requiresItemsBudgetApproval(supabase, businessId, involvedItemIds);
+  if (gateError) return { error: gateError };
 
   const supplierId = allocations[0].supplier_id;
   if (!supplierId || allocations.some((a) => a.supplier_id !== supplierId)) {

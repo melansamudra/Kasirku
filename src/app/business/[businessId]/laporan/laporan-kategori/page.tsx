@@ -57,8 +57,13 @@ export default async function MirrorLaporanKategoriPage({
     } | null;
   };
 
-  const rows = await fetchAllRows<MirrorRow>((from, to) =>
-    service
+  // Filter tanggal di level query (best-effort, sama seperti
+  // laporan-menu/page.tsx) -- fromIso/toIsoExclusive sudah dihitung di atas
+  // tapi dulu tidak pernah dipasang ke query, jadi SELALU menarik seluruh
+  // riwayat lewat fetchAllRows walau period tab yang dipilih "Hari Ini".
+  // Filter JS di loop bawah tetap jadi sumber kebenaran.
+  const rows = await fetchAllRows<MirrorRow>((from, to) => {
+    let q = service
       .from("mirror_visible_transactions")
       .select(
         `transactions!mirror_visible_transactions_transaction_id_fkey(
@@ -66,9 +71,11 @@ export default async function MirrorLaporanKategoriPage({
           transaction_items(name, category, qty, price, voided)
         )`,
       )
-      .eq("business_id", businessId)
-      .range(from, to),
-  );
+      .eq("business_id", businessId);
+    if (fromIso) q = q.gte("transactions.date", fromIso);
+    if (toIsoExclusive) q = q.lt("transactions.date", toIsoExclusive);
+    return q.range(from, to);
+  });
 
   // Agregasi per kategori → per nama menu
   type MenuEntry = { qty: number; revenue: number };

@@ -1069,7 +1069,6 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
     { data: discountRuleRows },
     { data: printerRows },
     { data: businessRow },
-    { data: optionGroupRows },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -1107,23 +1106,30 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
       .select("self_order_enabled")
       .eq("id", businessId)
       .single(),
-    supabase
-      .from("product_option_groups")
-      .select("id, product_id, name, required, sort_order, product_options(id, name, price_adjustment, sort_order)")
-      .in("product_id",
-        // akan diisi setelah produk di-load; pakai subquery via join tidak tersedia di Supabase JS,
-        // jadi kita ambil semua grup milik bisnis lewat join ke products
-        (await supabase
-          .from("products")
-          .select("id")
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .then((r) => (r.data ?? []).map((p) => p.id)))
-      )
-      .order("sort_order", { ascending: true }),
   ]);
 
   const printers = printerRows ?? [];
+
+  // productIds sudah tersedia dari hasil query products di atas — tidak perlu
+  // query ulang khusus id (dulu ini nested await di dalam array Promise.all
+  // yang malah memaksa 1 round-trip serial sebelum batch paralel sempat mulai).
+  const productIds = (products ?? []).map((p) => p.id);
+
+  const [{ data: optionGroupRows }, { data: links }] = await Promise.all([
+    productIds.length > 0
+      ? supabase
+          .from("product_option_groups")
+          .select("id, product_id, name, required, sort_order, product_options(id, name, price_adjustment, sort_order)")
+          .in("product_id", productIds)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [] as never[] }),
+    productIds.length > 0
+      ? supabase
+          .from("product_global_modifier_links")
+          .select("product_id, group_id")
+          .in("product_id", productIds)
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
 
   const rawGroups = (optionGroupRows ?? []) as {
     id: string; product_id: string; name: string; required: boolean; sort_order: number;
@@ -1140,13 +1146,7 @@ export async function getPosCatalog(businessId: string): Promise<PosCatalog> {
   }));
 
   // Load global modifier groups linked to any product of this business
-  const productIds = (products ?? []).map((p) => p.id);
-  if (productIds.length > 0) {
-    const { data: links } = await supabase
-      .from("product_global_modifier_links")
-      .select("product_id, group_id")
-      .in("product_id", productIds);
-
+  {
     if (links && links.length > 0) {
       const groupIds = [...new Set(links.map((l) => l.group_id))];
       const { data: globalGroups } = await supabase
