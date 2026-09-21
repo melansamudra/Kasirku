@@ -11,6 +11,7 @@ export default function PayrollDeductionsForm({
   izinDeductionWeekday,
   izinDeductionWeekend,
   lateDeductionPerOccurrence,
+  lateDeductionPerMinute,
   lemburRatePerHour,
 }: {
   action: (state: PayrollDeductionsState, formData: FormData) => Promise<PayrollDeductionsState>;
@@ -18,6 +19,7 @@ export default function PayrollDeductionsForm({
   izinDeductionWeekday: number;
   izinDeductionWeekend: number;
   lateDeductionPerOccurrence: number;
+  lateDeductionPerMinute: number;
   lemburRatePerHour: number;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -116,7 +118,27 @@ export default function PayrollDeductionsForm({
         />
         <p className="mt-1 text-[11px] text-zinc-400">
           Dihitung otomatis dari berapa kali karyawan ditandai &quot;Terlambat&quot; di halaman
-          Absensi.
+          Absensi. Diabaikan kalau field &quot;Rp per Menit Terlambat&quot; di bawah diisi.
+        </p>
+      </div>
+      <div className="border-t border-zinc-100 pt-4">
+        <label htmlFor="lateDeductionPerMinute" className="mb-1 block text-xs font-medium text-zinc-600">
+          Rp per Menit Terlambat (opsional)
+        </label>
+        <input
+          id="lateDeductionPerMinute"
+          name="lateDeductionPerMinute"
+          type="number"
+          min="0"
+          step="1"
+          defaultValue={lateDeductionPerMinute}
+          placeholder="0"
+          className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Kalau diisi &gt; 0, potongan telat = menit telat × angka ini (linear, tanpa plafon) —
+          menggantikan Potongan per Kali Terlambat DAN Tingkatan Potongan Keterlambatan di bawah.
+          Kosongkan/0 kalau mau pakai salah satu dari dua cara itu.
         </p>
       </div>
       <div className="border-t border-zinc-100 pt-4">

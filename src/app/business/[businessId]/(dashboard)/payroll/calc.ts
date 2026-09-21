@@ -35,27 +35,39 @@ export type PayrollSettings = {
   // untuk tanggal merah di Kalender Libur Payroll. Lihat izinWeekendPenalty
   // di calcPayslip.
   izinDeductionWeekend: number;
-  // Dipakai kalau lateTiers kosong (bisnis belum sempat atur tingkatan
-  // custom) — potongan flat per hari telat, tidak peduli berapa menitnya.
+  // Dipakai kalau lateDeductionPerMinute = 0 DAN lateTiers kosong —
+  // potongan flat per hari telat, tidak peduli berapa menitnya.
   lateDeductionPerOccurrence: number;
-  // Tingkatan custom: "lebih dari N menit = Rp Y". Kalau ada isinya, ini
-  // yang dipakai (bukan lateDeductionPerOccurrence) — dicari tier dengan
-  // thresholdMinutes terbesar yang masih lebih kecil dari menit telat hari
-  // itu. Nominal per tingkat bebas sama atau beda.
+  // Tingkatan custom: "lebih dari N menit = Rp Y". Dipakai kalau
+  // lateDeductionPerMinute = 0 dan ada isinya (bukan lateDeductionPerOccurrence)
+  // — dicari tier dengan thresholdMinutes terbesar yang masih lebih kecil
+  // dari menit telat hari itu. Nominal per tingkat bebas sama atau beda.
   lateTiers: LateTier[];
+  // Rate linear per menit telat (mis. Rp1.000/menit -> telat 5 menit =
+  // Rp5.000). Kalau > 0, ini PALING PRIORITAS dipakai (lateTiers &
+  // lateDeductionPerOccurrence diabaikan) — cara paling simpel buat bisnis
+  // yang mau potongan sebanding lurus dengan menit telat, tanpa harus
+  // mendaftar puluhan baris tingkatan satu-satu per menit.
+  lateDeductionPerMinute: number;
 };
 
-// "> N menit = Rp Y" — cari tier tertinggi yang thresholdnya masih
-// terlampaui. Tidak ada tier yang cocok (mis. telat 3 menit tapi tier
-// termurah "> 5 menit") = 0, tidak kena potongan.
+// Prioritas: rate per-menit (linear, minutes * rate) > tingkatan custom
+// ("> N menit = Rp Y", cari tier tertinggi yang thresholdnya masih
+// terlampaui) > flatFallback (potongan sama rata tidak peduli menitnya).
 //
 // Dipanggil cuma kalau r.late sudah true (lihat calcPayslip), jadi kalau
-// tidak ada Tingkatan Custom (mode flat), langsung pakai flatFallback --
+// tidak ada rate/tingkatan (mode flat), langsung pakai flatFallback --
 // TIDAK disyaratkan minutes > 0 dulu. late_minutes sering 0 kalau telat
 // ditandai manual lewat tombol "Tandai Terlambat" (bukan dari absen selfie
 // yang otomatis hitung menitnya) -- sebelumnya itu bikin potongan flat
 // gagal kena walau sudah ditandai terlambat.
-function lateDeductionForMinutes(minutes: number, tiers: LateTier[], flatFallback: number): number {
+function lateDeductionForMinutes(
+  minutes: number,
+  tiers: LateTier[],
+  flatFallback: number,
+  perMinute: number,
+): number {
+  if (perMinute > 0) return minutes * perMinute;
   if (tiers.length === 0) return flatFallback;
   const sorted = [...tiers].sort((a, b) => a.thresholdMinutes - b.thresholdMinutes);
   let amount = 0;
@@ -177,7 +189,12 @@ export function calcPayslip(
     }
     if (r.late) {
       lateCount += 1;
-      lateDeduction += lateDeductionForMinutes(r.lateMinutes, settings.lateTiers, settings.lateDeductionPerOccurrence);
+      lateDeduction += lateDeductionForMinutes(
+        r.lateMinutes,
+        settings.lateTiers,
+        settings.lateDeductionPerOccurrence,
+        settings.lateDeductionPerMinute,
+      );
     }
   }
 

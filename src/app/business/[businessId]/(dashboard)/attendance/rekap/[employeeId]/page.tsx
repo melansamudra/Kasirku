@@ -119,7 +119,7 @@ export default async function EmployeeAttendanceRekapPage({
       .maybeSingle(),
     supabase
       .from("businesses")
-      .select("izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence")
+      .select("izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, late_deduction_per_minute")
       .eq("id", businessId)
       .single(),
     supabase
@@ -204,6 +204,7 @@ export default async function EmployeeAttendanceRekapPage({
         thresholdMinutes: t.threshold_minutes,
         amount: Number(t.amount),
       })),
+      lateDeductionPerMinute: Number(business.late_deduction_per_minute),
     },
     weekendDaysForBusiness(businessId),
     new Set((holidayRows ?? []).map((h) => h.holiday_date)),

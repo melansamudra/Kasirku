@@ -360,6 +360,7 @@ export type Database = {
           izin_deduction_weekday: number;
           izin_deduction_weekend: number;
           late_deduction_per_occurrence: number;
+          late_deduction_per_minute: number;
           lembur_rate_per_hour: number;
           attendance_qr_slug: string | null;
           purchase_request_slug: string | null;
@@ -413,6 +414,7 @@ export type Database = {
           izin_deduction_weekday?: number;
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
+          late_deduction_per_minute?: number;
           lembur_rate_per_hour?: number;
           attendance_qr_slug?: string | null;
           purchase_request_slug?: string | null;
@@ -466,6 +468,7 @@ export type Database = {
           izin_deduction_weekday?: number;
           izin_deduction_weekend?: number;
           late_deduction_per_occurrence?: number;
+          late_deduction_per_minute?: number;
           lembur_rate_per_hour?: number;
           attendance_qr_slug?: string | null;
           purchase_request_slug?: string | null;

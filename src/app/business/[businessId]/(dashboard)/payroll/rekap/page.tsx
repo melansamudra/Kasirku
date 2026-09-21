@@ -77,7 +77,7 @@ export default async function PayrollRekapPage({
     supabase
       .from("businesses")
       .select(
-        "name, izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+        "name, izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, late_deduction_per_minute, lembur_rate_per_hour",
       )
       .eq("id", businessId)
       .single(),
@@ -234,6 +234,7 @@ export default async function PayrollRekapPage({
       thresholdMinutes: t.threshold_minutes,
       amount: Number(t.amount),
     })),
+    lateDeductionPerMinute: Number(business.late_deduction_per_minute),
   };
 
   const rows = (employees ?? []).map((e) => {

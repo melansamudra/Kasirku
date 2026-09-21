@@ -18,6 +18,7 @@ export async function updatePayrollDeductions(
   const izinWeekday = Number(formData.get("izinDeductionWeekday"));
   const izinWeekend = Number(formData.get("izinDeductionWeekend"));
   const latePerOccurrence = Number(formData.get("lateDeductionPerOccurrence"));
+  const latePerMinute = Number(formData.get("lateDeductionPerMinute"));
   const lemburRate = Number(formData.get("lemburRatePerHour"));
 
   if (Number.isNaN(izinWeekday) || izinWeekday < 0) {
@@ -28,6 +29,9 @@ export async function updatePayrollDeductions(
   }
   if (Number.isNaN(latePerOccurrence) || latePerOccurrence < 0) {
     return { error: "Potongan per keterlambatan harus angka 0 atau lebih.", saved: false };
+  }
+  if (Number.isNaN(latePerMinute) || latePerMinute < 0) {
+    return { error: "Potongan per menit terlambat harus angka 0 atau lebih.", saved: false };
   }
   if (Number.isNaN(lemburRate) || lemburRate < 0) {
     return { error: "Rate lembur per jam (default) harus angka 0 atau lebih.", saved: false };
@@ -41,6 +45,7 @@ export async function updatePayrollDeductions(
       izin_deduction_weekday: izinWeekday,
       izin_deduction_weekend: izinWeekend,
       late_deduction_per_occurrence: latePerOccurrence,
+      late_deduction_per_minute: latePerMinute,
       lembur_rate_per_hour: lemburRate,
     })
     .eq("id", businessId);
@@ -241,7 +246,7 @@ export async function createPayslip(
     supabase
       .from("businesses")
       .select(
-        "izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, lembur_rate_per_hour",
+        "izin_deduction_mode, izin_deduction_weekday, izin_deduction_weekend, late_deduction_per_occurrence, late_deduction_per_minute, lembur_rate_per_hour",
       )
       .eq("id", businessId)
       .single(),
@@ -322,6 +327,7 @@ export async function createPayslip(
         thresholdMinutes: t.threshold_minutes,
         amount: Number(t.amount),
       })),
+      lateDeductionPerMinute: Number(business.late_deduction_per_minute),
     },
     weekendDaysForBusiness(businessId),
     new Set((holidayRows ?? []).map((h) => h.holiday_date)),
