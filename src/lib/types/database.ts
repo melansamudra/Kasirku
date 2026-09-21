@@ -818,6 +818,47 @@ export type Database = {
           },
         ];
       };
+      employee_meal_advances: {
+        Row: {
+          id: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note: string | null;
+          journal_entry_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note?: string | null;
+          journal_entry_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          employee_id?: string;
+          date?: string;
+          amount?: number;
+          note?: string | null;
+          journal_entry_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "employee_meal_advances_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       employee_recurring_allowances: {
         Row: {
           id: string;

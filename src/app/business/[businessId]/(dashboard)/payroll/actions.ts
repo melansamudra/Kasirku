@@ -266,6 +266,19 @@ export async function createPayslip(
       .gt("amount", 0),
   ]);
 
+  // Uang Makan yang sudah diambil tunai di periode ini (lihat
+  // addMealAdvance di employees/actions.ts) mengurangi baris "Tunjangan
+  // Makan" di bawah -- supaya karyawan tidak dobel dapat (tunai + penuh
+  // lagi di slip).
+  const { data: mealAdvanceRows } = await supabase
+    .from("employee_meal_advances")
+    .select("amount")
+    .eq("business_id", businessId)
+    .eq("employee_id", employeeId)
+    .gte("date", periodStart)
+    .lte("date", periodEnd);
+  const mealAdvanceTaken = (mealAdvanceRows ?? []).reduce((s, a) => s + Number(a.amount), 0);
+
   if (!employee) {
     return { success: false, error: "Karyawan tidak ditemukan." };
   }
@@ -369,7 +382,8 @@ export async function createPayslip(
         payslip_id: payslip.id,
         type: "tunjangan",
         label: a.label,
-        amount: a.amount,
+        amount:
+          a.label === "Tunjangan Makan" ? Math.max(0, a.amount - mealAdvanceTaken) : a.amount,
       })),
     );
   }

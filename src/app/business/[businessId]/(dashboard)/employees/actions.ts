@@ -319,6 +319,87 @@ export async function addPersonalLoan(
   return { error: null };
 }
 
+export type AddMealAdvanceState = { error: string | null };
+
+// Uang Makan Bulanan -- ambil tunai dari jatah "Tunjangan Makan" bulan
+// berjalan. BEDA dari Pinjaman Pribadi (tidak menyentuh kas/jurnal sama
+// sekali): ini kas beneran keluar, jadi langsung diposting sebagai Beban
+// Gaji begitu dicatat (source 'payroll', sama seperti gaji biasa -- bukan
+// pola Kasbon yang lewat suspense/piutang karena ini bukan pinjaman). Sisa
+// jatah yang belum diambil di akhir periode otomatis ditambahkan ke baris
+// "Tunjangan Makan" saat slip gaji dibuat (lihat createPayslip di
+// payroll/actions.ts) supaya totalnya pas, tidak dobel bayar.
+export async function addMealAdvance(
+  businessId: string,
+  employeeId: string,
+  _prevState: AddMealAdvanceState,
+  formData: FormData,
+): Promise<AddMealAdvanceState> {
+  const amount = Number(formData.get("amount"));
+  const note = (formData.get("note") as string)?.trim();
+  const date = new Date().toISOString().slice(0, 10);
+
+  if (Number.isNaN(amount) || amount <= 0) {
+    return { error: "Nominal harus angka lebih dari 0." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("name")
+    .eq("id", employeeId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (!employee) {
+    return { error: "Karyawan tidak ditemukan." };
+  }
+
+  const { data: entryId, error: journalError } = await supabase.rpc("post_journal_entry", {
+    p_business_id: businessId,
+    p_date: date,
+    p_description: `Uang Makan: ${employee.name}`,
+    p_lines: [
+      { account_code: "5-100", debit: amount, credit: 0 },
+      { account_code: "1-001", debit: 0, credit: amount },
+    ],
+    p_source: "payroll",
+  });
+
+  if (journalError) {
+    return { error: journalError.message };
+  }
+
+  const { error } = await supabase.from("employee_meal_advances").insert({
+    business_id: businessId,
+    employee_id: employeeId,
+    date,
+    amount,
+    note: note || null,
+    journal_entry_id: entryId ?? null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "info",
+    `Uang makan diambil: ${employee.name}`,
+    `Rp${amount.toLocaleString("id-ID")}${note ? ` — ${note}` : ""}`,
+  );
+
+  revalidatePath(`/business/${businessId}/employees`);
+  revalidatePath(`/business/${businessId}/payroll`);
+  revalidatePath(`/business/${businessId}/payroll/rekap`);
+  revalidatePath(`/business/${businessId}/accounting/jurnal`);
+  return { error: null };
+}
+
 export type AddRecurringAllowanceState = { error: string | null };
 
 // Tunjangan Tetap -- template yang otomatis disalin ke payslip_adjustments

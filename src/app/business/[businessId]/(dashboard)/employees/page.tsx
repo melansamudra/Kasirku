@@ -10,6 +10,15 @@ import ToggleActiveButton from "./toggle-active-button";
 import DeleteEmployeeButton from "./delete-employee-button";
 import PersonalLoanButton from "./personal-loan-button";
 import RecurringAllowancesButton from "./recurring-allowances-button";
+import MealAdvanceButton from "./meal-advance-button";
+
+function currentMonthRange() {
+  const now = new Date();
+  const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const end = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { start, end };
+}
 
 export default async function EmployeesPage({
   params,
@@ -77,6 +86,24 @@ export default async function EmployeesPage({
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
+  // Uang Makan Bulanan -- jatahnya dari Tunjangan Tetap berlabel "Tunjangan
+  // Makan", sisanya dihitung dari yang sudah diambil tunai bulan berjalan
+  // (lihat meal-advance-button.tsx & addMealAdvance di actions.ts).
+  const { start: mealMonthStart, end: mealMonthEnd } = currentMonthRange();
+  const { data: mealAdvancesThisMonth } = await supabase
+    .from("employee_meal_advances")
+    .select("employee_id, amount")
+    .eq("business_id", businessId)
+    .gte("date", mealMonthStart)
+    .lte("date", mealMonthEnd);
+  const mealAdvanceTakenByEmployee = new Map<string, number>();
+  for (const a of mealAdvancesThisMonth ?? []) {
+    mealAdvanceTakenByEmployee.set(
+      a.employee_id,
+      (mealAdvanceTakenByEmployee.get(a.employee_id) ?? 0) + Number(a.amount),
+    );
+  }
+
   const recurringAllowancesByEmployee = new Map<
     string,
     { id: string; label: string; amount: number; active: boolean }[]
@@ -125,6 +152,9 @@ export default async function EmployeesPage({
         {employees && employees.length > 0 ? (
           employees.map((e) => {
             const linkedCashierName = (e.cashiers as unknown as { name: string } | null)?.name;
+            const mealQuota = (recurringAllowancesByEmployee.get(e.id) ?? []).find(
+              (a) => a.active && a.label === "Tunjangan Makan",
+            );
             return (
               <div
                 key={e.id}
@@ -166,6 +196,14 @@ export default async function EmployeesPage({
                       employeeId={e.id}
                       allowances={recurringAllowancesByEmployee.get(e.id) ?? []}
                     />
+                    {mealQuota && mealQuota.amount > 0 && (
+                      <MealAdvanceButton
+                        businessId={businessId}
+                        employeeId={e.id}
+                        quota={mealQuota.amount}
+                        taken={mealAdvanceTakenByEmployee.get(e.id) ?? 0}
+                      />
+                    )}
                     {business.personal_loan_enabled && (
                       <PersonalLoanButton
                         businessId={businessId}

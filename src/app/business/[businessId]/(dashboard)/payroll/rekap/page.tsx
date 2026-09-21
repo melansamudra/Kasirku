@@ -129,10 +129,30 @@ export default async function PayrollRekapPage({
       .gt("amount", 0),
   ]);
 
+  // Uang Makan yang sudah diambil tunai bulan ini -- dikurangkan dari
+  // estimasi "Tunjangan Makan" di bawah, sama seperti createPayslip
+  // beneran (lihat payroll/actions.ts), supaya estimasi di rekap ini tidak
+  // overstated dibanding slip final nanti.
+  const { data: mealAdvanceRows } = await supabase
+    .from("employee_meal_advances")
+    .select("employee_id, amount")
+    .eq("business_id", businessId)
+    .gte("date", monthStart)
+    .lte("date", monthEnd);
+  const mealAdvanceTakenByEmployee = new Map<string, number>();
+  for (const a of mealAdvanceRows ?? []) {
+    mealAdvanceTakenByEmployee.set(
+      a.employee_id,
+      (mealAdvanceTakenByEmployee.get(a.employee_id) ?? 0) + Number(a.amount),
+    );
+  }
+
   const recurringAllowancesByEmployee = new Map<string, { label: string; amount: number }[]>();
   for (const a of recurringAllowances ?? []) {
+    const taken = mealAdvanceTakenByEmployee.get(a.employee_id) ?? 0;
+    const amount = a.label === "Tunjangan Makan" ? Math.max(0, Number(a.amount) - taken) : Number(a.amount);
     const list = recurringAllowancesByEmployee.get(a.employee_id) ?? [];
-    list.push({ label: a.label, amount: Number(a.amount) });
+    list.push({ label: a.label, amount });
     recurringAllowancesByEmployee.set(a.employee_id, list);
   }
 
