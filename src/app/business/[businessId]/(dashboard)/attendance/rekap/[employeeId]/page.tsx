@@ -263,14 +263,9 @@ export default async function EmployeeAttendanceRekapPage({
           <p className="text-[9px] font-semibold uppercase text-zinc-500">Total Jam Kerja</p>
           <p className="text-base font-bold text-zinc-800">{formatJam(totalJamKerja)}</p>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 print:py-1.5">
-          <p className="text-[9px] font-semibold uppercase text-amber-700">Potongan Izin</p>
-          <p className="text-base font-bold text-amber-700">{formatRupiah(calc.izinDeduction)}</p>
-          {calc.izinWeekendPenalty > 0 && (
-            <p className="text-[9px] text-amber-600">
-              + {formatRupiah(calc.izinWeekendPenalty)} denda weekend
-            </p>
-          )}
+        <div className="rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 print:py-1.5">
+          <p className="text-[9px] font-semibold uppercase text-brand-700">Total Jam Lembur</p>
+          <p className="text-base font-bold text-brand-700">{formatJam(totalLembur)}</p>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 print:py-1.5">
           <p className="text-[9px] font-semibold uppercase text-red-600">Potongan Telat</p>
@@ -342,6 +337,7 @@ export default async function EmployeeAttendanceRekapPage({
               employeeName={formatDayLabel(dateStr)}
               currentStatus={(row?.status as AttendanceStatus) ?? null}
               late={row?.late ?? false}
+              lateMinutes={Number(row?.late_minutes ?? 0)}
               note={row?.note ?? null}
               action={setAttendance.bind(null, businessId, employeeId, dateStr)}
               lateAction={setAttendanceLate.bind(null, businessId, employeeId, dateStr)}

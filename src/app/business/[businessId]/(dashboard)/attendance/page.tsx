@@ -165,6 +165,7 @@ export default async function AttendancePage({
                 employeeName={e.name}
                 currentStatus={statusByEmployee.get(e.id) ?? null}
                 late={lateByEmployee.get(e.id) ?? false}
+                lateMinutes={selfieByEmployee.get(e.id)?.lateMinutes ?? 0}
                 note={noteByEmployee.get(e.id) ?? null}
                 action={setAttendance.bind(null, businessId, e.id, date)}
                 noteAction={setAttendanceNote.bind(null, businessId, e.id, date)}

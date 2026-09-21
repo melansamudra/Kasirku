@@ -134,12 +134,21 @@ export async function setAttendanceNote(
   return { error: null };
 }
 
+// Nerima menit terlambat langsung (bukan cuma boolean) -- potongan telat di
+// payroll/calc.ts bisa berbasis tingkatan menit (late_deduction_tiers), jadi
+// nandain "telat" tanpa menit bikin potongannya gagal kena kalau bisnisnya
+// pakai tingkatan (lihat komentar lateDeductionForMinutes). 0 menit = hapus
+// tanda telat.
 export async function setAttendanceLate(
   businessId: string,
   employeeId: string,
   date: string,
-  late: boolean,
+  lateMinutes: number,
 ): Promise<{ error: string | null }> {
+  if (Number.isNaN(lateMinutes) || lateMinutes < 0) {
+    return { error: "Menit terlambat harus angka 0 atau lebih." };
+  }
+
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -154,13 +163,17 @@ export async function setAttendanceLate(
     return { error: "Tandai Hadir dulu sebelum menandai terlambat." };
   }
 
-  const { error } = await supabase.from("attendance").update({ late }).eq("id", existing.id);
+  const { error } = await supabase
+    .from("attendance")
+    .update({ late: lateMinutes > 0, late_minutes: lateMinutes })
+    .eq("id", existing.id);
 
   if (error) {
     return { error: error.message };
   }
 
   revalidatePath(`/business/${businessId}/attendance`);
+  revalidatePath(`/business/${businessId}/attendance/rekap`);
   return { error: null };
 }
 

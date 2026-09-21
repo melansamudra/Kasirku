@@ -64,6 +64,7 @@ export default function AttendanceRow({
   employeeName,
   currentStatus,
   late,
+  lateMinutes,
   note,
   action,
   noteAction,
@@ -78,10 +79,11 @@ export default function AttendanceRow({
   employeeName: string;
   currentStatus: AttendanceStatus | null;
   late: boolean;
+  lateMinutes?: number;
   note?: string | null;
   action: (status: AttendanceStatus) => Promise<{ error: string | null }>;
   noteAction?: (note: string) => Promise<{ error: string | null }>;
-  lateAction: (late: boolean) => Promise<{ error: string | null }>;
+  lateAction: (lateMinutes: number) => Promise<{ error: string | null }>;
   selfie?: SelfieInfo | null;
   verifyAction?: () => Promise<{ error: string | null }>;
   deleteSelfieAction?: () => Promise<{ error: string | null }>;
@@ -100,6 +102,8 @@ export default function AttendanceRow({
   const [noteSaved, setNoteSaved] = useState(true);
   const [editingOvertime, setEditingOvertime] = useState(false);
   const [overtimeDraft, setOvertimeDraft] = useState(overtimeHours ? String(overtimeHours) : "");
+  const [editingLate, setEditingLate] = useState(false);
+  const [lateDraft, setLateDraft] = useState(lateMinutes ? String(lateMinutes) : "");
 
   function handleSaveTime() {
     if (!timeAction) return;
@@ -155,14 +159,29 @@ export default function AttendanceRow({
     });
   }
 
-  function handleToggleLate() {
+  function handleSaveLate() {
     setError(null);
     startTransition(async () => {
-      const result = await lateAction(!late);
+      const result = await lateAction(Number(lateDraft) || 0);
       if (result.error) {
         setError(result.error);
         return;
       }
+      setEditingLate(false);
+      router.refresh();
+    });
+  }
+
+  function handleClearLate() {
+    setError(null);
+    setLateDraft("");
+    startTransition(async () => {
+      const result = await lateAction(0);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setEditingLate(false);
       router.refresh();
     });
   }
@@ -210,7 +229,7 @@ export default function AttendanceRow({
           )}
           {currentStatus === "hadir" && (
             <button
-              onClick={handleToggleLate}
+              onClick={() => setEditingLate((v) => !v)}
               disabled={isPending}
               className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
                 late
@@ -218,7 +237,7 @@ export default function AttendanceRow({
                   : "border-zinc-200 text-zinc-400 hover:border-zinc-300"
               }`}
             >
-              {late ? "⏰ Terlambat" : "Tandai Terlambat"}
+              {late && lateMinutes ? `⏰ Terlambat ${lateMinutes} mnt` : late ? "⏰ Terlambat" : "Tandai Terlambat"}
             </button>
           )}
           {currentStatus === "hadir" && overtimeAction && (
@@ -236,6 +255,39 @@ export default function AttendanceRow({
           )}
         </div>
       </div>
+
+      {currentStatus === "hadir" && editingLate && (
+        <div className="mt-2 flex items-end gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+          <div className="flex-1">
+            <label className="mb-1 block text-[10px] font-medium text-zinc-500">Telat Berapa Menit</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={lateDraft}
+              onChange={(e) => setLateDraft(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          {late && (
+            <button
+              onClick={handleClearLate}
+              disabled={isPending}
+              className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-50"
+            >
+              Hapus
+            </button>
+          )}
+          <button
+            onClick={handleSaveLate}
+            disabled={isPending}
+            className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+          >
+            Simpan
+          </button>
+        </div>
+      )}
 
       {currentStatus === "hadir" && overtimeAction && editingOvertime && (
         <div className="mt-2 flex items-end gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
