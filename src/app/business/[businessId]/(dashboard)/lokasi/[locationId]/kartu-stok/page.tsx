@@ -324,6 +324,7 @@ export default async function LocationKartuStokPage({
     { data: locationSectionRows },
     { data: ingredientSectionRows },
     { data: semiFinishedSectionRows },
+    { data: bsjMirrorRows },
   ] = await Promise.all([
     fetchAllRows<{
       ingredient_id: string | null;
@@ -364,7 +365,19 @@ export default async function LocationKartuStokPage({
     supabase.from("stock_location_opname_sections").select("section_id").eq("business_id", businessId).eq("location_id", locationId),
     supabase.from("ingredient_opname_section_items").select("ingredient_id, section_id").eq("business_id", businessId),
     supabase.from("semi_finished_item_opname_section_items").select("semi_finished_item_id, section_id").eq("business_id", businessId),
+    // Dipakai buat pengelompokan tampilan di KartuStokList (bukan filter) --
+    // baris kembaran BSJ (componentType "ingredient" karena angka
+    // pergerakannya beneran di ingredient_location_stock) tetap mau
+    // ditampilkan di bawah heading "Bahan Setengah Jadi", bukan "Bahan
+    // Baku", supaya sesuai kategori aslinya.
+    supabase
+      .from("semi_finished_items")
+      .select("ingredient_id")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .not("ingredient_id", "is", null),
   ]);
+  const bsjMirrorIngredientIds = (bsjMirrorRows ?? []).map((r) => r.ingredient_id as string);
 
   // Lokasi diikat ke Bagian tertentu (sama pola dengan halaman Bahan Baku) --
   // baris bahan baku MAUPUN BSJ ikut dipangkas supaya konsisten dengan
@@ -647,7 +660,7 @@ export default async function LocationKartuStokPage({
           )}
 
           <div className="mt-4">
-            <KartuStokList items={list} />
+            <KartuStokList items={list} bsjMirrorIds={bsjMirrorIngredientIds} />
           </div>
         </>
       ) : (
@@ -677,7 +690,7 @@ export default async function LocationKartuStokPage({
             Setengah Jadi belum tercakup di tab ini.
           </p>
           <div className="mt-4">
-            <KartuStokList items={rekonsilRows} />
+            <KartuStokList items={rekonsilRows} bsjMirrorIds={bsjMirrorIngredientIds} />
           </div>
         </>
       )}

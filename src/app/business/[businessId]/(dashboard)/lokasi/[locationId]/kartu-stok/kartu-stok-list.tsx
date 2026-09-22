@@ -40,6 +40,7 @@ export type KartuStokRow = {
 export default function KartuStokList({
   items,
   businessId,
+  bsjMirrorIds,
 }: {
   items: KartuStokRow[];
   // Kalau diisi, baris dengan opname pending dapat cekbox+tombol
@@ -48,8 +49,14 @@ export default function KartuStokList({
   // (Client Component) -- makanya EntryActions di-render langsung di
   // dalam, bukan lewat render-prop dari pemanggil.
   businessId?: string;
+  // Id ingredient yang sebenarnya kembaran otomatis BSJ -- baris ini
+  // componentType-nya "ingredient" (angka pergerakannya beneran di situ),
+  // tapi buat pengelompokan tampilan tetap dianggap masuk grup "Bahan
+  // Setengah Jadi", bukan "Bahan Baku", sesuai kategori aslinya.
+  bsjMirrorIds?: string[];
 }) {
   const [query, setQuery] = useState("");
+  const bsjMirrorIdSet = useMemo(() => new Set(bsjMirrorIds ?? []), [bsjMirrorIds]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,8 +70,10 @@ export default function KartuStokList({
   // Pembatas cuma ditampilkan kalau dua-duanya ada isinya (kalau cuma satu
   // jenis, mis. Gudang standalone yang isinya warehouse_item semua, gak
   // perlu heading kosong).
-  const ingredientItems = filtered.filter((i) => i.componentType === "ingredient");
-  const semiFinishedItems = filtered.filter((i) => i.componentType === "semi_finished");
+  const isBsjGroup = (i: KartuStokRow) =>
+    i.componentType === "semi_finished" || (i.componentType === "ingredient" && bsjMirrorIdSet.has(i.id));
+  const ingredientItems = filtered.filter((i) => i.componentType === "ingredient" && !isBsjGroup(i));
+  const semiFinishedItems = filtered.filter(isBsjGroup);
   const otherItems = filtered.filter((i) => i.componentType === "warehouse_item");
   const showGroupHeadings = ingredientItems.length > 0 && semiFinishedItems.length > 0;
 
