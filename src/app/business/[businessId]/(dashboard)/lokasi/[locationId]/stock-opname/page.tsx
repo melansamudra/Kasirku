@@ -198,7 +198,7 @@ export default async function LocationStockOpnamePage({
   let locationSections: { id: string; name: string }[] = [];
   let selectedSectionId: string | null = null;
   if (!isStandaloneWarehouse) {
-    const [ingredientRows, { data: stockRows }, { data: locationSectionRows }, { data: sectionItemRows }] =
+    const [ingredientRows, { data: stockRows }, { data: locationSectionRows }, { data: sectionItemRows }, { data: bsjMirrorRows }] =
       await Promise.all([
         fetchAllRows((from, to) =>
           supabase
@@ -229,6 +229,16 @@ export default async function LocationStockOpnamePage({
           .from("ingredient_opname_section_items")
           .select("ingredient_id, section_id")
           .eq("business_id", businessId),
+        // Kembaran otomatis BSJ -- form ini gak punya seksi BSJ terpisah sama
+        // sekali, jadi kalau gak disaring, kembarannya numpuk gitu aja di
+        // daftar tanpa konteks ("campuran semua item"). Sembunyikan di sini
+        // juga, sama seperti halaman Bahan Baku per-lokasi & form QR publik.
+        supabase
+          .from("semi_finished_items")
+          .select("ingredient_id")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .not("ingredient_id", "is", null),
       ]);
 
     locationSections = (locationSectionRows ?? [])
@@ -247,7 +257,9 @@ export default async function LocationStockOpnamePage({
     }
 
     const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
+    const bsjMirrorIngredientIds = new Set((bsjMirrorRows ?? []).map((r) => r.ingredient_id));
     directIngredients = ingredientRows
+      .filter((i) => !bsjMirrorIngredientIds.has(i.id))
       .filter((i) => !selectedSectionId || (sectionIdsByIngredient.get(i.id) ?? []).includes(selectedSectionId))
       .map((i) => ({
         id: i.id,
