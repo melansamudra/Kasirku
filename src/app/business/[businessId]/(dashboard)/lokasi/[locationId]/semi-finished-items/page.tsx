@@ -141,16 +141,12 @@ export default async function LocationSemiFinishedItemsPage({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium text-zinc-900">{i.name}</p>
-                        {/* stopPropagation -- pill ini nested di dalam <summary>, tanpa
-                            ini klik buka dropdown Bagian ikut nge-toggle accordion-nya */}
-                        <span onClick={(e) => e.stopPropagation()}>
-                          <OpnameSectionMultiSelect
-                            entityId={i.id}
-                            sectionIds={sectionIdsByItem.get(i.id) ?? []}
-                            sections={opnameSectionsWithCount}
-                            action={updateSemiFinishedItemOpnameSections.bind(null, businessId)}
-                          />
-                        </span>
+                        <OpnameSectionMultiSelect
+                          entityId={i.id}
+                          sectionIds={sectionIdsByItem.get(i.id) ?? []}
+                          sections={opnameSectionsWithCount}
+                          action={updateSemiFinishedItemOpnameSections.bind(null, businessId)}
+                        />
                       </div>
                       <p className="text-xs text-zinc-500">
                         Stok di {location.name}: {stock} {i.unit}

@@ -39,7 +39,10 @@ export default function OpnameSectionMultiSelect({
   if (sections.length === 0) return null;
 
   return (
-    <div className="relative">
+    // stopPropagation -- di beberapa pemanggil (mis. daftar BSJ per lokasi)
+    // pill ini nested di dalam <summary>/<details>; tanpa ini klik di sini
+    // ikut ke-tangkap browser dan nge-toggle accordion-nya.
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
