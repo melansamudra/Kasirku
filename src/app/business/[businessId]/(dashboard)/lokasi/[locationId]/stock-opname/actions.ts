@@ -50,14 +50,32 @@ async function applyOpnameEntry(
     submitted_by_name: string;
   },
 ): Promise<string | null> {
+  // BSJ yang punya kembaran otomatis di Bahan Baku (ingredient_id terisi)
+  // stoknya yang BENERAN dipotong checkout/resep ada di kembarannya
+  // (ingredient_location_stock), bukan di semi_finished_item_location_stock
+  // (nyaris tidak pernah dipakai untuk item bermirror). Verifikasi opname
+  // untuk BSJ jenis ini dialihkan ke kembarannya supaya koreksinya benar2
+  // ngefek ke stok yang dipakai sistem, bukan diam-diam nulis ke tabel yang
+  // gak pernah dibaca siapapun.
+  let mirrorIngredientId: string | null = null;
+  if (entry.component_type === "semi_finished" && entry.semi_finished_item_id) {
+    const { data: semi } = await supabase
+      .from("semi_finished_items")
+      .select("ingredient_id")
+      .eq("id", entry.semi_finished_item_id)
+      .maybeSingle();
+    mirrorIngredientId = semi?.ingredient_id ?? null;
+  }
+  const stockIngredientId = entry.component_type === "ingredient" ? entry.ingredient_id : mirrorIngredientId;
+
   let currentStock = 0;
-  if (entry.component_type === "ingredient") {
+  if (stockIngredientId) {
     const { data: row } = await supabase
       .from("ingredient_location_stock")
       .select("stock")
       .eq("business_id", businessId)
       .eq("location_id", entry.location_id)
-      .eq("ingredient_id", entry.ingredient_id as string)
+      .eq("ingredient_id", stockIngredientId)
       .maybeSingle();
     currentStock = Number(row?.stock ?? 0);
   } else if (entry.component_type === "semi_finished") {
@@ -82,12 +100,12 @@ async function applyOpnameEntry(
   const correction = Number(entry.reported_stock) - Number(entry.system_stock_at_report);
   if (correction !== 0) {
     const newStock = currentStock + correction;
-    if (entry.component_type === "ingredient") {
+    if (stockIngredientId) {
       const { error } = await supabase.from("ingredient_location_stock").upsert(
         {
           business_id: businessId,
           location_id: entry.location_id,
-          ingredient_id: entry.ingredient_id as string,
+          ingredient_id: stockIngredientId,
           stock: newStock,
           updated_at: new Date().toISOString(),
         },
@@ -115,10 +133,14 @@ async function applyOpnameEntry(
       if (error) return error.message;
     }
 
+    // Kalau BSJ ini dialihkan ke kembarannya, riwayatnya ikut dicatat atas
+    // nama ingredient_id (bukan semi_finished_item_id) -- biar konsisten
+    // muncul di Kartu Stok bahan baku & riwayat harga/stok kembarannya,
+    // sama seperti pergerakan checkout/produksi lain untuk bahan ini.
     const { error: adjError } = await supabase.from("stock_adjustments").insert({
       business_id: businessId,
-      ingredient_id: entry.component_type === "ingredient" ? entry.ingredient_id : null,
-      semi_finished_item_id: entry.component_type === "semi_finished" ? entry.semi_finished_item_id : null,
+      ingredient_id: stockIngredientId,
+      semi_finished_item_id: entry.component_type === "semi_finished" && !stockIngredientId ? entry.semi_finished_item_id : null,
       warehouse_item_id: entry.component_type === "warehouse_item" ? entry.warehouse_item_id : null,
       location_id: entry.location_id,
       item_name: entry.item_name,
@@ -330,6 +352,25 @@ export async function verifyAllPendingForDate(
     else if (e.warehouse_item_id) warehouseIds.add(e.warehouse_item_id);
   }
 
+  // BSJ yang punya kembaran otomatis di Bahan Baku dialihkan ke kembarannya
+  // (ingredient_location_stock) -- lihat catatan panjang di applyOpnameEntry
+  // di atas kenapa semi_finished_item_location_stock nyaris selalu kosong
+  // untuk item bermirror.
+  const mirrorIngredientBySemiId = new Map<string, string>();
+  if (semiIds.size > 0) {
+    const { data: semiMirrorRows } = await supabase
+      .from("semi_finished_items")
+      .select("id, ingredient_id")
+      .in("id", [...semiIds]);
+    for (const row of semiMirrorRows ?? []) {
+      if (row.ingredient_id) {
+        mirrorIngredientBySemiId.set(row.id, row.ingredient_id);
+        ingredientIds.add(row.ingredient_id);
+        semiIds.delete(row.id);
+      }
+    }
+  }
+
   const [{ data: ingredientRows }, { data: semiRows }, { data: warehouseRows }] = await Promise.all([
     ingredientIds.size > 0
       ? supabase
@@ -384,12 +425,18 @@ export async function verifyAllPendingForDate(
     const correction = Number(e.reported_stock) - Number(e.system_stock_at_report);
     if (correction === 0) continue;
 
-    if (e.component_type === "ingredient" && e.ingredient_id) {
-      const before = ingredientNext.get(e.ingredient_id) ?? ingredientStock.get(e.ingredient_id) ?? 0;
+    const mirrorIngredientId =
+      e.component_type === "semi_finished" && e.semi_finished_item_id
+        ? mirrorIngredientBySemiId.get(e.semi_finished_item_id)
+        : undefined;
+
+    if ((e.component_type === "ingredient" && e.ingredient_id) || mirrorIngredientId) {
+      const ingId = mirrorIngredientId ?? (e.ingredient_id as string);
+      const before = ingredientNext.get(ingId) ?? ingredientStock.get(ingId) ?? 0;
       const after = before + correction;
-      ingredientNext.set(e.ingredient_id, after);
+      ingredientNext.set(ingId, after);
       adjustments.push({
-        ingredient_id: e.ingredient_id,
+        ingredient_id: ingId,
         semi_finished_item_id: null,
         warehouse_item_id: null,
         item_name: e.item_name,
