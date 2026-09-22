@@ -7,6 +7,8 @@ import { adjustSemiFinishedLocationStock } from "./actions";
 import { updateLocationOpnameSections } from "../bahan-baku/actions";
 import LocationSectionSelect from "../bahan-baku/location-section-select";
 import OpnameSectionMultiSelect from "../../../ingredients/opname-section-multiselect";
+import OpnameSectionManager from "../../../ingredients/opname-section-manager";
+import { addOpnameSection } from "../../../ingredients/actions";
 import { updateSemiFinishedItemOpnameSections } from "../../../semi-finished-items/actions";
 
 function formatRupiah(value: number) {
@@ -126,6 +128,14 @@ export default async function LocationSemiFinishedItemsPage({
         sections={opnameSectionsWithCount}
         action={updateLocationOpnameSections.bind(null, businessId)}
       />
+
+      <div className="mt-4">
+        <OpnameSectionManager
+          businessId={businessId}
+          sections={opnameSectionsWithCount}
+          action={addOpnameSection.bind(null, businessId)}
+        />
+      </div>
 
       <div className="mt-6 space-y-2">
         {visibleItems.length > 0 ? (
