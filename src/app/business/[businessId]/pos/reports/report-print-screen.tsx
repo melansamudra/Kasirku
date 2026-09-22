@@ -15,9 +15,11 @@ const QUICK_PERIODS: Period[] = ["today", "week", "month", "all"];
 export default function ReportPrintScreen({
   businessId,
   businessName,
+  periodLocked = false,
 }: {
   businessId: string;
   businessName: string;
+  periodLocked?: boolean;
 }) {
   const [period, setPeriod] = useState<Period>("today");
   const [customFrom, setCustomFrom] = useState("");
@@ -46,35 +48,41 @@ export default function ReportPrintScreen({
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <p className="mb-2 text-xs font-medium text-zinc-500">Pilih periode</p>
-        <div className="flex flex-wrap gap-1.5">
-          {QUICK_PERIODS.map((p) => (
+        {periodLocked ? (
+          <span className="inline-block rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-600">
+            {PERIOD_LABELS.today}
+          </span>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_PERIODS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  period === p
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                }`}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
             <button
-              key={p}
               type="button"
-              onClick={() => setPeriod(p)}
+              onClick={() => setPeriod("custom")}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                period === p
+                period === "custom"
                   ? "border-brand-500 bg-brand-50 text-brand-700"
                   : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
               }`}
             >
-              {PERIOD_LABELS[p]}
+              {PERIOD_LABELS.custom}
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setPeriod("custom")}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              period === "custom"
-                ? "border-brand-500 bg-brand-50 text-brand-700"
-                : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-            }`}
-          >
-            {PERIOD_LABELS.custom}
-          </button>
-        </div>
+          </div>
+        )}
 
-        {period === "custom" && (
+        {!periodLocked && period === "custom" && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-[11px] text-zinc-500">Dari tanggal</label>

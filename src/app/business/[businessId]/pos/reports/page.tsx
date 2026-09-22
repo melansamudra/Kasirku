@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCashierSession } from "@/lib/cashier-session";
+import { isTodayOnlyBusiness } from "../../(dashboard)/reports/period";
 import PinScreen from "../pin-screen";
 import ReportPrintScreen from "./report-print-screen";
 
@@ -46,5 +47,17 @@ export default async function PosReportsPage({
     );
   }
 
-  return <ReportPrintScreen businessId={businessId} businessName={business.name} />;
+  // Sesi PIN kasir (bukan akun owner/staff) -- semua role (kasir, manajer,
+  // pelayan) dikunci "Hari Ini" di bisnis yang minta pembatasan ini (lihat
+  // isTodayOnlyBusiness), tidak dibedakan per role. Akses periode bebas
+  // tetap ada lewat login owner/staff penuh di backoffice (bukan PIN POS).
+  const periodLocked = isTodayOnlyBusiness(businessId);
+
+  return (
+    <ReportPrintScreen
+      businessId={businessId}
+      businessName={business.name}
+      periodLocked={periodLocked}
+    />
+  );
 }

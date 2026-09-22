@@ -42,10 +42,17 @@ const STAFF_TODAY_ONLY_BUSINESS_IDS = new Set<string>([
   "356ada11-270d-4249-b45c-0a30c12de58c", // Adi's Culinary Pleburan
 ]);
 
+/** Cek mentah keanggotaan bisnis di daftar pembatasan -- dipakai di jalur
+ * yang bukan staf backoffice (mis. sesi kasir PIN di POS, yang tidak punya
+ * konsep isOwner sama sekali). */
+export function isTodayOnlyBusiness(businessId: string) {
+  return STAFF_TODAY_ONLY_BUSINESS_IDS.has(businessId);
+}
+
 /** Dipakai oleh caller yang isOwner-nya sudah dihitung sendiri (mis. sudah
  * query business_staff untuk keperluan lain), supaya tidak query dobel. */
 export function isStaffTodayOnlyBusiness(businessId: string, isOwner: boolean) {
-  return !isOwner && STAFF_TODAY_ONLY_BUSINESS_IDS.has(businessId);
+  return !isOwner && isTodayOnlyBusiness(businessId);
 }
 
 /**
