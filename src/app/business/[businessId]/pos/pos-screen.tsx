@@ -307,6 +307,19 @@ export default function PosScreen({
   const [bonCustomerName, setBonCustomerName] = useState("");
   const [bonError, setBonError] = useState<string | null>(null);
   const [bonSaving, setBonSaving] = useState(false);
+  // Bon yang gagal tersimpan (network timeout/error) setelah keranjang sudah
+  // dikosongkan secara optimistic — TIDAK ditimpa balik ke cart aktif (kasir
+  // mungkin sudah mulai transaksi baru), cukup ditawarkan tombol "Coba Lagi"
+  // lewat banner sampai kasir retry atau buang.
+  const [failedBonSave, setFailedBonSave] = useState<{
+    billId: string | null;
+    label: string;
+    customerName: string | null;
+    items: OpenBillItemInput[];
+    leftoverBillIds: string[];
+    error: string;
+  } | null>(null);
+  const [retryingBonSave, setRetryingBonSave] = useState(false);
 
   function openSelfOrderMenu() {
     setSelfOrderProducts(
@@ -833,45 +846,17 @@ export default function PosScreen({
     }
   }
 
-  async function handleSaveBon() {
-    setBonError(null);
-    setBonSaving(true);
-    let result: Awaited<ReturnType<typeof saveOpenBill>>;
-    try {
-      result = await saveOpenBill(
-        businessId,
-        activeBill?.id ?? null,
-        bonLabel,
-        cart.map((i) => ({
-          product_id: i.productId,
-          name: i.name,
-          price: i.price,
-          qty: i.qty,
-          disc: i.disc,
-          disc_type: i.discType,
-          note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
-          batch: i.batch,
-        })),
-        cashierId,
-        bonCustomerName || null,
-      );
-    } catch {
-      setBonSaving(false);
-      setBonError("Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.");
-      return;
-    }
-    setBonSaving(false);
-
-    if (!result.success) {
-      setBonError(result.error);
-      return;
-    }
-
+  // Bagian setelah saveOpenBill sukses — dipakai baik oleh simpan pertama
+  // maupun retry, supaya logikanya (hapus bon gabungan lama, kirim print
+  // job, refresh katalog) tidak dobel.
+  function finishBonSaveSuccess(
+    result: Extract<Awaited<ReturnType<typeof saveOpenBill>>, { success: true }>,
+    leftoverBillIds: string[],
+  ) {
     // Kalau keranjang ini hasil gabungan beberapa bon, sisanya (selain bon
     // yang baru saja disimpan) sudah ikut tersimpan di dalamnya — hapus
     // supaya tidak nyangkut dobel di daftar Open Bill.
-    const leftoverBillIds = mergedBillIds.filter((id) => id !== result.billId);
-    for (const id of leftoverBillIds) {
+    for (const id of leftoverBillIds.filter((id) => id !== result.billId)) {
       void deleteOpenBillAfterPayment(businessId, id);
     }
 
@@ -886,6 +871,31 @@ export default function PosScreen({
       }).catch(() => {});
     }
 
+    void refreshCatalog();
+  }
+
+  async function handleSaveBon() {
+    setBonError(null);
+
+    const billIdArg = activeBill?.id ?? null;
+    const labelArg = bonLabel;
+    const customerArg = bonCustomerName || null;
+    const itemsPayload: OpenBillItemInput[] = cart.map((i) => ({
+      product_id: i.productId,
+      name: i.name,
+      price: i.price,
+      qty: i.qty,
+      disc: i.disc,
+      disc_type: i.discType,
+      note: [...i.selectedOptions.map((o) => o.optionName), i.note ?? null].filter((x): x is string => !!x).join(" | ") || null,
+      batch: i.batch,
+    }));
+    const leftoverBillIds = mergedBillIds;
+
+    // Optimistic: kosongkan keranjang & tutup panel duluan supaya kasir bisa
+    // langsung lanjut ke pelanggan berikutnya tanpa nunggu round-trip server.
+    // Kalau ternyata gagal, JANGAN ditimpa balik ke cart aktif (kasir mungkin
+    // sudah mulai transaksi baru di atasnya) — tampilkan banner retry saja.
     setCart([]);
     setCartOrderIds([]);
     setOrderDisc(0);
@@ -896,7 +906,72 @@ export default function PosScreen({
     setSaveBonOpen(false);
     setBonLabel("");
     setBonCustomerName("");
-    void refreshCatalog();
+
+    let result: Awaited<ReturnType<typeof saveOpenBill>>;
+    try {
+      result = await withTimeout(
+        saveOpenBill(businessId, billIdArg, labelArg, itemsPayload, cashierId, customerArg),
+        10000,
+      );
+    } catch {
+      setFailedBonSave({
+        billId: billIdArg,
+        label: labelArg,
+        customerName: customerArg,
+        items: itemsPayload,
+        leftoverBillIds,
+        error: "Gagal terhubung ke server. Cek koneksi internet lalu coba lagi.",
+      });
+      return;
+    }
+
+    if (!result.success) {
+      setFailedBonSave({
+        billId: billIdArg,
+        label: labelArg,
+        customerName: customerArg,
+        items: itemsPayload,
+        leftoverBillIds,
+        error: result.error,
+      });
+      return;
+    }
+
+    finishBonSaveSuccess(result, leftoverBillIds);
+  }
+
+  async function handleRetryFailedBonSave() {
+    if (!failedBonSave || retryingBonSave) return;
+    setRetryingBonSave(true);
+    let result: Awaited<ReturnType<typeof saveOpenBill>>;
+    try {
+      result = await withTimeout(
+        saveOpenBill(
+          businessId,
+          failedBonSave.billId,
+          failedBonSave.label,
+          failedBonSave.items,
+          cashierId,
+          failedBonSave.customerName,
+        ),
+        10000,
+      );
+    } catch {
+      setRetryingBonSave(false);
+      setFailedBonSave((prev) =>
+        prev ? { ...prev, error: "Masih gagal terhubung ke server. Coba lagi sebentar." } : prev,
+      );
+      return;
+    }
+    setRetryingBonSave(false);
+
+    if (!result.success) {
+      setFailedBonSave((prev) => (prev ? { ...prev, error: result.error } : prev));
+      return;
+    }
+
+    finishBonSaveSuccess(result, failedBonSave.leftoverBillIds);
+    setFailedBonSave(null);
   }
 
   function handleLoadBill(bill: OpenBill) {
@@ -2567,6 +2642,29 @@ export default function PosScreen({
               >
                 ✕
               </button>
+            </div>
+          )}
+          {failedBonSave && (
+            <div className="mb-3 space-y-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+              <p>
+                🧾 Bon &quot;{failedBonSave.label}&quot; gagal tersimpan: {failedBonSave.error}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRetryFailedBonSave}
+                  disabled={retryingBonSave}
+                  className="flex-1 rounded-lg bg-red-600 py-1.5 font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {retryingBonSave ? "Mencoba…" : "Coba Lagi"}
+                </button>
+                <button
+                  onClick={() => setFailedBonSave(null)}
+                  disabled={retryingBonSave}
+                  className="rounded-lg border border-red-200 px-3 py-1.5 font-semibold text-red-600 hover:bg-red-100"
+                >
+                  Buang
+                </button>
+              </div>
             </div>
           )}
           {cart.length === 0 ? (

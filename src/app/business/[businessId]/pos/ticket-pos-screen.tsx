@@ -246,6 +246,10 @@ export default function TicketPosScreen({
   }
 
   function resetForNextTransaction() {
+    // Sengaja TIDAK router.refresh() di sini — dulu tiap transaksi selesai
+    // memicu re-fetch RSC penuh (categories/members/dll dari server), kerasa
+    // lag padahal cuma reset form. categories/members jarang berubah di
+    // tengah shift; kalau memang berubah, kasir bisa reload manual.
     setSuccessInvoice(null);
     setSuccessTransactionId(null);
     setSuccessOffline(false);
@@ -253,7 +257,6 @@ export default function TicketPosScreen({
     setMember(null);
     setPaying(false);
     setReceived("");
-    router.refresh();
   }
 
   if (successInvoice) {
