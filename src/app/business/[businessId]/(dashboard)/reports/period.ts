@@ -63,7 +63,7 @@ export async function resolveReportPeriod(
     supabase.from("businesses").select("owner_id").eq("id", businessId).maybeSingle(),
     supabase.auth.getUser(),
   ]);
-  const isOwner = Boolean(business?.owner_id) && business.owner_id === userData.user?.id;
+  const isOwner = Boolean(business?.owner_id) && business?.owner_id === userData.user?.id;
   const locked = isStaffTodayOnlyBusiness(businessId, isOwner);
   const period = locked ? "today" : parsePeriod(rawPeriod);
   return { period, locked, isOwner };
