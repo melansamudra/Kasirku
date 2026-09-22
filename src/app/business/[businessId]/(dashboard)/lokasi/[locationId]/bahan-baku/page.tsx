@@ -17,6 +17,9 @@ import LocationCategorySelect from "./location-category-select";
 import ReceiveFulfillmentButton from "./receive-fulfillment-button";
 import ReceiveLinkBox from "./receive-link-box";
 import IngredientSearch from "../../../ingredients/ingredient-search";
+import OpnameSectionManager from "../../../ingredients/opname-section-manager";
+import OpnameSectionMultiSelect from "../../../ingredients/opname-section-multiselect";
+import { addOpnameSection, updateIngredientOpnameSections } from "../../../ingredients/actions";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 import WarehouseModeSwitch from "./warehouse-mode-switch";
 import AddWarehouseItemForm from "./add-warehouse-item-form";
@@ -423,6 +426,14 @@ export default async function LocationBahanBakuPage({
         action={updateLocationOpnameSections.bind(null, businessId)}
       />
 
+      <div className="mt-4">
+        <OpnameSectionManager
+          businessId={businessId}
+          sections={opnameSectionsWithCount}
+          action={addOpnameSection.bind(null, businessId)}
+        />
+      </div>
+
       <LocationCategorySelect
         locationId={locationId}
         locationName={location.name}
@@ -490,7 +501,15 @@ export default async function LocationBahanBakuPage({
                   className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
                 >
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                      <OpnameSectionMultiSelect
+                        entityId={i.id}
+                        sectionIds={sectionIdsByIngredient.get(i.id) ?? []}
+                        sections={opnameSectionsWithCount}
+                        action={updateIngredientOpnameSections.bind(null, businessId)}
+                      />
+                    </div>
                     <p className="text-xs text-zinc-500">
                       Stok di {location.name}: {stock} {i.unit}
                     </p>

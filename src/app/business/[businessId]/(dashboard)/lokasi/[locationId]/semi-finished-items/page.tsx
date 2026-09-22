@@ -6,6 +6,8 @@ import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost
 import { adjustSemiFinishedLocationStock } from "./actions";
 import { updateLocationOpnameSections } from "../bahan-baku/actions";
 import LocationSectionSelect from "../bahan-baku/location-section-select";
+import OpnameSectionMultiSelect from "../../../ingredients/opname-section-multiselect";
+import { updateSemiFinishedItemOpnameSections } from "../../../semi-finished-items/actions";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -137,7 +139,19 @@ export default async function LocationSemiFinishedItemsPage({
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 text-zinc-300 transition-transform group-open:rotate-90">▶</span>
                     <div>
-                      <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-zinc-900">{i.name}</p>
+                        {/* stopPropagation -- pill ini nested di dalam <summary>, tanpa
+                            ini klik buka dropdown Bagian ikut nge-toggle accordion-nya */}
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <OpnameSectionMultiSelect
+                            entityId={i.id}
+                            sectionIds={sectionIdsByItem.get(i.id) ?? []}
+                            sections={opnameSectionsWithCount}
+                            action={updateSemiFinishedItemOpnameSections.bind(null, businessId)}
+                          />
+                        </span>
+                      </div>
                       <p className="text-xs text-zinc-500">
                         Stok di {location.name}: {stock} {i.unit}
                         {breakdown.length > 0 ? ` · ${breakdown.length} bahan` : " · belum ada resep"}
