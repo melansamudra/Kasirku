@@ -184,6 +184,7 @@ export default async function LocationBahanBakuPage({
     { data: opnameSections },
     { data: locationSectionRows },
     { data: ingredientSectionRows },
+    { data: bsjMirrorRows },
     purchaseUnitRows,
     productRowsForCategories,
   ] = await Promise.all([
@@ -212,6 +213,17 @@ export default async function LocationBahanBakuPage({
     supabase.from("ingredient_opname_sections").select("id, name").eq("business_id", businessId).order("name", { ascending: true }),
     supabase.from("stock_location_opname_sections").select("section_id").eq("business_id", businessId).eq("location_id", locationId),
     supabase.from("ingredient_opname_section_items").select("ingredient_id, section_id").eq("business_id", businessId),
+    // Kembaran otomatis BSJ (lihat migrasi semi_finished_ingredient_mirror) --
+    // disembunyikan dari daftar operasional Bahan Baku per-lokasi ini supaya
+    // staf gak lihat bahan yang sama dobel (sekali di Bahan Baku, sekali lagi
+    // di Bahan Setengah Jadi). Tetap ada apa adanya di halaman Bahan Baku
+    // PUSAT (level bisnis) karena admin butuh kelola kembarannya dari situ.
+    supabase
+      .from("semi_finished_items")
+      .select("ingredient_id")
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .not("ingredient_id", "is", null),
     // "Satuan Beli" (mis. "KG" = 1000 gr) -- dipakai di form "Sesuaikan
     // Stok" di bawah, sama pola dengan form Pembelian, supaya isi stok awal
     // lokasi (mis. Gudang) bisa pakai satuan besar tanpa hitung manual.
@@ -240,6 +252,9 @@ export default async function LocationBahanBakuPage({
     purchaseUnitsByIngredient.set(row.ingredient_id, list);
   }
 
+  const bsjMirrorIngredientIds = new Set((bsjMirrorRows ?? []).map((r) => r.ingredient_id));
+  const nonMirrorIngredients = (ingredients ?? []).filter((i) => !bsjMirrorIngredientIds.has(i.id));
+
   // Lokasi diikat ke Bagian tertentu (Kitchen Llauk = "Adonan, Topping" mis.)
   // -- kosong = tidak dibatasi, tampilkan semua bahan seperti sebelumnya.
   const locationSectionIds = (locationSectionRows ?? []).map((r) => r.section_id);
@@ -251,10 +266,10 @@ export default async function LocationBahanBakuPage({
   }
   const visibleIngredients =
     locationSectionIds.length > 0
-      ? (ingredients ?? []).filter((i) =>
+      ? nonMirrorIngredients.filter((i) =>
           (sectionIdsByIngredient.get(i.id) ?? []).some((id) => locationSectionIds.includes(id)),
         )
-      : (ingredients ?? []);
+      : nonMirrorIngredients;
 
   const ingredientCountBySection = new Map<string, number>();
   for (const ids of sectionIdsByIngredient.values()) {
