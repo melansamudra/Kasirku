@@ -7,6 +7,7 @@ import {
   PERIOD_DESCRIPTIONS,
   REPORT_TIMEZONE,
   getPeriodRange,
+  isStaffTodayOnlyBusiness,
   parsePeriod,
 } from "./period";
 import PeriodTabs from "./period-tabs";
@@ -101,10 +102,11 @@ export default async function ReportsPage({
 
   const isOwner = business.owner_id === userData.user?.id;
   // Staf dengan permission "reports" dapat akses PENUH ke semua periode,
-  // sama seperti owner. Staf TANPA permission itu (mis. cuma pegang
-  // "attendance") tetap dipaksa "Hari Ini" -- tidak seharusnya sampai bisa
-  // buka halaman ini sama sekali (ditutup di reports/layout.tsx), tapi ini
-  // jaga-jaga kalau diakses langsung lewat URL.
+  // sama seperti owner -- kecuali di bisnis yang masuk daftar
+  // isStaffTodayOnlyBusiness, lihat periodLocked di bawah. Staf TANPA
+  // permission itu (mis. cuma pegang "attendance") tetap dipaksa "Hari Ini"
+  // -- tidak seharusnya sampai bisa buka halaman ini sama sekali (ditutup di
+  // reports/layout.tsx), tapi ini jaga-jaga kalau diakses langsung lewat URL.
   let canAccessReports = isOwner;
   if (!isOwner && userData.user) {
     const { data: staff } = await supabase
@@ -115,9 +117,13 @@ export default async function ReportsPage({
       .maybeSingle();
     canAccessReports = Boolean(staff?.active && (staff.permissions as string[]).includes("reports"));
   }
-  const period = canAccessReports
-    ? parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value)
-    : "today";
+  // Staf di bisnis yang minta pembatasan (lihat isStaffTodayOnlyBusiness)
+  // tetap bisa buka Laporan (kalau permission "reports" dicentang), tapi
+  // periodenya dikunci "Hari Ini" -- tidak bisa lihat riwayat hari lain.
+  const periodLocked = !canAccessReports || isStaffTodayOnlyBusiness(businessId, isOwner);
+  const period = periodLocked
+    ? "today"
+    : parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
   const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
@@ -221,8 +227,8 @@ export default async function ReportsPage({
           <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Laporan Penjualan</p>
           <h1 className="text-xl font-bold text-zinc-900">{business.name}</h1>
         </div>
-        {canAccessReports && <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />}
-        {!canAccessReports && (
+        {!periodLocked && <PeriodTabs basePath={`/business/${businessId}/reports`} period={period} />}
+        {periodLocked && (
           <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
             Hari Ini
           </span>

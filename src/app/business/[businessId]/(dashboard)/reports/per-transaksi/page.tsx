@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
-import { PERIOD_COOKIE_NAME, getPeriodRange, parsePeriod, REPORT_TIMEZONE } from "../period";
+import { PERIOD_COOKIE_NAME, getPeriodRange, resolveReportPeriod, REPORT_TIMEZONE } from "../period";
 import PeriodTabs from "../period-tabs";
 
 function fmt(v: number) { return `Rp${Math.round(v).toLocaleString("id-ID")}`; }
@@ -23,12 +23,15 @@ export default async function ReportsPerTransaksiPage({
   const { businessId } = await params;
   const { period: periodParam, from, to } = await searchParams;
   const cookieStore = await cookies();
-  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
-  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
-
   const supabase = await createClient();
   const { data: biz } = await supabase.from("businesses").select("id").eq("id", businessId).maybeSingle();
   if (!biz) notFound();
+  const { period, locked } = await resolveReportPeriod(
+    supabase,
+    businessId,
+    periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value,
+  );
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
   // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
@@ -91,7 +94,11 @@ export default async function ReportsPerTransaksiPage({
     <div className="w-full max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold text-zinc-900">Laporan per Transaksi</h1>
-        <PeriodTabs basePath={basePath} period={period} />
+        {locked ? (
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">Hari Ini</span>
+        ) : (
+          <PeriodTabs basePath={basePath} period={period} />
+        )}
       </div>
 
       {period === "custom" && (

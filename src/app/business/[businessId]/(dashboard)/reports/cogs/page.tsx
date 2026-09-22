@@ -7,7 +7,7 @@ import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
   getPeriodRange,
-  parsePeriod,
+  resolveReportPeriod,
 } from "../period";
 import PeriodTabs from "../period-tabs";
 
@@ -45,8 +45,6 @@ export default async function CogsReportPage({
   const { businessId } = await params;
   const { period: periodParam, from, to } = await searchParams;
   const cookieStore = await cookies();
-  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
-  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
 
@@ -59,6 +57,13 @@ export default async function CogsReportPage({
   if (!business) {
     notFound();
   }
+
+  const { period, locked } = await resolveReportPeriod(
+    supabase,
+    businessId,
+    periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value,
+  );
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   // Dibungkus fetchAllRows karena Supabase/PostgREST diam-diam memotong
   // hasil di 1000 baris kalau tidak di-paginate (lihat lib/pagination.ts).
@@ -146,7 +151,11 @@ export default async function CogsReportPage({
           <h1 className="text-lg font-bold text-zinc-900">Laporan COGS — {business.name}</h1>
           <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
         </div>
-        <PeriodTabs basePath={`/business/${businessId}/reports/cogs`} period={period} />
+        {locked ? (
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">Hari Ini</span>
+        ) : (
+          <PeriodTabs basePath={`/business/${businessId}/reports/cogs`} period={period} />
+        )}
       </div>
 
       {period === "custom" && (

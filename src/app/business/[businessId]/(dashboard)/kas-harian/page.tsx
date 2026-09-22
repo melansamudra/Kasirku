@@ -9,6 +9,7 @@ import {
   PERIOD_COOKIE_NAME,
   PERIOD_DESCRIPTIONS,
   getPeriodRange,
+  isStaffTodayOnlyBusiness,
   parsePeriod,
 } from "../reports/period";
 import PeriodTabs from "../reports/period-tabs";
@@ -72,8 +73,6 @@ export default async function KasHarianPage({
   const { businessId } = await params;
   const { period: periodParam, from, to } = await searchParams;
   const cookieStore = await cookies();
-  const period = parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
-  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
 
   const supabase = await createClient();
 
@@ -104,6 +103,15 @@ export default async function KasHarianPage({
     notFound();
   }
 
+  const isOwner = business?.owner_id === userData.user?.id;
+  // Staf (kasir) di bisnis yang minta pembatasan dikunci "Hari Ini" -- tidak
+  // bisa browse riwayat Kas & Bank / Kas Masuk-Keluar hari-hari sebelumnya.
+  const periodLocked = isStaffTodayOnlyBusiness(businessId, isOwner);
+  const period = periodLocked
+    ? "today"
+    : parsePeriod(periodParam ?? cookieStore.get(PERIOD_COOKIE_NAME)?.value);
+  const { fromIso, toIsoExclusive } = getPeriodRange(period, from, to);
+
   const {
     nonVoidLines,
     displayLines,
@@ -116,7 +124,6 @@ export default async function KasHarianPage({
     voidedPurchaseCount,
   } = await fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive);
 
-  const isOwner = business?.owner_id === userData.user?.id;
   const showMirrorToggle = isOwner && !!business?.mirroring_enabled;
 
   const visibleKasRows = showMirrorToggle
@@ -209,7 +216,11 @@ export default async function KasHarianPage({
           <h1 className="text-lg font-bold text-zinc-900">Kas & Bank — {business.name}</h1>
           <p className="mt-0.5 text-xs text-zinc-500">{PERIOD_DESCRIPTIONS[period]}</p>
         </div>
-        <PeriodTabs basePath={`/business/${businessId}/kas-harian`} period={period} />
+        {periodLocked ? (
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">Hari Ini</span>
+        ) : (
+          <PeriodTabs basePath={`/business/${businessId}/kas-harian`} period={period} />
+        )}
       </div>
 
       {period === "custom" && (

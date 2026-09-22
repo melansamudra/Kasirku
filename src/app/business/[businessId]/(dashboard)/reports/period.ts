@@ -25,10 +25,48 @@ export const PERIOD_DESCRIPTIONS: Record<Period, string> = {
 // bukan zona server (yang bisa saja UTC saat production).
 export const REPORT_TIMEZONE = "Asia/Jakarta";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export function parsePeriod(value: string | undefined): Period {
   return (["today", "week", "month", "all", "custom"] as const).includes(value as Period)
     ? (value as Period)
     : "today";
+}
+
+// Bisnis yang stafnya (kasir, bukan owner) dibatasi cuma bisa lihat periode
+// "Hari Ini" di Laporan & Kas Bank -- diminta pemilik Adi's Culinary Pleburan
+// supaya kasir tidak bisa lihat riwayat/laporan hari-hari sebelumnya. Belum
+// ada UI toggle untuk ini; tambahkan businessId lain di sini kalau owner
+// bisnis lain minta hal yang sama.
+const STAFF_TODAY_ONLY_BUSINESS_IDS = new Set<string>([
+  "356ada11-270d-4249-b45c-0a30c12de58c", // Adi's Culinary Pleburan
+]);
+
+/** Dipakai oleh caller yang isOwner-nya sudah dihitung sendiri (mis. sudah
+ * query business_staff untuk keperluan lain), supaya tidak query dobel. */
+export function isStaffTodayOnlyBusiness(businessId: string, isOwner: boolean) {
+  return !isOwner && STAFF_TODAY_ONLY_BUSINESS_IDS.has(businessId);
+}
+
+/**
+ * Resolusi periode yang boleh dilihat user saat ini: owner selalu bebas
+ * pilih periode; staf (non-owner) di bisnis yang masuk daftar di atas
+ * dipaksa "today" di server -- walau query string diubah manual -- dan UI
+ * pemanggil sebaiknya sembunyikan PeriodTabs saat `locked` true.
+ */
+export async function resolveReportPeriod(
+  supabase: SupabaseClient,
+  businessId: string,
+  rawPeriod: string | undefined,
+): Promise<{ period: Period; locked: boolean; isOwner: boolean }> {
+  const [{ data: business }, { data: userData }] = await Promise.all([
+    supabase.from("businesses").select("owner_id").eq("id", businessId).maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
+  const isOwner = Boolean(business?.owner_id) && business.owner_id === userData.user?.id;
+  const locked = isStaffTodayOnlyBusiness(businessId, isOwner);
+  const period = locked ? "today" : parsePeriod(rawPeriod);
+  return { period, locked, isOwner };
 }
 
 function todayStr() {
