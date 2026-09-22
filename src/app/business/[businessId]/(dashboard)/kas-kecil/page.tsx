@@ -692,7 +692,7 @@ export default async function KasKecilPage({
         </div>
       )}
 
-      {closureHistory.length > 0 && (
+      {canVerify && closureHistory.length > 0 && (
         <div className="mt-6 border-t border-zinc-200 pt-4">
           <h2 className="text-sm font-bold text-zinc-900">🔒 Riwayat Penutupan Petty Cash</h2>
           <div className="mt-3 overflow-hidden rounded-xl bg-white shadow-sm">
