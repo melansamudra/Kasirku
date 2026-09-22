@@ -352,7 +352,7 @@ export default async function LocationKartuStokPage({
       .eq("location_id", locationId),
     supabase
       .from("semi_finished_item_location_stock")
-      .select("semi_finished_item_id, stock, semi_finished_items(name, unit)")
+      .select("semi_finished_item_id, stock, semi_finished_items(name, unit, ingredient_id)")
       .eq("business_id", businessId)
       .eq("location_id", locationId),
     supabase
@@ -421,8 +421,14 @@ export default async function LocationKartuStokPage({
     row.stokData = Number(s.stock);
   }
   for (const s of semiStocks ?? []) {
-    const item = s.semi_finished_items as unknown as { name: string; unit: string } | null;
+    const item = s.semi_finished_items as unknown as { name: string; unit: string; ingredient_id: string | null } | null;
     if (!item) continue;
+    // BSJ yang punya kembaran otomatis di Bahan Baku sudah kehitung lewat
+    // baris `ing:${ingredient_id}` di atas (itu yang beneran dipotong
+    // checkout/opname -- semi_finished_item_location_stock nyaris selalu
+    // kosong/tidak pernah diisi untuk item bermirror). Tanpa ini, satu
+    // barang fisik kelihatan dobel: satu baris kosong, satu baris terisi.
+    if (item.ingredient_id) continue;
     const row = ensureRow(`semi:${s.semi_finished_item_id}`, item.name, item.unit, "semi_finished", s.semi_finished_item_id);
     row.stokData = Number(s.stock);
   }
