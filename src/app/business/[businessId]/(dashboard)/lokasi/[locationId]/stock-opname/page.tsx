@@ -195,10 +195,20 @@ export default async function LocationStockOpnamePage({
   }
 
   let directIngredients: { id: string; name: string; unit: string; currentStock: number }[] = [];
+  let directSemiFinishedItems: { id: string; name: string; unit: string; currentStock: number }[] = [];
   let locationSections: { id: string; name: string }[] = [];
   let selectedSectionId: string | null = null;
   if (!isStandaloneWarehouse) {
-    const [ingredientRows, { data: stockRows }, { data: locationSectionRows }, { data: sectionItemRows }, { data: bsjMirrorRows }] =
+    const [
+      ingredientRows,
+      { data: stockRows },
+      { data: locationSectionRows },
+      { data: sectionItemRows },
+      { data: bsjMirrorRows },
+      { data: semiFinishedRows },
+      { data: semiStockRows },
+      { data: semiSectionItemRows },
+    ] =
       await Promise.all([
         fetchAllRows((from, to) =>
           supabase
@@ -239,6 +249,27 @@ export default async function LocationStockOpnamePage({
           .eq("business_id", businessId)
           .is("deleted_at", null)
           .not("ingredient_id", "is", null),
+        // Form ini sebelumnya cuma pernah punya daftar Bahan Baku -- BSJ
+        // gak pernah ditampilkan sama sekali (bukan cuma masalah kembaran
+        // dobel). Ditambahkan sekarang, sejajar dengan Bahan Baku, dengan
+        // stok yang sama mirror-aware seperti RPC opname publik: baca dari
+        // kembarannya di Bahan Baku kalau ada, baru fallback ke
+        // semi_finished_item_location_stock.
+        supabase
+          .from("semi_finished_items")
+          .select("id, name, unit, ingredient_id")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .order("name", { ascending: true }),
+        supabase
+          .from("semi_finished_item_location_stock")
+          .select("semi_finished_item_id, stock")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId),
+        supabase
+          .from("semi_finished_item_opname_section_items")
+          .select("semi_finished_item_id, section_id")
+          .eq("business_id", businessId),
       ]);
 
     locationSections = (locationSectionRows ?? [])
@@ -266,6 +297,26 @@ export default async function LocationStockOpnamePage({
         name: i.name,
         unit: i.unit,
         currentStock: stockByIngredient.get(i.id) ?? 0,
+      }));
+
+    const semiStockById = new Map((semiStockRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
+    const sectionIdsBySemiFinished = new Map<string, string[]>();
+    for (const row of semiSectionItemRows ?? []) {
+      const list = sectionIdsBySemiFinished.get(row.semi_finished_item_id) ?? [];
+      list.push(row.section_id);
+      sectionIdsBySemiFinished.set(row.semi_finished_item_id, list);
+    }
+    directSemiFinishedItems = (semiFinishedRows ?? [])
+      .filter(
+        (i) => !selectedSectionId || (sectionIdsBySemiFinished.get(i.id) ?? []).includes(selectedSectionId),
+      )
+      .map((i) => ({
+        id: i.id,
+        name: i.name,
+        unit: i.unit,
+        currentStock: i.ingredient_id
+          ? (stockByIngredient.get(i.ingredient_id) ?? 0)
+          : (semiStockById.get(i.id) ?? 0),
       }));
   }
 
@@ -443,6 +494,7 @@ export default async function LocationStockOpnamePage({
           )}
           <DirectOpnameForm
             ingredients={directIngredients}
+            semiFinishedItems={directSemiFinishedItems}
             action={submitLocationStockOpnameDirect.bind(null, businessId, locationId)}
           />
         </>

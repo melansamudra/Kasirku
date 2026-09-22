@@ -164,7 +164,7 @@ async function applyOpnameEntry(
 export async function submitLocationStockOpnameDirect(
   businessId: string,
   locationId: string,
-  counts: { itemId: string; itemName: string; unit: string; reportedStock: number }[],
+  counts: { itemId: string; itemType: "ingredient" | "semi_finished"; itemName: string; unit: string; reportedStock: number }[],
   entryDate: string,
 ): Promise<OpnameActionState> {
   if (counts.length === 0) return { error: "Belum ada bahan yang diisi." };
@@ -174,27 +174,81 @@ export async function submitLocationStockOpnameDirect(
   const actor = await getCurrentActor(supabase, businessId);
   if (!actor) return { error: "Sesi login tidak ditemukan. Silakan login ulang." };
 
-  const ingredientIds = counts.map((c) => c.itemId);
+  const ingredientCounts = counts.filter((c) => c.itemType === "ingredient");
+  const semiCounts = counts.filter((c) => c.itemType === "semi_finished");
+
+  // BSJ yang punya kembaran otomatis di Bahan Baku dibaca dari
+  // ingredient_location_stock milik kembarannya -- sama alasan panjang di
+  // applyOpnameEntry/verifyAllPendingForDate di atas.
+  const semiIds = semiCounts.map((c) => c.itemId);
+  const mirrorIngredientBySemiId = new Map<string, string>();
+  if (semiIds.length > 0) {
+    const { data: semiMirrorRows } = await supabase
+      .from("semi_finished_items")
+      .select("id, ingredient_id")
+      .in("id", semiIds);
+    for (const row of semiMirrorRows ?? []) {
+      if (row.ingredient_id) mirrorIngredientBySemiId.set(row.id, row.ingredient_id);
+    }
+  }
+
+  const ingredientIds = [
+    ...ingredientCounts.map((c) => c.itemId),
+    ...[...mirrorIngredientBySemiId.values()],
+  ];
   const { data: stockRows } = await supabase
     .from("ingredient_location_stock")
     .select("ingredient_id, stock")
     .eq("business_id", businessId)
     .eq("location_id", locationId)
-    .in("ingredient_id", ingredientIds);
+    .in("ingredient_id", ingredientIds.length > 0 ? ingredientIds : [""]);
   const stockByIngredient = new Map((stockRows ?? []).map((r) => [r.ingredient_id, Number(r.stock)]));
 
-  const rows = counts.map((c) => ({
-    business_id: businessId,
-    location_id: locationId,
-    component_type: "ingredient" as const,
-    ingredient_id: c.itemId,
-    item_name: c.itemName,
-    unit: c.unit,
-    reported_stock: c.reportedStock,
-    system_stock_at_report: stockByIngredient.get(c.itemId) ?? 0,
-    submitted_by_name: actor.name,
-    entry_date: entryDate,
-  }));
+  const unmirrorredSemiIds = semiIds.filter((id) => !mirrorIngredientBySemiId.has(id));
+  const { data: semiStockRows } =
+    unmirrorredSemiIds.length > 0
+      ? await supabase
+          .from("semi_finished_item_location_stock")
+          .select("semi_finished_item_id, stock")
+          .eq("business_id", businessId)
+          .eq("location_id", locationId)
+          .in("semi_finished_item_id", unmirrorredSemiIds)
+      : { data: [] as { semi_finished_item_id: string; stock: number }[] };
+  const stockBySemiFinished = new Map((semiStockRows ?? []).map((r) => [r.semi_finished_item_id, Number(r.stock)]));
+
+  const rows = [
+    ...ingredientCounts.map((c) => ({
+      business_id: businessId,
+      location_id: locationId,
+      component_type: "ingredient" as const,
+      ingredient_id: c.itemId,
+      semi_finished_item_id: null,
+      item_name: c.itemName,
+      unit: c.unit,
+      reported_stock: c.reportedStock,
+      system_stock_at_report: stockByIngredient.get(c.itemId) ?? 0,
+      submitted_by_name: actor.name,
+      entry_date: entryDate,
+    })),
+    ...semiCounts.map((c) => {
+      const mirrorId = mirrorIngredientBySemiId.get(c.itemId);
+      return {
+        business_id: businessId,
+        location_id: locationId,
+        component_type: "semi_finished" as const,
+        ingredient_id: null,
+        semi_finished_item_id: c.itemId,
+        item_name: c.itemName,
+        unit: c.unit,
+        reported_stock: c.reportedStock,
+        system_stock_at_report: mirrorId
+          ? (stockByIngredient.get(mirrorId) ?? 0)
+          : (stockBySemiFinished.get(c.itemId) ?? 0),
+        submitted_by_name: actor.name,
+        entry_date: entryDate,
+      };
+    }),
+  ];
 
   const { error } = await supabase.from("stock_opname_entries").insert(rows);
   if (error) return { error: error.message };
