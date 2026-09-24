@@ -11,6 +11,7 @@ function formatRupiah(value: number) {
 export default function ProductionRunCard({
   businessId,
   run,
+  locationName,
 }: {
   businessId: string;
   run: {
@@ -27,6 +28,7 @@ export default function ProductionRunCard({
     reject_reason: string | null;
     produced_at: string;
   };
+  locationName?: string | null;
 }) {
   const router = useRouter();
   const [voiding, setVoiding] = useState(false);
@@ -44,6 +46,11 @@ export default function ProductionRunCard({
         <div className="min-w-0">
           <p className="text-sm font-medium text-zinc-900">
             {run.item_name} — {run.qty_produced} {run.unit}
+            {locationName && (
+              <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                {locationName}
+              </span>
+            )}
           </p>
           <p className="text-xs text-zinc-500">
             {new Date(run.produced_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}

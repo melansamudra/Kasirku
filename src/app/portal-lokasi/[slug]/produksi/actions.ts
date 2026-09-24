@@ -51,6 +51,7 @@ export async function submitProduksiPortal(
       newUnit: "newUnit" in r ? r.newUnit.trim() : null,
       qty: r.qty,
     })),
+    p_location_id: locationId,
   });
 
   if (error) {

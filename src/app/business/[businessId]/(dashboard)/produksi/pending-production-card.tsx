@@ -29,6 +29,7 @@ export default function PendingProductionCard({
   createNewAction,
   linkReportedIngredientAction,
   createIngredientForReportedAction,
+  locationName,
 }: {
   run: {
     id: string;
@@ -40,6 +41,7 @@ export default function PendingProductionCard({
     note: string | null;
     produced_at: string;
   };
+  locationName?: string | null;
   existingItems: { id: string; name: string; unit: string }[];
   existingIngredients: { id: string; name: string; unit: string }[];
   standardRecipe: RecipeLine[];
@@ -83,6 +85,11 @@ export default function PendingProductionCard({
         <div className="min-w-0">
           <p className="text-sm font-medium text-zinc-900">
             {run.item_name} — {run.qty_produced} {run.unit}
+            {locationName && (
+              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                {locationName}
+              </span>
+            )}
           </p>
           <p className="text-xs text-zinc-500">
             {new Date(run.produced_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}

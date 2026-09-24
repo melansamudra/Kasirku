@@ -16,11 +16,13 @@ export default function NewProductionForm({
   items,
   employees,
   recipesByItem,
+  locations,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   items: { id: string; name: string; unit: string; stock: number }[];
   employees: { id: string; name: string }[];
   recipesByItem: Record<string, RecipeLine[]>;
+  locations: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -54,6 +56,29 @@ export default function NewProductionForm({
 
   return (
     <form ref={formRef} action={formAction} className="space-y-3">
+      {locations.length > 1 ? (
+        <div>
+          <label htmlFor="locationId" className="mb-1 block text-xs font-medium text-zinc-600">
+            Lokasi Produksi
+          </label>
+          <select
+            id="locationId"
+            name="locationId"
+            required
+            defaultValue=""
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">Pilih lokasi…</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        locations[0] && <input type="hidden" name="locationId" value={locations[0].id} />
+      )}
       <div>
         <label htmlFor="semiFinishedItemId" className="mb-1 block text-xs font-medium text-zinc-600">
           Bahan Setengah Jadi

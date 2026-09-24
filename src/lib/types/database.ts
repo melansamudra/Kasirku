@@ -3074,6 +3074,7 @@ export type Database = {
           reject_reason: string | null;
           produced_at: string;
           created_at: string;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
@@ -3094,6 +3095,7 @@ export type Database = {
           reject_reason?: string | null;
           produced_at?: string;
           created_at?: string;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
@@ -3114,6 +3116,7 @@ export type Database = {
           reject_reason?: string | null;
           produced_at?: string;
           created_at?: string;
+          location_id?: string | null;
         };
         Relationships: [];
       };
@@ -5946,6 +5949,7 @@ export type Database = {
           p_new_item_name?: string | null;
           p_new_item_unit?: string | null;
           p_reported_ingredients?: Json;
+          p_location_id?: string | null;
         };
         Returns: string;
       };

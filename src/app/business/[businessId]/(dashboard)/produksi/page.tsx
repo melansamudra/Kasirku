@@ -35,7 +35,7 @@ export default async function ProduksiPage({
     notFound();
   }
 
-  const [{ data: items }, { data: employees }, { data: runs }, ingredientsAll, costMap] =
+  const [{ data: items }, { data: employees }, { data: runs }, { data: productionLocations }, ingredientsAll, costMap] =
     await Promise.all([
       supabase
         .from("semi_finished_items")
@@ -52,10 +52,16 @@ export default async function ProduksiPage({
       supabase
         .from("production_runs")
         .select(
-          "id, semi_finished_item_id, item_name, qty_produced, unit, total_cost, produced_by_name, note, voided, void_reason, status, reject_reason, produced_at",
+          "id, semi_finished_item_id, item_name, qty_produced, unit, total_cost, produced_by_name, note, voided, void_reason, status, reject_reason, produced_at, location_id",
         )
         .eq("business_id", businessId)
         .order("produced_at", { ascending: false }),
+      supabase
+        .from("stock_locations")
+        .select("id, name")
+        .eq("business_id", businessId)
+        .eq("is_production", true)
+        .order("name", { ascending: true }),
       fetchAllRows((from, to) =>
         supabase
           .from("ingredients")
@@ -70,6 +76,8 @@ export default async function ProduksiPage({
 
   const pendingRuns = (runs ?? []).filter((r) => r.status === "pending");
   const otherRuns = (runs ?? []).filter((r) => r.status !== "pending");
+  const locationNameById = new Map((productionLocations ?? []).map((l) => [l.id, l.name]));
+  const showLocationBadge = (productionLocations ?? []).length > 1;
 
   // Bahan yang DILAPORKAN staf lewat scan (bisa beda dari resep standar) --
   // dipakai supervisor buat bandingkan sebelum pilih jalur verifikasi mana.
@@ -159,6 +167,7 @@ export default async function ProduksiPage({
               <PendingProductionCard
                 key={run.id}
                 run={run}
+                locationName={showLocationBadge ? (locationNameById.get(run.location_id ?? "") ?? null) : null}
                 existingItems={items ?? []}
                 existingIngredients={ingredientsAll ?? []}
                 standardRecipe={run.semi_finished_item_id ? (recipesByItem[run.semi_finished_item_id] ?? []) : []}
@@ -182,6 +191,7 @@ export default async function ProduksiPage({
           items={items ?? []}
           employees={employees ?? []}
           recipesByItem={recipesByItem}
+          locations={productionLocations ?? []}
         />
       </div>
 
@@ -191,7 +201,14 @@ export default async function ProduksiPage({
         </h2>
         <div className="space-y-2">
           {otherRuns.length > 0 ? (
-            otherRuns.map((run) => <ProductionRunCard key={run.id} businessId={businessId} run={run} />)
+            otherRuns.map((run) => (
+              <ProductionRunCard
+                key={run.id}
+                businessId={businessId}
+                run={run}
+                locationName={showLocationBadge ? (locationNameById.get(run.location_id ?? "") ?? null) : null}
+              />
+            ))
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
               Belum ada riwayat produksi.

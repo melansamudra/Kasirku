@@ -29,21 +29,37 @@ async function isStockDeductionEnabled(
   return data?.stock_deduction_enabled ?? true;
 }
 
-// Produksi cuma terjadi & memotong stok di satu lokasi fisik (Dapur
-// Produksi, ditandai stock_locations.is_production) -- lihat plan Fase 2
-// "Satukan Stok per Lokasi". null kalau lokasi itu belum diset (mis. migrasi
-// belum jalan) — dipakai caller untuk gagal eksplisit sebelum menyentuh stok.
-async function getProductionLocationId(
+// Produksi bisa terjadi & memotong stok di lebih dari 1 lokasi fisik (mis.
+// Kitchen & Bar, masing-masing ditandai stock_locations.is_production) --
+// dulu cuma didukung 1 lokasi (.maybeSingle()), gagal begitu ada 2. Sekarang
+// caller WAJIB kasih tahu lokasi mana (dari pilihan form / dari location_id
+// yang sudah tersimpan di baris production_runs), fungsi ini cuma validasi
+// requestedLocationId itu memang salah satu lokasi produksi bisnis ini --
+// atau, kalau tidak dikasih & cuma ada 1 lokasi produksi, pakai itu sebagai
+// default (jalur lama, tetap jalan buat bisnis 1-lokasi-produksi).
+async function resolveProductionLocationId(
   supabase: SupabaseClient<Database>,
   businessId: string,
-): Promise<string | null> {
-  const { data } = await supabase
+  requestedLocationId?: string | null,
+): Promise<{ locationId: string } | { error: string }> {
+  const { data: locations } = await supabase
     .from("stock_locations")
     .select("id")
     .eq("business_id", businessId)
-    .eq("is_production", true)
-    .maybeSingle();
-  return data?.id ?? null;
+    .eq("is_production", true);
+
+  if (!locations || locations.length === 0) {
+    return { error: "Lokasi produksi belum diatur. Hubungi admin untuk migrasi data lokasi." };
+  }
+  if (requestedLocationId) {
+    const found = locations.find((l) => l.id === requestedLocationId);
+    if (!found) return { error: "Lokasi produksi tidak valid." };
+    return { locationId: found.id };
+  }
+  if (locations.length === 1) {
+    return { locationId: locations[0].id };
+  }
+  return { error: "Pilih lokasi produksi." };
 }
 
 // Mutasi stok (potong komponen + tambah stok hasil) yang sebelumnya cuma ada
@@ -306,6 +322,7 @@ export async function recordProductionRun(
   const qtyProduced = Number(formData.get("qtyProduced") as string);
   const employeeId = (formData.get("employeeId") as string) || null;
   const note = (formData.get("note") as string)?.trim();
+  const requestedLocationId = (formData.get("locationId") as string) || null;
 
   if (!semiFinishedItemId) {
     return { error: "Pilih bahan setengah jadi yang diproduksi." };
@@ -317,10 +334,11 @@ export async function recordProductionRun(
   const supabase = await createClient();
   const deductStock = await isStockDeductionEnabled(supabase, businessId);
 
-  const locationId = await getProductionLocationId(supabase, businessId);
-  if (!locationId) {
-    return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
+  const locationResult = await resolveProductionLocationId(supabase, businessId, requestedLocationId);
+  if ("error" in locationResult) {
+    return { error: locationResult.error };
   }
+  const { locationId } = locationResult;
 
   const { data: item } = await supabase
     .from("semi_finished_items")
@@ -363,6 +381,7 @@ export async function recordProductionRun(
       produced_by_name: employeeName,
       note: note || null,
       status: "verified",
+      location_id: locationId,
     })
     .select("id")
     .single();
@@ -413,14 +432,9 @@ export async function voidProductionRun(businessId: string, runId: string, reaso
 
   const supabase = await createClient();
 
-  const locationId = await getProductionLocationId(supabase, businessId);
-  if (!locationId) {
-    return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
-  }
-
   const { data: run } = await supabase
     .from("production_runs")
-    .select("id, semi_finished_item_id, qty_produced, voided")
+    .select("id, semi_finished_item_id, qty_produced, voided, location_id")
     .eq("id", runId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -431,6 +445,15 @@ export async function voidProductionRun(businessId: string, runId: string, reaso
   if (run.voided) {
     return { error: "Produksi ini sudah dibatalkan sebelumnya." };
   }
+
+  // Balikin stok ke lokasi ASAL produksi ini dicatat (bukan nebak ulang) --
+  // baris lama sebelum kolom location_id ada masih bisa fallback ke resolver
+  // (cuma jalan kalau bisnisnya tetap 1 lokasi produksi).
+  const locationResult = await resolveProductionLocationId(supabase, businessId, run.location_id);
+  if ("error" in locationResult) {
+    return { error: locationResult.error };
+  }
+  const { locationId } = locationResult;
 
   const { data: consumptions } = await supabase
     .from("production_run_consumptions")
@@ -481,14 +504,9 @@ export async function verifyProductionRun(
   const supabase = await createClient();
   const deductStock = await isStockDeductionEnabled(supabase, businessId);
 
-  const locationId = await getProductionLocationId(supabase, businessId);
-  if (!locationId) {
-    return { error: "Lokasi produksi (Dapur Produksi) belum diatur. Hubungi admin untuk migrasi data lokasi." };
-  }
-
   const { data: run } = await supabase
     .from("production_runs")
-    .select("id, semi_finished_item_id, qty_produced, status")
+    .select("id, semi_finished_item_id, qty_produced, status, location_id")
     .eq("id", runId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -502,6 +520,15 @@ export async function verifyProductionRun(
   if (!run.semi_finished_item_id) {
     return { error: "Item bahan setengah jadi sudah dihapus." };
   }
+
+  // Draft dari scan publik sudah bawa location_id sendiri (dikirim dari
+  // portal per lokasi) -- draft lama sebelum kolom ini ada fallback ke
+  // resolver (cuma jalan kalau bisnisnya tetap 1 lokasi produksi).
+  const locationResult = await resolveProductionLocationId(supabase, businessId, run.location_id);
+  if ("error" in locationResult) {
+    return { error: locationResult.error };
+  }
+  const { locationId } = locationResult;
 
   const { data: item } = await supabase
     .from("semi_finished_items")
