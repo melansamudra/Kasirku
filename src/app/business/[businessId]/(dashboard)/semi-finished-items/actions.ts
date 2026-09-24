@@ -12,6 +12,19 @@ import ExcelJS from "exceljs";
 
 export type ActionState = { error: string | null };
 
+// Penanda visual "HPP sudah diperiksa" per BSJ -- tidak mempengaruhi
+// perhitungan cost sama sekali, murni checklist manual di halaman ini. Sama
+// pola dengan toggleHppChecked di products/actions.ts.
+export async function toggleSemiFinishedHppChecked(businessId: string, itemId: string, checked: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("semi_finished_items")
+    .update({ hpp_checked: checked })
+    .eq("id", itemId)
+    .eq("business_id", businessId);
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+}
+
 // "Bagian" — reuse pool ingredient_opname_sections (sama daftar dgn Bahan
 // Baku, lihat ingredients/actions.ts) supaya BSJ juga bisa dipangkas per
 // Bagian Lokasi Ini/Stok Opname. Sync penuh (hapus semua, insert ulang).

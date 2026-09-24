@@ -37,7 +37,7 @@ export default async function SemiFinishedItemsPage({
   const [{ data: items }, ingredients, { data: opnameSections }, { data: itemSectionRows }] = await Promise.all([
     supabase
       .from("semi_finished_items")
-      .select("id, name, unit, min_stock, category, ingredient_id, updated_at")
+      .select("id, name, unit, min_stock, category, ingredient_id, updated_at, hpp_checked")
       .eq("business_id", businessId)
       .is("deleted_at", null)
       .order("name", { ascending: true }),
@@ -84,6 +84,7 @@ export default async function SemiFinishedItemsPage({
       minStock: item.min_stock,
       category: item.category,
       updatedAt: item.updated_at,
+      hppChecked: item.hpp_checked,
       unitCost: cost?.unitCost ?? 0,
       rawCost: cost?.rawCost ?? 0,
       fluctuationPct: cost?.fluctuationPct ?? 0,

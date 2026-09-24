@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 import DeleteItemButton from "./delete-item-button";
+import HppCheckedToggle from "./hpp-checked-toggle";
 import OpnameSectionMultiSelect from "../ingredients/opname-section-multiselect";
 
 function formatRupiah(value: number) {
@@ -46,6 +47,7 @@ export type SemiFinishedItemRow = {
   minStock: number;
   category: string | null;
   updatedAt: string;
+  hppChecked: boolean;
   unitCost: number;
   rawCost: number;
   fluctuationPct: number;
@@ -265,10 +267,13 @@ export default function SemiFinishedItemsList({
                         action={updateSectionsAction}
                       />
                     </div>
-                    <p className="text-xs text-zinc-500">
-                      Stok {formatQty(item.stock)} {item.unit}
-                      {low && <span className="ml-1.5 font-medium text-amber-600">· rendah</span>}
-                      <span className="ml-1.5 text-zinc-400">· diupdate {formatRelativeTime(item.updatedAt, now)}</span>
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                      <span>
+                        Stok {formatQty(item.stock)} {item.unit}
+                        {low && <span className="ml-1.5 font-medium text-amber-600">· rendah</span>}
+                        <span className="ml-1.5 text-zinc-400">· diupdate {formatRelativeTime(item.updatedAt, now)}</span>
+                      </span>
+                      <HppCheckedToggle businessId={businessId} itemId={item.id} checked={item.hppChecked} />
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

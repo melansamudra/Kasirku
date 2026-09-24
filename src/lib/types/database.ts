@@ -2828,6 +2828,7 @@ export type Database = {
           created_at: string;
           updated_at: string;
           manual_unit_cost: number | null;
+          hpp_checked: boolean;
         };
         Insert: {
           id?: string;
@@ -2845,6 +2846,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           manual_unit_cost?: number | null;
+          hpp_checked?: boolean;
         };
         Update: {
           id?: string;
@@ -2862,6 +2864,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           manual_unit_cost?: number | null;
+          hpp_checked?: boolean;
         };
         Relationships: [];
       };
