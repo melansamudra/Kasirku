@@ -56,7 +56,7 @@ export default async function LabaRugiAkrualPage({
     ? new Date(new Date(toIsoExclusive).getTime() - 1).toISOString().slice(0, 10)
     : null;
 
-  const [{ data: business }, { data: accounts }, entries, allPurchases, allPayments, shiftMovements] =
+  const [{ data: business }, { data: accounts }, entries, allPurchases, allPayments, shiftMovements, { data: koreksiEntries }] =
     await Promise.all([
       supabase.from("businesses").select("id, name").eq("id", businessId).single(),
       supabase
@@ -125,17 +125,34 @@ export default async function LabaRugiAkrualPage({
           .neq("status", "rejected")
           .range(from, to),
       ),
+      // Jurnal manual yang sudah dibatalkan lewat "↩ Koreksi" plus jurnal
+      // koreksi-nya sendiri secara matematis saling meniadakan (net 0) di
+      // level SALDO akun -- tapi mode "Kas" di bawah menjumlah debit & kredit
+      // Kas & Bank sebagai DUA TOTAL TERPISAH (bukan saldo bersih), jadi
+      // pasangan koreksi yang MEMBALIK arah (mis. kredit jadi didebit balik)
+      // tidak saling meniadakan di situ -- malah nambah dobel ke Kas Masuk
+      // ATAU Kas Keluar. Disaring di sini, sama pola dengan fetchKasBankLines
+      // di lib/kas-bank.ts, biar "Kas Masuk"/"Kas Keluar" & rincian per
+      // kategori tidak digelembungkan oleh entri yang sudah dikoreksi
+      // (ditemukan dari kasus nominal salah ketik Rp75.831.616 di Mie Kota,
+      // 2026-09-24).
+      supabase.from("journal_entries").select("source_id").eq("business_id", businessId).eq("source", "koreksi"),
     ]);
 
   if (!business) {
     notFound();
   }
 
+  const reversedByKoreksiIds = new Set((koreksiEntries ?? []).map((r) => r.source_id));
+  const cleanEntries = entries.filter(
+    (e) => e.source !== "koreksi" && !reversedByKoreksiIds.has(e.id),
+  );
+
   const accountMap = new Map((accounts ?? []).map((a) => [a.id, a]));
   const accountByCode = new Map((accounts ?? []).map((a) => [a.code, a]));
 
   const balanceByAccount = new Map<string, number>();
-  for (const entry of entries) {
+  for (const entry of cleanEntries) {
     const lines = entry.journal_lines as unknown as {
       debit: number;
       credit: number;
@@ -295,7 +312,7 @@ export default async function LabaRugiAkrualPage({
     const isTransferEntry = (e: { source: string; description: string }) =>
       e.source === "manual" &&
       (e.description === "Transfer antar akun kas/bank" || e.description.startsWith("Transfer: "));
-    for (const entry of entries) {
+    for (const entry of cleanEntries) {
       if (isTransferEntry(entry)) continue;
 
       const lines = entry.journal_lines as unknown as { debit: number; credit: number; account_id: string }[];
