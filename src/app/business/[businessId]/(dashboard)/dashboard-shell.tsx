@@ -306,6 +306,7 @@ function buildCostControlNavGroups(
     {
       title: "Laporan & Biaya",
       items: [
+        { key: "reports-hpp-menu", href: `${base}/reports/hpp-menu`, label: "HPP Menu", icon: FileBarChart2 },
         { key: "reports-cogs", href: `${base}/reports/cogs`, label: "Laporan COGS", icon: Ruler },
         { key: "hpp-calculator", href: `${base}/hpp-calculator`, label: "Kalkulator HPP", icon: Calculator },
         { key: "reports-price-trend", href: `${base}/reports/price-trend`, label: "Tren Harga Bahan", icon: Tag },
