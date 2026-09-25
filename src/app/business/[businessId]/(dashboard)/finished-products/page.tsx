@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/pagination";
 import { computeAllFinishedProductCosts } from "@/lib/cost-control/compute-cost";
 import {
   addFinishedProduct,
@@ -32,12 +33,70 @@ export default async function FinishedProductsPage({
 
   const { data: products } = await supabase
     .from("finished_products")
-    .select("id, name, category, selling_price, target_food_cost_pct")
+    .select("id, name, category, selling_price, fluctuation_pct, target_food_cost_pct")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
-  const costs = await computeAllFinishedProductCosts(supabase, businessId);
+  const productIds = (products ?? []).map((p) => p.id);
+
+  const [costs, ingredients, semiFinishedItems, recipeRows] = await Promise.all([
+    computeAllFinishedProductCosts(supabase, businessId),
+    fetchAllRows<{ id: string; name: string; unit: string }>((from, to) =>
+      supabase
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows<{ id: string; name: string; unit: string }>((from, to) =>
+      supabase
+        .from("semi_finished_items")
+        .select("id, name, unit")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+        .range(from, to),
+    ),
+    productIds.length
+      ? fetchAllRows<{
+          id: string;
+          finished_product_id: string;
+          component_type: string;
+          ingredient_id: string | null;
+          semi_finished_item_id: string | null;
+          qty: number;
+          unit: string;
+        }>((from, to) =>
+          supabase
+            .from("finished_product_recipes")
+            .select("id, finished_product_id, component_type, ingredient_id, semi_finished_item_id, qty, unit")
+            .eq("business_id", businessId)
+            .in("finished_product_id", productIds)
+            .range(from, to),
+        )
+      : Promise.resolve([]),
+  ]);
+
+  const ingredientNameById = new Map(ingredients.map((i) => [i.id, i.name]));
+  const semiNameById = new Map(semiFinishedItems.map((s) => [s.id, s.name]));
+
+  const recipeLinesByProduct = new Map<
+    string,
+    { id: string; name: string; qty: number; unit: string }[]
+  >();
+  for (const r of recipeRows) {
+    const name =
+      r.component_type === "ingredient"
+        ? (ingredientNameById.get(r.ingredient_id ?? "") ?? "(dihapus)")
+        : (semiNameById.get(r.semi_finished_item_id ?? "") ?? "(dihapus)");
+    const list = recipeLinesByProduct.get(r.finished_product_id) ?? [];
+    list.push({ id: r.id, name, qty: Number(r.qty), unit: r.unit });
+    recipeLinesByProduct.set(r.finished_product_id, list);
+  }
+
   const boundAddProduct = addFinishedProduct.bind(null, businessId);
 
   const boundDeleteBulk = deleteFinishedProductsBulk.bind(null, businessId);
@@ -70,7 +129,8 @@ export default async function FinishedProductsPage({
   ];
 
   const rows: FinishedProductRow[] = (products ?? []).map((product) => {
-    const hpp = costs.get(product.id)?.unitCost ?? 0;
+    const cost = costs.get(product.id);
+    const hpp = cost?.unitCost ?? 0;
     const suggestedPrice =
       product.target_food_cost_pct != null && product.target_food_cost_pct > 0
         ? hpp / (product.target_food_cost_pct / 100)
@@ -86,6 +146,12 @@ export default async function FinishedProductsPage({
       effectivePrice,
       isSuggestedPrice: product.selling_price == null && suggestedPrice != null,
       marginPct,
+      sellingPrice: product.selling_price,
+      fluctuationPct: Number(product.fluctuation_pct ?? 0),
+      targetFoodCostPct: product.target_food_cost_pct,
+      breakdown: cost?.breakdown ?? [],
+      rawCost: cost?.rawCost ?? 0,
+      recipeLines: recipeLinesByProduct.get(product.id) ?? [],
     };
   });
 
@@ -108,7 +174,13 @@ export default async function FinishedProductsPage({
       </div>
 
       <div className="mt-6">
-        <FinishedProductsList businessId={businessId} products={rows} bulkActions={finishedProductBulkActions} />
+        <FinishedProductsList
+          businessId={businessId}
+          products={rows}
+          bulkActions={finishedProductBulkActions}
+          ingredients={ingredients}
+          semiFinishedOptions={semiFinishedItems}
+        />
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

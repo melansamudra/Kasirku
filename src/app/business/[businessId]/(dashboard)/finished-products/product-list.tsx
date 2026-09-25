@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import BulkActionBar, { type BulkAction } from "@/components/bulk-action-bar";
+import type { CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 import DeleteProductButton from "./delete-product-button";
+import FinishedProductDetailPanel from "./finished-product-detail-panel";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -14,23 +16,34 @@ export type FinishedProductRow = {
   name: string;
   category: string | null;
   hpp: number;
+  rawCost: number;
   effectivePrice: number | null;
   isSuggestedPrice: boolean;
   marginPct: number | null;
+  sellingPrice: number | null;
+  fluctuationPct: number;
+  targetFoodCostPct: number | null;
+  breakdown: CostBreakdownLine[];
+  recipeLines: { id: string; name: string; qty: number; unit: string }[];
 };
 
 export default function FinishedProductsList({
   businessId,
   products,
   bulkActions,
+  ingredients,
+  semiFinishedOptions,
 }: {
   businessId: string;
   products: FinishedProductRow[];
   bulkActions?: BulkAction[];
+  ingredients: { id: string; name: string; unit: string }[];
+  semiFinishedOptions: { id: string; name: string; unit: string }[];
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -54,6 +67,8 @@ export default function FinishedProductsList({
       return true;
     });
   }, [products, query, category]);
+
+  const detailProduct = detailId ? products.find((p) => p.id === detailId) : null;
 
   return (
     <div>
@@ -106,47 +121,48 @@ export default function FinishedProductsList({
                 />
               )}
               <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Link
-                    href={`/business/${businessId}/finished-products/${product.id}`}
-                    className="text-sm font-medium text-zinc-900 hover:text-brand-600 hover:underline"
-                  >
-                    {product.name}
-                  </Link>
-                  {product.category && (
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
-                      {product.category}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-zinc-500">
-                  HPP {formatRupiah(product.hpp)}
-                  {product.effectivePrice != null
-                    ? ` · Jual ${formatRupiah(product.effectivePrice)}${product.isSuggestedPrice ? " (saran)" : ""}`
-                    : ""}
-                </p>
-              </div>
-              {product.effectivePrice == null ? (
-                <p className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
-                  Belum ada harga jual
-                </p>
-              ) : (
-                product.marginPct != null && (
-                  <p
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      product.marginPct >= 30
-                        ? "bg-emerald-50 text-emerald-700"
-                        : product.marginPct >= 15
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-red-50 text-red-700"
-                    }`}
-                  >
-                    Margin {product.marginPct}%
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDetailId(product.id)}
+                      className="text-sm font-medium text-zinc-900 hover:text-brand-600 hover:underline"
+                    >
+                      {product.name}
+                    </button>
+                    {product.category && (
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                        {product.category}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    HPP {formatRupiah(product.hpp)}
+                    {product.effectivePrice != null
+                      ? ` · Jual ${formatRupiah(product.effectivePrice)}${product.isSuggestedPrice ? " (saran)" : ""}`
+                      : ""}
                   </p>
-                )
-              )}
-              <DeleteProductButton businessId={businessId} productId={product.id} productName={product.name} />
+                </div>
+                {product.effectivePrice == null && (
+                  <p className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                    Belum ada harga jual
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDetailId(product.id)}
+                  className="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:border-brand-300 hover:text-brand-600"
+                  title="Lihat & edit resep"
+                >
+                  ▸ Detail
+                </button>
+                <Link
+                  href={`/business/${businessId}/finished-products/${product.id}`}
+                  className="shrink-0 text-[11px] text-zinc-400 hover:text-brand-600 hover:underline"
+                >
+                  halaman penuh ↗
+                </Link>
+                <DeleteProductButton businessId={businessId} productId={product.id} productName={product.name} />
               </div>
             </div>
           ))
@@ -165,6 +181,16 @@ export default function FinishedProductsList({
           onClear={() => setSelected(new Set())}
           actions={bulkActions}
           itemLabel="produk"
+        />
+      )}
+
+      {detailProduct && (
+        <FinishedProductDetailPanel
+          businessId={businessId}
+          product={detailProduct}
+          ingredients={ingredients}
+          semiFinishedOptions={semiFinishedOptions}
+          onClose={() => setDetailId(null)}
         />
       )}
     </div>

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
+import { computeAllFinishedProductCosts, computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
 import HppMenuListClient from "./hpp-menu-list-client";
+import CostControlHppMenuList, { type CostControlHppRow } from "./cost-control-hpp-menu-list";
 import ShareLinkButton from "./share-link-button";
 
 export default async function ReportsHppMenuPage({
@@ -11,8 +13,84 @@ export default async function ReportsHppMenuPage({
 }) {
   const { businessId } = await params;
   const supabase = await createClient();
-  const { data: biz } = await supabase.from("businesses").select("id, hpp_menu_slug").eq("id", businessId).maybeSingle();
+  const { data: biz } = await supabase
+    .from("businesses")
+    .select("id, hpp_menu_slug, cost_control_enabled")
+    .eq("id", businessId)
+    .maybeSingle();
   if (!biz) notFound();
+
+  // Bisnis cost-control tidak punya katalog products/product_recipes yang
+  // dipakai jualan (lihat cost-control-products-page.tsx) -- data HPP-nya
+  // ada di finished_products (Produk Jadi) & semi_finished_items (BSJ),
+  // jadi rekap-nya digabung dari dua tabel itu, bukan dari `products`.
+  if (biz.cost_control_enabled) {
+    const [{ data: finishedProducts }, { data: semiItems }, finishedCosts, semiCosts] = await Promise.all([
+      supabase
+        .from("finished_products")
+        .select("id, name, category, selling_price, updated_at")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("semi_finished_items")
+        .select("id, name, category, hpp_checked, updated_at")
+        .eq("business_id", businessId)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      computeAllFinishedProductCosts(supabase, businessId),
+      computeAllSemiFinishedItemCosts(supabase, businessId),
+    ]);
+
+    const rows: CostControlHppRow[] = [
+      ...(finishedProducts ?? []).map((p): CostControlHppRow => {
+        const cost = finishedCosts.get(p.id)?.unitCost ?? 0;
+        const price = p.selling_price != null ? Number(p.selling_price) : null;
+        return {
+          id: p.id,
+          type: "finished",
+          name: p.name,
+          category: p.category || "Tanpa Kategori",
+          price,
+          cost,
+          margin: price != null ? price - cost : null,
+          pct: price != null && price > 0 ? (cost / price) * 100 : null,
+          hppChecked: null,
+          updatedAt: p.updated_at,
+          detailHref: `/business/${businessId}/finished-products/${p.id}`,
+        };
+      }),
+      ...(semiItems ?? []).map((s): CostControlHppRow => ({
+        id: s.id,
+        type: "semi",
+        name: s.name,
+        category: s.category || "Tanpa Kategori",
+        price: null,
+        cost: semiCosts.get(s.id)?.unitCost ?? 0,
+        margin: null,
+        pct: null,
+        hppChecked: s.hpp_checked,
+        updatedAt: s.updated_at,
+        detailHref: `/business/${businessId}/semi-finished-items/${s.id}`,
+      })),
+    ].sort((a, b) => a.name.localeCompare(b.name, "id"));
+
+    return (
+      <div className="w-full max-w-4xl">
+        <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
+          <div>
+            <h1 className="text-lg font-bold text-zinc-900">Daftar HPP Menu</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              HPP seluruh Produk Jadi &amp; Bahan Setengah Jadi — {rows.length} item.
+            </p>
+          </div>
+          <ShareLinkButton businessId={businessId} slug={biz.hpp_menu_slug} />
+        </div>
+
+        <CostControlHppMenuList rows={rows} />
+      </div>
+    );
+  }
 
   // Katalog produk aktif -- bukan berbasis transaksi/periode seperti laporan
   // lain, jadi semua produk tampil walau belum pernah terjual.
