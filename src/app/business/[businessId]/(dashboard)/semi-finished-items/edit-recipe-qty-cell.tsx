@@ -9,11 +9,10 @@ function formatQty(value: number) {
 
 // Qty TERSIMPAN selalu per-1-satuan-hasil (lihat compute-cost.ts) -- tapi
 // kalau item ini punya batch_yield_qty, staf mikirnya dalam skala batch
-// (mis. "600 gr buat 1 panci/55 porsi", bukan "10,9 gr per porsi"), sama
-// seperti waktu nambah baris baru (RecipeDropdownMultiAdd). Jadi kotak edit
-// ini default tampil & terima angka SKALA BATCH, baru dibagi batch_yield_qty
-// sebelum dikirim ke server -- storage & rumus HPP (compute-cost.ts) sama
-// sekali tidak berubah, cuma UI editnya yang mengikuti cara mikir batch.
+// (mis. "600 gr buat 1 panci/55 porsi"). Tampilan & edit di sini SELALU
+// pakai skala batch kalau batch_yield_qty diisi -- tidak ada toggle mode
+// lain lagi (sempat ada dropdown batch/per-1-satuan, ternyata bikin
+// bingung), baru dibagi batch_yield_qty sebelum dikirim ke server.
 export default function EditRecipeQtyCell({
   businessId,
   semiFinishedItemId,
@@ -32,40 +31,26 @@ export default function EditRecipeQtyCell({
   onSaved?: () => void;
 }) {
   const hasBatchMode = !!batchYieldQty && batchYieldQty > 0 && batchYieldQty !== 1;
+  const displayQty = hasBatchMode ? qty * batchYieldQty! : qty;
+
   const [editing, setEditing] = useState(false);
-  const [scaleMode, setScaleMode] = useState<"batch" | "unit">(hasBatchMode ? "batch" : "unit");
-  const [value, setValue] = useState(String(qty));
+  const [value, setValue] = useState(String(displayQty));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  function startEditing() {
-    const mode = hasBatchMode ? "batch" : "unit";
-    setScaleMode(mode);
-    setValue(String(mode === "batch" ? qty * batchYieldQty! : qty));
-    setError(null);
-    setEditing(true);
-  }
 
   if (!editing) {
     return (
       <button
         type="button"
-        onClick={startEditing}
+        onClick={() => {
+          setValue(String(displayQty));
+          setError(null);
+          setEditing(true);
+        }}
         title="Klik untuk ubah jumlah"
         className="rounded px-1 py-0.5 text-zinc-600 hover:bg-zinc-100 hover:text-brand-600"
       >
-        {hasBatchMode ? (
-          <>
-            {formatQty(qty * batchYieldQty!)} {unit}{" "}
-            <span className="text-zinc-400">
-              (≈ {formatQty(qty)} {unit} / 1 hasil)
-            </span>
-          </>
-        ) : (
-          <>
-            {formatQty(qty)} {unit}
-          </>
-        )}
+        {formatQty(displayQty)} {unit}
       </button>
     );
   }
@@ -76,7 +61,7 @@ export default function EditRecipeQtyCell({
       setError("Angka > 0");
       return;
     }
-    const next = scaleMode === "batch" ? entered / batchYieldQty! : entered;
+    const next = hasBatchMode ? entered / batchYieldQty! : entered;
     startTransition(async () => {
       const result = await updateRecipeComponentQty(businessId, semiFinishedItemId, recipeRowId, next);
       if (result.error) {
@@ -89,28 +74,7 @@ export default function EditRecipeQtyCell({
   }
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      {hasBatchMode && (
-        <select
-          value={scaleMode}
-          onChange={(e) => {
-            const mode = e.target.value as "batch" | "unit";
-            // Konversi dari nilai yang lagi diketik (bukan dari qty semula),
-            // supaya perubahan yang belum disimpan tidak hilang saat ganti mode.
-            setValue((prevVal) => {
-              const current = Number(prevVal);
-              if (Number.isNaN(current)) return prevVal;
-              return String(mode === "batch" ? current * batchYieldQty! : current / batchYieldQty!);
-            });
-            setScaleMode(mode);
-          }}
-          disabled={pending}
-          className="rounded-lg border border-zinc-200 px-1.5 py-1 text-[11px] focus:border-brand-600 focus:outline-none"
-        >
-          <option value="batch">per batch ({batchYieldQty})</option>
-          <option value="unit">per 1 {unit}</option>
-        </select>
-      )}
+    <span className="inline-flex items-center gap-1">
       <input
         type="number"
         min="0"
