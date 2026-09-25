@@ -113,6 +113,13 @@ export default async function SemiFinishedItemDetailPage({
   const batchYieldQty = item.batch_yield_qty !== null ? Number(item.batch_yield_qty) : null;
   const hasBatchMode = !!batchYieldQty && batchYieldQty > 0 && batchYieldQty !== 1;
   const scale = hasBatchMode ? batchYieldQty! : 1;
+  // Item baru & belum ada resep sama sekali -- jangan biarkan nambah bahan
+  // sebelum "menghasilkan berapa porsi" diputuskan dulu. Ini akar masalah
+  // yang berulang (Kuah Serani, Kuah Rawon): bahan diisi duluan dalam
+  // jumlah TOTAL BATCH, baru belakangan yield-nya di-set -- karena tidak ada
+  // basis skala saat itu, sistem anggap qty yang sudah ada sudah benar per-1-
+  // satuan (lihat updateRecipeYield), padahal aslinya belum dibagi sama sekali.
+  const needsYieldDecision = batchYieldQty === null && recipeLineRows.length === 0;
 
   return (
     <div className="w-full max-w-3xl">
@@ -143,15 +150,37 @@ export default async function SemiFinishedItemDetailPage({
           produksi, jumlah ini otomatis dikalikan dengan berapa banyak yang diproduksi.
         </p>
 
-        <div className="mb-4 rounded-lg bg-zinc-50 p-3">
-          <RecipeYieldForm action={boundUpdateYield} unit={item.unit} currentYieldQty={batchYieldQty} />
-          <p className="mt-1.5 text-[11px] text-zinc-400">
-            Dipakai buat isi/tampilkan jumlah komponen dalam bentuk &quot;per batch&quot; di bawah, bukan cuma
-            per-1-{item.unit}.
-          </p>
-        </div>
+        {needsYieldDecision ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-800">
+              Sebelum nambah bahan, tentukan dulu resep ini untuk berapa porsi
+            </p>
+            <p className="mt-1 text-xs text-amber-700">
+              Kalau bahan yang mau dimasukkan itu untuk SATU KALI MASAK BESAR (mis. satu panci buat
+              banyak porsi), isi jumlah porsinya di sini dulu — supaya nanti gramasi bahan otomatis
+              dibagi ke per-porsi dengan benar. Kalau memang langsung per 1 {item.unit} (tanpa konsep
+              batch), klik &quot;Langsung per 1 porsi&quot; saja.
+            </p>
+            <div className="mt-3">
+              <RecipeYieldForm
+                action={boundUpdateYield}
+                unit={item.unit}
+                currentYieldQty={batchYieldQty}
+                showSkipButton
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-lg bg-zinc-50 p-3">
+            <RecipeYieldForm action={boundUpdateYield} unit={item.unit} currentYieldQty={batchYieldQty} />
+            <p className="mt-1.5 text-[11px] text-zinc-400">
+              Dipakai buat isi/tampilkan jumlah komponen dalam bentuk &quot;per batch&quot; di bawah, bukan cuma
+              per-1-{item.unit}.
+            </p>
+          </div>
+        )}
 
-        {recipeLineRows.length > 0 ? (
+        {!needsYieldDecision && recipeLineRows.length > 0 ? (
           <div className="overflow-hidden rounded-xl border border-zinc-200">
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 text-xs text-zinc-500">
@@ -226,32 +255,34 @@ export default async function SemiFinishedItemDetailPage({
               </tfoot>
             </table>
           </div>
-        ) : (
+        ) : !needsYieldDecision ? (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             {cost.unitCost > 0
               ? `HPP diisi manual: ${formatRupiah(cost.unitCost)}/${item.unit} — tidak dihitung dari resep.`
               : "Belum ada komponen resep — HPP masih Rp0."}
           </p>
-        )}
+        ) : null}
 
-        <div className="mt-4 border-t border-zinc-100 pt-4">
-          <RecipeDropdownMultiAdd
-            action={boundAddComponentsBulk}
-            ingredients={ingredients ?? []}
-            semiFinishedOptions={otherItems ?? []}
-            batchYieldQty={batchYieldQty}
-            resultUnit={item.unit}
-          />
-          <div className="mt-3">
-            <RecipeBulkAdd
+        {!needsYieldDecision && (
+          <div className="mt-4 border-t border-zinc-100 pt-4">
+            <RecipeDropdownMultiAdd
               action={boundAddComponentsBulk}
               ingredients={ingredients ?? []}
               semiFinishedOptions={otherItems ?? []}
               batchYieldQty={batchYieldQty}
               resultUnit={item.unit}
             />
+            <div className="mt-3">
+              <RecipeBulkAdd
+                action={boundAddComponentsBulk}
+                ingredients={ingredients ?? []}
+                semiFinishedOptions={otherItems ?? []}
+                batchYieldQty={batchYieldQty}
+                resultUnit={item.unit}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">
