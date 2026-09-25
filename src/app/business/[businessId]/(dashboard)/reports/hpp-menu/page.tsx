@@ -34,7 +34,7 @@ export default async function ReportsHppMenuPage({
         .order("name", { ascending: true }),
       supabase
         .from("semi_finished_items")
-        .select("id, name, category, hpp_checked, updated_at")
+        .select("id, name, unit, category, hpp_checked, updated_at")
         .eq("business_id", businessId)
         .is("deleted_at", null)
         .order("name", { ascending: true }),
@@ -51,6 +51,7 @@ export default async function ReportsHppMenuPage({
           type: "finished",
           name: p.name,
           category: p.category || "Tanpa Kategori",
+          unit: null,
           price,
           cost,
           margin: price != null ? price - cost : null,
@@ -65,6 +66,7 @@ export default async function ReportsHppMenuPage({
         type: "semi",
         name: s.name,
         category: s.category || "Tanpa Kategori",
+        unit: s.unit,
         price: null,
         cost: semiCosts.get(s.id)?.unitCost ?? 0,
         margin: null,

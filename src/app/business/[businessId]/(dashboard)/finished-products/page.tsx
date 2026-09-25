@@ -109,7 +109,7 @@ export default async function FinishedProductsPage({
       label: "Hapus Terpilih",
       kind: "delete",
       confirmLabel: "Hapus produk jadi yang dipilih?",
-      run: (ids) => boundDeleteBulk(ids),
+      run: boundDeleteBulk,
     },
     {
       key: "category",
@@ -117,14 +117,14 @@ export default async function FinishedProductsPage({
       kind: "text",
       fieldLabel: "Kategori baru",
       placeholder: "mis. Makanan Berat",
-      run: (ids, category) => boundUpdateCategoryBulk(ids, category),
+      run: boundUpdateCategoryBulk,
     },
     {
       key: "adjust-price",
       label: "Sesuaikan Harga Jual %",
       kind: "percent",
       fieldLabel: "Ubah harga jual sebesar",
-      run: (ids, percent) => boundAdjustPriceBulk(ids, percent),
+      run: boundAdjustPriceBulk,
     },
   ];
 

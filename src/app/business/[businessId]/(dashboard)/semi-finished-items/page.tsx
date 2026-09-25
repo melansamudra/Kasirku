@@ -119,7 +119,7 @@ export default async function SemiFinishedItemsPage({
       label: "Hapus Terpilih",
       kind: "delete",
       confirmLabel: "Hapus bahan yang dipilih? Yang masih dipakai di resep akan dilewati.",
-      run: (ids) => boundDeleteBulk(ids),
+      run: boundDeleteBulk,
     },
     {
       key: "category",
@@ -127,14 +127,14 @@ export default async function SemiFinishedItemsPage({
       kind: "text",
       fieldLabel: "Kategori baru",
       placeholder: "mis. Bumbu Dasar",
-      run: (ids, category) => boundUpdateCategoryBulk(ids, category),
+      run: boundUpdateCategoryBulk,
     },
     {
       key: "adjust-cost",
       label: "Sesuaikan HPP Manual %",
       kind: "percent",
       fieldLabel: "Ubah HPP manual sebesar",
-      run: (ids, percent) => boundAdjustCostBulk(ids, percent),
+      run: boundAdjustCostBulk,
     },
   ];
 

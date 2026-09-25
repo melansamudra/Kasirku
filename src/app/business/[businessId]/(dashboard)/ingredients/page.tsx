@@ -149,14 +149,14 @@ export default async function IngredientsPage({
       label: "Hapus Terpilih",
       kind: "delete",
       confirmLabel: "Hapus bahan yang dipilih? Yang masih dipakai di resep akan dilewati.",
-      run: (ids) => boundDeleteIngredientsBulk(ids),
+      run: boundDeleteIngredientsBulk,
     },
     {
       key: "adjust-cost",
       label: "Sesuaikan Harga %",
       kind: "percent",
       fieldLabel: "Ubah harga/satuan sebesar",
-      run: (ids, percent) => boundAdjustIngredientsCostBulk(ids, percent),
+      run: boundAdjustIngredientsCostBulk,
     },
     ...(opnameSections && opnameSections.length > 0
       ? [
@@ -166,7 +166,7 @@ export default async function IngredientsPage({
             kind: "select" as const,
             fieldLabel: "Bagian",
             options: opnameSections.map((s) => ({ value: s.id, label: s.name })),
-            run: (ids: string[], sectionId: string) => boundAddIngredientsToSectionBulk(ids, sectionId),
+            run: boundAddIngredientsToSectionBulk,
           },
         ]
       : []),

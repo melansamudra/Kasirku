@@ -8,6 +8,7 @@ export type CostControlHppRow = {
   type: "finished" | "semi";
   name: string;
   category: string;
+  unit: string | null;
   price: number | null;
   cost: number;
   margin: number | null;
@@ -123,6 +124,7 @@ export default function CostControlHppMenuList({ rows }: { rows: CostControlHppR
                     <td className="px-4 py-3 text-right text-xs text-zinc-600">{r.price != null ? fmt(r.price) : "-"}</td>
                     <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
                       {fmt(r.cost)}
+                      {r.unit && <span className="text-zinc-400">/{r.unit}</span>}
                     </td>
                     <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
                       {r.pct != null && r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
