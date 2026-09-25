@@ -210,14 +210,15 @@ export default async function ReportsHarianPage({
     // dikeluarkan -- kalau tidak, baris kredit ASLI tetap kehitung penuh
     // sementara koreksinya (yang menukar debit/kredit) diabaikan karena di
     // sini cuma credit yang dijumlah, jadi pendapatan permanen overstate.
-    const { data: ojolReversals } = await supabase
-      .from("journal_entries")
-      .select("source_id")
-      .eq("business_id", businessId)
-      .eq("source", "koreksi");
-    const ojolReversedEntryIds = new Set((ojolReversals ?? []).map((r) => r.source_id));
+    // Sama halnya kas kecil yang salah direklas ke akun pendapatan (mis.
+    // 4-999) lalu ditolak/dikoreksi -- jurnal pembaliknya (Debit Kas & Bank /
+    // Kredit akun pendapatan itu) juga kredit ke akun ini, jadi ikut disaring
+    // pakai rejectedReversalEntryIds dari fetchKasBankLines (sumber kebenaran
+    // yang sama dipakai `kasBank` di atas), bukan query terpisah lagi.
     ojolRows = rawOjolRows.filter(
-      (r) => r.journal_entries.source !== "koreksi" && !ojolReversedEntryIds.has(r.journal_entries.id),
+      (r) =>
+        !kasBank.koreksiRelatedEntryIds.has(r.journal_entries.id) &&
+        !kasBank.rejectedReversalEntryIds.has(r.journal_entries.id),
     );
   }
 

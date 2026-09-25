@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
+import { fetchKasBankLines } from "@/lib/kas-bank";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
@@ -70,7 +71,7 @@ export default async function ArusKasPage({
   // Kedua query dibungkus fetchAllRows karena Supabase/PostgREST diam-diam
   // memotong hasil di 1000 baris kalau tidak di-paginate (lihat
   // lib/pagination.ts), dan dijalankan paralel karena tidak saling bergantung.
-  const [openingEntries, entries] = await Promise.all([
+  const [openingEntries, entries, kasBankResult] = await Promise.all([
     kasAccountId && fromIso
       ? fetchAllRows<{ journal_lines: { debit: number; credit: number }[] }>((from, to) =>
           supabase
@@ -82,17 +83,37 @@ export default async function ArusKasPage({
             .range(from, to),
         )
       : Promise.resolve([]),
-    fetchAllRows<{ description: string; journal_lines: { debit: number; credit: number; account_id: string }[] }>(
-      (from, to) => {
-        let q = supabase
-          .from("journal_entries")
-          .select("description, journal_lines(debit, credit, account_id)")
-          .eq("business_id", businessId)
-          .range(from, to);
-        if (fromIso) q = q.gte("date", fromIso);
-        if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
-        return q;
-      },
+    fetchAllRows<{
+      id: string;
+      description: string;
+      journal_lines: { debit: number; credit: number; account_id: string }[];
+    }>((from, to) => {
+      let q = supabase
+        .from("journal_entries")
+        .select("id, description, journal_lines(debit, credit, account_id)")
+        .eq("business_id", businessId)
+        .range(from, to);
+      if (fromIso) q = q.gte("date", fromIso);
+      if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
+      return q;
+    }),
+    fetchKasBankLines(supabase, businessId, fromIso, toIsoExclusive),
+  ]);
+
+  // Jurnal void, pasangan "↩ Koreksi" (sudah disaring dari `lines` di dalam
+  // fetchKasBankLines), kas kecil yang ditolak (baris asli + baris
+  // pembaliknya), dan transfer antar akun kas/bank sendiri semuanya saling
+  // meniadakan net 0 di saldo -- tapi kalau tidak disaring di sini, masing-
+  // masing sisinya kehitung dobel di Kas Masuk & Kas Keluar (gross), bukan
+  // cuma di saldo bersih. Pola & sumber kebenarannya sama dengan Kas & Bank/
+  // Laba Rugi mode Kas (lihat lib/kas-bank.ts) -- kas kecil yang masih
+  // "pending" SENGAJA tidak ikut disaring di sini (beda dari fetchKasBankLines
+  // punya sendiri) karena uangnya beneran sudah keluar dari kas, belum ada
+  // pasangan pembalik yang menetralkan.
+  const excludedEntryIds = new Set([
+    ...kasBankResult.koreksiRelatedEntryIds,
+    ...[...kasBankResult.voidLines, ...kasBankResult.rejectedPettyCashLines, ...kasBankResult.transferLines].map(
+      (l) => l.journal_entries.id,
     ),
   ]);
 
@@ -111,6 +132,7 @@ export default async function ArusKasPage({
   ]);
 
   for (const e of entries) {
+    if (excludedEntryIds.has(e.id)) continue;
     const kasLines = e.journal_lines.filter((l) => l.account_id === kasAccountId);
     if (kasLines.length === 0) continue;
 

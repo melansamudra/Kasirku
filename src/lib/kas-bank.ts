@@ -40,8 +40,14 @@ export type KasBankResult = {
   voidLines: KasBankLine[];
   pendingPettyCashLines: KasBankLine[];
   rejectedPettyCashLines: KasBankLine[];
+  /** Subset rejectedPettyCashLines yang BENERAN ditolak admin (bukan bekas koreksi/reklas data masal) -- ini yang layak ditampilkan di "Riwayat Ditolak"/kartu "Kas Kecil Ditolak" biar tidak kecampur puluhan baris koreksi. Lihat komentar di dekat perhitungannya. */
+  genuineRejectedPettyCashLines: KasBankLine[];
   /** Transfer antar akun kas/bank milik sendiri (mis. Rekening Utama -> Rekening Operasional lewat Transfer Kas/Bank atau PDO) -- bukan beban/pendapatan, cuma uang pindah tempat. */
   transferLines: KasBankLine[];
+  /** ID entri jurnal yang sudah dibatalkan lewat "↩ Koreksi" PLUS jurnal koreksi-nya sendiri (lihat komentar `reversals` di atas) -- diekspos terpisah dari nonVoidLines/dkk supaya konsumen yang butuh menyaring baris DI LUAR akun Kas & Bank juga (mis. Laporan Arus Kas, yang menelusuri akun lawannya juga) bisa pakai daftar exclude yang sama, bukan menduplikasi query "koreksi" sendiri. */
+  koreksiRelatedEntryIds: Set<string>;
+  /** ID entri jurnal pembalik kas kecil yang ditolak (lihat komentar di atas movementByEntryId) -- diekspos supaya konsumen yang menelusuri akun DI LUAR Kas & Bank (mis. akun pendapatan yang salah dipilih saat approve kas kecil, lalu ditolak/dikoreksi) juga bisa menyaring baris pembalikannya, bukan cuma sisi Kas & Bank-nya. */
+  rejectedReversalEntryIds: Set<string>;
   movementByEntryId: Map<string, KasBankMovementMeta>;
   voidedSaleCount: number;
   voidedPurchaseCount: number;
@@ -59,7 +65,10 @@ export async function fetchKasBankLines(
     voidLines: [],
     pendingPettyCashLines: [],
     rejectedPettyCashLines: [],
+    genuineRejectedPettyCashLines: [],
     transferLines: [],
+    koreksiRelatedEntryIds: new Set(),
+    rejectedReversalEntryIds: new Set(),
     movementByEntryId: new Map(),
     voidedSaleCount: 0,
     voidedPurchaseCount: 0,
@@ -75,10 +84,17 @@ export async function fetchKasBankLines(
     // tetap muncul di Jurnal Transaksi sebagai jejak audit, tapi di sini
     // cuma bikin bingung. Disaring biar cuma pergerakan kas yang masih
     // berlaku.
-    supabase.from("journal_entries").select("source_id").eq("business_id", businessId).eq("source", "koreksi"),
+    supabase.from("journal_entries").select("id, source_id").eq("business_id", businessId).eq("source", "koreksi"),
   ]);
   if (!kasAccount) return empty;
   const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
+  // Global (bukan cuma yang lawan-akunnya Kas & Bank) -- konsumen yang
+  // menyaring akun LAIN (mis. Laporan Harian buat akun pendapatan 4-999)
+  // juga butuh set ini, jadi tidak boleh ikut kepotong oleh `rawLines` yang
+  // cuma baris Kas & Bank.
+  const koreksiRelatedEntryIds = new Set(
+    (reversals ?? []).flatMap((r) => [r.id, r.source_id].filter((v): v is string => !!v)),
+  );
 
   // Supabase/PostgREST diam-diam memotong hasil query di 1000 baris kalau
   // tidak di-paginate (lihat lib/pagination.ts).
@@ -210,6 +226,29 @@ export async function fetchKasBankLines(
   const rejectedPettyCashLines = lines.filter(
     (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && isRejectedPettyCash(l),
   );
+
+  // "Ditolak admin" beneran (kasir minta, admin klik tolak lewat POS/Kas
+  // Kecil) vs "ditolak" pakai jalur yang sama cuma buat KOREKSI DATA masal
+  // (mis. batch reklas kas kecil -> Nota Hutang) -- keduanya sama-sama
+  // status='rejected' di shift_cash_movements (jalur reject cuma satu), tapi
+  // yang kedua ngotorin "Riwayat Ditolak" di Kas & Bank dengan puluhan baris
+  // yang bukan penolakan beneran. Dibedakan dari deskripsi jurnal
+  // pembaliknya -- reject asli selalu "Tolak kas kecil: ...", sedang koreksi
+  // manual selalu diawali "Koreksi: ..." (lihat lib/kas-bank.ts pemanggil).
+  const descriptionByEntryId = new Map(lines.map((l) => [l.journal_entries.id, l.journal_entries.description]));
+  const correctionRejectEntryIds = new Set(
+    (shiftMovements ?? [])
+      .filter(
+        (m) =>
+          m.status === "rejected" &&
+          m.reclass_journal_entry_id &&
+          descriptionByEntryId.get(m.reclass_journal_entry_id)?.startsWith("Koreksi:"),
+      )
+      .flatMap((m) => [m.journal_entry_id, m.reclass_journal_entry_id as string]),
+  );
+  const genuineRejectedPettyCashLines = rejectedPettyCashLines.filter(
+    (l) => !correctionRejectEntryIds.has(l.journal_entries.id),
+  );
   const transferLines = lines.filter(
     (l) => !isVoidRelated(l) && !isPendingPettyCash(l) && !isRejectedPettyCash(l) && isTransferRelated(l),
   );
@@ -226,7 +265,10 @@ export async function fetchKasBankLines(
     voidLines,
     pendingPettyCashLines,
     rejectedPettyCashLines,
+    genuineRejectedPettyCashLines,
     transferLines,
+    koreksiRelatedEntryIds,
+    rejectedReversalEntryIds,
     movementByEntryId,
     voidedSaleCount: voidedSaleIds.size,
     voidedPurchaseCount: voidedPurchaseIds.size,

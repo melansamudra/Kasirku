@@ -117,7 +117,7 @@ export default async function KasHarianPage({
     displayLines,
     voidLines,
     pendingPettyCashLines,
-    rejectedPettyCashLines,
+    genuineRejectedPettyCashLines: rejectedPettyCashLines,
     transferLines,
     movementByEntryId: shiftMovementByEntryId,
     voidedSaleCount,

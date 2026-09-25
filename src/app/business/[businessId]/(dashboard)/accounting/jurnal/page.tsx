@@ -4,6 +4,7 @@ import { BookOpen, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { todayWibDateString } from "@/lib/wib";
 import { fetchAllRows } from "@/lib/pagination";
+import { fetchHiddenCorrectionEntryIds } from "@/lib/journal-corrections";
 import { StatCard } from "@/components/ui/stat-card";
 import { PillBadge, type PillTone } from "@/components/ui/pill-badge";
 import {
@@ -79,7 +80,7 @@ export default async function JurnalPage({
   // tidak di-paginate — bisnis dengan riwayat jurnal (termasuk impor Moka)
   // lebih dari 1000 per periode kehilangan baris paling lama tanpa ada
   // error. Lihat lib/pagination.ts.
-  const [{ data: business }, { data: accounts }, entries, { data: reversals }] =
+  const [{ data: business }, { data: accounts }, rawEntries, { data: reversals }, hiddenCorrectionEntryIds] =
     await Promise.all([
       supabase.from("businesses").select("id, name").eq("id", businessId).single(),
       supabase
@@ -107,6 +108,7 @@ export default async function JurnalPage({
         .select("source_id")
         .eq("business_id", businessId)
         .eq("source", "koreksi"),
+      fetchHiddenCorrectionEntryIds(supabase, businessId),
     ]);
 
   if (!business) {
@@ -114,6 +116,10 @@ export default async function JurnalPage({
   }
 
   const reversedEntryIds = new Set((reversals ?? []).map((r) => r.source_id));
+  // Pasangan koreksi/reklas yang sudah saling meniadakan (net 0) disaring
+  // dari tampilan atas permintaan user 2026-09-25 -- data aslinya tetap utuh
+  // di database, cuma disembunyikan dari daftar ini biar tidak berisik.
+  const entries = rawEntries.filter((e) => !hiddenCorrectionEntryIds.has(e.id));
 
   const boundAddJournalEntry = addJournalEntry.bind(null, businessId);
   const today = todayWibDateString();

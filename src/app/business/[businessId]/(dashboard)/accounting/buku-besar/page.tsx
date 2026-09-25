@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Wallet, TrendingUp, TrendingDown, Scale } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
+import { fetchHiddenCorrectionEntryIds } from "@/lib/journal-corrections";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   PERIOD_COOKIE_NAME,
@@ -83,12 +84,12 @@ export default async function BukuBesarPage({
   // (journal_lines!inner) dan dibungkus fetchAllRows karena Supabase/PostgREST
   // diam-diam memotong hasil di 1000 baris kalau tidak di-paginate (lihat
   // lib/pagination.ts).
-  const [openingEntries, periodEntries] = await Promise.all([
+  const [rawOpeningEntries, rawPeriodEntries, hiddenCorrectionEntryIds] = await Promise.all([
     fromIso
-      ? fetchAllRows<{ journal_lines: { debit: number; credit: number }[] }>((rangeFrom, rangeTo) =>
+      ? fetchAllRows<{ id: string; journal_lines: { debit: number; credit: number }[] }>((rangeFrom, rangeTo) =>
           supabase
             .from("journal_entries")
-            .select("journal_lines!inner(debit, credit)")
+            .select("id, journal_lines!inner(debit, credit)")
             .eq("business_id", businessId)
             .eq("journal_lines.account_id", selectedAccount.id)
             .lt("date", fromIso)
@@ -113,7 +114,15 @@ export default async function BukuBesarPage({
       if (toIsoExclusive) q = q.lt("date", toIsoExclusive);
       return q;
     }),
+    fetchHiddenCorrectionEntryIds(supabase, businessId),
   ]);
+  // Pasangan koreksi/reklas yang sudah saling meniadakan (net 0) disaring
+  // dari tampilan atas permintaan user 2026-09-25, konsisten dengan Jurnal
+  // Transaksi (lib/journal-corrections.ts) -- Buku Besar memang didesain
+  // cocok 1:1 dengan Jurnal Transaksi, jadi keduanya harus pakai filter yang
+  // sama. Data aslinya tetap utuh di database.
+  const openingEntries = rawOpeningEntries.filter((e) => !hiddenCorrectionEntryIds.has(e.id));
+  const periodEntries = rawPeriodEntries.filter((e) => !hiddenCorrectionEntryIds.has(e.id));
 
   let openingRaw = 0;
   for (const e of openingEntries) {
