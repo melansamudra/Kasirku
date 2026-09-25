@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
-import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
+import { computeAllSemiFinishedItemCosts, computeSemiFinishedItemCost } from "@/lib/cost-control/compute-cost";
 import { addRecipeComponentsBulk, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
 import ItemForm from "../item-form";
 import RecipeDropdownMultiAdd from "../recipe-dropdown-multi-add";
@@ -18,30 +18,6 @@ function formatRupiah(value: number) {
 
 function formatQty(value: number) {
   return Number(value.toFixed(4)).toLocaleString("id-ID");
-}
-
-function BreakdownRow({ line, depth }: { line: CostBreakdownLine; depth: number }) {
-  return (
-    <>
-      <tr>
-        <td className="px-3 py-2" style={{ paddingLeft: `${12 + depth * 16}px` }}>
-          {line.name}
-          {line.componentType === "semi_finished" && (
-            <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500">
-              setengah jadi
-            </span>
-          )}
-        </td>
-        <td className="px-3 py-2 text-right">
-          {formatQty(line.qty)} {line.unit}
-        </td>
-        <td className="px-3 py-2 text-right">{formatRupiah(line.subtotal)}</td>
-      </tr>
-      {line.children?.map((child, i) => (
-        <BreakdownRow key={i} line={child} depth={depth + 1} />
-      ))}
-    </>
-  );
 }
 
 export default async function SemiFinishedItemDetailPage({
@@ -84,7 +60,7 @@ export default async function SemiFinishedItemDetailPage({
   ]);
   const currentStock = mirrorIngredient ? Number(mirrorIngredient.stock) : 0;
 
-  const [{ data: recipeRows }, ingredients, { data: otherItems }] = await Promise.all([
+  const [{ data: recipeRows }, ingredients, { data: otherItems }, semiCosts] = await Promise.all([
     supabase
       .from("semi_finished_recipes")
       .select("id, component_type, ingredient_id, component_semi_finished_id, qty, unit")
@@ -93,7 +69,7 @@ export default async function SemiFinishedItemDetailPage({
     fetchAllRows((from, to) =>
       supabase
         .from("ingredients")
-        .select("id, name, unit")
+        .select("id, name, unit, unit_cost")
         .eq("business_id", businessId)
         .is("deleted_at", null)
         .order("name", { ascending: true })
@@ -106,12 +82,30 @@ export default async function SemiFinishedItemDetailPage({
       .is("deleted_at", null)
       .neq("id", id)
       .order("name", { ascending: true }),
+    computeAllSemiFinishedItemCosts(supabase, businessId),
   ]);
 
   const ingredientMap = new Map(ingredients.map((i) => [i.id, i]));
   const itemMap = new Map((otherItems ?? []).map((i) => [i.id, i]));
 
   const cost = await computeSemiFinishedItemCost(supabase, businessId, id);
+
+  const recipeLineRows = (recipeRows ?? []).map((line) => {
+    const isIngredient = line.component_type === "ingredient";
+    const ing = isIngredient ? ingredientMap.get(line.ingredient_id ?? "") : undefined;
+    const semi = !isIngredient ? itemMap.get(line.component_semi_finished_id ?? "") : undefined;
+    const componentUnitCost = isIngredient
+      ? Number(ing?.unit_cost ?? 0)
+      : (semiCosts.get(line.component_semi_finished_id ?? "")?.unitCost ?? 0);
+    return {
+      id: line.id,
+      name: ing?.name ?? semi?.name ?? "(dihapus)",
+      isSemiFinished: !isIngredient,
+      qty: Number(line.qty),
+      unit: line.unit,
+      subtotal: Number(line.qty) * componentUnitCost,
+    };
+  });
 
   const boundUpdate = updateSemiFinishedItem.bind(null, businessId, id);
   const boundAddComponentsBulk = addRecipeComponentsBulk.bind(null, businessId, id);
@@ -155,7 +149,7 @@ export default async function SemiFinishedItemDetailPage({
           </p>
         </div>
 
-        {cost.breakdown.length > 0 ? (
+        {recipeLineRows.length > 0 ? (
           <div className="overflow-hidden rounded-xl border border-zinc-200">
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 text-xs text-zinc-500">
@@ -163,23 +157,55 @@ export default async function SemiFinishedItemDetailPage({
                   <th className="px-3 py-2 text-left">Komponen</th>
                   <th className="px-3 py-2 text-right">Jumlah</th>
                   <th className="px-3 py-2 text-right">Biaya</th>
+                  <th className="w-8 px-2 py-2" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {cost.breakdown.map((line, i) => (
-                  <BreakdownRow key={i} line={line} depth={0} />
+                {recipeLineRows.map((line) => (
+                  <tr key={line.id}>
+                    <td className="px-3 py-2">
+                      {line.name}
+                      {line.isSemiFinished && (
+                        <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                          setengah jadi
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <EditRecipeQtyCell
+                        businessId={businessId}
+                        semiFinishedItemId={id}
+                        recipeRowId={line.id}
+                        qty={line.qty}
+                        unit={line.unit}
+                        batchYieldQty={batchYieldQty}
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right">{formatRupiah(line.subtotal)}</td>
+                    <td className="px-1 py-2 text-right">
+                      <form action={removeRecipeComponent.bind(null, businessId, id, line.id)}>
+                        <button
+                          type="submit"
+                          className="text-zinc-400 hover:text-red-500"
+                          title="Hapus komponen"
+                        >
+                          ✕
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
               <tfoot className="bg-zinc-50">
                 <tr>
-                  <td colSpan={2} className="px-3 py-2 text-right text-xs text-zinc-500">
+                  <td colSpan={3} className="px-3 py-2 text-right text-xs text-zinc-500">
                     Sub total
                   </td>
                   <td className="px-3 py-2 text-right text-xs text-zinc-600">{formatRupiah(cost.rawCost)}</td>
                 </tr>
                 {cost.fluctuationPct > 0 && (
                   <tr>
-                    <td colSpan={2} className="px-3 py-2 text-right text-xs text-zinc-500">
+                    <td colSpan={3} className="px-3 py-2 text-right text-xs text-zinc-500">
                       Fluctuation ({cost.fluctuationPct}%)
                     </td>
                     <td className="px-3 py-2 text-right text-xs text-zinc-600">
@@ -188,7 +214,7 @@ export default async function SemiFinishedItemDetailPage({
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={2} className="px-3 py-2 text-right text-xs font-semibold text-zinc-600">
+                  <td colSpan={3} className="px-3 py-2 text-right text-xs font-semibold text-zinc-600">
                     Total HPP per {item.unit}
                   </td>
                   <td className="px-3 py-2 text-right text-sm font-bold text-zinc-900">
@@ -204,40 +230,6 @@ export default async function SemiFinishedItemDetailPage({
               ? `HPP diisi manual: ${formatRupiah(cost.unitCost)}/${item.unit} — tidak dihitung dari resep.`
               : "Belum ada komponen resep — HPP masih Rp0."}
           </p>
-        )}
-
-        {(recipeRows ?? []).length > 0 && (
-          <div className="mt-4 space-y-1.5">
-            {(recipeRows ?? []).map((line) => {
-              const name =
-                line.component_type === "ingredient"
-                  ? ingredientMap.get(line.ingredient_id ?? "")?.name
-                  : itemMap.get(line.component_semi_finished_id ?? "")?.name;
-              return (
-                <div
-                  key={line.id}
-                  className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-1.5 text-xs text-zinc-600"
-                >
-                  <span className="flex flex-wrap items-center gap-1">
-                    {name ?? "(dihapus)"} —{" "}
-                    <EditRecipeQtyCell
-                      businessId={businessId}
-                      semiFinishedItemId={id}
-                      recipeRowId={line.id}
-                      qty={Number(line.qty)}
-                      unit={line.unit}
-                      batchYieldQty={batchYieldQty}
-                    />
-                  </span>
-                  <form action={removeRecipeComponent.bind(null, businessId, id, line.id)}>
-                    <button type="submit" className="text-zinc-400 hover:text-red-500" title="Hapus komponen">
-                      Hapus
-                    </button>
-                  </form>
-                </div>
-              );
-            })}
-          </div>
         )}
 
         <div className="mt-4 border-t border-zinc-100 pt-4">
