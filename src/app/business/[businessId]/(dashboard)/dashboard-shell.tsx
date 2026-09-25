@@ -512,7 +512,15 @@ function buildNavGroups(
             ]),
         ...(isStarter ? [] : [{ key: "invoices", href: `${base}/invoices`, label: "Invoice/Nota", icon: Receipt }]),
         ...(!isStarter && !isFinanceOnly
-          ? [{ key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor }]
+          ? [
+              { key: "assets", href: `${base}/assets`, label: "Aset Tetap", icon: Monitor },
+              {
+                key: "prepaid-expenses",
+                href: `${base}/prepaid-expenses`,
+                label: "Biaya Dibayar Dimuka",
+                icon: CalendarClock,
+              },
+            ]
           : []),
       ],
     },

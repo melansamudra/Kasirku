@@ -159,7 +159,7 @@ export default function SemiFinishedItemsList({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<"name" | "recent">("name");
+  const [sortBy, setSortBy] = useState<"name" | "recent" | "checked">("name");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   function toggleSelected(id: string) {
@@ -186,8 +186,13 @@ export default function SemiFinishedItemsList({
     if (sortBy === "recent") {
       return result.slice().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     }
+    if (sortBy === "checked") {
+      return result.filter((item) => item.hppChecked);
+    }
     return result;
   }, [items, query, category, sortBy]);
+
+  const checkedCount = items.filter((i) => i.hppChecked).length;
 
   return (
     <div>
@@ -245,6 +250,15 @@ export default function SemiFinishedItemsList({
           }`}
         >
           Baru diupdate
+        </button>
+        <button
+          type="button"
+          onClick={() => setSortBy("checked")}
+          className={`rounded-full px-2.5 py-1 font-medium transition-colors ${
+            sortBy === "checked" ? "bg-brand-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          HPP Dicek ({checkedCount})
         </button>
       </div>
 
@@ -338,7 +352,9 @@ export default function SemiFinishedItemsList({
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             {query || category
               ? "Tidak ada bahan yang cocok dengan filter ini."
-              : "Belum ada bahan setengah jadi. Tambahkan dulu, lalu atur resepnya di halaman detail."}
+              : sortBy === "checked"
+                ? "Belum ada bahan yang HPP-nya ditandai sudah dicek."
+                : "Belum ada bahan setengah jadi. Tambahkan dulu, lalu atur resepnya di halaman detail."}
           </p>
         )}
       </div>

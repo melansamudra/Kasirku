@@ -2289,6 +2289,72 @@ export type Database = {
           },
         ];
       };
+      prepaid_expenses: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          payment_date: string;
+          total_amount: number;
+          amortization_months: number;
+          expense_account_code: string;
+          amortized_amount: number;
+          disposed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          payment_date: string;
+          total_amount: number;
+          amortization_months: number;
+          expense_account_code: string;
+          amortized_amount?: number;
+          disposed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          payment_date?: string;
+          total_amount?: number;
+          amortization_months?: number;
+          expense_account_code?: string;
+          amortized_amount?: number;
+          disposed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      prepaid_expense_postings: {
+        Row: {
+          id: string;
+          business_id: string;
+          period: string;
+          total_amount: number;
+          journal_entry_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          period: string;
+          total_amount: number;
+          journal_entry_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          period?: string;
+          total_amount?: number;
+          journal_entry_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       products: {
         Row: {
           id: string;
