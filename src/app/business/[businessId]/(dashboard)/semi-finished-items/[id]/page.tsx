@@ -226,13 +226,8 @@ export default async function SemiFinishedItemDetailPage({
                       recipeRowId={line.id}
                       qty={Number(line.qty)}
                       unit={line.unit}
+                      batchYieldQty={batchYieldQty}
                     />
-                    {batchYieldQty !== null && batchYieldQty !== 1 && (
-                      <span className="text-zinc-400">
-                        (≈ {formatQty(Number(line.qty) * batchYieldQty)} {line.unit} / batch {batchYieldQty}{" "}
-                        {item.unit})
-                      </span>
-                    )}
                   </span>
                   <form action={removeRecipeComponent.bind(null, businessId, id, line.id)}>
                     <button type="submit" className="text-zinc-400 hover:text-red-500" title="Hapus komponen">
