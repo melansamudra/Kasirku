@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import {
@@ -108,13 +109,24 @@ export default async function IngredientsPage({
 
   const { data: semiFinishedItemsRaw } = await supabase
     .from("semi_finished_items")
-    .select("id, name, unit, stock, min_stock, manual_unit_cost, category")
+    .select("id, name, unit, stock, min_stock, manual_unit_cost, category, ingredient_id")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("name", { ascending: true });
   const semiFinishedItems = semiFinishedItemsRaw ?? [];
   const boundImportIngredients = importIngredients.bind(null, businessId);
   const boundAddOpnameSection = addOpnameSection.bind(null, businessId);
+
+  // Kembaran BSJ (ingredient_id di semi_finished_items) -- Bagian bahan ini
+  // HARUS ditandai dari halaman Bahan Setengah Jadi, bukan dari sini. Dulu
+  // OpnameSectionMultiSelect tetap tampil di baris kembaran ini juga, jadi
+  // user gampang salah tandai Bagian ke tabel ingredient (bukan BSJ) --
+  // kejadian berulang (Kuah Serani/Singkong D9, lalu 4 item Woh sekaligus,
+  // ditemukan 2026-09-25) karena baris kembaran ini tidak dibedakan sama
+  // sekali dari bahan baku asli.
+  const semiFinishedIdByMirrorIngredientId = new Map(
+    semiFinishedItems.filter((s) => s.ingredient_id).map((s) => [s.ingredient_id as string, s.id]),
+  );
 
   return (
     <div className="w-full max-w-2xl">
@@ -167,7 +179,9 @@ export default async function IngredientsPage({
               names={ingredients.map((i) => i.name)}
               departments={ingredients.map((i) => i.departments ?? [])}
             >
-              {ingredients.map((i) => (
+              {ingredients.map((i) => {
+                const mirrorSemiFinishedId = semiFinishedIdByMirrorIngredientId.get(i.id);
+                return (
               <div
                 key={i.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
@@ -180,12 +194,22 @@ export default async function IngredientsPage({
                       departments={i.departments ?? []}
                       action={updateIngredientDepartment.bind(null, businessId)}
                     />
-                    <OpnameSectionMultiSelect
-                      entityId={i.id}
-                      sectionIds={sectionIdsByIngredient.get(i.id) ?? []}
-                      sections={opnameSections ?? []}
-                      action={updateIngredientOpnameSections.bind(null, businessId)}
-                    />
+                    {mirrorSemiFinishedId ? (
+                      <Link
+                        href={`/business/${businessId}/semi-finished-items/${mirrorSemiFinishedId}`}
+                        className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500 hover:bg-zinc-200"
+                        title="Ini kembaran Bahan Setengah Jadi -- atur Bagian dari halaman BSJ-nya"
+                      >
+                        BSJ · atur Bagian di sana →
+                      </Link>
+                    ) : (
+                      <OpnameSectionMultiSelect
+                        entityId={i.id}
+                        sectionIds={sectionIdsByIngredient.get(i.id) ?? []}
+                        sections={opnameSections ?? []}
+                        action={updateIngredientOpnameSections.bind(null, businessId)}
+                      />
+                    )}
                   </div>
                   {costControlEnabled ? (
                     <p className="text-xs text-zinc-400">
@@ -234,7 +258,8 @@ export default async function IngredientsPage({
                   ingredientName={i.name}
                 />
               </div>
-              ))}
+                );
+              })}
             </IngredientSearch>
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
