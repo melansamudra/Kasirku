@@ -59,6 +59,7 @@ export default async function ReportsHppMenuPage({
           hppChecked: null,
           updatedAt: p.updated_at,
           detailHref: `/business/${businessId}/finished-products/${p.id}`,
+          breakdown: finishedCosts.get(p.id)?.breakdown ?? [],
         };
       }),
       ...(semiItems ?? []).map((s): CostControlHppRow => ({
@@ -74,6 +75,7 @@ export default async function ReportsHppMenuPage({
         hppChecked: s.hpp_checked,
         updatedAt: s.updated_at,
         detailHref: `/business/${businessId}/semi-finished-items/${s.id}`,
+        breakdown: semiCosts.get(s.id)?.breakdown ?? [],
       })),
     ].sort((a, b) => a.name.localeCompare(b.name, "id"));
 

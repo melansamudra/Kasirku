@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
+import type { CostBreakdownLine } from "@/lib/cost-control/compute-cost";
 
 export type CostControlHppRow = {
   id: string;
@@ -16,6 +17,7 @@ export type CostControlHppRow = {
   hppChecked: boolean | null;
   updatedAt: string;
   detailHref: string;
+  breakdown: CostBreakdownLine[];
 };
 
 const TYPE_LABELS: Record<CostControlHppRow["type"], string> = {
@@ -27,18 +29,57 @@ function fmt(v: number) {
   return `Rp${Math.round(v).toLocaleString("id-ID")}`;
 }
 
+function fmtQty(v: number) {
+  return Number(v.toFixed(4)).toLocaleString("id-ID");
+}
+
 function fmtDate(v: string) {
   return new Date(v).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function BreakdownRow({ line, depth }: { line: CostBreakdownLine; depth: number }) {
+  return (
+    <>
+      <tr>
+        <td className="px-3 py-1.5" style={{ paddingLeft: `${12 + depth * 16}px` }}>
+          {line.name}
+          {line.componentType === "semi_finished" && (
+            <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500">
+              setengah jadi
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-1.5 text-right">
+          {fmtQty(line.qty)} {line.unit}
+        </td>
+        <td className="px-3 py-1.5 text-right">{fmt(line.subtotal)}</td>
+      </tr>
+      {line.children?.map((child, i) => (
+        <BreakdownRow key={i} line={child} depth={depth + 1} />
+      ))}
+    </>
+  );
 }
 
 // Rekap HPP gabungan khusus bisnis cost-control -- beda dari HppMenuListClient
 // biasa (yang berbasis products/product_recipes & bisa diedit resepnya inline)
 // karena sumber datanya dua tabel berbeda (finished_products + semi_finished_items)
-// yang masing-masing sudah punya halaman edit resep sendiri, jadi di sini
-// murni rekap baca-saja + tautan ke halaman detailnya.
+// yang masing-masing sudah punya halaman edit resep sendiri. Klik nama
+// membuka breakdown bahan LANGSUNG di tempat (bukan pindah halaman) supaya
+// gampang dicek cepat -- "buka halaman penuh" tetap ada buat yang mau edit.
 export default function CostControlHppMenuList({ rows }: { rows: CostControlHppRow[] }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState<"" | CostControlHppRow["type"]>("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -105,39 +146,78 @@ export default function CostControlHppMenuList({ rows }: { rows: CostControlHppR
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
-                  <tr key={r.id} className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={r.detailHref}
-                        className="text-xs font-medium text-zinc-800 hover:text-brand-600 hover:underline"
-                      >
-                        {r.name}
-                      </Link>
-                      <div className="text-[10px] text-zinc-400">{r.category}</div>
-                    </td>
-                    <td className="px-4 py-3 text-[11px] text-zinc-500">
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
-                        {TYPE_LABELS[r.type]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs text-zinc-600">{r.price != null ? fmt(r.price) : "-"}</td>
-                    <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
-                      {fmt(r.cost)}
-                      {r.unit && <span className="text-zinc-400">/{r.unit}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
-                      {r.pct != null && r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
-                    </td>
-                    <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin == null ? "text-zinc-300" : r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
-                      {r.margin != null ? fmt(r.margin) : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
-                      {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
-                      {fmtDate(r.updatedAt)}
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((r, i) => {
+                  const isOpen = expanded.has(r.id);
+                  return (
+                    <Fragment key={r.id}>
+                      <tr className={`border-b border-zinc-50 last:border-0 ${i % 2 === 0 ? "" : "bg-zinc-50/40"}`}>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(r.id)}
+                            className="flex items-center gap-1.5 text-left text-xs font-medium text-zinc-800 hover:text-brand-600 print:pointer-events-none"
+                          >
+                            <span className="text-[10px] text-zinc-400 print:hidden">{isOpen ? "▾" : "▸"}</span>
+                            {r.name}
+                          </button>
+                          <div className="text-[10px] text-zinc-400">
+                            {r.category}
+                            {" · "}
+                            <Link href={r.detailHref} className="text-zinc-400 hover:text-brand-600 hover:underline print:hidden">
+                              buka halaman penuh ↗
+                            </Link>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-[11px] text-zinc-500">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                            {TYPE_LABELS[r.type]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-zinc-600">{r.price != null ? fmt(r.price) : "-"}</td>
+                        <td className={`px-4 py-3 text-right text-xs font-medium ${r.cost <= 0 ? "text-amber-600" : "text-zinc-800"}`}>
+                          {fmt(r.cost)}
+                          {r.unit && <span className="text-zinc-400">/{r.unit}</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">
+                          {r.pct != null && r.pct > 0 ? `${r.pct.toFixed(1)}%` : "-"}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs font-semibold ${r.margin == null ? "text-zinc-300" : r.margin >= 0 ? "text-brand-700" : "text-red-600"}`}>
+                          {r.margin != null ? fmt(r.margin) : "-"}
+                        </td>
+                        <td className="px-4 py-3 text-right text-[11px] text-zinc-400">
+                          {r.hppChecked && <span className="mr-1 text-brand-600" title="HPP sudah dicek">✓</span>}
+                          {fmtDate(r.updatedAt)}
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="border-b border-zinc-50 last:border-0">
+                          <td colSpan={7} className="bg-zinc-50/60 px-4 py-3">
+                            {r.breakdown.length > 0 ? (
+                              <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                                <table className="w-full text-xs">
+                                  <thead className="bg-zinc-50 text-zinc-500">
+                                    <tr>
+                                      <th className="px-3 py-1.5 text-left">Komponen</th>
+                                      <th className="px-3 py-1.5 text-right">Jumlah</th>
+                                      <th className="px-3 py-1.5 text-right">Biaya</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-zinc-100">
+                                    {r.breakdown.map((line, idx) => (
+                                      <BreakdownRow key={idx} line={line} depth={0} />
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="px-2 py-2 text-xs text-zinc-400">Belum ada komponen resep.</p>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
