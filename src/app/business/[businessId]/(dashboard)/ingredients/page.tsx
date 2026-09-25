@@ -5,14 +5,19 @@ import { fetchAllRows } from "@/lib/pagination";
 import {
   addIngredientOrSemiFinished,
   addIngredientPurchaseUnit,
+  addIngredientsToSectionBulk,
   addOpnameSection,
+  adjustIngredientsCostBulk,
   adjustIngredientStock,
   deleteIngredientPurchaseUnit,
+  deleteIngredientsBulk,
   editIngredient,
   importIngredients,
   updateIngredientDepartment,
   updateIngredientOpnameSections,
 } from "./actions";
+import { findIngredientUsage } from "@/lib/cost-control/ingredient-usage";
+import type { BulkAction } from "@/components/bulk-action-bar";
 import AddIngredientForm from "./add-ingredient-form";
 import AdjustStockForm from "@/components/adjust-stock-form";
 import DeleteIngredientButton from "./delete-ingredient-button";
@@ -128,6 +133,45 @@ export default async function IngredientsPage({
     semiFinishedItems.filter((s) => s.ingredient_id).map((s) => [s.ingredient_id as string, s.id]),
   );
 
+  const usageByIngredientId = await findIngredientUsage(
+    supabase,
+    businessId,
+    ingredients.map((i) => i.id),
+  );
+
+  const boundDeleteIngredientsBulk = deleteIngredientsBulk.bind(null, businessId);
+  const boundAdjustIngredientsCostBulk = adjustIngredientsCostBulk.bind(null, businessId);
+  const boundAddIngredientsToSectionBulk = addIngredientsToSectionBulk.bind(null, businessId);
+
+  const ingredientBulkActions: BulkAction[] = [
+    {
+      key: "delete",
+      label: "Hapus Terpilih",
+      kind: "delete",
+      confirmLabel: "Hapus bahan yang dipilih? Yang masih dipakai di resep akan dilewati.",
+      run: (ids) => boundDeleteIngredientsBulk(ids),
+    },
+    {
+      key: "adjust-cost",
+      label: "Sesuaikan Harga %",
+      kind: "percent",
+      fieldLabel: "Ubah harga/satuan sebesar",
+      run: (ids, percent) => boundAdjustIngredientsCostBulk(ids, percent),
+    },
+    ...(opnameSections && opnameSections.length > 0
+      ? [
+          {
+            key: "add-section" as const,
+            label: "Tambahkan ke Bagian",
+            kind: "select" as const,
+            fieldLabel: "Bagian",
+            options: opnameSections.map((s) => ({ value: s.id, label: s.name })),
+            run: (ids: string[], sectionId: string) => boundAddIngredientsToSectionBulk(ids, sectionId),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="w-full max-w-2xl">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -176,11 +220,14 @@ export default async function IngredientsPage({
         <div className="mt-6">
           {ingredients && ingredients.length > 0 ? (
             <IngredientSearch
+              ids={ingredients.map((i) => i.id)}
               names={ingredients.map((i) => i.name)}
               departments={ingredients.map((i) => i.departments ?? [])}
+              bulkActions={ingredientBulkActions}
             >
               {ingredients.map((i) => {
                 const mirrorSemiFinishedId = semiFinishedIdByMirrorIngredientId.get(i.id);
+                const usedIn = usageByIngredientId.get(i.id) ?? [];
                 return (
               <div
                 key={i.id}
@@ -211,6 +258,16 @@ export default async function IngredientsPage({
                       />
                     )}
                   </div>
+                  {usedIn.length > 0 ? (
+                    <details className="mt-0.5 text-xs text-zinc-400">
+                      <summary className="cursor-pointer select-none hover:text-zinc-600">
+                        Dipakai di {usedIn.length} resep
+                      </summary>
+                      <p className="mt-1 pl-2 text-zinc-500">{usedIn.join(", ")}</p>
+                    </details>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-zinc-300">Tidak dipakai di resep manapun</p>
+                  )}
                   {costControlEnabled ? (
                     <p className="text-xs text-zinc-400">
                       Stok fisik dikelola per lokasi — lihat menu Gudang Utama / Kitchen Llauk / dst

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CostBreakdownLine } from "@/lib/cost-control/compute-cost";
+import BulkActionBar, { type BulkAction } from "@/components/bulk-action-bar";
 import DeleteItemButton from "./delete-item-button";
 import HppCheckedToggle from "./hpp-checked-toggle";
 import OpnameSectionMultiSelect from "../ingredients/opname-section-multiselect";
@@ -53,6 +54,7 @@ export type SemiFinishedItemRow = {
   fluctuationPct: number;
   breakdown: CostBreakdownLine[];
   sectionIds: string[];
+  usedIn: string[];
 };
 
 function BreakdownRow({ line, depth }: { line: CostBreakdownLine; depth: number }) {
@@ -145,17 +147,29 @@ export default function SemiFinishedItemsList({
   now,
   sections,
   updateSectionsAction,
+  bulkActions,
 }: {
   businessId: string;
   items: SemiFinishedItemRow[];
   now: number;
   sections: { id: string; name: string }[];
   updateSectionsAction: (itemId: string, sectionIds: string[]) => Promise<{ error: string | null }>;
+  bulkActions?: BulkAction[];
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "recent">("name");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const categories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is string => !!c))].sort(),
@@ -240,7 +254,17 @@ export default function SemiFinishedItemsList({
             const low = item.stock < item.minStock;
             const open = openId === item.id;
             return (
-              <div key={item.id} className="rounded-xl border border-zinc-200 bg-white">
+              <div key={item.id} className="flex items-start gap-2">
+                {bulkActions && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(item.id)}
+                    onChange={() => toggleSelected(item.id)}
+                    className="mt-4 h-4 w-4 shrink-0 rounded border-zinc-300 text-brand-600 focus:ring-brand-400"
+                    aria-label={`Pilih ${item.name}`}
+                  />
+                )}
+                <div className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -275,6 +299,16 @@ export default function SemiFinishedItemsList({
                       </span>
                       <HppCheckedToggle businessId={businessId} itemId={item.id} checked={item.hppChecked} />
                     </p>
+                    {item.usedIn.length > 0 ? (
+                      <details className="mt-0.5 text-xs text-zinc-400">
+                        <summary className="cursor-pointer select-none hover:text-zinc-600">
+                          Dipakai di {item.usedIn.length} resep
+                        </summary>
+                        <p className="mt-1 pl-2 text-zinc-500">{item.usedIn.join(", ")}</p>
+                      </details>
+                    ) : (
+                      <p className="mt-0.5 text-xs text-zinc-300">Tidak dipakai di resep manapun</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <p className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
@@ -296,6 +330,7 @@ export default function SemiFinishedItemsList({
                     <ItemDetail item={item} />
                   </div>
                 )}
+                </div>
               </div>
             );
           })
@@ -307,6 +342,15 @@ export default function SemiFinishedItemsList({
           </p>
         )}
       </div>
+
+      {bulkActions && (
+        <BulkActionBar
+          selectedIds={[...selected]}
+          onClear={() => setSelected(new Set())}
+          actions={bulkActions}
+          itemLabel="bahan"
+        />
+      )}
     </div>
   );
 }

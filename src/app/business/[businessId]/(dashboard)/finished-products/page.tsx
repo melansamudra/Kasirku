@@ -2,9 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeAllFinishedProductCosts } from "@/lib/cost-control/compute-cost";
-import { addFinishedProduct } from "./actions";
+import {
+  addFinishedProduct,
+  adjustFinishedProductsPriceBulk,
+  deleteFinishedProductsBulk,
+  updateFinishedProductsCategoryBulk,
+} from "./actions";
 import ProductForm from "./product-form";
 import FinishedProductsList, { type FinishedProductRow } from "./product-list";
+import type { BulkAction } from "@/components/bulk-action-bar";
 
 export default async function FinishedProductsPage({
   params,
@@ -33,6 +39,35 @@ export default async function FinishedProductsPage({
 
   const costs = await computeAllFinishedProductCosts(supabase, businessId);
   const boundAddProduct = addFinishedProduct.bind(null, businessId);
+
+  const boundDeleteBulk = deleteFinishedProductsBulk.bind(null, businessId);
+  const boundUpdateCategoryBulk = updateFinishedProductsCategoryBulk.bind(null, businessId);
+  const boundAdjustPriceBulk = adjustFinishedProductsPriceBulk.bind(null, businessId);
+
+  const finishedProductBulkActions: BulkAction[] = [
+    {
+      key: "delete",
+      label: "Hapus Terpilih",
+      kind: "delete",
+      confirmLabel: "Hapus produk jadi yang dipilih?",
+      run: (ids) => boundDeleteBulk(ids),
+    },
+    {
+      key: "category",
+      label: "Ubah Kategori",
+      kind: "text",
+      fieldLabel: "Kategori baru",
+      placeholder: "mis. Makanan Berat",
+      run: (ids, category) => boundUpdateCategoryBulk(ids, category),
+    },
+    {
+      key: "adjust-price",
+      label: "Sesuaikan Harga Jual %",
+      kind: "percent",
+      fieldLabel: "Ubah harga jual sebesar",
+      run: (ids, percent) => boundAdjustPriceBulk(ids, percent),
+    },
+  ];
 
   const rows: FinishedProductRow[] = (products ?? []).map((product) => {
     const hpp = costs.get(product.id)?.unitCost ?? 0;
@@ -73,7 +108,7 @@ export default async function FinishedProductsPage({
       </div>
 
       <div className="mt-6">
-        <FinishedProductsList businessId={businessId} products={rows} />
+        <FinishedProductsList businessId={businessId} products={rows} bulkActions={finishedProductBulkActions} />
       </div>
 
       <div className="mt-6 rounded-xl bg-white shadow-sm p-5">

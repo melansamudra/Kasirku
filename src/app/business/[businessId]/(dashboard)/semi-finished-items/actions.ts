@@ -7,6 +7,7 @@ import { wouldCreateCycle } from "@/lib/cost-control/compute-cost";
 import { getCurrentActor } from "@/lib/current-actor";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
 import { findOrCreateMirrorIngredient } from "@/lib/find-or-create-mirror-ingredient";
+import { findSemiFinishedItemUsage } from "@/lib/cost-control/semi-finished-usage";
 import { parseCsv } from "@/lib/csv";
 import ExcelJS from "exceljs";
 
@@ -341,6 +342,103 @@ export async function deleteSemiFinishedItem(businessId: string, itemId: string)
   }
   revalidatePath(`/business/${businessId}/semi-finished-items`);
   return { error: null };
+}
+
+export type BulkActionResult = { error?: string | null; skipped?: { name: string; reason: string }[] };
+
+export async function deleteSemiFinishedItemsBulk(businessId: string, itemIds: string[]): Promise<BulkActionResult> {
+  if (itemIds.length === 0) return { error: null };
+  const supabase = await createClient();
+
+  const { data: items } = await supabase
+    .from("semi_finished_items")
+    .select("id, name")
+    .eq("business_id", businessId)
+    .in("id", itemIds);
+  const nameById = new Map((items ?? []).map((i) => [i.id, i.name]));
+
+  const usage = await findSemiFinishedItemUsage(supabase, businessId, itemIds);
+  const toDelete = itemIds.filter((id) => !usage.has(id));
+  const skipped = itemIds
+    .filter((id) => usage.has(id))
+    .map((id) => ({
+      name: nameById.get(id) ?? id,
+      reason: `masih dipakai di resep ${usage.get(id)!.slice(0, 3).join(", ")}`,
+    }));
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("semi_finished_items")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("business_id", businessId)
+      .in("id", toDelete);
+    if (error) return { error: error.message };
+
+    await logActivity(
+      supabase,
+      businessId,
+      "produk",
+      "warning",
+      `${toDelete.length} bahan setengah jadi dihapus sekaligus`,
+      toDelete.map((id) => nameById.get(id) ?? id).join(", "),
+    );
+  }
+
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null, skipped };
+}
+
+export async function updateSemiFinishedItemsCategoryBulk(
+  businessId: string,
+  itemIds: string[],
+  category: string,
+): Promise<BulkActionResult> {
+  if (itemIds.length === 0) return { error: null };
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("semi_finished_items")
+    .update({ category: category || null })
+    .eq("business_id", businessId)
+    .in("id", itemIds);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null };
+}
+
+// Cuma menyesuaikan item yang HPP-nya diisi manual (manual_unit_cost) --
+// yang HPP-nya dihitung dari resep dilewati (dilaporkan sebagai skipped)
+// karena mengubah unit_cost-nya harus lewat resep, bukan field ini.
+export async function adjustSemiFinishedItemsManualCostBulk(
+  businessId: string,
+  itemIds: string[],
+  percent: number,
+): Promise<BulkActionResult> {
+  if (itemIds.length === 0) return { error: null };
+  if (Number.isNaN(percent)) return { error: "Persentase harus angka." };
+  const supabase = await createClient();
+
+  const { data: items, error: fetchError } = await supabase
+    .from("semi_finished_items")
+    .select("id, name, manual_unit_cost")
+    .eq("business_id", businessId)
+    .in("id", itemIds);
+  if (fetchError) return { error: fetchError.message };
+
+  const withManualCost = (items ?? []).filter((i) => i.manual_unit_cost != null);
+  const skipped = (items ?? [])
+    .filter((i) => i.manual_unit_cost == null)
+    .map((i) => ({ name: i.name, reason: "HPP-nya dihitung dari resep, bukan manual" }));
+
+  for (const item of withManualCost) {
+    const newCost = Math.max(0, Math.round(Number(item.manual_unit_cost) * (1 + percent / 100)));
+    const { error } = await supabase.from("semi_finished_items").update({ manual_unit_cost: newCost }).eq("id", item.id);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  return { error: null, skipped };
 }
 
 // "Resep ini menghasilkan berapa" -- batch size dipakai buat 2 hal: (1)

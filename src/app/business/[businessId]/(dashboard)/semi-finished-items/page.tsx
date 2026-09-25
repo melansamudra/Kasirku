@@ -3,11 +3,20 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { computeAllSemiFinishedItemCosts } from "@/lib/cost-control/compute-cost";
-import { addSemiFinishedItem, importSemiFinishedManual, updateSemiFinishedItemOpnameSections } from "./actions";
+import {
+  addSemiFinishedItem,
+  adjustSemiFinishedItemsManualCostBulk,
+  deleteSemiFinishedItemsBulk,
+  importSemiFinishedManual,
+  updateSemiFinishedItemOpnameSections,
+  updateSemiFinishedItemsCategoryBulk,
+} from "./actions";
 import ImportManualForm from "./import-manual-form";
 import ItemForm from "./item-form";
 import SemiFinishedItemsList, { type SemiFinishedItemRow } from "./item-search-list";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
+import { findSemiFinishedItemUsage } from "@/lib/cost-control/semi-finished-usage";
+import type { BulkAction } from "@/components/bulk-action-bar";
 
 // Fungsi biasa (bukan komponen) -- panggil Date.now() langsung di badan
 // komponen dilarang lint react-hooks/purity, tapi lewat helper terpisah
@@ -74,6 +83,12 @@ export default async function SemiFinishedItemsPage({
   const boundAddItem = addSemiFinishedItem.bind(null, businessId);
   const boundImportManual = importSemiFinishedManual.bind(null, businessId);
 
+  const usageByItemId = await findSemiFinishedItemUsage(
+    supabase,
+    businessId,
+    (items ?? []).map((i) => i.id),
+  );
+
   const rows: SemiFinishedItemRow[] = (items ?? []).map((item) => {
     const cost = costs.get(item.id);
     return {
@@ -90,8 +105,38 @@ export default async function SemiFinishedItemsPage({
       fluctuationPct: cost?.fluctuationPct ?? 0,
       breakdown: cost?.breakdown ?? [],
       sectionIds: sectionIdsByItem.get(item.id) ?? [],
+      usedIn: usageByItemId.get(item.id) ?? [],
     };
   });
+
+  const boundDeleteBulk = deleteSemiFinishedItemsBulk.bind(null, businessId);
+  const boundUpdateCategoryBulk = updateSemiFinishedItemsCategoryBulk.bind(null, businessId);
+  const boundAdjustCostBulk = adjustSemiFinishedItemsManualCostBulk.bind(null, businessId);
+
+  const semiFinishedBulkActions: BulkAction[] = [
+    {
+      key: "delete",
+      label: "Hapus Terpilih",
+      kind: "delete",
+      confirmLabel: "Hapus bahan yang dipilih? Yang masih dipakai di resep akan dilewati.",
+      run: (ids) => boundDeleteBulk(ids),
+    },
+    {
+      key: "category",
+      label: "Ubah Kategori",
+      kind: "text",
+      fieldLabel: "Kategori baru",
+      placeholder: "mis. Bumbu Dasar",
+      run: (ids, category) => boundUpdateCategoryBulk(ids, category),
+    },
+    {
+      key: "adjust-cost",
+      label: "Sesuaikan HPP Manual %",
+      kind: "percent",
+      fieldLabel: "Ubah HPP manual sebesar",
+      run: (ids, percent) => boundAdjustCostBulk(ids, percent),
+    },
+  ];
 
   return (
     <div className="w-full max-w-3xl">
@@ -146,6 +191,7 @@ export default async function SemiFinishedItemsPage({
           now={nowMs()}
           sections={opnameSections ?? []}
           updateSectionsAction={updateSemiFinishedItemOpnameSections.bind(null, businessId)}
+          bulkActions={semiFinishedBulkActions}
         />
       </div>
     </div>

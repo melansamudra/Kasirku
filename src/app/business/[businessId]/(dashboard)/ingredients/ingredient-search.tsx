@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import BulkActionBar, { type BulkAction } from "@/components/bulk-action-bar";
 
 const DEPARTMENT_OPTIONS: { value: string; label: string }[] = [
   { value: "dapur", label: "🍳 Dapur" },
@@ -9,25 +10,41 @@ const DEPARTMENT_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export default function IngredientSearch({
+  ids,
   names,
   departments,
+  bulkActions,
   children,
 }: {
+  ids: string[];
   names: string[];
   departments?: string[][];
+  bulkActions?: BulkAction[];
   children: ReactNode[];
 }) {
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const visibleChildren = useMemo(() => {
+  const visibleIndexes = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return children.filter((_, idx) => {
-      const matchesQuery = !q || (names[idx]?.toLowerCase().includes(q) ?? false);
-      const matchesDepartment = !department || (departments?.[idx] ?? []).includes(department);
-      return matchesQuery && matchesDepartment;
-    });
+    return children
+      .map((_, idx) => idx)
+      .filter((idx) => {
+        const matchesQuery = !q || (names[idx]?.toLowerCase().includes(q) ?? false);
+        const matchesDepartment = !department || (departments?.[idx] ?? []).includes(department);
+        return matchesQuery && matchesDepartment;
+      });
   }, [children, names, departments, query, department]);
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div>
@@ -81,14 +98,34 @@ export default function IngredientSearch({
       )}
 
       <div className="mt-3 space-y-2">
-        {visibleChildren.length > 0 ? (
-          visibleChildren
+        {visibleIndexes.length > 0 ? (
+          visibleIndexes.map((idx) => (
+            <div key={ids[idx]} className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={selected.has(ids[idx])}
+                onChange={() => toggle(ids[idx])}
+                className="mt-4 h-4 w-4 shrink-0 rounded border-zinc-300 text-brand-600 focus:ring-brand-400"
+                aria-label={`Pilih ${names[idx]}`}
+              />
+              <div className="min-w-0 flex-1">{children[idx]}</div>
+            </div>
+          ))
         ) : (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400">
             Tidak ada bahan baku yang cocok dengan pencarian ini.
           </p>
         )}
       </div>
+
+      {bulkActions && (
+        <BulkActionBar
+          selectedIds={[...selected]}
+          onClear={() => setSelected(new Set())}
+          actions={bulkActions}
+          itemLabel="bahan"
+        />
+      )}
     </div>
   );
 }

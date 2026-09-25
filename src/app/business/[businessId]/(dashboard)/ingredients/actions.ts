@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity-log";
 import { parseCsv } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/pagination";
 import { recalculateProductCostsForIngredient } from "@/lib/recalculate-product-cost";
+import { findIngredientUsage } from "@/lib/cost-control/ingredient-usage";
 import { findOrCreateMirrorIngredient } from "@/lib/find-or-create-mirror-ingredient";
 import { produceSemiFinishedFlat } from "./produce-flat";
 import ExcelJS from "exceljs";
@@ -553,7 +554,10 @@ export async function adjustIngredientStock(
   return { error: null };
 }
 
-export async function deleteIngredient(businessId: string, ingredientId: string) {
+export async function deleteIngredient(
+  businessId: string,
+  ingredientId: string,
+): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
   const { data: ingredient } = await supabase
@@ -563,11 +567,20 @@ export async function deleteIngredient(businessId: string, ingredientId: string)
     .eq("business_id", businessId)
     .maybeSingle();
 
-  await supabase
+  const usage = await findIngredientUsage(supabase, businessId, [ingredientId]);
+  const usedIn = usage.get(ingredientId);
+  if (usedIn && usedIn.length > 0) {
+    return {
+      error: `Bahan ini masih dipakai di resep: ${usedIn.slice(0, 5).join(", ")}${usedIn.length > 5 ? `, +${usedIn.length - 5} lagi` : ""} — hapus dulu dari resep tersebut.`,
+    };
+  }
+
+  const { error } = await supabase
     .from("ingredients")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", ingredientId)
     .eq("business_id", businessId);
+  if (error) return { error: error.message };
 
   if (ingredient) {
     await logActivity(
@@ -579,6 +592,104 @@ export async function deleteIngredient(businessId: string, ingredientId: string)
     );
   }
   revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
+export type BulkActionResult = { error?: string | null; skipped?: { name: string; reason: string }[] };
+
+export async function deleteIngredientsBulk(businessId: string, ingredientIds: string[]): Promise<BulkActionResult> {
+  if (ingredientIds.length === 0) return { error: null };
+  const supabase = await createClient();
+
+  const { data: ingredients } = await supabase
+    .from("ingredients")
+    .select("id, name")
+    .eq("business_id", businessId)
+    .in("id", ingredientIds);
+  const nameById = new Map((ingredients ?? []).map((i) => [i.id, i.name]));
+
+  const usage = await findIngredientUsage(supabase, businessId, ingredientIds);
+  const toDelete = ingredientIds.filter((id) => !usage.has(id));
+  const skipped = ingredientIds
+    .filter((id) => usage.has(id))
+    .map((id) => ({
+      name: nameById.get(id) ?? id,
+      reason: `masih dipakai di resep ${usage.get(id)!.slice(0, 3).join(", ")}`,
+    }));
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("ingredients")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("business_id", businessId)
+      .in("id", toDelete);
+    if (error) return { error: error.message };
+
+    await logActivity(
+      supabase,
+      businessId,
+      "produk",
+      "warning",
+      `${toDelete.length} bahan baku dihapus sekaligus`,
+      toDelete.map((id) => nameById.get(id) ?? id).join(", "),
+    );
+  }
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null, skipped };
+}
+
+export async function addIngredientsToSectionBulk(
+  businessId: string,
+  ingredientIds: string[],
+  sectionId: string,
+): Promise<BulkActionResult> {
+  if (ingredientIds.length === 0) return { error: null };
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("ingredient_opname_section_items")
+    .upsert(
+      ingredientIds.map((ingredientId) => ({ business_id: businessId, ingredient_id: ingredientId, section_id: sectionId })),
+      { onConflict: "ingredient_id,section_id", ignoreDuplicates: true },
+    );
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
+}
+
+export async function adjustIngredientsCostBulk(
+  businessId: string,
+  ingredientIds: string[],
+  percent: number,
+): Promise<BulkActionResult> {
+  if (ingredientIds.length === 0) return { error: null };
+  if (Number.isNaN(percent)) return { error: "Persentase harus angka." };
+  const supabase = await createClient();
+
+  const { data: ingredients, error: fetchError } = await supabase
+    .from("ingredients")
+    .select("id, unit_cost")
+    .eq("business_id", businessId)
+    .in("id", ingredientIds);
+  if (fetchError) return { error: fetchError.message };
+
+  for (const ing of ingredients ?? []) {
+    const newCost = Math.max(0, Math.round(Number(ing.unit_cost) * (1 + percent / 100)));
+    const { error } = await supabase.from("ingredients").update({ unit_cost: newCost }).eq("id", ing.id);
+    if (error) return { error: error.message };
+    await supabase.from("ingredient_price_history").insert({
+      business_id: businessId,
+      ingredient_id: ing.id,
+      unit_cost: newCost,
+      source: "manual",
+    });
+    await recalculateProductCostsForIngredient(supabase, ing.id);
+  }
+
+  revalidatePath(`/business/${businessId}/ingredients`);
+  return { error: null };
 }
 
 export type PurchaseUnitState = { error: string | null };

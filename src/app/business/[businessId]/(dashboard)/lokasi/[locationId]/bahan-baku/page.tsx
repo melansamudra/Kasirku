@@ -492,7 +492,7 @@ export default async function LocationBahanBakuPage({
 
       <div className="mt-6">
         {visibleIngredients.length > 0 ? (
-          <IngredientSearch names={visibleIngredients.map((i) => i.name)}>
+          <IngredientSearch ids={visibleIngredients.map((i) => i.id)} names={visibleIngredients.map((i) => i.name)}>
             {visibleIngredients.map((i) => {
               const stock = stockByIngredient.get(i.id) ?? 0;
               return (

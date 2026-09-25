@@ -125,6 +125,91 @@ export async function deleteFinishedProduct(businessId: string, productId: strin
   revalidatePath(`/business/${businessId}/finished-products`);
 }
 
+export type BulkActionResult = { error?: string | null; skipped?: { name: string; reason: string }[] };
+
+// finished_products selalu di ujung rantai BOM (tidak pernah jadi komponen
+// resep apa pun, lihat migration finished_product_recipes) -- jadi beda dari
+// bulk delete ingredients/BSJ, di sini tidak perlu pengecekan "masih dipakai".
+export async function deleteFinishedProductsBulk(businessId: string, productIds: string[]): Promise<BulkActionResult> {
+  if (productIds.length === 0) return { error: null };
+  const supabase = await createClient();
+
+  const { data: products } = await supabase
+    .from("finished_products")
+    .select("id, name")
+    .eq("business_id", businessId)
+    .in("id", productIds);
+
+  const { error } = await supabase
+    .from("finished_products")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("business_id", businessId)
+    .in("id", productIds);
+  if (error) return { error: error.message };
+
+  await logActivity(
+    supabase,
+    businessId,
+    "produk",
+    "warning",
+    `${productIds.length} produk jadi dihapus sekaligus`,
+    (products ?? []).map((p) => p.name).join(", "),
+  );
+
+  revalidatePath(`/business/${businessId}/finished-products`);
+  return { error: null };
+}
+
+export async function updateFinishedProductsCategoryBulk(
+  businessId: string,
+  productIds: string[],
+  category: string,
+): Promise<BulkActionResult> {
+  if (productIds.length === 0) return { error: null };
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("finished_products")
+    .update({ category: category || null })
+    .eq("business_id", businessId)
+    .in("id", productIds);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/finished-products`);
+  return { error: null };
+}
+
+export async function adjustFinishedProductsPriceBulk(
+  businessId: string,
+  productIds: string[],
+  percent: number,
+): Promise<BulkActionResult> {
+  if (productIds.length === 0) return { error: null };
+  if (Number.isNaN(percent)) return { error: "Persentase harus angka." };
+  const supabase = await createClient();
+
+  const { data: products, error: fetchError } = await supabase
+    .from("finished_products")
+    .select("id, name, selling_price")
+    .eq("business_id", businessId)
+    .in("id", productIds);
+  if (fetchError) return { error: fetchError.message };
+
+  const withPrice = (products ?? []).filter((p) => p.selling_price != null);
+  const skipped = (products ?? [])
+    .filter((p) => p.selling_price == null)
+    .map((p) => ({ name: p.name, reason: "belum ada harga jual" }));
+
+  for (const product of withPrice) {
+    const newPrice = Math.max(0, Math.round(Number(product.selling_price) * (1 + percent / 100)));
+    const { error } = await supabase.from("finished_products").update({ selling_price: newPrice }).eq("id", product.id);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/business/${businessId}/finished-products`);
+  return { error: null, skipped };
+}
+
 export async function addRecipeComponent(
   businessId: string,
   finishedProductId: string,

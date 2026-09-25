@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import BulkActionBar, { type BulkAction } from "@/components/bulk-action-bar";
 import DeleteProductButton from "./delete-product-button";
 
 function formatRupiah(value: number) {
@@ -21,12 +22,24 @@ export type FinishedProductRow = {
 export default function FinishedProductsList({
   businessId,
   products,
+  bulkActions,
 }: {
   businessId: string;
   products: FinishedProductRow[];
+  bulkActions?: BulkAction[];
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category).filter((c): c is string => !!c))].sort(),
@@ -82,10 +95,17 @@ export default function FinishedProductsList({
       <div className="mt-3 space-y-2">
         {filtered.length > 0 ? (
           filtered.map((product) => (
-            <div
-              key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
-            >
+            <div key={product.id} className="flex items-center gap-2">
+              {bulkActions && (
+                <input
+                  type="checkbox"
+                  checked={selected.has(product.id)}
+                  onChange={() => toggleSelected(product.id)}
+                  className="h-4 w-4 shrink-0 rounded border-zinc-300 text-brand-600 focus:ring-brand-400"
+                  aria-label={`Pilih ${product.name}`}
+                />
+              )}
+              <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Link
@@ -127,6 +147,7 @@ export default function FinishedProductsList({
                 )
               )}
               <DeleteProductButton businessId={businessId} productId={product.id} productName={product.name} />
+              </div>
             </div>
           ))
         ) : (
@@ -137,6 +158,15 @@ export default function FinishedProductsList({
           </p>
         )}
       </div>
+
+      {bulkActions && (
+        <BulkActionBar
+          selectedIds={[...selected]}
+          onClear={() => setSelected(new Set())}
+          actions={bulkActions}
+          itemLabel="produk"
+        />
+      )}
     </div>
   );
 }
