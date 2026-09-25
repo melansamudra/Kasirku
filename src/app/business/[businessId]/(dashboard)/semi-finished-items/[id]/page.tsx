@@ -111,6 +111,8 @@ export default async function SemiFinishedItemDetailPage({
   const boundAddComponentsBulk = addRecipeComponentsBulk.bind(null, businessId, id);
   const boundUpdateYield = updateRecipeYield.bind(null, businessId, id);
   const batchYieldQty = item.batch_yield_qty !== null ? Number(item.batch_yield_qty) : null;
+  const hasBatchMode = !!batchYieldQty && batchYieldQty > 0 && batchYieldQty !== 1;
+  const scale = hasBatchMode ? batchYieldQty! : 1;
 
   return (
     <div className="w-full max-w-3xl">
@@ -181,7 +183,7 @@ export default async function SemiFinishedItemDetailPage({
                         batchYieldQty={batchYieldQty}
                       />
                     </td>
-                    <td className="px-3 py-2 text-right">{formatRupiah(line.subtotal)}</td>
+                    <td className="px-3 py-2 text-right">{formatRupiah(line.subtotal * scale)}</td>
                     <td className="px-1 py-2 text-right">
                       <form action={removeRecipeComponent.bind(null, businessId, id, line.id)}>
                         <button
@@ -199,9 +201,9 @@ export default async function SemiFinishedItemDetailPage({
               <tfoot className="bg-zinc-50">
                 <tr>
                   <td colSpan={3} className="px-3 py-2 text-right text-xs text-zinc-500">
-                    Sub total
+                    Sub total{hasBatchMode ? ` (1 batch = ${batchYieldQty} ${item.unit})` : ""}
                   </td>
-                  <td className="px-3 py-2 text-right text-xs text-zinc-600">{formatRupiah(cost.rawCost)}</td>
+                  <td className="px-3 py-2 text-right text-xs text-zinc-600">{formatRupiah(cost.rawCost * scale)}</td>
                 </tr>
                 {cost.fluctuationPct > 0 && (
                   <tr>
@@ -209,7 +211,7 @@ export default async function SemiFinishedItemDetailPage({
                       Fluctuation ({cost.fluctuationPct}%)
                     </td>
                     <td className="px-3 py-2 text-right text-xs text-zinc-600">
-                      {formatRupiah(cost.unitCost - cost.rawCost)}
+                      {formatRupiah((cost.unitCost - cost.rawCost) * scale)}
                     </td>
                   </tr>
                 )}
