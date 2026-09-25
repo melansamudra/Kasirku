@@ -97,20 +97,47 @@ export type DateRange = { fromIso: string | null; toIsoExclusive: string | null 
  * Rentang timestamptz [fromIso, toIsoExclusive) untuk filter kolom
  * `transactions.date` sesuai periode laporan.
  */
+/** Tanggal 1 bulan KALENDER berikutnya dari `dateStr` (YYYY-MM-DD), sebagai
+ * batas atas eksklusif "Bulan Ini" -- beda dari addDaysStr(dateStr, 30-an)
+ * yang salah kalau bulannya bukan 30/31 hari. */
+function firstOfNextMonthStr(dateStr: string) {
+  const [y, m] = dateStr.slice(0, 7).split("-").map(Number);
+  const nextY = m === 12 ? y + 1 : y;
+  const nextM = m === 12 ? 1 : m + 1;
+  return `${nextY}-${String(nextM).padStart(2, "0")}-01`;
+}
+
 export function getPeriodRange(
   period: Period,
   customFrom?: string,
   customTo?: string,
 ): DateRange {
   const today = todayStr();
+  // "today"/"week"/"month" sebelumnya cuma punya batas bawah (toIsoExclusive
+  // null) -- asumsinya tidak akan pernah ada entri bertanggal masa depan.
+  // Asumsi itu pecah begitu ada jurnal yang SENGAJA diposting di muka untuk
+  // bulan berikutnya (mis. amortisasi/penyusutan bulan depan yang sudah
+  // dijadwalkan lebih dulu, lihat assets/actions.ts & prepaid-expenses/
+  // actions.ts) -- jurnal itu ikut kehitung di "Bulan Ini"/"Hari Ini" hari
+  // ini juga, padahal tanggalnya belum tiba (ditemukan dari kasus Beban Sewa
+  // Mie Kota yang salah tampil Rp15jt alih-alih Rp7,5jt karena amortisasi
+  // Oktober yang sudah diposting duluan ikut kehitung di laporan September,
+  // 2026-09-25). Dibatasi eksplisit di sini biar konsisten di semua laporan
+  // yang pakai getPeriodRange, bukan ditambal satu-satu per halaman.
   if (period === "today") {
-    return { fromIso: wibStartOfDay(today), toIsoExclusive: null };
+    return { fromIso: wibStartOfDay(today), toIsoExclusive: wibStartOfDay(addDaysStr(today, 1)) };
   }
   if (period === "week") {
-    return { fromIso: wibStartOfDay(addDaysStr(today, -6)), toIsoExclusive: null };
+    return {
+      fromIso: wibStartOfDay(addDaysStr(today, -6)),
+      toIsoExclusive: wibStartOfDay(addDaysStr(today, 1)),
+    };
   }
   if (period === "month") {
-    return { fromIso: wibStartOfDay(`${today.slice(0, 7)}-01`), toIsoExclusive: null };
+    return {
+      fromIso: wibStartOfDay(`${today.slice(0, 7)}-01`),
+      toIsoExclusive: wibStartOfDay(firstOfNextMonthStr(today)),
+    };
   }
   if (period === "custom") {
     const isDate = (s: string | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
