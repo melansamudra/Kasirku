@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { computeSemiFinishedItemCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
-import { addRecipeComponent, addRecipeComponentsBulk, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
+import { addRecipeComponentsBulk, removeRecipeComponent, updateRecipeYield, updateSemiFinishedItem } from "../actions";
 import ItemForm from "../item-form";
-import RecipeEditor from "../recipe-editor";
+import RecipeDropdownMultiAdd from "../recipe-dropdown-multi-add";
 import RecipeBulkAdd from "../recipe-bulk-add";
 import RecipeYieldForm from "../recipe-yield-form";
 import ProduceForm from "../produce-form";
+import EditRecipeQtyCell from "../edit-recipe-qty-cell";
 import { hasStockLocationAccess } from "@/lib/cost-control/has-stock-access";
 
 function formatRupiah(value: number) {
@@ -113,7 +114,6 @@ export default async function SemiFinishedItemDetailPage({
   const cost = await computeSemiFinishedItemCost(supabase, businessId, id);
 
   const boundUpdate = updateSemiFinishedItem.bind(null, businessId, id);
-  const boundAddComponent = addRecipeComponent.bind(null, businessId, id);
   const boundAddComponentsBulk = addRecipeComponentsBulk.bind(null, businessId, id);
   const boundUpdateYield = updateRecipeYield.bind(null, businessId, id);
   const batchYieldQty = item.batch_yield_qty !== null ? Number(item.batch_yield_qty) : null;
@@ -218,10 +218,17 @@ export default async function SemiFinishedItemDetailPage({
                   key={line.id}
                   className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-1.5 text-xs text-zinc-600"
                 >
-                  <span>
-                    {name ?? "(dihapus)"} — {formatQty(line.qty)} {line.unit}
+                  <span className="flex flex-wrap items-center gap-1">
+                    {name ?? "(dihapus)"} —{" "}
+                    <EditRecipeQtyCell
+                      businessId={businessId}
+                      semiFinishedItemId={id}
+                      recipeRowId={line.id}
+                      qty={Number(line.qty)}
+                      unit={line.unit}
+                    />
                     {batchYieldQty !== null && batchYieldQty !== 1 && (
-                      <span className="ml-1.5 text-zinc-400">
+                      <span className="text-zinc-400">
                         (≈ {formatQty(Number(line.qty) * batchYieldQty)} {line.unit} / batch {batchYieldQty}{" "}
                         {item.unit})
                       </span>
@@ -239,8 +246,8 @@ export default async function SemiFinishedItemDetailPage({
         )}
 
         <div className="mt-4 border-t border-zinc-100 pt-4">
-          <RecipeEditor
-            action={boundAddComponent}
+          <RecipeDropdownMultiAdd
+            action={boundAddComponentsBulk}
             ingredients={ingredients ?? []}
             semiFinishedOptions={otherItems ?? []}
             batchYieldQty={batchYieldQty}

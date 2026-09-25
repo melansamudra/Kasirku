@@ -585,6 +585,29 @@ export async function removeRecipeComponent(businessId: string, semiFinishedItem
   revalidatePath(`/business/${businessId}/finished-products`);
 }
 
+export async function updateRecipeComponentQty(
+  businessId: string,
+  semiFinishedItemId: string,
+  recipeRowId: string,
+  qty: number,
+): Promise<ActionState> {
+  if (!(qty > 0)) {
+    return { error: "Jumlah harus lebih dari 0." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("semi_finished_recipes")
+    .update({ qty })
+    .eq("id", recipeRowId)
+    .eq("business_id", businessId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/business/${businessId}/semi-finished-items/${semiFinishedItemId}`);
+  revalidatePath(`/business/${businessId}/semi-finished-items`);
+  revalidatePath(`/business/${businessId}/finished-products`);
+  return { error: null };
+}
+
 export type BulkComponentInput = {
   componentType: "ingredient" | "semi_finished";
   componentId: string;
