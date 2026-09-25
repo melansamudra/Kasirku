@@ -18,6 +18,7 @@ export type CostControlHppRow = {
   updatedAt: string;
   detailHref: string;
   breakdown: CostBreakdownLine[];
+  batchYieldQty: number | null;
 };
 
 const TYPE_LABELS: Record<CostControlHppRow["type"], string> = {
@@ -37,7 +38,12 @@ function fmtDate(v: string) {
   return new Date(v).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function BreakdownRow({ line, depth }: { line: CostBreakdownLine; depth: number }) {
+// `scale` cuma dipakai di depth 0 -- children (kalau BSJ ini pakai BSJ lain
+// sebagai komponen) sudah dalam skala batch item ANAK itu sendiri (lihat
+// compute-cost.ts resolveSemiFinished, breakdown anak dipakai apa adanya),
+// jadi tidak ikut dikali skala batch item induk.
+function BreakdownRow({ line, depth, scale }: { line: CostBreakdownLine; depth: number; scale: number }) {
+  const rowScale = depth === 0 ? scale : 1;
   return (
     <>
       <tr>
@@ -50,12 +56,12 @@ function BreakdownRow({ line, depth }: { line: CostBreakdownLine; depth: number 
           )}
         </td>
         <td className="px-3 py-1.5 text-right">
-          {fmtQty(line.qty)} {line.unit}
+          {fmtQty(line.qty * rowScale)} {line.unit}
         </td>
-        <td className="px-3 py-1.5 text-right">{fmt(line.subtotal)}</td>
+        <td className="px-3 py-1.5 text-right">{fmt(line.subtotal * rowScale)}</td>
       </tr>
       {line.children?.map((child, i) => (
-        <BreakdownRow key={i} line={child} depth={depth + 1} />
+        <BreakdownRow key={i} line={child} depth={depth + 1} scale={scale} />
       ))}
     </>
   );
@@ -193,22 +199,47 @@ export default function CostControlHppMenuList({ rows }: { rows: CostControlHppR
                         <tr className="border-b border-zinc-50 last:border-0">
                           <td colSpan={7} className="bg-zinc-50/60 px-4 py-3">
                             {r.breakdown.length > 0 ? (
-                              <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                                <table className="w-full text-xs">
-                                  <thead className="bg-zinc-50 text-zinc-500">
-                                    <tr>
-                                      <th className="px-3 py-1.5 text-left">Komponen</th>
-                                      <th className="px-3 py-1.5 text-right">Jumlah</th>
-                                      <th className="px-3 py-1.5 text-right">Biaya</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-zinc-100">
-                                    {r.breakdown.map((line, idx) => (
-                                      <BreakdownRow key={idx} line={line} depth={0} />
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
+                              (() => {
+                                const hasBatch = !!r.batchYieldQty && r.batchYieldQty > 1;
+                                const scale = hasBatch ? r.batchYieldQty! : 1;
+                                const batchTotal = r.breakdown.reduce((sum, l) => sum + l.subtotal, 0) * scale;
+                                return (
+                                  <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                                    <table className="w-full text-xs">
+                                      <thead className="bg-zinc-50 text-zinc-500">
+                                        <tr>
+                                          <th className="px-3 py-1.5 text-left">Komponen</th>
+                                          <th className="px-3 py-1.5 text-right">Jumlah</th>
+                                          <th className="px-3 py-1.5 text-right">Biaya</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-zinc-100">
+                                        {r.breakdown.map((line, idx) => (
+                                          <BreakdownRow key={idx} line={line} depth={0} scale={scale} />
+                                        ))}
+                                      </tbody>
+                                      {hasBatch && (
+                                        <tfoot className="bg-zinc-50">
+                                          <tr>
+                                            <td colSpan={2} className="px-3 py-1.5 text-right text-zinc-500">
+                                              Sub total (1 batch = {r.batchYieldQty} {r.unit})
+                                            </td>
+                                            <td className="px-3 py-1.5 text-right text-zinc-600">{fmt(batchTotal)}</td>
+                                          </tr>
+                                          <tr>
+                                            <td colSpan={2} className="px-3 py-1.5 text-right font-semibold text-zinc-600">
+                                              Total HPP per {r.unit}
+                                            </td>
+                                            <td className="px-3 py-1.5 text-right text-sm font-bold text-zinc-900">
+                                              {fmt(r.cost)}
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      )}
+                                    </table>
+                                  </div>
+                                );
+                              })()
                             ) : (
                               <p className="px-2 py-2 text-xs text-zinc-400">Belum ada komponen resep.</p>
                             )}

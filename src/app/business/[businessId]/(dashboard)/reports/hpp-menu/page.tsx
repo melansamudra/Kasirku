@@ -34,7 +34,7 @@ export default async function ReportsHppMenuPage({
         .order("name", { ascending: true }),
       supabase
         .from("semi_finished_items")
-        .select("id, name, unit, category, hpp_checked, updated_at")
+        .select("id, name, unit, category, hpp_checked, batch_yield_qty, updated_at")
         .eq("business_id", businessId)
         .is("deleted_at", null)
         .order("name", { ascending: true }),
@@ -60,6 +60,7 @@ export default async function ReportsHppMenuPage({
           updatedAt: p.updated_at,
           detailHref: `/business/${businessId}/finished-products/${p.id}`,
           breakdown: finishedCosts.get(p.id)?.breakdown ?? [],
+          batchYieldQty: null,
         };
       }),
       ...(semiItems ?? []).map((s): CostControlHppRow => ({
@@ -76,6 +77,7 @@ export default async function ReportsHppMenuPage({
         updatedAt: s.updated_at,
         detailHref: `/business/${businessId}/semi-finished-items/${s.id}`,
         breakdown: semiCosts.get(s.id)?.breakdown ?? [],
+        batchYieldQty: s.batch_yield_qty !== null ? Number(s.batch_yield_qty) : null,
       })),
     ].sort((a, b) => a.name.localeCompare(b.name, "id"));
 
