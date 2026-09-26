@@ -57,7 +57,12 @@ export default async function EmployeesPage({
   // personal_loan_deduction dari slip-slip yang SUDAH dibayar -- sama pola
   // kayak getOutstandingKasbon/getOutstandingPersonalLoan di payroll/actions.ts.
   const [{ data: personalLoans }, { data: paidSlipsLoans }] = await Promise.all([
-    supabase.from("employee_personal_loans").select("employee_id, amount").eq("business_id", businessId),
+    supabase
+      .from("employee_personal_loans")
+      .select("id, employee_id, date, amount, note")
+      .eq("business_id", businessId)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }),
     supabase
       .from("payslips")
       .select("employee_id, personal_loan_deduction")
@@ -66,7 +71,14 @@ export default async function EmployeesPage({
   ]);
 
   const personalLoanGivenByEmployee = new Map<string, number>();
+  const personalLoansByEmployee = new Map<
+    string,
+    { id: string; date: string; amount: number; note: string | null }[]
+  >();
   for (const l of personalLoans ?? []) {
+    const list = personalLoansByEmployee.get(l.employee_id) ?? [];
+    list.push({ id: l.id, date: l.date, amount: Number(l.amount), note: l.note });
+    personalLoansByEmployee.set(l.employee_id, list);
     personalLoanGivenByEmployee.set(
       l.employee_id,
       (personalLoanGivenByEmployee.get(l.employee_id) ?? 0) + Number(l.amount),
@@ -213,6 +225,7 @@ export default async function EmployeesPage({
                           (personalLoanGivenByEmployee.get(e.id) ?? 0) -
                             (personalLoanSettledByEmployee.get(e.id) ?? 0),
                         )}
+                        loans={personalLoansByEmployee.get(e.id) ?? []}
                       />
                     )}
                   </div>

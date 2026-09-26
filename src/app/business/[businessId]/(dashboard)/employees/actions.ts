@@ -319,6 +319,141 @@ export async function addPersonalLoan(
   return { error: null };
 }
 
+// Total pinjaman karyawan setelah perubahan tidak boleh lebih kecil dari
+// potongan yang sudah dibayar lewat slip gaji -- kalau lolos, sisa pinjaman
+// jadi minus. excludeLoanId = catatan yang sedang diedit/dihapus.
+async function checkPersonalLoanNotBelowSettled(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  businessId: string,
+  employeeId: string,
+  excludeLoanId: string,
+  newAmount: number,
+): Promise<string | null> {
+  const [{ data: loans }, { data: paidSlips }] = await Promise.all([
+    supabase
+      .from("employee_personal_loans")
+      .select("amount")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .neq("id", excludeLoanId),
+    supabase
+      .from("payslips")
+      .select("personal_loan_deduction")
+      .eq("business_id", businessId)
+      .eq("employee_id", employeeId)
+      .not("paid_at", "is", null),
+  ]);
+  const total = (loans ?? []).reduce((s, l) => s + Number(l.amount), 0) + newAmount;
+  const settled = (paidSlips ?? []).reduce((s, p) => s + Number(p.personal_loan_deduction), 0);
+  if (total < settled) {
+    return `Tidak bisa: total pinjaman jadi Rp${total.toLocaleString("id-ID")}, padahal sudah dipotong Rp${settled.toLocaleString("id-ID")} lewat slip gaji yang sudah dibayar.`;
+  }
+  return null;
+}
+
+export type UpdatePersonalLoanState = { error: string | null; saved?: boolean };
+
+export async function updatePersonalLoan(
+  businessId: string,
+  loanId: string,
+  _prevState: UpdatePersonalLoanState,
+  formData: FormData,
+): Promise<UpdatePersonalLoanState> {
+  const amount = Number(formData.get("amount"));
+  const note = (formData.get("note") as string)?.trim();
+  const date = formData.get("date") as string;
+
+  if (Number.isNaN(amount) || amount <= 0) {
+    return { error: "Nominal pinjaman harus angka lebih dari 0." };
+  }
+  if (!date) {
+    return { error: "Tanggal wajib diisi." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: loan } = await supabase
+    .from("employee_personal_loans")
+    .select("employee_id, amount, date, employees(name)")
+    .eq("id", loanId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!loan) return { error: "Catatan pinjaman tidak ditemukan." };
+
+  const guardError = await checkPersonalLoanNotBelowSettled(
+    supabase,
+    businessId,
+    loan.employee_id,
+    loanId,
+    amount,
+  );
+  if (guardError) return { error: guardError };
+
+  const { error } = await supabase
+    .from("employee_personal_loans")
+    .update({ amount, date, note: note || null })
+    .eq("id", loanId)
+    .eq("business_id", businessId);
+  if (error) return { error: error.message };
+
+  const employeeName = (loan.employees as unknown as { name: string } | null)?.name ?? "karyawan";
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "info",
+    `Pinjaman pribadi diedit: ${employeeName}`,
+    `Rp${Number(loan.amount).toLocaleString("id-ID")} (${loan.date}) → Rp${amount.toLocaleString("id-ID")} (${date})${note ? ` — ${note}` : ""}`,
+  );
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null, saved: true };
+}
+
+export async function deletePersonalLoan(
+  businessId: string,
+  loanId: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: loan } = await supabase
+    .from("employee_personal_loans")
+    .select("employee_id, amount, date, note, employees(name)")
+    .eq("id", loanId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!loan) return { error: "Catatan pinjaman tidak ditemukan." };
+
+  const guardError = await checkPersonalLoanNotBelowSettled(
+    supabase,
+    businessId,
+    loan.employee_id,
+    loanId,
+    0,
+  );
+  if (guardError) return { error: guardError };
+
+  const { error } = await supabase
+    .from("employee_personal_loans")
+    .delete()
+    .eq("id", loanId)
+    .eq("business_id", businessId);
+  if (error) return { error: error.message };
+
+  const employeeName = (loan.employees as unknown as { name: string } | null)?.name ?? "karyawan";
+  await logActivity(
+    supabase,
+    businessId,
+    "pengaturan",
+    "warning",
+    `Pinjaman pribadi dihapus: ${employeeName}`,
+    `Rp${Number(loan.amount).toLocaleString("id-ID")} (${loan.date})${loan.note ? ` — ${loan.note}` : ""}`,
+  );
+
+  revalidatePath(`/business/${businessId}/employees`);
+  return { error: null };
+}
+
 export type AddMealAdvanceState = { error: string | null };
 
 // Uang Makan Bulanan -- ambil tunai dari jatah "Tunjangan Makan" bulan
