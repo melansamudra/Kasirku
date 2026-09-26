@@ -210,54 +210,78 @@ export async function adjustFinishedProductsPriceBulk(
   return { error: null, skipped };
 }
 
-export async function addRecipeComponent(
+export type BulkComponentInput = {
+  componentType: "ingredient" | "semi_finished";
+  componentId: string;
+  qty: number;
+};
+
+export type BulkAddState = { error: string | null; added?: number };
+
+// Kumpulkan banyak baris dulu di client (lihat RecipeDropdownMultiAdd), baru
+// satu round-trip buat semuanya -- ganti pola lama yang mengharuskan simpan
+// satu bahan per submit. Tidak perlu deteksi siklus BOM di sini: finished
+// product selalu di ujung rantai (tidak pernah jadi komponen resep lain).
+export async function addRecipeComponentsBulk(
   businessId: string,
   finishedProductId: string,
-  _prevState: ActionState,
+  _prevState: BulkAddState,
   formData: FormData,
-): Promise<ActionState> {
-  const componentValue = (formData.get("component") as string) ?? "";
-  const qtyRaw = formData.get("qty") as string;
-  const qty = Number(qtyRaw);
+): Promise<BulkAddState> {
+  const itemsRaw = formData.get("items") as string | null;
+  if (!itemsRaw) return { error: "Tidak ada baris untuk ditambahkan." };
 
-  const [componentType, componentId] = componentValue.split(":");
-  if ((componentType !== "ingredient" && componentType !== "semi_finished") || !componentId) {
-    return { error: "Pilih komponen resep." };
+  let items: BulkComponentInput[];
+  try {
+    items = JSON.parse(itemsRaw);
+  } catch {
+    return { error: "Data tidak valid." };
   }
-  if (!(qty > 0)) {
-    return { error: "Jumlah harus lebih dari 0." };
+  if (!Array.isArray(items) || items.length === 0) {
+    return { error: "Tidak ada baris untuk ditambahkan." };
   }
 
   const supabase = await createClient();
-  const table = componentType === "ingredient" ? "ingredients" : "semi_finished_items";
-  const { data: component } = await supabase
-    .from(table)
-    .select("unit")
-    .eq("id", componentId)
-    .eq("business_id", businessId)
-    .maybeSingle();
 
-  if (!component) {
-    return { error: "Komponen tidak ditemukan." };
+  const ingredientIds = items.filter((i) => i.componentType === "ingredient").map((i) => i.componentId);
+  const semiIds = items.filter((i) => i.componentType === "semi_finished").map((i) => i.componentId);
+
+  const [{ data: ingredientRows }, { data: semiRows }] = await Promise.all([
+    ingredientIds.length > 0
+      ? supabase.from("ingredients").select("id, unit").eq("business_id", businessId).in("id", ingredientIds)
+      : Promise.resolve({ data: [] as { id: string; unit: string }[] }),
+    semiIds.length > 0
+      ? supabase.from("semi_finished_items").select("id, unit").eq("business_id", businessId).in("id", semiIds)
+      : Promise.resolve({ data: [] as { id: string; unit: string }[] }),
+  ]);
+  const unitById = new Map<string, string>();
+  for (const r of ingredientRows ?? []) unitById.set(r.id, r.unit);
+  for (const r of semiRows ?? []) unitById.set(r.id, r.unit);
+
+  const rows = items
+    .filter((item) => unitById.has(item.componentId) && item.qty > 0)
+    .map((item) => ({
+      business_id: businessId,
+      finished_product_id: finishedProductId,
+      component_type: item.componentType,
+      ingredient_id: item.componentType === "ingredient" ? item.componentId : null,
+      semi_finished_item_id: item.componentType === "semi_finished" ? item.componentId : null,
+      qty: item.qty,
+      unit: unitById.get(item.componentId)!,
+    }));
+
+  if (rows.length === 0) {
+    return { error: "Tidak ada baris valid untuk ditambahkan." };
   }
 
-  const { error } = await supabase.from("finished_product_recipes").insert({
-    business_id: businessId,
-    finished_product_id: finishedProductId,
-    component_type: componentType,
-    ingredient_id: componentType === "ingredient" ? componentId : null,
-    semi_finished_item_id: componentType === "semi_finished" ? componentId : null,
-    qty,
-    unit: component.unit,
-  });
-
+  const { error } = await supabase.from("finished_product_recipes").insert(rows);
   if (error) {
     return { error: error.message };
   }
 
   revalidatePath(`/business/${businessId}/finished-products/${finishedProductId}`);
   revalidatePath(`/business/${businessId}/finished-products`);
-  return { error: null };
+  return { error: null, added: rows.length };
 }
 
 export async function removeRecipeComponent(businessId: string, finishedProductId: string, recipeRowId: string) {

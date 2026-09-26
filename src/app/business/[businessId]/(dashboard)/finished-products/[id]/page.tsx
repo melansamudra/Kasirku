@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/pagination";
 import { computeFinishedProductCost, type CostBreakdownLine } from "@/lib/cost-control/compute-cost";
-import { addRecipeComponent, removeRecipeComponent, updateFinishedProduct } from "../actions";
+import { addRecipeComponentsBulk, removeRecipeComponent, updateFinishedProduct } from "../actions";
 import ProductForm from "../product-form";
-import RecipeEditor from "../recipe-editor";
+import RecipeDropdownMultiAdd from "../recipe-dropdown-multi-add";
 
 function formatRupiah(value: number) {
   return `Rp${Math.round(value).toLocaleString("id-ID")}`;
@@ -103,7 +103,7 @@ export default async function FinishedProductDetailPage({
       : null;
 
   const boundUpdate = updateFinishedProduct.bind(null, businessId, id);
-  const boundAddComponent = addRecipeComponent.bind(null, businessId, id);
+  const boundAddComponents = addRecipeComponentsBulk.bind(null, businessId, id);
 
   return (
     <div className="w-full max-w-3xl">
@@ -210,8 +210,8 @@ export default async function FinishedProductDetailPage({
         )}
 
         <div className="mt-4 border-t border-zinc-100 pt-4">
-          <RecipeEditor
-            action={boundAddComponent}
+          <RecipeDropdownMultiAdd
+            action={boundAddComponents}
             ingredients={ingredients ?? []}
             semiFinishedOptions={semiFinishedItems ?? []}
           />
